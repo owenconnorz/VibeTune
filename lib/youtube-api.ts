@@ -76,6 +76,21 @@ export class YouTubeAPI {
     },
   }
 
+  private getHeaders() {
+    return {
+      "Content-Type": "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Accept: "application/json, text/plain, */*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      Origin: "https://www.youtube.com",
+      Referer: "https://www.youtube.com/",
+      "X-YouTube-Client-Name": "1",
+      "X-YouTube-Client-Version": "2.20240101.00.00",
+    }
+  }
+
   constructor(apiKey?: string) {
     // Innertube doesn't require user API key, uses public key
   }
@@ -96,9 +111,7 @@ export class YouTubeAPI {
       const musicQuery = `${query} music OR song OR audio OR track OR official`
       const response = await fetch(`${this.baseUrl}/search?key=${this.apiKey}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(), // Using production-ready headers
         body: JSON.stringify({
           context: this.context,
           query: musicQuery,
@@ -145,9 +158,7 @@ export class YouTubeAPI {
 
       const response = await fetch(`${this.baseUrl}/browse?key=${this.apiKey}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(), // Using production-ready headers
         body: JSON.stringify({
           context: this.context,
           browseId: "FEmusic_trending",
@@ -183,9 +194,7 @@ export class YouTubeAPI {
     try {
       const response = await fetch(`${this.baseUrl}/browse?key=${this.apiKey}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: this.getHeaders(), // Using production-ready headers
         body: JSON.stringify({
           context: this.context,
           browseId: `VL${playlistId}`,

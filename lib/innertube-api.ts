@@ -32,11 +32,34 @@ export class InnertubeAPI {
   private context: InnertubeContext = {
     client: {
       clientName: "WEB",
-      clientVersion: "2.20240101.00.00",
+      clientVersion: "2.20240820.01.00",
       hl: "en",
       gl: "US",
       utcOffsetMinutes: 0,
     },
+  }
+
+  private getHeaders(): Record<string, string> {
+    return {
+      "Content-Type": "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
+      Accept: "application/json, text/plain, */*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      Origin: "https://www.youtube.com",
+      Referer: "https://www.youtube.com/",
+      "Sec-Ch-Ua": '"Not)A;Brand";v="99", "Google Chrome";v="127", "Chromium";v="127"',
+      "Sec-Ch-Ua-Mobile": "?0",
+      "Sec-Ch-Ua-Platform": '"Windows"',
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "cors",
+      "Sec-Fetch-Site": "same-origin",
+      "X-Goog-Visitor-Id": "CgtVcVJzVUJqTVBuWSiW8rq2BjIKCgJVUxIEGgAgOA%3D%3D",
+      "X-Youtube-Bootstrap-Logged-In": "false",
+      "X-Youtube-Client-Name": "1",
+      "X-Youtube-Client-Version": "2.20240820.01.00",
+    }
   }
 
   async searchMusic(query: string, maxResults = 20): Promise<InnertubeSearchResult> {
@@ -46,10 +69,7 @@ export class InnertubeAPI {
       const musicQuery = `${query} music OR song OR audio OR track OR official`
       const response = await fetch(`${this.baseUrl}/search?key=${this.apiKey}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify({
           context: this.context,
           query: musicQuery,
@@ -84,10 +104,7 @@ export class InnertubeAPI {
 
       const response = await fetch(`${this.baseUrl}/browse?key=${this.apiKey}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify({
           context: this.context,
           browseId: "FEmusic_trending",
@@ -115,10 +132,7 @@ export class InnertubeAPI {
 
       const response = await fetch(`${this.baseUrl}/browse?key=${this.apiKey}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
+        headers: this.getHeaders(),
         body: JSON.stringify({
           context: this.context,
           browseId: `VL${playlistId}`,

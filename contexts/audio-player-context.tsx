@@ -398,9 +398,19 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     }
 
     const videoId = state.currentTrack.id
-    if (!videoId || typeof videoId !== "string" || videoId.length < 10) {
+
+    if (!videoId || typeof videoId !== "string") {
       console.error("[v0] Invalid video ID:", videoId)
       dispatch({ type: "SET_ERROR", payload: "Invalid video ID" })
+      return
+    }
+
+    // Check if this is a sample/fallback track
+    if (videoId.startsWith("default") || videoId.length < 10) {
+      console.log("[v0] Sample track detected, cannot play:", videoId)
+      dispatch({ type: "SET_ERROR", payload: "Sample track - real music not available" })
+      dispatch({ type: "SET_LOADING", payload: false })
+      dispatch({ type: "PAUSE" })
       return
     }
 
