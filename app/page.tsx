@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Bell, Search, MoreVertical, Home, Compass, Library, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -19,7 +19,7 @@ export default function OpenTunePage() {
   const router = useRouter()
   const { user } = useAuth()
   const { syncData } = useSync()
-  const { playTrack, playQueue } = useAudioPlayer()
+  const { playTrack, playQueue, state } = useAudioPlayer() // Added state to access current track
   const {
     songs: trendingSongs,
     loading: trendingLoading,
@@ -50,9 +50,21 @@ export default function OpenTunePage() {
     morningError,
   })
 
+  console.log("[v0] Current track:", state.currentTrack?.title || "None")
+
+  useEffect(() => {
+    if (trendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
+      console.log("[v0] Auto-setting first trending song as current track for theme testing")
+      const firstTrack = convertToTrack(trendingSongs[0])
+      playTrack(firstTrack)
+    }
+  }, [trendingSongs, state.currentTrack, trendingLoading])
+
   const handlePlaySong = (song: any, songList: any[]) => {
+    console.log("[v0] Playing song:", song.title, "from list of", songList.length, "songs") // Added debug logging
     const tracks = songList.map(convertToTrack)
     const startIndex = songList.findIndex((s) => s.id === song.id)
+    console.log("[v0] Starting playback at index:", startIndex) // Added debug logging
     playQueue(tracks, startIndex)
   }
 
@@ -225,6 +237,7 @@ export default function OpenTunePage() {
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
                           "/placeholder.svg" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
@@ -259,6 +272,7 @@ export default function OpenTunePage() {
                           morningBoostSongs[3]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
                           "/placeholder.svg" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -292,6 +306,7 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg" ||
                           "/placeholder.svg"
                         }

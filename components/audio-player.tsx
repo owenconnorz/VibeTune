@@ -1,16 +1,55 @@
 "use client"
 
-import { Play, Pause, SkipForward, SkipBack, Volume2, VolumeX } from "lucide-react"
+import type React from "react"
+
+import { Play, Pause, SkipForward, Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
-import { useState } from "react"
+import { useTheme } from "@/contexts/theme-context"
+import { useState, useCallback } from "react"
 import { FullScreenPlayer } from "./full-screen-player"
 
 export function AudioPlayer() {
-  const { state, togglePlay, nextTrack, previousTrack, seekTo, setVolume } = useAudioPlayer()
+  const { state, togglePlay, nextTrack, seekTo, setVolume } = useAudioPlayer()
+  const { colors } = useTheme()
   const [showVolumeSlider, setShowVolumeSlider] = useState(false)
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false)
+  const [touchStart, setTouchStart] = useState<{ y: number; time: number } | null>(null)
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    setTouchStart({
+      y: touch.clientY,
+      time: Date.now(),
+    })
+  }, [])
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchStart) return
+
+      const touch = e.changedTouches[0]
+      const deltaY = touchStart.y - touch.clientY
+      const deltaTime = Date.now() - touchStart.time
+      const velocity = Math.abs(deltaY) / deltaTime
+
+      if (deltaY > 50 && velocity > 0.3) {
+        console.log("[v0] Mini player swipe up detected, opening full-screen player")
+        setIsFullScreenOpen(true)
+      }
+
+      setTouchStart(null)
+    },
+    [touchStart],
+  )
+
+  const handleTouchCancel = useCallback(() => {
+    setTouchStart(null)
+  }, [])
+
+  console.log("[v0] Mini player colors:", colors)
+  console.log("[v0] Current track:", state.currentTrack?.title, "Thumbnail:", state.currentTrack?.thumbnail)
 
   if (!state.currentTrack) {
     return null
@@ -26,12 +65,23 @@ export function AudioPlayer() {
 
   return (
     <>
-      <div className="fixed bottom-16 left-0 right-0 bg-zinc-800 border-t border-zinc-700">
+      <div
+        className="fixed bottom-16 left-0 right-0 border-t border-zinc-700 transition-all duration-500"
+        style={{
+          background: colors.primary
+            ? `linear-gradient(135deg, ${colors.primary}dd, ${colors.secondary || colors.primary}dd)`
+            : undefined,
+          backdropFilter: "blur(10px)",
+        }}
+      >
         {/* Progress Bar */}
-        <div className="w-full bg-zinc-700 h-1">
+        <div className="w-full bg-black/20 h-1">
           <div
-            className="bg-yellow-400 h-full transition-all duration-300"
-            style={{ width: `${progressPercentage}%` }}
+            className="h-full transition-all duration-300"
+            style={{
+              width: `${progressPercentage}%`,
+              backgroundColor: colors.accent || "#facc15",
+            }}
           />
         </div>
 
@@ -39,17 +89,20 @@ export function AudioPlayer() {
         <div className="flex items-center gap-4 p-4">
           {/* Track Info */}
           <div
-            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer touch-none"
             onClick={() => setIsFullScreenOpen(true)}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchCancel}
           >
             <img
               src={state.currentTrack.thumbnail || "/placeholder.svg"}
               alt={`${state.currentTrack.title} album cover`}
-              className="w-12 h-12 rounded-lg object-cover"
+              className="w-12 h-12 rounded-lg object-cover shadow-lg"
             />
             <div className="min-w-0 flex-1">
-              <h3 className="text-white font-semibold truncate">{state.currentTrack.title}</h3>
-              <p className="text-gray-400 text-sm truncate">{state.currentTrack.artist}</p>
+              <h3 className="text-white font-semibold truncate drop-shadow-sm">{state.currentTrack.title}</h3>
+              <p className="text-white/70 text-sm truncate drop-shadow-sm">{state.currentTrack.artist}</p>
             </div>
           </div>
 
@@ -58,37 +111,27 @@ export function AudioPlayer() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:text-yellow-400"
-              onClick={previousTrack}
-              disabled={state.currentIndex <= 0}
-            >
-              <SkipBack className="w-5 h-5" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20"
+              className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 backdrop-blur-sm"
               onClick={togglePlay}
               disabled={state.isLoading}
             >
               {state.isLoading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : state.isPlaying ? (
-                <Pause className="w-5 h-5" />
+                <Pause className="w-5 h-5 drop-shadow-sm" />
               ) : (
-                <Play className="w-5 h-5" />
+                <Play className="w-5 h-5 drop-shadow-sm" />
               )}
             </Button>
 
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:text-yellow-400"
+              className="text-white hover:text-white/80 hover:bg-white/10"
               onClick={nextTrack}
               disabled={state.currentIndex >= state.queue.length - 1}
             >
-              <SkipForward className="w-5 h-5" />
+              <SkipForward className="w-5 h-5 drop-shadow-sm" />
             </Button>
           </div>
 
@@ -97,14 +140,18 @@ export function AudioPlayer() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:text-yellow-400"
+              className="text-white hover:text-white/80 hover:bg-white/10"
               onClick={() => setShowVolumeSlider(!showVolumeSlider)}
             >
-              {state.volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+              {state.volume === 0 ? (
+                <VolumeX className="w-5 h-5 drop-shadow-sm" />
+              ) : (
+                <Volume2 className="w-5 h-5 drop-shadow-sm" />
+              )}
             </Button>
 
             {showVolumeSlider && (
-              <div className="absolute bottom-full right-0 mb-2 bg-zinc-700 rounded-lg p-3 w-32">
+              <div className="absolute bottom-full right-0 mb-2 bg-black/50 backdrop-blur-md rounded-lg p-3 w-32 border border-white/10">
                 <Slider
                   value={[state.volume * 100]}
                   onValueChange={(value) => setVolume(value[0] / 100)}
@@ -115,17 +162,12 @@ export function AudioPlayer() {
               </div>
             )}
           </div>
-
-          {/* Time Display */}
-          <div className="text-xs text-gray-400 font-mono">
-            {formatTime(state.currentTime)} / {formatTime(state.duration)}
-          </div>
         </div>
 
         {/* Error Display */}
         {state.error && (
           <div className="px-4 pb-2">
-            <p className="text-red-400 text-xs">{state.error}</p>
+            <p className="text-red-300 text-xs drop-shadow-sm">{state.error}</p>
           </div>
         )}
       </div>

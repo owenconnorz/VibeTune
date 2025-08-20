@@ -43,10 +43,9 @@ export async function extractColorsFromImage(imageUrl: string): Promise<Extracte
 }
 
 function analyzeImageColors(data: Uint8ClampedArray): ExtractedColors {
-  const colorCounts: { [key: string]: number } = {}
-  const step = 4 * 10 // Sample every 10th pixel for performance
+  const colorCounts: { [key: string]: { count: number; r: number; g: number; b: number; saturation: number } } = {}
+  const step = 4 * 8 // Sample every 8th pixel for better coverage
 
-  // Count color frequencies
   for (let i = 0; i < data.length; i += step) {
     const r = data[i]
     const g = data[i + 1]
@@ -56,47 +55,73 @@ function analyzeImageColors(data: Uint8ClampedArray): ExtractedColors {
     // Skip transparent pixels
     if (alpha < 128) continue
 
-    // Group similar colors
-    const key = `${Math.floor(r / 32) * 32},${Math.floor(g / 32) * 32},${Math.floor(b / 32) * 32}`
-    colorCounts[key] = (colorCounts[key] || 0) + 1
+    // Calculate brightness and saturation
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000
+    const max = Math.max(r, g, b)
+    const min = Math.min(r, g, b)
+    const saturation = max === 0 ? 0 : (max - min) / max
+
+    // Skip very dark colors (brightness < 50) and very unsaturated colors
+    if (brightness < 50 || saturation < 0.2) continue
+
+    // Group similar colors with less precision loss
+    const key = `${Math.floor(r / 16) * 16},${Math.floor(g / 16) * 16},${Math.floor(b / 16) * 16}`
+
+    if (!colorCounts[key]) {
+      colorCounts[key] = { count: 0, r, g, b, saturation }
+    }
+    colorCounts[key].count += 1
   }
 
-  // Get most frequent colors
+  // Sort by a combination of frequency and saturation (prioritize vibrant colors)
   const sortedColors = Object.entries(colorCounts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
-    .map(([color]) => color.split(",").map(Number))
+    .sort(([, a], [, b]) => b.count * b.saturation - a.count * a.saturation)
+    .slice(0, 8)
+    .map(([, colorData]) => [colorData.r, colorData.g, colorData.b])
 
   if (sortedColors.length === 0) {
+    console.log("[v0] No vibrant colors found, using default colors")
     return getDefaultColors()
   }
 
-  // Find dominant color
-  const dominantColor = sortedColors[0]
-  const [r, g, b] = dominantColor
+  // Find the most vibrant color as primary
+  const primaryColor = sortedColors[0]
+  const [r, g, b] = primaryColor
 
-  // Create color variations
+  console.log(`[v0] Extracted primary color: rgb(${r}, ${g}, ${b})`)
+
+  // Create more distinct color variations
   const primary = `rgb(${r}, ${g}, ${b})`
-  const secondary = `rgb(${Math.max(0, r - 40)}, ${Math.max(0, g - 40)}, ${Math.max(0, b - 40)})`
-  const accent = `rgb(${Math.min(255, r + 60)}, ${Math.min(255, g + 60)}, ${Math.min(255, b + 60)})`
 
-  // Create dark background based on dominant color
-  const backgroundR = Math.max(10, Math.min(40, r * 0.15))
-  const backgroundG = Math.max(10, Math.min(40, g * 0.15))
-  const backgroundB = Math.max(10, Math.min(40, b * 0.15))
+  // Secondary: darker version
+  const secondary = `rgb(${Math.max(20, r - 60)}, ${Math.max(20, g - 60)}, ${Math.max(20, b - 60)})`
+
+  // Accent: brighter/more saturated version
+  const accentR = Math.min(255, r + 80)
+  const accentG = Math.min(255, g + 80)
+  const accentB = Math.min(255, b + 80)
+  const accent = `rgb(${accentR}, ${accentG}, ${accentB})`
+
+  // Create complementary background
+  const backgroundR = Math.max(15, Math.min(50, r * 0.2))
+  const backgroundG = Math.max(15, Math.min(50, g * 0.2))
+  const backgroundB = Math.max(15, Math.min(50, b * 0.2))
   const background = `rgb(${backgroundR}, ${backgroundG}, ${backgroundB})`
 
   // Ensure good contrast for text
   const brightness = (r * 299 + g * 587 + b * 114) / 1000
-  const foreground = brightness > 128 ? "#000000" : "#ffffff"
+  const foreground = brightness > 140 ? "#000000" : "#ffffff"
 
-  return {
+  const colors = {
     primary,
     secondary,
     accent,
     background,
     foreground,
   }
+
+  console.log("[v0] Final extracted colors:", colors)
+  return colors
 }
 
 function getDefaultColors(): ExtractedColors {

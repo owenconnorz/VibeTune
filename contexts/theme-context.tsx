@@ -24,13 +24,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isTransitioning, setIsTransitioning] = useState(false)
 
   useEffect(() => {
-    if (!state.currentTrack?.thumbnail) return
+    console.log(
+      "[v0] Theme: Current track changed:",
+      state.currentTrack?.title,
+      "Thumbnail:",
+      state.currentTrack?.thumbnail,
+    )
+
+    if (!state.currentTrack?.thumbnail) {
+      console.log("[v0] Theme: No thumbnail available, skipping color extraction")
+      return
+    }
 
     const updateTheme = async () => {
+      console.log("[v0] Theme: Starting color extraction for:", state.currentTrack.thumbnail)
       setIsTransitioning(true)
 
       try {
         const newColors = await extractColorsFromImage(state.currentTrack.thumbnail)
+        console.log("[v0] Theme: Extracted colors:", newColors)
 
         // Apply colors to CSS custom properties for smooth transitions
         const root = document.documentElement
@@ -40,9 +52,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         root.style.setProperty("--theme-background", newColors.background)
         root.style.setProperty("--theme-foreground", newColors.foreground)
 
+        console.log("[v0] Theme: Applied CSS custom properties")
         setColors(newColors)
       } catch (error) {
-        console.error("Failed to extract colors:", error)
+        console.error("[v0] Theme: Failed to extract colors:", error)
       } finally {
         setTimeout(() => setIsTransitioning(false), 500)
       }
