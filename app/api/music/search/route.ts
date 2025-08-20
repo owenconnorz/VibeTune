@@ -25,56 +25,46 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const apiKey = process.env.YOUTUBE_API_KEY
+    const youtube = createYouTubeAPI()
 
-    if (!apiKey) {
-      console.log("[v0] YouTube API key not configured, using fallback search data for query:", query)
+    console.log("[v0] Using Innertube API to search for:", query)
+    const results = await youtube.searchMusic(query, maxResults)
+    console.log("[v0] Innertube API returned:", results.videos?.length || 0, "results for:", query)
+
+    if (results.videos && results.videos.length > 0) {
+      musicCache.set(cacheKey, results.videos, 20 * 60 * 1000) // 20 minutes for real data
+      return NextResponse.json({ ...results, source: "innertube", query })
+    } else {
+      // If no results from Innertube, use fallback
+      console.log("[v0] No results from Innertube, using fallback search data for query:", query)
       const queryLower = query.toLowerCase()
-      let results =
+      let fallbackResults =
         fallbackSearchResults[queryLower] || fallbackSearchResults.default || fallbackSearchResults.pop || []
 
       // If no specific match, try partial matching
-      if (results.length === 0) {
+      if (fallbackResults.length === 0) {
         const partialMatch = Object.keys(fallbackSearchResults).find(
           (key) => key.includes(queryLower) || queryLower.includes(key),
         )
         if (partialMatch) {
-          results = fallbackSearchResults[partialMatch]
+          fallbackResults = fallbackSearchResults[partialMatch]
         }
       }
 
-      if (results.length > 0) {
-        musicCache.set(cacheKey, results, 10 * 60 * 1000)
+      if (fallbackResults.length > 0) {
+        musicCache.set(cacheKey, fallbackResults, 10 * 60 * 1000) // 10 minutes for fallback
       }
 
-      console.log("[v0] Returning fallback results:", results.length, "items for query:", query)
+      console.log("[v0] Returning fallback results:", fallbackResults.length, "items for query:", query)
       return NextResponse.json({
-        videos: results.slice(0, maxResults),
+        videos: fallbackResults.slice(0, maxResults),
         source: "fallback",
         query,
       })
     }
-
-    const youtube = createYouTubeAPI(apiKey)
-
-    console.log("[v0] Using YouTube API to search for:", query)
-    const results = await youtube.searchMusic(query, maxResults)
-    console.log("[v0] YouTube API returned:", results.videos?.length || 0, "results for:", query)
-
-    if (results.videos && results.videos.length > 0) {
-      musicCache.set(cacheKey, results.videos, 20 * 60 * 1000)
-    }
-
-    return NextResponse.json({ ...results, source: "youtube", query })
   } catch (error) {
     console.error("[v0] Search API error:", error)
-
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    if (errorMessage.includes("quota")) {
-      console.log("[v0] Search API quota exceeded, using fallback data")
-    } else {
-      console.log("[v0] Search API error, falling back to mock data")
-    }
+    console.log("[v0] Innertube API error, falling back to mock data")
 
     const query = new URL(request.url).searchParams.get("q") || ""
     const maxResults = Number.parseInt(new URL(request.url).searchParams.get("maxResults") || "20")
@@ -93,7 +83,7 @@ export async function GET(request: NextRequest) {
 
     const cacheKey = getCacheKey.search(query)
     if (results.length > 0) {
-      musicCache.set(cacheKey, results, 5 * 60 * 1000)
+      musicCache.set(cacheKey, results, 5 * 60 * 1000) // 5 minutes for error fallback
     }
 
     return NextResponse.json({

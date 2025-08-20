@@ -19,36 +19,32 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const apiKey = process.env.YOUTUBE_API_KEY
+    console.log("[v0] Using Innertube API to fetch trending music")
+    const youtube = createYouTubeAPI()
+    const videos = await youtube.getTrendingMusic(maxResults)
+    console.log("[v0] Innertube API returned:", videos?.length || 0, "trending videos")
 
-    if (!apiKey) {
-      console.log("[v0] YouTube API key not configured, using fallback data")
+    if (videos && videos.length > 0) {
+      musicCache.set(cacheKey, videos, 30 * 60 * 1000) // 30 minutes for real data
+      return NextResponse.json({ videos, source: "innertube" })
+    } else {
+      // If no results from Innertube, use fallback
+      console.log("[v0] No results from Innertube, using fallback data")
       const fallbackData = fallbackTrendingMusic.slice(0, maxResults)
-      musicCache.set(cacheKey, fallbackData, 5 * 60 * 1000) // 5 minutes for fallback
+      musicCache.set(cacheKey, fallbackData, 10 * 60 * 1000) // 10 minutes for fallback
       return NextResponse.json({
         videos: fallbackData,
         source: "fallback",
       })
     }
-
-    console.log("[v0] Using YouTube API to fetch trending music")
-    const youtube = createYouTubeAPI(apiKey)
-    const videos = await youtube.getTrendingMusic(maxResults)
-    console.log("[v0] YouTube API returned:", videos?.length || 0, "trending videos")
-
-    if (videos && videos.length > 0) {
-      musicCache.set(cacheKey, videos, 30 * 60 * 1000) // 30 minutes for real data
-    }
-
-    return NextResponse.json({ videos, source: "youtube" })
   } catch (error) {
     console.error("[v0] Trending API error:", error)
-    console.log("[v0] API error, falling back to mock data")
+    console.log("[v0] Innertube API error, falling back to mock data")
     const maxResults = 20
     const fallbackData = fallbackTrendingMusic.slice(0, maxResults)
 
     const cacheKey = getCacheKey.trending()
-    musicCache.set(cacheKey, fallbackData, 2 * 60 * 1000) // 2 minutes for error fallback
+    musicCache.set(cacheKey, fallbackData, 5 * 60 * 1000) // 5 minutes for error fallback
 
     return NextResponse.json({
       videos: fallbackData,

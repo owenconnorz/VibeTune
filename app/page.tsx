@@ -41,32 +41,95 @@ export default function OpenTunePage() {
     duration: song.duration,
   })
 
-  console.log("[v0] Homepage data state:", {
+  console.log("[v0] 🎵 INNERTUBE API VALIDATION - Homepage data state:", {
     trendingSongs: trendingSongs.length,
     trendingLoading,
-    trendingError,
+    trendingError: trendingError ? `ERROR: ${trendingError}` : null,
     morningBoostSongs: morningBoostSongs.length,
     morningLoading,
-    morningError,
+    morningError: morningError ? `ERROR: ${morningError}` : null,
+    timestamp: new Date().toISOString(),
   })
+
+  if (trendingSongs.length > 0) {
+    console.log("[v0] 🎵 INNERTUBE TRENDING SAMPLE:", {
+      firstSong: {
+        id: trendingSongs[0].id,
+        title: trendingSongs[0].title,
+        artist: trendingSongs[0].artist || trendingSongs[0].channelTitle,
+        thumbnail: trendingSongs[0].thumbnail ? "✅ Has thumbnail" : "❌ No thumbnail",
+        duration: trendingSongs[0].duration,
+      },
+      totalSongs: trendingSongs.length,
+      apiSource: "Innertube API",
+    })
+  }
+
+  if (morningBoostSongs.length > 0) {
+    console.log("[v0] 🎵 INNERTUBE MORNING BOOST SAMPLE:", {
+      firstSong: {
+        id: morningBoostSongs[0].id,
+        title: morningBoostSongs[0].title,
+        artist: morningBoostSongs[0].artist || morningBoostSongs[0].channelTitle,
+        thumbnail: morningBoostSongs[0].thumbnail ? "✅ Has thumbnail" : "❌ No thumbnail",
+        duration: morningBoostSongs[0].duration,
+      },
+      totalSongs: morningBoostSongs.length,
+      apiSource: "Innertube API",
+    })
+  }
 
   console.log("[v0] Current track:", state.currentTrack?.title || "None")
 
   useEffect(() => {
     if (trendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
-      console.log("[v0] Auto-setting first trending song as current track for theme testing")
+      console.log("[v0] 🎵 INNERTUBE VALIDATION: Auto-setting first trending song as current track")
+      console.log("[v0] 🎵 Selected track for theme:", {
+        title: trendingSongs[0].title,
+        artist: trendingSongs[0].artist || trendingSongs[0].channelTitle,
+        thumbnail: trendingSongs[0].thumbnail,
+        source: "Innertube API",
+      })
       const firstTrack = convertToTrack(trendingSongs[0])
       playTrack(firstTrack)
     }
   }, [trendingSongs, state.currentTrack, trendingLoading])
 
   const handlePlaySong = (song: any, songList: any[]) => {
-    console.log("[v0] Playing song:", song.title, "from list of", songList.length, "songs") // Added debug logging
+    console.log("[v0] 🎵 INNERTUBE PLAYBACK: Playing song:", song.title, "from list of", songList.length, "songs")
+    console.log("[v0] 🎵 Song details:", {
+      id: song.id,
+      title: song.title,
+      artist: song.artist || song.channelTitle,
+      thumbnail: song.thumbnail ? "✅ Has thumbnail" : "❌ No thumbnail",
+      duration: song.duration,
+      source: "Innertube API",
+    })
     const tracks = songList.map(convertToTrack)
     const startIndex = songList.findIndex((s) => s.id === song.id)
-    console.log("[v0] Starting playback at index:", startIndex) // Added debug logging
+    console.log("[v0] 🎵 Starting playback at index:", startIndex)
     playQueue(tracks, startIndex)
   }
+
+  useEffect(() => {
+    const logApiPerformance = () => {
+      console.log("[v0] 🎵 INNERTUBE API PERFORMANCE METRICS:", {
+        trendingLoaded: !trendingLoading && trendingSongs.length > 0,
+        morningBoostLoaded: !morningLoading && morningBoostSongs.length > 0,
+        totalSongsLoaded: trendingSongs.length + morningBoostSongs.length,
+        hasErrors: !!(trendingError || morningError),
+        loadingState: {
+          trending: trendingLoading ? "Loading..." : "Complete",
+          morningBoost: morningLoading ? "Loading..." : "Complete",
+        },
+        timestamp: new Date().toISOString(),
+      })
+    }
+
+    if (!trendingLoading && !morningLoading) {
+      logApiPerformance()
+    }
+  }, [trendingLoading, morningLoading, trendingSongs.length, morningBoostSongs.length, trendingError, morningError])
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
@@ -237,7 +300,6 @@ export default function OpenTunePage() {
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
                           "/placeholder.svg" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
@@ -272,7 +334,6 @@ export default function OpenTunePage() {
                           morningBoostSongs[3]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
                           "/placeholder.svg" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -306,7 +367,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
