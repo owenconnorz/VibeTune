@@ -38,20 +38,42 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log("[v0] Using YouTube API to search for:", query)
     const youtube = createYouTubeAPI(apiKey)
+
+    console.log("[v0] Using YouTube API to search for:", query)
     const results = await youtube.searchMusic(query, maxResults)
     console.log("[v0] YouTube API returned:", results.videos?.length || 0, "results for:", query)
 
     return NextResponse.json({ ...results, source: "youtube", query })
   } catch (error) {
     console.error("[v0] Search API error:", error)
-    console.log("[v0] Search API error, falling back to mock data")
+
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    if (errorMessage.includes("quota")) {
+      console.log("[v0] Search API quota exceeded, using fallback data")
+    } else {
+      console.log("[v0] Search API error, falling back to mock data")
+    }
+
+    const query = new URL(request.url).searchParams.get("q") || ""
     const maxResults = Number.parseInt(new URL(request.url).searchParams.get("maxResults") || "20")
-    const results = fallbackSearchResults.default || []
+    const queryLower = query.toLowerCase()
+
+    let results = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
+
+    if (results.length === 0) {
+      const partialMatch = Object.keys(fallbackSearchResults).find(
+        (key) => key.includes(queryLower) || queryLower.includes(key),
+      )
+      if (partialMatch) {
+        results = fallbackSearchResults[partialMatch]
+      }
+    }
+
     return NextResponse.json({
       videos: results.slice(0, maxResults),
       source: "fallback_error",
+      query,
     })
   }
 }

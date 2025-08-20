@@ -2,6 +2,93 @@
 
 const YOUTUBE_API_BASE_URL = "https://www.googleapis.com/youtube/v3"
 
+interface CacheEntry {
+  data: any
+  timestamp: number
+  ttl: number
+}
+
+class APICache {
+  private cache = new Map<string, CacheEntry>()
+  private readonly DEFAULT_TTL = 30 * 60 * 1000 // 30 minutes
+
+  set(key: string, data: any, ttl = this.DEFAULT_TTL) {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    })
+  }
+
+  get(key: string): any | null {
+    const entry = this.cache.get(key)
+    if (!entry) return null
+
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.cache.delete(key)
+      return null
+    }
+
+    return entry.data
+  }
+
+  clear() {
+    this.cache.clear()
+  }
+}
+
+// Global cache instance
+const apiCache = new APICache()
+
+class QuotaManager {
+  private quotaExceeded = false
+  private backoffUntil = 0
+  private backoffDelay = 60000 // Start with 1 minute
+
+  isQuotaExceeded(): boolean {
+    const now = Date.now()
+
+    if (this.quotaExceeded && now < this.backoffUntil) {
+      const remainingTime = Math.ceil((this.backoffUntil - now) / 1000)
+      console.log(`[v0] Quota still exceeded, ${remainingTime}s remaining in backoff`)
+      return true
+    }
+
+    if (now >= this.backoffUntil && this.quotaExceeded) {
+      console.log(`[v0] Backoff period ended, resetting quota status`)
+      this.quotaExceeded = false
+    }
+
+    return false
+  }
+
+  markQuotaExceeded() {
+    this.quotaExceeded = true
+    this.backoffUntil = Date.now() + this.backoffDelay
+    console.log(
+      `[v0] YouTube quota exceeded, backing off for ${this.backoffDelay / 1000} seconds until ${new Date(this.backoffUntil).toISOString()}`,
+    )
+    this.backoffDelay = Math.min(this.backoffDelay * 2, 3600000) // Max 1 hour
+  }
+
+  getStatus() {
+    return {
+      quotaExceeded: this.quotaExceeded,
+      backoffUntil: this.backoffUntil,
+      remainingTime: this.quotaExceeded ? Math.max(0, this.backoffUntil - Date.now()) : 0,
+    }
+  }
+
+  reset() {
+    console.log(`[v0] Resetting quota manager`)
+    this.quotaExceeded = false
+    this.backoffUntil = 0
+    this.backoffDelay = 60000
+  }
+}
+
+const quotaManager = new QuotaManager()
+
 export interface YouTubeVideo {
   id: string
   title: string
@@ -34,8 +121,26 @@ export class YouTubeAPI {
     this.apiKey = apiKey
   }
 
-  // Search for music videos
   async searchMusic(query: string, maxResults = 20): Promise<YouTubeSearchResult> {
+    const cacheKey = `search:${query}:${maxResults}`
+
+    // Check cache first
+    const cached = apiCache.get(cacheKey)
+    if (cached) {
+      console.log(`[v0] Using cached search results for: ${query}`)
+      return cached
+    }
+
+    const quotaStatus = quotaManager.getStatus()
+    console.log(`[v0] Quota status before search API call:`, quotaStatus)
+
+    if (quotaManager.isQuotaExceeded()) {
+      console.log(`[v0] YouTube quota exceeded, cannot search for: ${query}`)
+      throw new Error("YouTube API quota exceeded")
+    }
+
+    console.log(`[v0] Proceeding with YouTube API search for: ${query}`)
+
     try {
       const musicQuery = `${query} music OR song OR audio OR track OR official`
       const searchUrl = `${YOUTUBE_API_BASE_URL}/search?part=snippet&type=video&videoCategoryId=10&videoDefinition=any&videoDuration=medium&maxResults=${maxResults * 2}&q=${encodeURIComponent(musicQuery)}&key=${this.apiKey}`
@@ -44,6 +149,10 @@ export class YouTubeAPI {
       const searchData = await searchResponse.json()
 
       if (!searchResponse.ok) {
+        if (searchData.error?.message?.includes("quota")) {
+          console.log(`[v0] Quota exceeded error detected, marking quota as exceeded`)
+          quotaManager.markQuotaExceeded()
+        }
         throw new Error(`YouTube API error: ${searchData.error?.message || "Unknown error"}`)
       }
 
@@ -52,13 +161,23 @@ export class YouTubeAPI {
       // Get video details including duration and statistics
       const videoIds = filteredItems.map((item: any) => item.id.videoId).join(",")
       if (!videoIds) {
-        return { videos: [] }
+        const result = { videos: [] }
+        apiCache.set(cacheKey, result, 5 * 60 * 1000) // Cache empty results for 5 minutes
+        return result
       }
 
       const detailsUrl = `${YOUTUBE_API_BASE_URL}/videos?part=contentDetails,statistics&id=${videoIds}&key=${this.apiKey}`
 
       const detailsResponse = await fetch(detailsUrl)
       const detailsData = await detailsResponse.json()
+
+      if (!detailsResponse.ok) {
+        if (detailsData.error?.message?.includes("quota")) {
+          console.log(`[v0] Quota exceeded error detected, marking quota as exceeded`)
+          quotaManager.markQuotaExceeded()
+        }
+        throw new Error(`YouTube API error: ${detailsData.error?.message || "Unknown error"}`)
+      }
 
       const videos: YouTubeVideo[] = filteredItems.map((item: any, index: number) => {
         const details = detailsData.items[index]
@@ -73,18 +192,40 @@ export class YouTubeAPI {
         }
       })
 
-      return {
+      const result = {
         videos,
         nextPageToken: searchData.nextPageToken,
       }
+
+      // Cache successful results
+      apiCache.set(cacheKey, result)
+      return result
     } catch (error) {
       console.error("Error searching YouTube:", error)
       throw error
     }
   }
 
-  // Get trending music videos
   async getTrendingMusic(maxResults = 20): Promise<YouTubeVideo[]> {
+    const cacheKey = `trending:${maxResults}`
+
+    // Check cache first
+    const cached = apiCache.get(cacheKey)
+    if (cached) {
+      console.log(`[v0] Using cached trending music results`)
+      return cached
+    }
+
+    const quotaStatus = quotaManager.getStatus()
+    console.log(`[v0] Quota status before trending API call:`, quotaStatus)
+
+    if (quotaManager.isQuotaExceeded()) {
+      console.log(`[v0] YouTube quota exceeded, cannot fetch trending music`)
+      throw new Error("YouTube API quota exceeded")
+    }
+
+    console.log(`[v0] Proceeding with YouTube API trending music call`)
+
     try {
       const url = `${YOUTUBE_API_BASE_URL}/videos?part=snippet,contentDetails,statistics&chart=mostPopular&videoCategoryId=10&maxResults=${maxResults * 2}&regionCode=US&key=${this.apiKey}`
 
@@ -92,12 +233,16 @@ export class YouTubeAPI {
       const data = await response.json()
 
       if (!response.ok) {
+        if (data.error?.message?.includes("quota")) {
+          console.log(`[v0] Quota exceeded error detected, marking quota as exceeded`)
+          quotaManager.markQuotaExceeded()
+        }
         throw new Error(`YouTube API error: ${data.error?.message || "Unknown error"}`)
       }
 
       const filteredItems = this.filterMusicContent(data.items).slice(0, maxResults)
 
-      return filteredItems.map((item: any) => ({
+      const result = filteredItems.map((item: any) => ({
         id: item.id,
         title: item.snippet.title,
         channelTitle: item.snippet.channelTitle,
@@ -106,14 +251,30 @@ export class YouTubeAPI {
         viewCount: item.statistics.viewCount,
         publishedAt: item.snippet.publishedAt,
       }))
+
+      // Cache successful results for longer since trending changes less frequently
+      apiCache.set(cacheKey, result, 60 * 60 * 1000) // 1 hour
+      return result
     } catch (error) {
       console.error("Error fetching trending music:", error)
       throw error
     }
   }
 
-  // Get playlist videos
   async getPlaylistVideos(playlistId: string, maxResults = 50): Promise<YouTubeVideo[]> {
+    const cacheKey = `playlist:${playlistId}:${maxResults}`
+
+    const cached = apiCache.get(cacheKey)
+    if (cached) {
+      console.log(`[v0] Using cached playlist results for: ${playlistId}`)
+      return cached
+    }
+
+    if (quotaManager.isQuotaExceeded()) {
+      console.log(`[v0] YouTube quota exceeded, cannot fetch playlist: ${playlistId}`)
+      throw new Error("YouTube API quota exceeded")
+    }
+
     try {
       const url = `${YOUTUBE_API_BASE_URL}/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=${maxResults}&key=${this.apiKey}`
 
@@ -121,6 +282,9 @@ export class YouTubeAPI {
       const data = await response.json()
 
       if (!response.ok) {
+        if (data.error?.message?.includes("quota")) {
+          quotaManager.markQuotaExceeded()
+        }
         throw new Error(`YouTube API error: ${data.error?.message || "Unknown error"}`)
       }
 
@@ -131,7 +295,14 @@ export class YouTubeAPI {
       const detailsResponse = await fetch(detailsUrl)
       const detailsData = await detailsResponse.json()
 
-      return data.items.map((item: any, index: number) => {
+      if (!detailsResponse.ok) {
+        if (detailsData.error?.message?.includes("quota")) {
+          quotaManager.markQuotaExceeded()
+        }
+        throw new Error(`YouTube API error: ${detailsData.error?.message || "Unknown error"}`)
+      }
+
+      const result = data.items.map((item: any, index: number) => {
         const details = detailsData.items[index]
         return {
           id: item.snippet.resourceId.videoId,
@@ -143,6 +314,9 @@ export class YouTubeAPI {
           publishedAt: item.snippet.publishedAt,
         }
       })
+
+      apiCache.set(cacheKey, result)
+      return result
     } catch (error) {
       console.error("Error fetching playlist videos:", error)
       throw error
@@ -150,6 +324,10 @@ export class YouTubeAPI {
   }
 
   async getUserPlaylists(accessToken: string, maxResults = 25): Promise<YouTubePlaylist[]> {
+    if (quotaManager.isQuotaExceeded()) {
+      throw new Error("YouTube API quota exceeded")
+    }
+
     try {
       const url = `${YOUTUBE_API_BASE_URL}/playlists?part=snippet,contentDetails&mine=true&maxResults=${maxResults}`
 
@@ -162,6 +340,9 @@ export class YouTubeAPI {
       const data = await response.json()
 
       if (!response.ok) {
+        if (data.error?.message?.includes("quota")) {
+          quotaManager.markQuotaExceeded()
+        }
         throw new Error(`YouTube API error: ${data.error?.message || "Unknown error"}`)
       }
 
@@ -181,6 +362,10 @@ export class YouTubeAPI {
   }
 
   async getLikedVideos(accessToken: string, maxResults = 50): Promise<YouTubeVideo[]> {
+    if (quotaManager.isQuotaExceeded()) {
+      throw new Error("YouTube API quota exceeded")
+    }
+
     try {
       const url = `${YOUTUBE_API_BASE_URL}/videos?part=snippet,contentDetails,statistics&myRating=like&maxResults=${maxResults}`
 
@@ -193,6 +378,9 @@ export class YouTubeAPI {
       const data = await response.json()
 
       if (!response.ok) {
+        if (data.error?.message?.includes("quota")) {
+          quotaManager.markQuotaExceeded()
+        }
         throw new Error(`YouTube API error: ${data.error?.message || "Unknown error"}`)
       }
 
@@ -311,3 +499,9 @@ export class YouTubeAPI {
 
 // Create a singleton instance
 export const createYouTubeAPI = (apiKey: string) => new YouTubeAPI(apiKey)
+
+export const clearYouTubeCache = () => {
+  apiCache.clear()
+  quotaManager.reset()
+  console.log("[v0] YouTube API cache and quota manager cleared")
+}

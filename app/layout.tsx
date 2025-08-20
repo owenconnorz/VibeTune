@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { AudioPlayerProvider } from "@/contexts/audio-player-context"
 import { AuthProvider } from "@/contexts/auth-context"
 import { SyncProvider } from "@/contexts/sync-context"
+import { ThemeProvider } from "@/contexts/theme-context"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -32,7 +33,9 @@ html {
       <body>
         <AuthProvider>
           <SyncProvider>
-            <AudioPlayerProvider>{children}</AudioPlayerProvider>
+            <AudioPlayerProvider>
+              <ThemeProvider>{children}</ThemeProvider>
+            </AudioPlayerProvider>
           </SyncProvider>
         </AuthProvider>
       </body>

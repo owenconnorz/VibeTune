@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useCallback } from "react"
 import {
   Play,
   Pause,
@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
+import { useTheme } from "@/contexts/theme-context"
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -27,34 +28,71 @@ interface FullScreenPlayerProps {
 
 export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
   const { state, togglePlay, nextTrack, previousTrack, seekTo } = useAudioPlayer()
+  const { colors, isTransitioning } = useTheme()
   const [dragY, setDragY] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const startY = useRef(0)
+  const lastY = useRef(0)
+  const lastTime = useRef(0)
+  const velocity = useRef(0)
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    startY.current = e.touches[0].clientY
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
+    const touch = e.touches[0]
+    startY.current = touch.clientY
+    lastY.current = touch.clientY
+    lastTime.current = Date.now()
+    velocity.current = 0
     setIsDragging(true)
-  }
+  }, [])
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isDragging) return
+      e.preventDefault()
+
+      const touch = e.touches[0]
+      const currentY = touch.clientY
+      const deltaY = currentY - startY.current
+      const currentTime = Date.now()
+
+      // Calculate velocity for momentum
+      const timeDelta = currentTime - lastTime.current
+      if (timeDelta > 0) {
+        velocity.current = (currentY - lastY.current) / timeDelta
+      }
+
+      lastY.current = currentY
+      lastTime.current = currentTime
+
+      // Only allow downward swipe with minimum threshold
+      if (deltaY > 0) {
+        setDragY(Math.min(deltaY, window.innerHeight * 0.8))
+      }
+    },
+    [isDragging],
+  )
+
+  const handleTouchEnd = useCallback(() => {
     if (!isDragging) return
-    const currentY = e.touches[0].clientY
-    const deltaY = currentY - startY.current
-    if (deltaY > 0) {
-      // Only allow downward swipe
-      setDragY(deltaY)
-    }
-  }
 
-  const handleTouchEnd = () => {
-    if (dragY > 100) {
-      // Threshold for closing
+    const shouldClose = dragY > 100 || (dragY > 50 && velocity.current > 0.5)
+
+    if (shouldClose) {
       onClose()
     }
+
     setDragY(0)
     setIsDragging(false)
-  }
+    velocity.current = 0
+  }, [dragY, isDragging, onClose])
+
+  const handleTouchCancel = useCallback(() => {
+    setDragY(0)
+    setIsDragging(false)
+    velocity.current = 0
+  }, [])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -66,168 +104,174 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
 
   const progressPercentage = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0
 
+  const dynamicBackground = `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 50%, ${colors.accent} 100%)`
+
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 z-50 bg-gradient-to-b from-teal-500 via-emerald-400 to-orange-400 transition-transform duration-300 ${
-        isDragging ? "transition-none" : ""
-      } overflow-hidden`}
+      className={`fixed inset-0 z-50 overflow-hidden ${
+        isDragging ? "" : "transition-all duration-500 ease-out"
+      } ${isTransitioning ? "transition-all duration-500" : ""}`}
       style={{
+        background: dynamicBackground,
         transform: `translateY(${dragY}px)`,
-        opacity: isDragging ? Math.max(0.5, 1 - dragY / 300) : 1,
+        opacity: isDragging ? Math.max(0.7, 1 - dragY / 400) : 1,
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchCancel}
     >
-      <div className="flex items-center justify-center pt-8 sm:pt-12 pb-4 sm:pb-8 px-4">
-        <div className="text-center">
-          <h1 className="text-white text-lg sm:text-xl font-semibold">Now Playing</h1>
-          <p className="text-white/80 text-xs sm:text-sm mt-1">CHRONOLOGY</p>
+      <div className="touch-none select-none">
+        <div className="flex items-center justify-center pt-8 sm:pt-12 pb-4 sm:pb-8 px-4">
+          <div className="text-center">
+            <h1 className="text-white text-lg sm:text-xl font-semibold">Now Playing</h1>
+            <p className="text-white/80 text-xs sm:text-sm mt-1">CHRONOLOGY</p>
+          </div>
         </div>
-      </div>
 
-      {/* Drag Indicator */}
-      <div className="flex justify-center mb-4 sm:mb-8">
-        <div className="w-12 h-1 bg-white/30 rounded-full"></div>
-      </div>
+        {/* Drag Indicator */}
+        <div className="flex justify-center mb-4 sm:mb-8">
+          <div className="w-12 h-1 bg-white/30 rounded-full"></div>
+        </div>
 
-      <div className="flex justify-center px-4 sm:px-8 mb-6 sm:mb-8">
-        <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
-          <img
-            src={state.currentTrack.thumbnail || "/placeholder.svg"}
-            alt={`${state.currentTrack.title} album cover`}
-            className="w-full h-full object-cover"
-          />
-          {/* Overlay text effect like in the reference */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
-              {state.currentTrack.artist?.toUpperCase()}
+        <div className="flex justify-center px-4 sm:px-8 mb-6 sm:mb-8">
+          <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
+            <img
+              src={state.currentTrack.thumbnail || "/placeholder.svg"}
+              alt={`${state.currentTrack.title} album cover`}
+              className="w-full h-full object-cover"
+            />
+            {/* Overlay text effect like in the reference */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
+                {state.currentTrack.artist?.toUpperCase()}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="px-4 sm:px-8 mb-4 sm:mb-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-white text-xl sm:text-2xl font-bold mb-1 leading-tight line-clamp-2">
-              {state.currentTrack.title}
-            </h2>
-            <p className="text-white/80 text-base sm:text-lg truncate">{state.currentTrack.artist}</p>
+        <div className="px-4 sm:px-8 mb-4 sm:mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-white text-xl sm:text-2xl font-bold mb-1 leading-tight line-clamp-2">
+                {state.currentTrack.title}
+              </h2>
+              <p className="text-white/80 text-base sm:text-lg truncate">{state.currentTrack.artist}</p>
+            </div>
+            <div className="flex gap-2 sm:gap-3 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 sm:w-12 sm:h-12"
+              >
+                <Share className="w-4 h-4 sm:w-5 sm:h-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 sm:w-12 sm:h-12"
+              >
+                <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2 sm:gap-3 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 sm:w-12 sm:h-12"
-            >
-              <Share className="w-4 h-4 sm:w-5 sm:h-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 sm:w-12 sm:h-12"
-            >
-              <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
-            </Button>
+        </div>
+
+        <div className="px-4 sm:px-8 mb-6 sm:mb-6">
+          <div className="relative">
+            <Slider
+              value={[progressPercentage]}
+              onValueChange={(value) => {
+                const newTime = (value[0] / 100) * state.duration
+                seekTo(newTime)
+              }}
+              max={100}
+              step={0.1}
+              className="w-full [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 sm:[&_[role=slider]]:h-5 sm:[&_[role=slider]]:w-5"
+            />
+          </div>
+          <div className="flex justify-between mt-2">
+            <span className="text-white/60 text-sm">{formatTime(state.currentTime)}</span>
+            <span className="text-white/60 text-sm">{formatTime(state.duration)}</span>
           </div>
         </div>
-      </div>
 
-      <div className="px-4 sm:px-8 mb-6 sm:mb-6">
-        <div className="relative">
-          <Slider
-            value={[progressPercentage]}
-            onValueChange={(value) => {
-              const newTime = (value[0] / 100) * state.duration
-              seekTo(newTime)
-            }}
-            max={100}
-            step={0.1}
-            className="w-full [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 sm:[&_[role=slider]]:h-5 sm:[&_[role=slider]]:w-5"
-          />
+        <div className="flex items-center justify-center gap-4 sm:gap-6 px-4 sm:px-8 mb-6 sm:mb-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-14 h-14 sm:w-16 sm:h-16"
+            onClick={previousTrack}
+            disabled={state.currentIndex <= 0}
+          >
+            <SkipBack className="w-5 h-5 sm:w-6 sm:h-6" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white hover:text-white bg-white/20 hover:bg-white/30 rounded-full w-16 h-16 sm:w-20 sm:h-20"
+            onClick={togglePlay}
+            disabled={state.isLoading}
+          >
+            {state.isLoading ? (
+              <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : state.isPlaying ? (
+              <Pause className="w-6 h-6 sm:w-8 sm:h-8" />
+            ) : (
+              <Play className="w-6 h-6 sm:w-8 sm:h-8" />
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-14 h-14 sm:w-16 sm:h-16"
+            onClick={nextTrack}
+            disabled={state.currentIndex >= state.queue.length - 1}
+          >
+            <SkipForward className="w-5 h-5 sm:w-6 sm:h-6" />
+          </Button>
         </div>
-        <div className="flex justify-between mt-2">
-          <span className="text-white/60 text-sm">{formatTime(state.currentTime)}</span>
-          <span className="text-white/60 text-sm">{formatTime(state.duration)}</span>
+
+        <div className="flex items-center justify-between px-6 sm:px-8 pb-6 sm:pb-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
+          >
+            <List className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
+          >
+            <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
+          >
+            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
+          >
+            <Repeat className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
+          >
+            <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
+          </Button>
         </div>
-      </div>
-
-      <div className="flex items-center justify-center gap-4 sm:gap-6 px-4 sm:px-8 mb-6 sm:mb-8">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-14 h-14 sm:w-16 sm:h-16"
-          onClick={previousTrack}
-          disabled={state.currentIndex <= 0}
-        >
-          <SkipBack className="w-5 h-5 sm:w-6 sm:h-6" />
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white hover:text-white bg-white/20 hover:bg-white/30 rounded-full w-16 h-16 sm:w-20 sm:h-20"
-          onClick={togglePlay}
-          disabled={state.isLoading}
-        >
-          {state.isLoading ? (
-            <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : state.isPlaying ? (
-            <Pause className="w-6 h-6 sm:w-8 sm:h-8" />
-          ) : (
-            <Play className="w-6 h-6 sm:w-8 sm:h-8" />
-          )}
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-14 h-14 sm:w-16 sm:h-16"
-          onClick={nextTrack}
-          disabled={state.currentIndex >= state.queue.length - 1}
-        >
-          <SkipForward className="w-5 h-5 sm:w-6 sm:h-6" />
-        </Button>
-      </div>
-
-      <div className="flex items-center justify-between px-6 sm:px-8 pb-6 sm:pb-8">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
-        >
-          <List className="w-4 h-4 sm:w-5 sm:h-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
-        >
-          <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
-        >
-          <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
-        >
-          <Repeat className="w-4 h-4 sm:w-5 sm:h-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
-        >
-          <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
-        </Button>
       </div>
     </div>
   )
