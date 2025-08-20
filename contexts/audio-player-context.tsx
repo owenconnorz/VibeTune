@@ -309,7 +309,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         ],
       })
 
-      // Set action handlers for notification controls
       navigator.mediaSession.setActionHandler("play", () => {
         dispatch({ type: "PLAY" })
       })
@@ -318,12 +317,14 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         dispatch({ type: "PAUSE" })
       })
 
+      // Always register previoustrack handler
       navigator.mediaSession.setActionHandler("previoustrack", () => {
         if (state.currentIndex > 0) {
           dispatch({ type: "PREVIOUS_TRACK" })
         }
       })
 
+      // Always register nexttrack handler
       navigator.mediaSession.setActionHandler("nexttrack", () => {
         if (state.currentIndex < state.queue.length - 1) {
           dispatch({ type: "NEXT_TRACK" })
