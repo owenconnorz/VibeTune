@@ -71,7 +71,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
       ref={containerRef}
       className={`fixed inset-0 z-50 bg-gradient-to-b from-teal-500 via-emerald-400 to-orange-400 transition-transform duration-300 ${
         isDragging ? "transition-none" : ""
-      }`}
+      } overflow-hidden`}
       style={{
         transform: `translateY(${dragY}px)`,
         opacity: isDragging ? Math.max(0.5, 1 - dragY / 300) : 1,
@@ -80,22 +80,20 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header */}
-      <div className="flex items-center justify-center pt-12 pb-8">
+      <div className="flex items-center justify-center pt-8 sm:pt-12 pb-4 sm:pb-8 px-4">
         <div className="text-center">
-          <h1 className="text-white text-xl font-semibold">Now Playing</h1>
-          <p className="text-white/80 text-sm mt-1">CHRONOLOGY</p>
+          <h1 className="text-white text-lg sm:text-xl font-semibold">Now Playing</h1>
+          <p className="text-white/80 text-xs sm:text-sm mt-1">CHRONOLOGY</p>
         </div>
       </div>
 
       {/* Drag Indicator */}
-      <div className="flex justify-center mb-8">
+      <div className="flex justify-center mb-4 sm:mb-8">
         <div className="w-12 h-1 bg-white/30 rounded-full"></div>
       </div>
 
-      {/* Album Artwork */}
-      <div className="flex justify-center px-8 mb-8">
-        <div className="relative w-80 h-80 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="flex justify-center px-4 sm:px-8 mb-6 sm:mb-8">
+        <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
           <img
             src={state.currentTrack.thumbnail || "/placeholder.svg"}
             alt={`${state.currentTrack.title} album cover`}
@@ -103,41 +101,41 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
           />
           {/* Overlay text effect like in the reference */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-white text-6xl font-bold opacity-20 transform rotate-12">
+            <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
               {state.currentTrack.artist?.toUpperCase()}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Track Info */}
-      <div className="px-8 mb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <h2 className="text-white text-2xl font-bold mb-1">{state.currentTrack.title}</h2>
-            <p className="text-white/80 text-lg">{state.currentTrack.artist}</p>
+      <div className="px-4 sm:px-8 mb-4 sm:mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-white text-xl sm:text-2xl font-bold mb-1 leading-tight line-clamp-2">
+              {state.currentTrack.title}
+            </h2>
+            <p className="text-white/80 text-base sm:text-lg truncate">{state.currentTrack.artist}</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3 flex-shrink-0">
             <Button
               variant="ghost"
               size="icon"
-              className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12"
+              className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 sm:w-12 sm:h-12"
             >
-              <Share className="w-5 h-5" />
+              <Share className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-12 h-12"
+              className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 sm:w-12 sm:h-12"
             >
-              <Heart className="w-5 h-5" />
+              <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="px-8 mb-6">
+      <div className="px-4 sm:px-8 mb-6 sm:mb-6">
         <div className="relative">
           <Slider
             value={[progressPercentage]}
@@ -147,7 +145,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
             }}
             max={100}
             step={0.1}
-            className="w-full"
+            className="w-full [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 sm:[&_[role=slider]]:h-5 sm:[&_[role=slider]]:w-5"
           />
         </div>
         <div className="flex justify-between mt-2">
@@ -156,81 +154,79 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
         </div>
       </div>
 
-      {/* Main Controls */}
-      <div className="flex items-center justify-center gap-6 px-8 mb-8">
+      <div className="flex items-center justify-center gap-4 sm:gap-6 px-4 sm:px-8 mb-6 sm:mb-8">
         <Button
           variant="ghost"
           size="icon"
-          className="text-white hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-16 h-16"
+          className="text-white hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-14 h-14 sm:w-16 sm:h-16"
           onClick={previousTrack}
           disabled={state.currentIndex <= 0}
         >
-          <SkipBack className="w-6 h-6" />
+          <SkipBack className="w-5 h-5 sm:w-6 sm:h-6" />
         </Button>
 
         <Button
           variant="ghost"
           size="icon"
-          className="text-white hover:text-white bg-white/20 hover:bg-white/30 rounded-full w-20 h-20"
+          className="text-white hover:text-white bg-white/20 hover:bg-white/30 rounded-full w-16 h-16 sm:w-20 sm:h-20"
           onClick={togglePlay}
           disabled={state.isLoading}
         >
           {state.isLoading ? (
-            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
           ) : state.isPlaying ? (
-            <Pause className="w-8 h-8" />
+            <Pause className="w-6 h-6 sm:w-8 sm:h-8" />
           ) : (
-            <Play className="w-8 h-8" />
+            <Play className="w-6 h-6 sm:w-8 sm:h-8" />
           )}
         </Button>
 
         <Button
           variant="ghost"
           size="icon"
-          className="text-white hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-16 h-16"
+          className="text-white hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-14 h-14 sm:w-16 sm:h-16"
           onClick={nextTrack}
           disabled={state.currentIndex >= state.queue.length - 1}
         >
-          <SkipForward className="w-6 h-6" />
+          <SkipForward className="w-5 h-5 sm:w-6 sm:h-6" />
         </Button>
       </div>
 
-      {/* Bottom Controls */}
-      <div className="flex items-center justify-between px-8 pb-8">
+      <div className="flex items-center justify-between px-6 sm:px-8 pb-6 sm:pb-8">
         <Button
           variant="ghost"
           size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-12 h-12"
+          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
         >
-          <List className="w-5 h-5" />
+          <List className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-12 h-12"
+          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
         >
-          <Moon className="w-5 h-5" />
+          <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-12 h-12"
+          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
         >
-          <BarChart3 className="w-5 h-5" />
+          <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-12 h-12"
+          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
         >
-          <Repeat className="w-5 h-5" />
+          <Repeat className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
         <Button
           variant="ghost"
           size="icon"
-          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-12 h-12"
+          className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-10 h-10 sm:w-12 sm:h-12"
         >
-          <MoreHorizontal className="w-5 h-5" />
+          <MoreHorizontal className="w-4 h-4 sm:w-5 sm:h-5" />
         </Button>
       </div>
     </div>
