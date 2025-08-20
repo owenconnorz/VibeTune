@@ -66,7 +66,7 @@ export function AudioPlayer() {
   return (
     <>
       <div
-        className="fixed bottom-16 left-0 right-0 border-t border-zinc-700 transition-all duration-500"
+        className="fixed bottom-12 left-0 right-0 border-t border-zinc-700 transition-all duration-500"
         style={{
           background: colors.primary
             ? `linear-gradient(135deg, ${colors.primary}dd, ${colors.secondary || colors.primary}dd)`
@@ -75,7 +75,7 @@ export function AudioPlayer() {
         }}
       >
         {/* Progress Bar */}
-        <div className="w-full bg-black/20 h-1">
+        <div className="w-full bg-black/20 h-0.5">
           <div
             className="h-full transition-all duration-300"
             style={{
@@ -85,11 +85,10 @@ export function AudioPlayer() {
           />
         </div>
 
-        {/* Player Controls */}
-        <div className="flex items-center gap-4 p-4">
+        <div className="flex items-center gap-3 p-3">
           {/* Track Info */}
           <div
-            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer touch-none"
+            className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer touch-none"
             onClick={() => setIsFullScreenOpen(true)}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
@@ -98,60 +97,58 @@ export function AudioPlayer() {
             <img
               src={state.currentTrack.thumbnail || "/placeholder.svg"}
               alt={`${state.currentTrack.title} album cover`}
-              className="w-12 h-12 rounded-lg object-cover shadow-lg"
+              className="w-10 h-10 rounded-md object-cover shadow-lg"
             />
             <div className="min-w-0 flex-1">
-              <h3 className="text-white font-semibold truncate drop-shadow-sm">{state.currentTrack.title}</h3>
-              <p className="text-white/70 text-sm truncate drop-shadow-sm">{state.currentTrack.artist}</p>
+              <h3 className="text-white font-semibold truncate drop-shadow-sm text-sm">{state.currentTrack.title}</h3>
+              <p className="text-white/70 text-xs truncate drop-shadow-sm">{state.currentTrack.artist}</p>
             </div>
           </div>
 
-          {/* Playback Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 backdrop-blur-sm"
+              className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 backdrop-blur-sm w-8 h-8"
               onClick={togglePlay}
               disabled={state.isLoading}
             >
               {state.isLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : state.isPlaying ? (
-                <Pause className="w-5 h-5 drop-shadow-sm" />
+                <Pause className="w-4 h-4 drop-shadow-sm" />
               ) : (
-                <Play className="w-5 h-5 drop-shadow-sm" />
+                <Play className="w-4 h-4 drop-shadow-sm" />
               )}
             </Button>
 
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:text-white/80 hover:bg-white/10"
+              className="text-white hover:text-white/80 hover:bg-white/10 w-8 h-8"
               onClick={nextTrack}
               disabled={state.currentIndex >= state.queue.length - 1}
             >
-              <SkipForward className="w-5 h-5 drop-shadow-sm" />
+              <SkipForward className="w-4 h-4 drop-shadow-sm" />
             </Button>
           </div>
 
-          {/* Volume Control */}
           <div className="relative">
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:text-white/80 hover:bg-white/10"
+              className="text-white hover:text-white/80 hover:bg-white/10 w-8 h-8"
               onClick={() => setShowVolumeSlider(!showVolumeSlider)}
             >
               {state.volume === 0 ? (
-                <VolumeX className="w-5 h-5 drop-shadow-sm" />
+                <VolumeX className="w-4 h-4 drop-shadow-sm" />
               ) : (
-                <Volume2 className="w-5 h-5 drop-shadow-sm" />
+                <Volume2 className="w-4 h-4 drop-shadow-sm" />
               )}
             </Button>
 
             {showVolumeSlider && (
-              <div className="absolute bottom-full right-0 mb-2 bg-black/50 backdrop-blur-md rounded-lg p-3 w-32 border border-white/10">
+              <div className="absolute bottom-full right-0 mb-2 bg-black/50 backdrop-blur-md rounded-lg p-2 w-28 border border-white/10">
                 <Slider
                   value={[state.volume * 100]}
                   onValueChange={(value) => setVolume(value[0] / 100)}
@@ -166,7 +163,7 @@ export function AudioPlayer() {
 
         {/* Error Display */}
         {state.error && (
-          <div className="px-4 pb-2">
+          <div className="px-3 pb-1">
             <p className="text-red-300 text-xs drop-shadow-sm">{state.error}</p>
           </div>
         )}

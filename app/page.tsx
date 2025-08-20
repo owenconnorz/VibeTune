@@ -59,56 +59,56 @@ export default function OpenTunePage() {
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
       {/* Header */}
-      <header className="flex items-center justify-between p-4 bg-zinc-800">
+      <header className="flex items-center justify-between px-4 py-2 bg-zinc-800">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-purple-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">♪</span>
+          <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-purple-500 rounded-md flex items-center justify-center">
+            <span className="text-white font-bold text-xs">♪</span>
           </div>
-          <h1 className="text-xl font-semibold text-white">OpenTune</h1>
+          <h1 className="text-lg font-semibold text-white">OpenTune</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white">
-            <Bell className="w-5 h-5" />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white w-8 h-8">
+            <Bell className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-300 hover:text-white"
+            className="text-gray-300 hover:text-white w-8 h-8"
             onClick={() => setIsSearchOpen(true)}
           >
-            <Search className="w-5 h-5" />
+            <Search className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-300 hover:text-white"
+            className="text-gray-300 hover:text-white w-8 h-8"
             onClick={() => router.push("/settings")}
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-4 h-4" />
           </Button>
-          <Avatar className="w-8 h-8">
-            <AvatarImage src={user?.picture || "/diverse-profile-avatars.png"} />
+          <Avatar className="w-7 h-7">
+            <AvatarImage src={user?.picture || "/diverse-group-making-music.png"} />
             <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
           </Avatar>
         </div>
       </header>
 
       {/* Navigation Tabs */}
-      <nav className="flex gap-8 px-4 py-4 bg-zinc-800">
-        <button className="text-gray-300 hover:text-white font-medium">History</button>
-        <button className="text-gray-300 hover:text-white font-medium">Stats</button>
-        <button className="text-gray-300 hover:text-white font-medium relative">
+      <nav className="flex gap-6 px-4 py-2 bg-zinc-800 border-b border-zinc-700">
+        <button className="text-gray-300 hover:text-white font-medium text-sm">History</button>
+        <button className="text-gray-300 hover:text-white font-medium text-sm">Stats</button>
+        <button className="text-gray-300 hover:text-white font-medium text-sm relative">
           Liked
           {user && syncData.likedSongs.length > 0 && (
-            <span className="absolute -top-1 -right-2 bg-yellow-600 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            <span className="absolute -top-1 -right-2 bg-yellow-600 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
               {syncData.likedSongs.length > 99 ? "99+" : syncData.likedSongs.length}
             </span>
           )}
         </button>
-        <button className="text-gray-300 hover:text-white font-medium">Downloaded</button>
+        <button className="text-gray-300 hover:text-white font-medium text-sm">Downloaded</button>
       </nav>
 
-      <div className="px-4 pb-24">
+      <div className="px-4 pb-20">
         {/* User's Synced Content */}
         {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
           <section className="mb-8">
@@ -169,11 +169,6 @@ export default function OpenTunePage() {
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-yellow-400">Quick picks</h2>
-            <div className="flex items-center gap-2">
-              {!trendingLoading && trendingSongs.length > 0 && (
-                <AddToPlaylistDialog songs={trendingSongs} isAddAll={true} />
-              )}
-            </div>
           </div>
 
           {trendingError ? (
@@ -220,11 +215,6 @@ export default function OpenTunePage() {
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-yellow-400">Morning Mood Boost</h2>
-            <div className="flex items-center gap-2">
-              {!morningLoading && morningBoostSongs.length > 0 && (
-                <AddToPlaylistDialog songs={morningBoostSongs} isAddAll={true} />
-              )}
-            </div>
           </div>
 
           {morningError ? (
@@ -247,6 +237,7 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
@@ -280,6 +271,7 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[3]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -313,6 +305,7 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Upbeat Classics"
@@ -346,25 +339,25 @@ export default function OpenTunePage() {
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-zinc-800 border-t border-zinc-700">
-        <div className="flex items-center justify-around py-2">
-          <div className="flex flex-col items-center py-2 px-4">
-            <div className="bg-yellow-600 rounded-full p-2 mb-1">
-              <Home className="w-5 h-5 text-black" />
+        <div className="flex items-center justify-around py-1">
+          <div className="flex flex-col items-center py-1 px-3">
+            <div className="bg-yellow-600 rounded-full p-1.5 mb-0.5">
+              <Home className="w-4 h-4 text-black" />
             </div>
-            <span className="text-xs text-white font-medium">Home</span>
+            <span className="text-[10px] text-white font-medium">Home</span>
           </div>
-          <div className="flex flex-col items-center py-2 px-4">
-            <Compass className="w-6 h-6 text-gray-400 mb-1" />
-            <span className="text-xs text-gray-400">Explore</span>
+          <div className="flex flex-col items-center py-1 px-3">
+            <Compass className="w-5 h-5 text-gray-400 mb-0.5" />
+            <span className="text-[10px] text-gray-400">Explore</span>
           </div>
-          <div className="flex flex-col items-center py-2 px-4 cursor-pointer" onClick={() => router.push("/library")}>
+          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={() => router.push("/library")}>
             <div className="relative">
-              <Library className="w-6 h-6 text-gray-400 mb-1" />
+              <Library className="w-5 h-5 text-gray-400 mb-0.5" />
               {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full"></div>
+                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
               )}
             </div>
-            <span className="text-xs text-gray-400">Library</span>
+            <span className="text-[10px] text-gray-400">Library</span>
           </div>
         </div>
       </nav>
