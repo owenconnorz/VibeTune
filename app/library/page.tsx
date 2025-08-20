@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { User, Grid3X3, Heart, CheckCircle, Play, Plus, Search, MoreVertical, Trash2, Music } from "lucide-react"
+import { User, Grid3X3, Heart, CheckCircle, Play, Plus, Search, Trash2, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,9 +11,9 @@ import { useSync } from "@/contexts/sync-context"
 import { usePlaylist } from "@/contexts/playlist-context"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useDownload } from "@/contexts/download-context"
-import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
 import { DownloadManager } from "@/components/download-manager"
 import { DownloadButton } from "@/components/download-button"
+import { SongMenu } from "@/components/song-menu"
 
 export default function LibraryPage() {
   const { user } = useAuth()
@@ -293,18 +293,7 @@ export default function LibraryPage() {
                 <div className="flex items-center gap-2">
                   {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
                   <DownloadButton song={song} />
-                  <AddToPlaylistDialog
-                    songs={[song]}
-                    trigger={
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    }
-                  />
+                  <SongMenu song={song} />
                 </div>
               </div>
             ))}
@@ -351,18 +340,7 @@ export default function LibraryPage() {
                         <span className="text-gray-500 text-sm">
                           {song.size ? `${(song.size / (1024 * 1024)).toFixed(1)} MB` : ""}
                         </span>
-                        <AddToPlaylistDialog
-                          songs={[song]}
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          }
-                        />
+                        <SongMenu song={song} />
                       </div>
                     </div>
                   ))}
@@ -406,21 +384,14 @@ export default function LibraryPage() {
               <p className="text-gray-400 text-xs truncate">{state.currentTrack.artist}</p>
             </div>
             <div className="flex items-center gap-2">
-              <AddToPlaylistDialog
-                songs={[
-                  {
-                    id: state.currentTrack.id,
-                    title: state.currentTrack.title,
-                    artist: state.currentTrack.artist,
-                    thumbnail: state.currentTrack.thumbnail,
-                    duration: state.currentTrack.duration,
-                  },
-                ]}
-                trigger={
-                  <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-                    <Plus className="w-5 h-5" />
-                  </Button>
-                }
+              <SongMenu
+                song={{
+                  id: state.currentTrack.id,
+                  title: state.currentTrack.title,
+                  artist: state.currentTrack.artist,
+                  thumbnail: state.currentTrack.thumbnail,
+                  duration: state.currentTrack.duration,
+                }}
               />
               <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
                 <Heart className="w-5 h-5" />
@@ -444,7 +415,7 @@ export default function LibraryPage() {
           <Link href="/?search=true" className="flex flex-col items-center gap-1">
             <div className="w-6 h-6 text-gray-400 hover:text-white transition-colors">
               <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5S13.09 5 9.5 5 5 7.01 5 9.5 7.01 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5S13.09 5 9.5 5 5 7.01 5 9.5 7.01 14 9.5 14c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
               </svg>
             </div>
             <span className="text-xs text-gray-400 hover:text-white transition-colors">Search</span>

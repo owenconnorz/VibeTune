@@ -303,8 +303,33 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       navigator.mediaSession.metadata = new MediaMetadata({
         title: state.currentTrack.title,
         artist: state.currentTrack.artist,
-        album: "OpenTune",
+        album: "VibeTune",
         artwork: [
+          {
+            src: state.currentTrack.thumbnail,
+            sizes: "96x96",
+            type: "image/jpeg",
+          },
+          {
+            src: state.currentTrack.thumbnail,
+            sizes: "128x128",
+            type: "image/jpeg",
+          },
+          {
+            src: state.currentTrack.thumbnail,
+            sizes: "192x192",
+            type: "image/jpeg",
+          },
+          {
+            src: state.currentTrack.thumbnail,
+            sizes: "256x256",
+            type: "image/jpeg",
+          },
+          {
+            src: state.currentTrack.thumbnail,
+            sizes: "384x384",
+            type: "image/jpeg",
+          },
           {
             src: state.currentTrack.thumbnail,
             sizes: "512x512",
@@ -313,6 +338,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         ],
       })
 
+      // Set action handlers for media session
       navigator.mediaSession.setActionHandler("play", () => {
         dispatch({ type: "PLAY" })
       })
@@ -323,16 +349,12 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
       // Always register previoustrack handler
       navigator.mediaSession.setActionHandler("previoustrack", () => {
-        if (state.currentIndex > 0) {
-          dispatch({ type: "PREVIOUS_TRACK" })
-        }
+        dispatch({ type: "PREVIOUS_TRACK" })
       })
 
       // Always register nexttrack handler
       navigator.mediaSession.setActionHandler("nexttrack", () => {
-        if (state.currentIndex < state.queue.length - 1) {
-          dispatch({ type: "NEXT_TRACK" })
-        }
+        dispatch({ type: "NEXT_TRACK" })
       })
 
       navigator.mediaSession.setActionHandler("seekto", (details) => {
@@ -340,24 +362,20 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
           seekTo(details.seekTime)
         }
       })
-    }
-  }, [state.currentTrack, state.currentIndex, state.queue.length])
 
-  useEffect(() => {
-    if ("mediaSession" in navigator) {
       navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused"
     }
-  }, [state.isPlaying])
+  }, [state.currentTrack, state.currentIndex, state.queue.length, state.isPlaying])
 
   useEffect(() => {
-    if ("mediaSession" in navigator && state.duration > 0) {
+    if ("mediaSession" in navigator && state.duration > 0 && state.currentTrack) {
       navigator.mediaSession.setPositionState({
         duration: state.duration,
         playbackRate: 1,
-        position: state.currentTime,
+        position: Math.max(0, Math.min(state.currentTime, state.duration)),
       })
     }
-  }, [state.duration, Math.floor(state.currentTime)]) // Only update when currentTime changes by a full second
+  }, [state.duration, state.currentTime, state.currentTrack])
 
   const playTrack = (track: Track) => {
     dispatch({ type: "SET_TRACK", payload: track })

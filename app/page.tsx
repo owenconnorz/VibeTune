@@ -1,22 +1,23 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Search, Home, Compass, Library, Settings } from "lucide-react"
+import { Search, Home, Compass, Library, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AudioPlayer } from "@/components/audio-player"
 import { SearchModal } from "@/components/search-modal"
+import { UpdateNotificationButton } from "@/components/update-notification"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
 import { SongMenu } from "@/components/song-menu"
 import { DownloadButton } from "@/components/download-button"
 import { DownloadStatusBadge } from "@/components/download-status-badge"
+import { DownloadedIcon } from "@/components/downloaded-icon"
 import { useTrendingMusic, useMoodPlaylist } from "@/hooks/use-music-data"
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { moodPlaylists } from "@/lib/music-data"
 import { useRouter } from "next/navigation"
-import { PWAStatus } from "@/components/pwa-status"
 
 export default function VibeTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -59,8 +60,6 @@ export default function VibeTunePage() {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
-      <PWAStatus />
-
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-2 bg-zinc-800">
         <div className="flex items-center gap-2">
@@ -70,9 +69,7 @@ export default function VibeTunePage() {
           <h1 className="text-lg font-semibold text-white">VibeTune</h1>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white w-8 h-8">
-            <Bell className="w-4 h-4" />
-          </Button>
+          <UpdateNotificationButton />
           <Button
             variant="ghost"
             size="icon"
@@ -198,6 +195,7 @@ export default function VibeTunePage() {
                       </div>
                       <div className="text-xs text-gray-500 mr-2">{song.duration}</div>
                       <div className="flex items-center gap-1">
+                        <DownloadedIcon songId={song.id} className="mr-1" />
                         <DownloadButton song={song} showProgress={true} />
                         <SongMenu song={song} />
                       </div>
@@ -233,6 +231,9 @@ export default function VibeTunePage() {
                         src={
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
+                          "/placeholder.svg" ||
+                          "/placeholder.svg" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
@@ -266,6 +267,9 @@ export default function VibeTunePage() {
                         src={
                           morningBoostSongs[3]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
+                          "/placeholder.svg" ||
+                          "/placeholder.svg" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -299,6 +303,9 @@ export default function VibeTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
+                          "/placeholder.svg" ||
+                          "/placeholder.svg" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Upbeat Classics"

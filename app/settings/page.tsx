@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useEffect, useState, useCallback, useRef } from "react"
 import {
   ArrowLeft,
@@ -13,6 +15,8 @@ import {
   HardDrive,
   Trash2,
   RefreshCw,
+  Camera,
+  Upload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -32,6 +36,12 @@ export default function SettingsPage() {
   const { syncData, syncStatus, syncSettings, updateSyncSettings, performSync, clearSyncData } = useSync()
 
   const initialLoadComplete = useRef(false)
+  const fileInputRef = useRef<HTMLInputElement>(null) // Added ref for file input
+
+  const [profileSettings, setProfileSettings] = useState({
+    useCustomPicture: false,
+    customPictureUrl: null as string | null,
+  })
 
   const [cacheSettings, setCacheSettings] = useState<CacheSettings>({
     maxSize: 50,
@@ -53,6 +63,63 @@ export default function SettingsPage() {
     setCacheStats(stats)
   }, [])
 
+  const loadProfileSettings = useCallback(() => {
+    try {
+      const saved = localStorage.getItem("vibetuneProfileSettings")
+      if (saved) {
+        setProfileSettings(JSON.parse(saved))
+      }
+    } catch (error) {
+      console.error("Failed to load profile settings:", error)
+    }
+  }, [])
+
+  const saveProfileSettings = useCallback((settings: typeof profileSettings) => {
+    try {
+      localStorage.setItem("vibetuneProfileSettings", JSON.stringify(settings))
+      setProfileSettings(settings)
+    } catch (error) {
+      console.error("Failed to save profile settings:", error)
+    }
+  }, [])
+
+  const handleImageUpload = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image size must be less than 5MB")
+        return
+      }
+
+      // Check file type
+      if (!file.type.startsWith("image/")) {
+        alert("Please select an image file")
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        saveProfileSettings({
+          useCustomPicture: true,
+          customPictureUrl: result,
+        })
+      }
+      reader.readAsDataURL(file)
+    },
+    [saveProfileSettings],
+  )
+
+  const removeCustomPicture = useCallback(() => {
+    saveProfileSettings({
+      useCustomPicture: false,
+      customPictureUrl: null,
+    })
+  }, [saveProfileSettings])
+
   useEffect(() => {
     if (!initialLoadComplete.current) {
       // Check for OAuth callback results
@@ -67,9 +134,10 @@ export default function SettingsPage() {
 
       // Load cache settings and stats
       loadCacheData()
+      loadProfileSettings() // Added profile settings loading
       initialLoadComplete.current = true
     }
-  }, [searchParams, loadCacheData])
+  }, [searchParams, loadCacheData, loadProfileSettings])
 
   const handleGoogleLogin = async () => {
     try {
@@ -234,6 +302,98 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Profile Picture Customization Section */}
+        <Card className="bg-zinc-800 border-zinc-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Camera className="w-5 h-5 text-yellow-400" />
+              Profile Picture
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Customize your profile picture displayed on the home screen
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="w-16 h-16">
+                <AvatarImage
+                  src={
+                    profileSettings.useCustomPicture && profileSettings.customPictureUrl
+                      ? profileSettings.customPictureUrl
+                      : user?.picture || "/diverse-profile-avatars.png"
+                  }
+                />
+                <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <p className="text-white font-medium">Current Picture</p>
+                <p className="text-gray-400 text-sm">
+                  {profileSettings.useCustomPicture
+                    ? "Custom image"
+                    : user
+                      ? "Google profile picture"
+                      : "Default avatar"}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-medium">Use Custom Picture</p>
+                  <p className="text-gray-400 text-sm">Upload your own profile picture</p>
+                </div>
+                <Switch
+                  checked={profileSettings.useCustomPicture}
+                  onCheckedChange={(checked) => {
+                    if (!checked) {
+                      saveProfileSettings({
+                        useCustomPicture: false,
+                        customPictureUrl: profileSettings.customPictureUrl,
+                      })
+                    } else if (profileSettings.customPictureUrl) {
+                      saveProfileSettings({
+                        useCustomPicture: true,
+                        customPictureUrl: profileSettings.customPictureUrl,
+                      })
+                    } else {
+                      fileInputRef.current?.click()
+                    }
+                  }}
+                />
+              </div>
+
+              {profileSettings.useCustomPicture && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-zinc-600 text-gray-300 hover:bg-zinc-700 bg-transparent"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Change Picture
+                  </Button>
+                  <Button
+                    onClick={removeCustomPicture}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-red-600 text-red-400 hover:bg-red-900/20 bg-transparent"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Remove
+                  </Button>
+                </div>
+              )}
+
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+
+              <p className="text-gray-400 text-xs">Supported formats: JPG, PNG, GIF. Maximum size: 5MB</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cache Settings */}
         <Card className="bg-zinc-800 border-zinc-700">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">

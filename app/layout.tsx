@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/theme-context"
 import { PlaylistProvider } from "@/contexts/playlist-context"
 import { DownloadProvider } from "@/contexts/download-context"
 import { ListeningHistoryProvider } from "@/contexts/listening-history-context"
+import { UpdateProvider } from "@/contexts/update-context"
 import { PWAInstaller } from "@/components/pwa-installer"
 import "./globals.css"
 
@@ -96,8 +97,10 @@ html {
                 <PlaylistProvider>
                   <DownloadProvider>
                     <ThemeProvider>
-                      {children}
-                      <PWAInstaller />
+                      <UpdateProvider>
+                        {children}
+                        <PWAInstaller />
+                      </UpdateProvider>
                     </ThemeProvider>
                   </DownloadProvider>
                 </PlaylistProvider>
