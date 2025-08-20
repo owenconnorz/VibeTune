@@ -15,20 +15,43 @@ export async function GET(request: NextRequest) {
     const apiKey = process.env.YOUTUBE_API_KEY
 
     if (!apiKey) {
-      console.log("[v0] YouTube API key not configured, using fallback search data")
-      const results = fallbackSearchResults[query.toLowerCase()] || fallbackSearchResults.default
-      return NextResponse.json({ videos: results.slice(0, maxResults) })
+      console.log("[v0] YouTube API key not configured, using fallback search data for query:", query)
+      const queryLower = query.toLowerCase()
+      let results =
+        fallbackSearchResults[queryLower] || fallbackSearchResults.default || fallbackSearchResults.pop || []
+
+      // If no specific match, try partial matching
+      if (results.length === 0) {
+        const partialMatch = Object.keys(fallbackSearchResults).find(
+          (key) => key.includes(queryLower) || queryLower.includes(key),
+        )
+        if (partialMatch) {
+          results = fallbackSearchResults[partialMatch]
+        }
+      }
+
+      console.log("[v0] Returning fallback results:", results.length, "items for query:", query)
+      return NextResponse.json({
+        videos: results.slice(0, maxResults),
+        source: "fallback",
+        query,
+      })
     }
 
+    console.log("[v0] Using YouTube API to search for:", query)
     const youtube = createYouTubeAPI(apiKey)
     const results = await youtube.searchMusic(query, maxResults)
+    console.log("[v0] YouTube API returned:", results.videos?.length || 0, "results for:", query)
 
-    return NextResponse.json(results)
+    return NextResponse.json({ ...results, source: "youtube", query })
   } catch (error) {
-    console.error("Search API error:", error)
+    console.error("[v0] Search API error:", error)
     console.log("[v0] Search API error, falling back to mock data")
-    const maxResults = 20 // Declare maxResults variable here
-    const results = fallbackSearchResults.default
-    return NextResponse.json({ videos: results.slice(0, maxResults) })
+    const maxResults = Number.parseInt(new URL(request.url).searchParams.get("maxResults") || "20")
+    const results = fallbackSearchResults.default || []
+    return NextResponse.json({
+      videos: results.slice(0, maxResults),
+      source: "fallback_error",
+    })
   }
 }

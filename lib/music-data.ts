@@ -19,44 +19,70 @@ export interface Playlist {
 // Fetch trending music for home screen
 export async function fetchTrendingMusic(): Promise<Song[]> {
   try {
+    console.log("[v0] Fetching trending music...")
     const response = await fetch("/api/music/trending?maxResults=10")
-    if (!response.ok) throw new Error("Failed to fetch trending music")
+
+    if (!response.ok) {
+      console.log("[v0] Trending API response not ok:", response.status, response.statusText)
+      throw new Error("Failed to fetch trending music")
+    }
 
     const data = await response.json()
-    return data.videos.map((video: any) => ({
+    console.log("[v0] Trending API response:", data)
+
+    const results = data.videos.map((video: any) => ({
       id: video.id,
       title: video.title,
       artist: video.channelTitle,
       thumbnail: video.thumbnail,
       duration: video.duration,
       viewCount: video.viewCount,
-      audioUrl: video.audioUrl, // Include audioUrl in mapping
+      audioUrl: video.audioUrl,
     }))
+
+    console.log("[v0] Mapped trending results:", results.length, "songs")
+    return results
   } catch (error) {
-    console.error("Error fetching trending music:", error)
-    return []
+    console.error("[v0] Error fetching trending music:", error)
+    const { fallbackTrendingMusic } = await import("@/lib/fallback-data")
+    console.log("[v0] Using fallback trending data:", fallbackTrendingMusic.length, "songs")
+    return fallbackTrendingMusic
   }
 }
 
 // Search for music
 export async function searchMusic(query: string): Promise<Song[]> {
   try {
+    console.log("[v0] Searching for:", query)
     const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&maxResults=20`)
-    if (!response.ok) throw new Error("Failed to search music")
+
+    if (!response.ok) {
+      console.log("[v0] Search API response not ok:", response.status, response.statusText)
+      throw new Error("Failed to search music")
+    }
 
     const data = await response.json()
-    return data.videos.map((video: any) => ({
+    console.log("[v0] Search API response:", data)
+
+    const videos = data.videos || []
+    const results = videos.map((video: any) => ({
       id: video.id,
       title: video.title,
-      artist: video.channelTitle,
+      artist: video.channelTitle || video.artist,
       thumbnail: video.thumbnail,
       duration: video.duration,
-      viewCount: video.viewCount,
-      audioUrl: video.audioUrl, // Include audioUrl in mapping
+      viewCount: video.viewCount || "0",
+      audioUrl: video.audioUrl,
     }))
+
+    console.log("[v0] Mapped search results:", results.length, "songs")
+    return results
   } catch (error) {
-    console.error("Error searching music:", error)
-    return []
+    console.error("[v0] Error searching music:", error)
+    const { fallbackSearchResults } = await import("@/lib/fallback-data")
+    const fallbackData = fallbackSearchResults[query.toLowerCase()] || fallbackSearchResults.default
+    console.log("[v0] Using fallback search data:", fallbackData.length, "songs")
+    return fallbackData
   }
 }
 

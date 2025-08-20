@@ -127,89 +127,158 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(und
 
 export function AudioPlayerProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(audioPlayerReducer, initialState)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const youtubePlayerRef = useRef<any>(null)
+  const playerReadyRef = useRef(false)
+  const pendingPlayRef = useRef(false)
 
-  // Initialize audio element
   useEffect(() => {
-    audioRef.current = new Audio()
-    const audio = audioRef.current
+    // Load YouTube IFrame API
+    if (!window.YT) {
+      const tag = document.createElement("script")
+      tag.src = "https://www.youtube.com/iframe_api"
+      const firstScriptTag = document.getElementsByTagName("script")[0]
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
 
-    const handleTimeUpdate = () => {
-      dispatch({ type: "SET_CURRENT_TIME", payload: audio.currentTime })
-    }
-
-    const handleDurationChange = () => {
-      dispatch({ type: "SET_DURATION", payload: audio.duration || 0 })
-    }
-
-    const handleEnded = () => {
-      dispatch({ type: "PAUSE" })
-      // Auto-play next track if available
-      if (state.currentIndex < state.queue.length - 1) {
-        dispatch({ type: "NEXT_TRACK" })
+      window.onYouTubeIframeAPIReady = () => {
+        initializePlayer()
       }
+    } else {
+      initializePlayer()
     }
 
-    const handleError = () => {
-      dispatch({ type: "SET_ERROR", payload: "Failed to load audio" })
-    }
+    function initializePlayer() {
+      const playerContainer = document.createElement("div")
+      playerContainer.id = "youtube-player"
+      playerContainer.style.display = "none"
+      document.body.appendChild(playerContainer)
 
-    const handleLoadStart = () => {
-      dispatch({ type: "SET_LOADING", payload: true })
+      youtubePlayerRef.current = new window.YT.Player("youtube-player", {
+        height: "0",
+        width: "0",
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          modestbranding: 1,
+          rel: 0,
+        },
+        events: {
+          onReady: () => {
+            playerReadyRef.current = true
+            if (pendingPlayRef.current && state.currentTrack) {
+              handlePlay()
+            }
+          },
+          onStateChange: (event: any) => {
+            if (event.data === window.YT.PlayerState.ENDED) {
+              dispatch({ type: "PAUSE" })
+              if (state.currentIndex < state.queue.length - 1) {
+                dispatch({ type: "NEXT_TRACK" })
+              }
+            } else if (event.data === window.YT.PlayerState.PLAYING) {
+              dispatch({ type: "SET_LOADING", payload: false })
+            } else if (event.data === window.YT.PlayerState.PAUSED) {
+              dispatch({ type: "SET_LOADING", payload: false })
+            }
+          },
+          onError: (event: any) => {
+            console.error("[v0] YouTube player error:", event.data)
+            dispatch({ type: "SET_ERROR", payload: "Failed to load video" })
+            dispatch({ type: "SET_LOADING", payload: false })
+          },
+        },
+      })
     }
-
-    const handleCanPlay = () => {
-      dispatch({ type: "SET_LOADING", payload: false })
-    }
-
-    audio.addEventListener("timeupdate", handleTimeUpdate)
-    audio.addEventListener("durationchange", handleDurationChange)
-    audio.addEventListener("ended", handleEnded)
-    audio.addEventListener("error", handleError)
-    audio.addEventListener("loadstart", handleLoadStart)
-    audio.addEventListener("canplay", handleCanPlay)
 
     return () => {
-      audio.removeEventListener("timeupdate", handleTimeUpdate)
-      audio.removeEventListener("durationchange", handleDurationChange)
-      audio.removeEventListener("ended", handleEnded)
-      audio.removeEventListener("error", handleError)
-      audio.removeEventListener("loadstart", handleLoadStart)
-      audio.removeEventListener("canplay", handleCanPlay)
+      if (youtubePlayerRef.current) {
+        youtubePlayerRef.current.destroy()
+      }
     }
-  }, [state.currentIndex, state.queue.length])
+  }, [])
 
-  // Handle play/pause
+  const handlePlay = () => {
+    if (!youtubePlayerRef.current || !playerReadyRef.current || !state.currentTrack) {
+      pendingPlayRef.current = true
+      return
+    }
+
+    try {
+      youtubePlayerRef.current.playVideo()
+      pendingPlayRef.current = false
+    } catch (error) {
+      console.error("[v0] Error playing YouTube video:", error)
+      dispatch({ type: "SET_ERROR", payload: "Failed to play video" })
+    }
+  }
+
+  const handlePause = () => {
+    if (!youtubePlayerRef.current || !playerReadyRef.current) return
+
+    try {
+      youtubePlayerRef.current.pauseVideo()
+      pendingPlayRef.current = false
+    } catch (error) {
+      console.error("[v0] Error pausing YouTube video:", error)
+    }
+  }
+
   useEffect(() => {
-    if (!audioRef.current) return
-
     if (state.isPlaying) {
-      audioRef.current.play().catch((error) => {
-        console.error("Error playing audio:", error)
-        dispatch({ type: "SET_ERROR", payload: "Failed to play audio" })
-      })
+      handlePlay()
     } else {
-      audioRef.current.pause()
+      handlePause()
     }
   }, [state.isPlaying])
 
-  // Handle track changes
   useEffect(() => {
-    if (!audioRef.current || !state.currentTrack) return
+    if (!state.currentTrack || !youtubePlayerRef.current) return
 
-    // For demo purposes, we'll use a placeholder audio URL
-    // In a real app, you'd get the actual audio stream URL
-    const audioUrl = state.currentTrack.audioUrl || `/placeholder-audio/${state.currentTrack.id}.mp3`
-    audioRef.current.src = audioUrl
-    audioRef.current.volume = state.volume
+    dispatch({ type: "SET_LOADING", payload: true })
+    dispatch({ type: "SET_ERROR", payload: null })
 
-    if (state.isPlaying) {
-      audioRef.current.play().catch((error) => {
-        console.error("Error playing new track:", error)
-        dispatch({ type: "SET_ERROR", payload: "Failed to play track" })
-      })
+    try {
+      // Load the YouTube video
+      youtubePlayerRef.current.loadVideoById(state.currentTrack.id)
+      youtubePlayerRef.current.setVolume(state.volume * 100)
+
+      // Reset time tracking
+      dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
+    } catch (error) {
+      console.error("[v0] Error loading YouTube video:", error)
+      dispatch({ type: "SET_ERROR", payload: "Failed to load video" })
+      dispatch({ type: "SET_LOADING", payload: false })
     }
-  }, [state.currentTrack, state.volume])
+  }, [state.currentTrack])
+
+  useEffect(() => {
+    if (youtubePlayerRef.current && playerReadyRef.current) {
+      youtubePlayerRef.current.setVolume(state.volume * 100)
+    }
+  }, [state.volume])
+
+  useEffect(() => {
+    if (!youtubePlayerRef.current) return
+
+    const interval = setInterval(() => {
+      if (youtubePlayerRef.current && playerReadyRef.current && state.isPlaying) {
+        try {
+          const currentTime = youtubePlayerRef.current.getCurrentTime()
+          const duration = youtubePlayerRef.current.getDuration()
+
+          dispatch({ type: "SET_CURRENT_TIME", payload: currentTime || 0 })
+          if (duration && duration !== state.duration) {
+            dispatch({ type: "SET_DURATION", payload: duration })
+          }
+        } catch (error) {
+          // Ignore errors during time updates
+        }
+      }
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [state.isPlaying, state.duration])
 
   const playTrack = (track: Track) => {
     dispatch({ type: "SET_TRACK", payload: track })
@@ -234,9 +303,13 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }
 
   const seekTo = (time: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = time
-      dispatch({ type: "SET_CURRENT_TIME", payload: time })
+    if (youtubePlayerRef.current && playerReadyRef.current) {
+      try {
+        youtubePlayerRef.current.seekTo(time, true)
+        dispatch({ type: "SET_CURRENT_TIME", payload: time })
+      } catch (error) {
+        console.error("[v0] Error seeking:", error)
+      }
     }
   }
 
