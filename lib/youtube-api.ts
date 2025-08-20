@@ -1,4 +1,4 @@
-// YouTube API utility functions for fetching music data using Innertube API
+// YouTube API utility functions for fetching music data using YouTube Data API v3
 
 interface CacheEntry {
   data: any
@@ -35,8 +35,36 @@ class APICache {
   }
 }
 
-// Global cache instance
+class QuotaManager {
+  private isInBackoff = false
+  private backoffUntil = 0
+  private readonly BACKOFF_DURATION = 60 * 1000 // 1 minute
+
+  isQuotaExceeded(): boolean {
+    if (this.isInBackoff && Date.now() < this.backoffUntil) {
+      const remainingTime = Math.ceil((this.backoffUntil - Date.now()) / 1000)
+      console.log(`[v0] YouTube API in backoff, ${remainingTime}s remaining`)
+      return true
+    }
+
+    if (this.isInBackoff && Date.now() >= this.backoffUntil) {
+      this.isInBackoff = false
+      console.log(`[v0] YouTube API backoff period ended`)
+    }
+
+    return false
+  }
+
+  setQuotaExceeded() {
+    this.isInBackoff = true
+    this.backoffUntil = Date.now() + this.BACKOFF_DURATION
+    console.log(`[v0] YouTube API quota exceeded, backing off for ${this.BACKOFF_DURATION / 1000}s`)
+  }
+}
+
+// Global instances
 const apiCache = new APICache()
+const quotaManager = new QuotaManager()
 
 export interface YouTubeVideo {
   id: string
@@ -64,283 +92,284 @@ export interface YouTubePlaylist {
 }
 
 export class YouTubeAPI {
-  private baseUrl = "https://www.youtube.com/youtubei/v1"
-  private apiKey = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8" // Public Innertube API key
-  private context = {
-    client: {
-      clientName: "WEB",
-      clientVersion: "2.20240101.00.00",
-      hl: "en",
-      gl: "US",
-      utcOffsetMinutes: 0,
-    },
-  }
-
-  private getHeaders() {
-    return {
-      "Content-Type": "application/json",
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      Accept: "application/json, text/plain, */*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Accept-Encoding": "gzip, deflate, br",
-      Origin: "https://www.youtube.com",
-      Referer: "https://www.youtube.com/",
-      "X-YouTube-Client-Name": "1",
-      "X-YouTube-Client-Version": "2.20240101.00.00",
-    }
-  }
+  private baseUrl = "https://www.googleapis.com/youtube/v3"
+  private apiKey: string
 
   constructor(apiKey?: string) {
-    // Innertube doesn't require user API key, uses public key
+    this.apiKey = apiKey || process.env.YOUTUBE_API_KEY || "AIzaSyBIQVGnXO2T7smsxf6q_MWxMD1sQzek1Nc"
   }
 
   async searchMusic(query: string, maxResults = 20): Promise<YouTubeSearchResult> {
-    const cacheKey = `innertube_search:${query}:${maxResults}`
+    const cacheKey = `search:${query}:${maxResults}`
 
     // Check cache first
     const cached = apiCache.get(cacheKey)
     if (cached) {
-      console.log(`[v0] Using cached Innertube search results for: ${query}`)
+      console.log(`[v0] Using cached search results for: ${query}`)
       return cached
     }
 
+    // Check quota status
+    if (quotaManager.isQuotaExceeded()) {
+      throw new Error("YouTube API quota exceeded")
+    }
+
     try {
-      console.log(`[v0] Using Innertube API to search for: ${query}`)
+      console.log(`[v0] Using YouTube Data API v3 to search for: ${query}`)
 
       const musicQuery = `${query} music OR song OR audio OR track OR official`
-      const response = await fetch(`${this.baseUrl}/search?key=${this.apiKey}`, {
-        method: "POST",
-        headers: this.getHeaders(), // Using production-ready headers
-        body: JSON.stringify({
-          context: this.context,
-          query: musicQuery,
-          params: "EgIQAQ%3D%3D", // Filter for videos only
-        }),
-      })
+      const url = new URL(`${this.baseUrl}/search`)
+      url.searchParams.set("part", "snippet")
+      url.searchParams.set("q", musicQuery)
+      url.searchParams.set("type", "video")
+      url.searchParams.set("maxResults", maxResults.toString())
+      url.searchParams.set("order", "relevance")
+      url.searchParams.set("videoCategoryId", "10") // Music category
+      url.searchParams.set("key", this.apiKey)
+
+      const response = await fetch(url.toString())
 
       if (!response.ok) {
-        throw new Error(`Innertube API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403) {
+          quotaManager.setQuotaExceeded()
+        }
+        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
-
-      const videos = this.parseSearchResults(data, maxResults)
+      const videos = this.parseSearchResults(data.items || [])
       const result = {
-        videos,
-        nextPageToken:
-          data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]
-            ?.musicShelfRenderer?.continuations?.[0]?.nextContinuationData?.continuation,
+        videos: this.filterMusicContent(videos),
+        nextPageToken: data.nextPageToken,
       }
 
       // Cache successful results
       apiCache.set(cacheKey, result, 30 * 60 * 1000) // 30 minutes
-      console.log(`[v0] Innertube search returned ${videos.length} results for: ${query}`)
+      console.log(`[v0] YouTube Data API search returned ${result.videos.length} results for: ${query}`)
       return result
     } catch (error) {
-      console.error("Error searching with Innertube:", error)
+      console.error("Error searching YouTube:", error)
       throw error
     }
   }
 
   async getTrendingMusic(maxResults = 20): Promise<YouTubeVideo[]> {
-    const cacheKey = `innertube_trending:${maxResults}`
+    const cacheKey = `trending:${maxResults}`
 
     // Check cache first
     const cached = apiCache.get(cacheKey)
     if (cached) {
-      console.log(`[v0] Using cached Innertube trending music results`)
+      console.log(`[v0] Using cached trending music results`)
       return cached
     }
 
-    try {
-      console.log(`[v0] Using Innertube API to fetch trending music`)
+    // Check quota status
+    if (quotaManager.isQuotaExceeded()) {
+      throw new Error("YouTube API quota exceeded")
+    }
 
-      const response = await fetch(`${this.baseUrl}/browse?key=${this.apiKey}`, {
-        method: "POST",
-        headers: this.getHeaders(), // Using production-ready headers
-        body: JSON.stringify({
-          context: this.context,
-          browseId: "FEmusic_trending",
-        }),
-      })
+    try {
+      console.log(`[v0] Using YouTube Data API v3 to fetch trending music`)
+
+      const url = new URL(`${this.baseUrl}/videos`)
+      url.searchParams.set("part", "snippet,statistics,contentDetails")
+      url.searchParams.set("chart", "mostPopular")
+      url.searchParams.set("videoCategoryId", "10") // Music category
+      url.searchParams.set("regionCode", "US")
+      url.searchParams.set("maxResults", maxResults.toString())
+      url.searchParams.set("key", this.apiKey)
+
+      const response = await fetch(url.toString())
 
       if (!response.ok) {
-        throw new Error(`Innertube API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403) {
+          quotaManager.setQuotaExceeded()
+        }
+        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
-      const videos = this.parseTrendingResults(data, maxResults)
+      const videos = this.parseTrendingResults(data.items || [])
 
       // Cache successful results for longer since trending changes less frequently
       apiCache.set(cacheKey, videos, 60 * 60 * 1000) // 1 hour
-      console.log(`[v0] Innertube trending returned ${videos.length} results`)
+      console.log(`[v0] YouTube Data API trending returned ${videos.length} results`)
       return videos
     } catch (error) {
-      console.error("Error fetching trending with Innertube:", error)
+      console.error("Error fetching trending music:", error)
       throw error
     }
   }
 
   async getPlaylistVideos(playlistId: string, maxResults = 50): Promise<YouTubeVideo[]> {
-    const cacheKey = `innertube_playlist:${playlistId}:${maxResults}`
+    const cacheKey = `playlist:${playlistId}:${maxResults}`
 
     const cached = apiCache.get(cacheKey)
     if (cached) {
-      console.log(`[v0] Using cached Innertube playlist results for: ${playlistId}`)
+      console.log(`[v0] Using cached playlist results for: ${playlistId}`)
       return cached
     }
 
+    if (quotaManager.isQuotaExceeded()) {
+      throw new Error("YouTube API quota exceeded")
+    }
+
     try {
-      const response = await fetch(`${this.baseUrl}/browse?key=${this.apiKey}`, {
-        method: "POST",
-        headers: this.getHeaders(), // Using production-ready headers
-        body: JSON.stringify({
-          context: this.context,
-          browseId: `VL${playlistId}`,
-        }),
-      })
+      const url = new URL(`${this.baseUrl}/playlistItems`)
+      url.searchParams.set("part", "snippet")
+      url.searchParams.set("playlistId", playlistId)
+      url.searchParams.set("maxResults", maxResults.toString())
+      url.searchParams.set("key", this.apiKey)
+
+      const response = await fetch(url.toString())
 
       if (!response.ok) {
-        throw new Error(`Innertube API error: ${response.status} ${response.statusText}`)
+        if (response.status === 403) {
+          quotaManager.setQuotaExceeded()
+        }
+        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
-      const videos = this.parsePlaylistResults(data, maxResults)
+      const videos = this.parsePlaylistResults(data.items || [])
 
       apiCache.set(cacheKey, videos)
       return videos
     } catch (error) {
-      console.error("Error fetching playlist with Innertube:", error)
+      console.error("Error fetching playlist:", error)
       throw error
     }
   }
 
   async getUserPlaylists(accessToken: string, maxResults = 25): Promise<YouTubePlaylist[]> {
-    // Note: Innertube doesn't support authenticated requests in the same way
-    // This would require a different approach for user-specific data
-    throw new Error("User playlists not supported with Innertube API")
+    if (quotaManager.isQuotaExceeded()) {
+      throw new Error("YouTube API quota exceeded")
+    }
+
+    try {
+      const url = new URL(`${this.baseUrl}/playlists`)
+      url.searchParams.set("part", "snippet,contentDetails")
+      url.searchParams.set("mine", "true")
+      url.searchParams.set("maxResults", maxResults.toString())
+      url.searchParams.set("key", this.apiKey)
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          quotaManager.setQuotaExceeded()
+        }
+        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      return this.parsePlaylistsResults(data.items || [])
+    } catch (error) {
+      console.error("Error fetching user playlists:", error)
+      throw error
+    }
   }
 
   async getLikedVideos(accessToken: string, maxResults = 50): Promise<YouTubeVideo[]> {
-    // Note: Innertube doesn't support authenticated requests in the same way
-    // This would require a different approach for user-specific data
-    throw new Error("Liked videos not supported with Innertube API")
-  }
+    if (quotaManager.isQuotaExceeded()) {
+      throw new Error("YouTube API quota exceeded")
+    }
 
-  private parseSearchResults(data: any, maxResults: number): YouTubeVideo[] {
     try {
-      const contents =
-        data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents || []
-      const videos: YouTubeVideo[] = []
+      const url = new URL(`${this.baseUrl}/videos`)
+      url.searchParams.set("part", "snippet,statistics,contentDetails")
+      url.searchParams.set("myRating", "like")
+      url.searchParams.set("maxResults", maxResults.toString())
+      url.searchParams.set("key", this.apiKey)
 
-      for (const section of contents) {
-        const items = section.videoRenderer ? [section] : section.itemSectionRenderer?.contents || []
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
 
-        for (const item of items) {
-          if (item.videoRenderer && videos.length < maxResults) {
-            const video = item.videoRenderer
-            videos.push({
-              id: video.videoId,
-              title: video.title?.runs?.[0]?.text || video.title?.simpleText || "Unknown Title",
-              channelTitle: video.ownerText?.runs?.[0]?.text || "Unknown Channel",
-              thumbnail: video.thumbnail?.thumbnails?.[0]?.url || "",
-              duration: this.parseDuration(video.lengthText?.simpleText || "0:00"),
-              viewCount: video.viewCountText?.simpleText?.replace(/[^\d]/g, "") || "0",
-              publishedAt: video.publishedTimeText?.simpleText || new Date().toISOString(),
-            })
-          }
+      if (!response.ok) {
+        if (response.status === 403) {
+          quotaManager.setQuotaExceeded()
         }
+        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
       }
 
-      return this.filterMusicContent(videos)
+      const data = await response.json()
+      return this.parseTrendingResults(data.items || [])
     } catch (error) {
-      console.error("Error parsing Innertube search results:", error)
-      return []
+      console.error("Error fetching liked videos:", error)
+      throw error
     }
   }
 
-  private parseTrendingResults(data: any, maxResults: number): YouTubeVideo[] {
-    try {
-      const contents =
-        data.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents ||
-        []
-      const videos: YouTubeVideo[] = []
-
-      for (const section of contents) {
-        const items = section.musicCarouselShelfRenderer?.contents || section.musicShelfRenderer?.contents || []
-
-        for (const item of items) {
-          if (item.musicTwoRowItemRenderer && videos.length < maxResults) {
-            const video = item.musicTwoRowItemRenderer
-            videos.push({
-              id: video.navigationEndpoint?.watchEndpoint?.videoId || "",
-              title: video.title?.runs?.[0]?.text || "Unknown Title",
-              channelTitle: video.subtitle?.runs?.[0]?.text || "Unknown Channel",
-              thumbnail: video.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url || "",
-              duration: "3:30", // Innertube trending doesn't always provide duration
-              viewCount: "0",
-              publishedAt: new Date().toISOString(),
-            })
-          }
-        }
-      }
-
-      return videos.filter((v) => v.id) // Filter out items without video IDs
-    } catch (error) {
-      console.error("Error parsing Innertube trending results:", error)
-      return []
-    }
+  private parseSearchResults(items: any[]): YouTubeVideo[] {
+    return items.map((item) => ({
+      id: item.id?.videoId || item.id,
+      title: item.snippet?.title || "Unknown Title",
+      channelTitle: item.snippet?.channelTitle || "Unknown Channel",
+      thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
+      duration: this.parseDuration(item.contentDetails?.duration || "PT3M30S"),
+      viewCount: item.statistics?.viewCount || "0",
+      publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
+    }))
   }
 
-  private parsePlaylistResults(data: any, maxResults: number): YouTubeVideo[] {
-    try {
-      const contents =
-        data.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents ||
-        []
-      const videos: YouTubeVideo[] = []
-
-      for (const section of contents) {
-        const items = section.musicPlaylistShelfRenderer?.contents || []
-
-        for (const item of items) {
-          if (item.musicResponsiveListItemRenderer && videos.length < maxResults) {
-            const video = item.musicResponsiveListItemRenderer
-            videos.push({
-              id: video.playNavigationEndpoint?.watchEndpoint?.videoId || "",
-              title:
-                video.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text ||
-                "Unknown Title",
-              channelTitle:
-                video.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text ||
-                "Unknown Channel",
-              thumbnail: video.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url || "",
-              duration: video.flexColumns?.[2]?.musicResponsiveListItemFlexColumnRenderer?.text?.simpleText || "3:30",
-              viewCount: "0",
-              publishedAt: new Date().toISOString(),
-            })
-          }
-        }
-      }
-
-      return videos.filter((v) => v.id)
-    } catch (error) {
-      console.error("Error parsing Innertube playlist results:", error)
-      return []
-    }
+  private parseTrendingResults(items: any[]): YouTubeVideo[] {
+    return items.map((item) => ({
+      id: item.id,
+      title: item.snippet?.title || "Unknown Title",
+      channelTitle: item.snippet?.channelTitle || "Unknown Channel",
+      thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
+      duration: this.parseDuration(item.contentDetails?.duration || "PT3M30S"),
+      viewCount: item.statistics?.viewCount || "0",
+      publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
+    }))
   }
 
-  private parseDuration(durationText: string): string {
-    // Convert various duration formats to MM:SS
-    if (!durationText) return "0:00"
+  private parsePlaylistResults(items: any[]): YouTubeVideo[] {
+    return items.map((item) => ({
+      id: item.snippet?.resourceId?.videoId || "",
+      title: item.snippet?.title || "Unknown Title",
+      channelTitle: item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || "Unknown Channel",
+      thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
+      duration: "3:30", // Duration not available in playlist items, would need separate API call
+      viewCount: "0",
+      publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
+    }))
+  }
 
-    // If already in MM:SS or H:MM:SS format, return as is
-    if (durationText.match(/^\d+:\d{2}(:\d{2})?$/)) {
-      return durationText
+  private parsePlaylistsResults(items: any[]): YouTubePlaylist[] {
+    return items.map((item) => ({
+      id: item.id,
+      title: item.snippet?.title || "Unknown Playlist",
+      description: item.snippet?.description || "",
+      thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
+      videoCount: item.contentDetails?.itemCount || 0,
+      privacy: item.status?.privacyStatus || "private",
+      publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
+    }))
+  }
+
+  private parseDuration(duration: string): string {
+    if (!duration || !duration.startsWith("PT")) return "3:30"
+
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+    if (!match) return "3:30"
+
+    const hours = Number.parseInt(match[1] || "0")
+    const minutes = Number.parseInt(match[2] || "0")
+    const seconds = Number.parseInt(match[3] || "0")
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+    } else {
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`
     }
-
-    // Handle other formats or default to 3:30
-    return "3:30"
   }
 
   private filterMusicContent(videos: YouTubeVideo[]): YouTubeVideo[] {
@@ -419,5 +448,5 @@ export const createYouTubeAPI = (apiKey?: string) => new YouTubeAPI(apiKey)
 
 export const clearYouTubeCache = () => {
   apiCache.clear()
-  console.log("[v0] Innertube API cache cleared")
+  console.log("[v0] YouTube Data API cache cleared")
 }

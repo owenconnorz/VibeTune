@@ -27,16 +27,15 @@ export async function GET(request: NextRequest) {
 
     const youtube = createYouTubeAPI()
 
-    console.log("[v0] Using Innertube API to search for:", query)
+    console.log("[v0] Using YouTube Data API v3 to search for:", query)
     const results = await youtube.searchMusic(query, maxResults)
-    console.log("[v0] Innertube API returned:", results.videos?.length || 0, "results for:", query)
+    console.log("[v0] YouTube Data API v3 returned:", results.videos?.length || 0, "results for:", query)
 
     if (results.videos && results.videos.length > 0) {
       musicCache.set(cacheKey, results.videos, 20 * 60 * 1000) // 20 minutes for real data
-      return NextResponse.json({ ...results, source: "innertube", query })
+      return NextResponse.json({ ...results, source: "youtube", query })
     } else {
-      // If no results from Innertube, use fallback
-      console.log("[v0] No results from Innertube, using fallback search data for query:", query)
+      console.log("[v0] No results from YouTube Data API v3, using fallback search data for query:", query)
       const queryLower = query.toLowerCase()
       let fallbackResults =
         fallbackSearchResults[queryLower] || fallbackSearchResults.default || fallbackSearchResults.pop || []
@@ -64,7 +63,7 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error("[v0] Search API error:", error)
-    console.log("[v0] Innertube API error, falling back to mock data")
+    console.log("[v0] YouTube Data API v3 error, falling back to mock data")
 
     const query = new URL(request.url).searchParams.get("q") || ""
     const maxResults = Number.parseInt(new URL(request.url).searchParams.get("maxResults") || "20")

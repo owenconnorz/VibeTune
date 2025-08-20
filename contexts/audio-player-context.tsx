@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useReducer, useRef, useEffect } from "react"
+import { useListeningHistory } from "./listening-history-context"
 
 export interface Track {
   id: string
@@ -130,6 +131,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const youtubePlayerRef = useRef<any>(null)
   const playerReadyRef = useRef(false)
   const pendingPlayRef = useRef(false)
+  const { addToHistory } = useListeningHistory()
 
   useEffect(() => {
     // Load YouTube IFrame API
@@ -258,12 +260,14 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_LOADING", payload: true })
     dispatch({ type: "SET_ERROR", payload: null })
 
+    addToHistory(state.currentTrack)
+
     if (playerReadyRef.current) {
       loadCurrentTrack()
     } else {
       pendingPlayRef.current = true
     }
-  }, [state.currentTrack])
+  }, [state.currentTrack, addToHistory])
 
   useEffect(() => {
     if (youtubePlayerRef.current && playerReadyRef.current) {

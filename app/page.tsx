@@ -9,10 +9,14 @@ import { SearchModal } from "@/components/search-modal"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
+import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
+import { DownloadButton } from "@/components/download-button"
+import { DownloadStatusBadge } from "@/components/download-status-badge"
 import { useTrendingMusic, useMoodPlaylist } from "@/hooks/use-music-data"
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { moodPlaylists } from "@/lib/music-data"
 import { useRouter } from "next/navigation"
+import { musicCache } from "@/lib/music-cache"
 
 export default function OpenTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -32,6 +36,12 @@ export default function OpenTunePage() {
     error: morningError,
   } = useMoodPlaylist(moodPlaylists["morning-boost"].queries)
 
+  useEffect(() => {
+    console.log("[v0] 🎵 CACHE CLEAR: Clearing mood playlist cache to force fresh YouTube Data API v3 calls")
+    const cacheKey = `mood_playlist_${moodPlaylists["morning-boost"].queries.join("_").toLowerCase().replace(/\s+/g, "_")}`
+    musicCache.remove(cacheKey)
+  }, [])
+
   // Convert Song to Track format for audio player
   const convertToTrack = (song: any) => ({
     id: song.id,
@@ -41,7 +51,7 @@ export default function OpenTunePage() {
     duration: song.duration,
   })
 
-  console.log("[v0] 🎵 INNERTUBE API VALIDATION - Homepage data state:", {
+  console.log("[v0] 🎵 YOUTUBE DATA API v3 VALIDATION - Homepage data state:", {
     trendingSongs: trendingSongs.length,
     trendingLoading,
     trendingError: trendingError ? `ERROR: ${trendingError}` : null,
@@ -52,7 +62,7 @@ export default function OpenTunePage() {
   })
 
   if (trendingSongs.length > 0) {
-    console.log("[v0] 🎵 INNERTUBE TRENDING SAMPLE:", {
+    console.log("[v0] 🎵 YOUTUBE DATA API v3 TRENDING SAMPLE:", {
       firstSong: {
         id: trendingSongs[0].id,
         title: trendingSongs[0].title,
@@ -61,12 +71,12 @@ export default function OpenTunePage() {
         duration: trendingSongs[0].duration,
       },
       totalSongs: trendingSongs.length,
-      apiSource: "Innertube API",
+      apiSource: "YouTube Data API v3",
     })
   }
 
   if (morningBoostSongs.length > 0) {
-    console.log("[v0] 🎵 INNERTUBE MORNING BOOST SAMPLE:", {
+    console.log("[v0] 🎵 YOUTUBE DATA API v3 MORNING BOOST SAMPLE:", {
       firstSong: {
         id: morningBoostSongs[0].id,
         title: morningBoostSongs[0].title,
@@ -75,7 +85,7 @@ export default function OpenTunePage() {
         duration: morningBoostSongs[0].duration,
       },
       totalSongs: morningBoostSongs.length,
-      apiSource: "Innertube API",
+      apiSource: "YouTube Data API v3",
     })
   }
 
@@ -83,12 +93,12 @@ export default function OpenTunePage() {
 
   useEffect(() => {
     if (trendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
-      console.log("[v0] 🎵 INNERTUBE VALIDATION: Auto-setting first trending song as current track")
+      console.log("[v0] 🎵 YOUTUBE DATA API v3 VALIDATION: Auto-setting first trending song as current track")
       console.log("[v0] 🎵 Selected track for theme:", {
         title: trendingSongs[0].title,
         artist: trendingSongs[0].artist || trendingSongs[0].channelTitle,
         thumbnail: trendingSongs[0].thumbnail,
-        source: "Innertube API",
+        source: "YouTube Data API v3",
       })
       const firstTrack = convertToTrack(trendingSongs[0])
       playTrack(firstTrack)
@@ -96,14 +106,20 @@ export default function OpenTunePage() {
   }, [trendingSongs, state.currentTrack, trendingLoading])
 
   const handlePlaySong = (song: any, songList: any[]) => {
-    console.log("[v0] 🎵 INNERTUBE PLAYBACK: Playing song:", song.title, "from list of", songList.length, "songs")
+    console.log(
+      "[v0] 🎵 YOUTUBE DATA API v3 PLAYBACK: Playing song:",
+      song.title,
+      "from list of",
+      songList.length,
+      "songs",
+    )
     console.log("[v0] 🎵 Song details:", {
       id: song.id,
       title: song.title,
       artist: song.artist || song.channelTitle,
       thumbnail: song.thumbnail ? "✅ Has thumbnail" : "❌ No thumbnail",
       duration: song.duration,
-      source: "Innertube API",
+      source: "YouTube Data API v3",
     })
     const tracks = songList.map(convertToTrack)
     const startIndex = songList.findIndex((s) => s.id === song.id)
@@ -113,7 +129,7 @@ export default function OpenTunePage() {
 
   useEffect(() => {
     const logApiPerformance = () => {
-      console.log("[v0] 🎵 INNERTUBE API PERFORMANCE METRICS:", {
+      console.log("[v0] 🎵 YOUTUBE DATA API v3 PERFORMANCE METRICS:", {
         trendingLoaded: !trendingLoading && trendingSongs.length > 0,
         morningBoostLoaded: !morningLoading && morningBoostSongs.length > 0,
         totalSongsLoaded: trendingSongs.length + morningBoostSongs.length,
@@ -242,7 +258,14 @@ export default function OpenTunePage() {
 
         {/* Quick picks - Real Trending Music */}
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Quick picks</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-yellow-400">Quick picks</h2>
+            <div className="flex items-center gap-2">
+              {!trendingLoading && trendingSongs.length > 0 && (
+                <AddToPlaylistDialog songs={trendingSongs} isAddAll={true} />
+              )}
+            </div>
+          </div>
 
           {trendingError ? (
             <ErrorMessage message={trendingError} onRetry={refetchTrending} />
@@ -264,11 +287,20 @@ export default function OpenTunePage() {
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg font-semibold text-white truncate">{song.title}</h3>
                         <p className="text-gray-400 truncate">{song.artist}</p>
+                        <DownloadStatusBadge songId={song.id} className="mt-1" />
                       </div>
                       <div className="text-xs text-gray-500 mr-2">{song.duration}</div>
-                      <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-                        <MoreVertical className="w-5 h-5" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <DownloadButton song={song} showProgress={true} />
+                        <AddToPlaylistDialog
+                          songs={[song]}
+                          trigger={
+                            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
+                              <MoreVertical className="w-5 h-5" />
+                            </Button>
+                          }
+                        />
+                      </div>
                     </div>
                   ))}
             </div>
@@ -277,7 +309,14 @@ export default function OpenTunePage() {
 
         {/* Morning Mood Boost - Real Playlist Data */}
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Morning Mood Boost</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-yellow-400">Morning Mood Boost</h2>
+            <div className="flex items-center gap-2">
+              {!morningLoading && morningBoostSongs.length > 0 && (
+                <AddToPlaylistDialog songs={morningBoostSongs} isAddAll={true} />
+              )}
+            </div>
+          </div>
 
           {morningError ? (
             <ErrorMessage message={morningError} />

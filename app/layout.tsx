@@ -6,6 +6,9 @@ import { AudioPlayerProvider } from "@/contexts/audio-player-context"
 import { AuthProvider } from "@/contexts/auth-context"
 import { SyncProvider } from "@/contexts/sync-context"
 import { ThemeProvider } from "@/contexts/theme-context"
+import { PlaylistProvider } from "@/contexts/playlist-context"
+import { DownloadProvider } from "@/contexts/download-context"
+import { ListeningHistoryProvider } from "@/contexts/listening-history-context"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -33,9 +36,15 @@ html {
       <body>
         <AuthProvider>
           <SyncProvider>
-            <AudioPlayerProvider>
-              <ThemeProvider>{children}</ThemeProvider>
-            </AudioPlayerProvider>
+            <ListeningHistoryProvider>
+              <AudioPlayerProvider>
+                <PlaylistProvider>
+                  <DownloadProvider>
+                    <ThemeProvider>{children}</ThemeProvider>
+                  </DownloadProvider>
+                </PlaylistProvider>
+              </AudioPlayerProvider>
+            </ListeningHistoryProvider>
           </SyncProvider>
         </AuthProvider>
       </body>
