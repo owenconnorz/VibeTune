@@ -155,6 +155,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       youtubePlayerRef.current = new window.YT.Player("youtube-player", {
         height: "0",
         width: "0",
+        videoId: "dQw4w9WgXcQ", // Default video ID to prevent initialization errors
         playerVars: {
           autoplay: 0,
           controls: 0,
@@ -162,12 +163,15 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
           fs: 0,
           modestbranding: 1,
           rel: 0,
+          enablejsapi: 1,
+          origin: window.location.origin,
         },
         events: {
           onReady: () => {
+            console.log("[v0] YouTube player ready")
             playerReadyRef.current = true
             if (pendingPlayRef.current && state.currentTrack) {
-              handlePlay()
+              loadCurrentTrack()
             }
           },
           onStateChange: (event: any) => {
@@ -184,7 +188,23 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
           },
           onError: (event: any) => {
             console.error("[v0] YouTube player error:", event.data)
-            dispatch({ type: "SET_ERROR", payload: "Failed to load video" })
+            let errorMessage = "Failed to load video"
+            switch (event.data) {
+              case 2:
+                errorMessage = "Invalid video ID or parameter"
+                break
+              case 5:
+                errorMessage = "Video cannot be played in HTML5 player"
+                break
+              case 100:
+                errorMessage = "Video not found"
+                break
+              case 101:
+              case 150:
+                errorMessage = "Video cannot be embedded"
+                break
+            }
+            dispatch({ type: "SET_ERROR", payload: errorMessage })
             dispatch({ type: "SET_LOADING", payload: false })
           },
         },
@@ -238,17 +258,10 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_LOADING", payload: true })
     dispatch({ type: "SET_ERROR", payload: null })
 
-    try {
-      // Load the YouTube video
-      youtubePlayerRef.current.loadVideoById(state.currentTrack.id)
-      youtubePlayerRef.current.setVolume(state.volume * 100)
-
-      // Reset time tracking
-      dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
-    } catch (error) {
-      console.error("[v0] Error loading YouTube video:", error)
-      dispatch({ type: "SET_ERROR", payload: "Failed to load video" })
-      dispatch({ type: "SET_LOADING", payload: false })
+    if (playerReadyRef.current) {
+      loadCurrentTrack()
+    } else {
+      pendingPlayRef.current = true
     }
   }, [state.currentTrack])
 
@@ -315,6 +328,33 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
   const setVolume = (volume: number) => {
     dispatch({ type: "SET_VOLUME", payload: volume })
+  }
+
+  const loadCurrentTrack = () => {
+    if (!youtubePlayerRef.current || !playerReadyRef.current || !state.currentTrack) {
+      return
+    }
+
+    const videoId = state.currentTrack.id
+    if (!videoId || typeof videoId !== "string" || videoId.length < 10) {
+      console.error("[v0] Invalid video ID:", videoId)
+      dispatch({ type: "SET_ERROR", payload: "Invalid video ID" })
+      return
+    }
+
+    try {
+      console.log("[v0] Loading video:", videoId)
+      youtubePlayerRef.current.loadVideoById({
+        videoId: videoId,
+        startSeconds: 0,
+      })
+      youtubePlayerRef.current.setVolume(state.volume * 100)
+      dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
+    } catch (error) {
+      console.error("[v0] Error loading YouTube video:", error)
+      dispatch({ type: "SET_ERROR", payload: "Failed to load video" })
+      dispatch({ type: "SET_LOADING", payload: false })
+    }
   }
 
   return (
