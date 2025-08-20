@@ -14,26 +14,40 @@ import { useDownload } from "@/contexts/download-context"
 import { DownloadManager } from "@/components/download-manager"
 import { DownloadButton } from "@/components/download-button"
 import { SongMenu } from "@/components/song-menu"
+import { useLikedSongs } from "@/contexts/liked-songs-context"
 
 export default function LibraryPage() {
   const { user } = useAuth()
   const { syncData } = useSync()
+  const { likedSongs: localLikedSongs } = useLikedSongs()
   const { playlists: localPlaylists, createPlaylist, deletePlaylist } = usePlaylist()
   const { downloadedSongs } = useDownload()
   const { state, playTrack, playQueue } = useAudioPlayer()
   const [activeTab, setActiveTab] = useState<"playlists" | "songs" | "albums" | "artists" | "downloads">("playlists")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<"name" | "date" | "count">("date")
+  const [expandedLikedSongs, setExpandedLikedSongs] = useState(false)
+
+  const allLikedSongs = [
+    ...syncData.likedSongs,
+    ...localLikedSongs.map((song) => ({
+      id: song.id,
+      title: song.title,
+      channelTitle: song.artist,
+      thumbnail: song.thumbnail,
+      duration: song.duration,
+    })),
+  ].filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
 
   const systemPlaylists = [
     {
       id: "liked",
       title: "Liked Songs",
       icon: Heart,
-      count: syncData.likedSongs.length,
+      count: allLikedSongs.length,
       color: "text-red-500",
       type: "system" as const,
-      songs: syncData.likedSongs,
+      songs: allLikedSongs,
     },
     {
       id: "downloaded",
@@ -71,7 +85,7 @@ export default function LibraryPage() {
     })
 
   const allSongs = [
-    ...syncData.likedSongs,
+    ...allLikedSongs,
     ...syncData.playlists.flatMap((p) => p.videos || []),
     ...localPlaylists.flatMap((p) => p.songs),
   ].filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
@@ -89,6 +103,11 @@ export default function LibraryPage() {
   )
 
   const handlePlayPlaylist = (playlist: any) => {
+    if (playlist.id === "liked") {
+      setExpandedLikedSongs(!expandedLikedSongs)
+      return
+    }
+
     const songs = playlist.songs || playlist.videos || []
     if (songs.length > 0) {
       const tracks = songs.map((song: any) => ({
@@ -198,68 +217,137 @@ export default function LibraryPage() {
 
       <div className="px-4 pb-32">
         {activeTab === "playlists" && (
-          <div className="grid grid-cols-2 gap-4">
-            {filteredPlaylists.map((playlist) => (
-              <Card
-                key={playlist.id}
-                className="bg-zinc-800 border-zinc-700 hover:bg-zinc-750 transition-colors cursor-pointer group"
-                onClick={() => handlePlayPlaylist(playlist)}
-              >
-                <CardContent className="p-4 relative">
-                  <div className="aspect-square mb-3 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden relative">
-                    {playlist.thumbnail ? (
-                      <img
-                        src={playlist.thumbnail || "/placeholder.svg"}
-                        alt={playlist.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : playlist.icon ? (
-                      <playlist.icon className={`w-12 h-12 ${playlist.color}`} />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                        <Music className="w-8 h-8 text-white" />
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              {filteredPlaylists.map((playlist) => (
+                <Card
+                  key={playlist.id}
+                  className="bg-zinc-800 border-zinc-700 hover:bg-zinc-750 transition-colors cursor-pointer group"
+                  onClick={() => handlePlayPlaylist(playlist)}
+                >
+                  <CardContent className="p-4 relative">
+                    <div className="aspect-square mb-3 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden relative">
+                      {playlist.thumbnail ? (
+                        <img
+                          src={playlist.thumbnail || "/placeholder.svg"}
+                          alt={playlist.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : playlist.icon ? (
+                        <playlist.icon className={`w-12 h-12 ${playlist.color}`} />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                          <Music className="w-8 h-8 text-white" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        {playlist.id === "liked" ? (
+                          expandedLikedSongs ? (
+                            <div className="w-8 h-8 text-white">▲</div>
+                          ) : (
+                            <div className="w-8 h-8 text-white">▼</div>
+                          )
+                        ) : (
+                          <Play className="w-8 h-8 text-white" />
+                        )}
                       </div>
-                    )}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Play className="w-8 h-8 text-white" />
                     </div>
-                  </div>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-semibold text-sm mb-1 truncate">{playlist.title}</h3>
-                      <p className="text-gray-400 text-xs">
-                        {playlist.count || playlist.songs?.length || playlist.videos?.length || 0} song
-                        {(playlist.count || playlist.songs?.length || playlist.videos?.length || 0) !== 1 ? "s" : ""}
-                      </p>
-                      <p className="text-gray-500 text-xs capitalize mt-1">{playlist.type}</p>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-semibold text-sm mb-1 truncate">{playlist.title}</h3>
+                        <p className="text-gray-400 text-xs">
+                          {playlist.count || playlist.songs?.length || playlist.videos?.length || 0} song
+                          {(playlist.count || playlist.songs?.length || playlist.videos?.length || 0) !== 1 ? "s" : ""}
+                        </p>
+                        <p className="text-gray-500 text-xs capitalize mt-1">{playlist.type}</p>
+                      </div>
+                      {playlist.type === "local" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeletePlaylist(playlist.id)
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
-                    {playlist.type === "local" && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeletePlaylist(playlist.id)
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {filteredPlaylists.length === 0 && (
-              <div className="col-span-2 text-center py-12">
-                <Music className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400 mb-4">{searchQuery ? "No playlists found" : "No playlists yet"}</p>
-                {!searchQuery && (
-                  <Button onClick={handleCreatePlaylist} className="bg-yellow-600 hover:bg-yellow-700 text-black">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Your First Playlist
+                  </CardContent>
+                </Card>
+              ))}
+              {filteredPlaylists.length === 0 && (
+                <div className="col-span-2 text-center py-12">
+                  <Music className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400 mb-4">{searchQuery ? "No playlists found" : "No playlists yet"}</p>
+                  {!searchQuery && (
+                    <Button onClick={handleCreatePlaylist} className="bg-yellow-600 hover:bg-yellow-700 text-black">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Your First Playlist
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {expandedLikedSongs && allLikedSongs.length > 0 && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Heart className="w-6 h-6 text-red-500" />
+                    Liked Songs ({allLikedSongs.length})
+                  </h3>
+                  <Button
+                    onClick={() => {
+                      const tracks = allLikedSongs.map((song: any) => ({
+                        id: song.id,
+                        title: song.title,
+                        artist: song.channelTitle || song.artist || "Unknown Artist",
+                        thumbnail: song.thumbnail,
+                        duration: song.duration,
+                      }))
+                      playQueue(tracks, 0)
+                    }}
+                    className="bg-yellow-600 hover:bg-yellow-700 text-black"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Play All
                   </Button>
-                )}
+                </div>
+                <div className="space-y-2">
+                  {allLikedSongs.map((song, index) => (
+                    <div
+                      key={`liked-${song.id}-${index}`}
+                      className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
+                      onClick={() => handlePlaySong(song, allLikedSongs)}
+                    >
+                      <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {song.thumbnail ? (
+                          <img
+                            src={song.thumbnail || "/placeholder.svg"}
+                            alt={song.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Music className="w-6 h-6 text-gray-400" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-white font-medium truncate">{song.title}</h3>
+                        <p className="text-gray-400 text-sm truncate">
+                          {song.channelTitle || song.artist || "Unknown Artist"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
+                        <DownloadButton song={song} />
+                        <SongMenu song={song} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

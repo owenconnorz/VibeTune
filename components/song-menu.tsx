@@ -1,8 +1,6 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
 import {
   Play,
   Plus,
@@ -19,17 +17,11 @@ import {
   MoreVertical,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { usePlaylist } from "@/contexts/playlist-context"
 import { useDownload } from "@/contexts/download-context"
-import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
+import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { toast } from "@/hooks/use-toast"
 
 interface SongMenuProps {
@@ -48,7 +40,7 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
   const { addToQueue, playNext } = useAudioPlayer()
   const { addSongToPlaylist } = usePlaylist()
   const { downloadSong } = useDownload()
-  const [showAddToPlaylist, setShowAddToPlaylist] = useState(false)
+  const { isLiked, toggleLike } = useLikedSongs()
 
   const handlePlayNext = () => {
     const track = {
@@ -86,6 +78,15 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
     toast({
       title: "Added to library",
       description: `"${song.title}" saved to your library`,
+    })
+  }
+
+  const handleAddToPlaylist = () => {
+    // Add to a default "My Playlist"
+    addSongToPlaylist("default", song)
+    toast({
+      title: "Added to playlist",
+      description: `"${song.title}" added to playlist`,
     })
   }
 
@@ -153,104 +154,131 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
     })
   }
 
+  const handleToggleLike = () => {
+    toggleLike(song)
+    toast({
+      title: isLiked(song.id) ? "Removed from liked songs" : "Added to liked songs",
+      description: `"${song.title}" ${isLiked(song.id) ? "removed from" : "added to"} your liked songs`,
+    })
+  }
+
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          {trigger || (
-            <Button variant="ghost" size="icon" className={`text-gray-400 hover:text-white ${className}`}>
-              <MoreVertical className="w-4 h-4" />
-            </Button>
-          )}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56 bg-zinc-800 border-zinc-700" align="end">
-          {/* Quick Action Buttons */}
-          <div className="flex gap-2 p-2 mb-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white"
-              onClick={handlePlayNext}
-            >
-              <Play className="w-4 h-4 mr-2" />
-              Play next
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white"
-              onClick={() => setShowAddToPlaylist(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add to playlist
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white"
-              onClick={handleShare}
-            >
-              <Share className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-          </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        {trigger || (
+          <Button variant="ghost" size="icon" className={`text-gray-400 hover:text-white ${className}`}>
+            <MoreVertical className="w-4 h-4" />
+          </Button>
+        )}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        className="w-80 bg-zinc-900/95 backdrop-blur-sm border-zinc-700/50 rounded-2xl shadow-2xl p-4"
+        align="end"
+      >
+        <div className="flex gap-3 mb-4">
+          <Button
+            variant="secondary"
+            size="lg"
+            className="flex-1 h-12 bg-zinc-700/80 hover:bg-zinc-600/80 text-white rounded-xl font-medium"
+            onClick={handlePlayNext}
+          >
+            <Play className="w-5 h-5 mr-2" />
+            Play next
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="flex-1 h-12 bg-zinc-700/80 hover:bg-zinc-600/80 text-white rounded-xl font-medium"
+            onClick={handleAddToPlaylist}
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Add to playlist
+          </Button>
+          <Button
+            variant="secondary"
+            size="lg"
+            className="flex-1 h-12 bg-zinc-700/80 hover:bg-zinc-600/80 text-white rounded-xl font-medium"
+            onClick={handleShare}
+          >
+            <Share className="w-5 h-5 mr-2" />
+            Share
+          </Button>
+        </div>
 
-          <DropdownMenuSeparator className="bg-zinc-700" />
-
-          {/* Menu Items */}
-          <DropdownMenuItem onClick={handleStartRadio} className="text-white hover:bg-zinc-700">
-            <Radio className="w-4 h-4 mr-3" />
+        <div className="space-y-1">
+          <DropdownMenuItem
+            onClick={handleStartRadio}
+            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
+          >
+            <Radio className="w-5 h-5 mr-4 text-gray-400" />
             Start radio
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={() => {}} className="text-white hover:bg-zinc-700">
-            <Edit className="w-4 h-4 mr-3" />
+          <DropdownMenuItem
+            onClick={() => {}}
+            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
+          >
+            <Edit className="w-5 h-5 mr-4 text-gray-400" />
             Edit
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleAddToQueue} className="text-white hover:bg-zinc-700">
-            <ListPlus className="w-4 h-4 mr-3" />
+          <DropdownMenuItem
+            onClick={handleAddToQueue}
+            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
+          >
+            <ListPlus className="w-5 h-5 mr-4 text-gray-400" />
             Add to queue
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleAddToLibrary} className="text-white hover:bg-zinc-700">
-            <Library className="w-4 h-4 mr-3" />
+          <DropdownMenuItem
+            onClick={handleAddToLibrary}
+            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
+          >
+            <Library className="w-5 h-5 mr-4 text-gray-400" />
             Add to library
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleDownload} className="text-white hover:bg-zinc-700">
-            <Download className="w-4 h-4 mr-3" />
+          <DropdownMenuItem
+            onClick={handleDownload}
+            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
+          >
+            <Download className="w-5 h-5 mr-4 text-gray-400" />
             Download
           </DropdownMenuItem>
 
-          <DropdownMenuSeparator className="bg-zinc-700" />
-
-          <DropdownMenuItem onClick={handleViewArtist} className="text-white hover:bg-zinc-700">
-            <User className="w-4 h-4 mr-3" />
+          <DropdownMenuItem
+            onClick={handleViewArtist}
+            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
+          >
+            <User className="w-5 h-5 mr-4 text-gray-400" />
             View artist
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleViewAlbum} className="text-white hover:bg-zinc-700">
-            <Disc className="w-4 h-4 mr-3" />
+          <DropdownMenuItem
+            onClick={handleViewAlbum}
+            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
+          >
+            <Disc className="w-5 h-5 mr-4 text-gray-400" />
             View album
           </DropdownMenuItem>
 
-          <DropdownMenuSeparator className="bg-zinc-700" />
-
-          <DropdownMenuItem onClick={handleRefetch} className="text-white hover:bg-zinc-700">
-            <RefreshCw className="w-4 h-4 mr-3" />
+          <DropdownMenuItem
+            onClick={handleRefetch}
+            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
+          >
+            <RefreshCw className="w-5 h-5 mr-4 text-gray-400" />
             Refetch
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={handleDetails} className="text-white hover:bg-zinc-700">
-            <Info className="w-4 h-4 mr-3" />
+          <DropdownMenuItem
+            onClick={handleDetails}
+            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
+          >
+            <Info className="w-5 h-5 mr-4 text-gray-400" />
             Details
           </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
-      {/* Add to Playlist Dialog */}
-      <AddToPlaylistDialog songs={[song]} isOpen={showAddToPlaylist} onClose={() => setShowAddToPlaylist(false)} />
-    </>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

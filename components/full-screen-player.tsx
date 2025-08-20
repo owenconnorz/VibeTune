@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useTheme } from "@/contexts/theme-context"
+import { useLikedSongs } from "@/contexts/liked-songs-context"
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -29,6 +30,7 @@ interface FullScreenPlayerProps {
 export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
   const { state, togglePlay, nextTrack, previousTrack, seekTo } = useAudioPlayer()
   const { colors, isTransitioning } = useTheme()
+  const { isLiked, toggleLike } = useLikedSongs()
   const [dragY, setDragY] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -98,6 +100,18 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
+
+  const handleToggleLike = () => {
+    if (state.currentTrack) {
+      toggleLike({
+        id: state.currentTrack.id,
+        title: state.currentTrack.title,
+        artist: state.currentTrack.artist,
+        thumbnail: state.currentTrack.thumbnail,
+        duration: state.currentTrack.duration,
+      })
+    }
   }
 
   if (!isOpen || !state.currentTrack) return null
@@ -171,8 +185,13 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                 variant="ghost"
                 size="icon"
                 className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full w-10 h-10 sm:w-12 sm:h-12"
+                onClick={handleToggleLike}
               >
-                <Heart className="w-4 h-4 sm:w-5 sm:h-5" />
+                <Heart
+                  className={`w-4 h-4 sm:w-5 sm:h-5 ${
+                    state.currentTrack && isLiked(state.currentTrack.id) ? "fill-red-500 text-red-500" : ""
+                  }`}
+                />
               </Button>
             </div>
           </div>

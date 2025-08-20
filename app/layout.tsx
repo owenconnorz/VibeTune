@@ -10,6 +10,7 @@ import { PlaylistProvider } from "@/contexts/playlist-context"
 import { DownloadProvider } from "@/contexts/download-context"
 import { ListeningHistoryProvider } from "@/contexts/listening-history-context"
 import { UpdateProvider } from "@/contexts/update-context"
+import { LikedSongsProvider } from "@/contexts/liked-songs-context"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -53,9 +54,11 @@ html {
               <AudioPlayerProvider>
                 <PlaylistProvider>
                   <DownloadProvider>
-                    <ThemeProvider>
-                      <UpdateProvider>{children}</UpdateProvider>
-                    </ThemeProvider>
+                    <LikedSongsProvider>
+                      <ThemeProvider>
+                        <UpdateProvider>{children}</UpdateProvider>
+                      </ThemeProvider>
+                    </LikedSongsProvider>
                   </DownloadProvider>
                 </PlaylistProvider>
               </AudioPlayerProvider>
