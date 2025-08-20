@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import {
   History,
   TrendingUp,
@@ -175,22 +176,24 @@ export default function LibraryPage() {
 
       <div className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800">
         <div className="flex items-center justify-around py-3">
-          <div className="flex flex-col items-center gap-1">
-            <div className="w-6 h-6 text-gray-400">
+          <Link href="/" className="flex flex-col items-center gap-1">
+            <div className="w-6 h-6 text-gray-400 hover:text-white transition-colors">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
               </svg>
             </div>
-            <span className="text-xs text-gray-400">Home</span>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <div className="w-6 h-6 text-gray-400">
+            <span className="text-xs text-gray-400 hover:text-white transition-colors">Home</span>
+          </Link>
+
+          <Link href="/?search=true" className="flex flex-col items-center gap-1">
+            <div className="w-6 h-6 text-gray-400 hover:text-white transition-colors">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
               </svg>
             </div>
-            <span className="text-xs text-gray-400">Search</span>
-          </div>
+            <span className="text-xs text-gray-400 hover:text-white transition-colors">Search</span>
+          </Link>
+
           <div className="flex flex-col items-center gap-1">
             <div className="w-8 h-8 bg-yellow-600 rounded-lg flex items-center justify-center">
               <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
