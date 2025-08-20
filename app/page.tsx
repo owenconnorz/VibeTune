@@ -41,6 +41,15 @@ export default function OpenTunePage() {
     duration: song.duration,
   })
 
+  console.log("[v0] Homepage data state:", {
+    trendingSongs: trendingSongs.length,
+    trendingLoading,
+    trendingError,
+    morningBoostSongs: morningBoostSongs.length,
+    morningLoading,
+    morningError,
+  })
+
   const handlePlaySong = (song: any, songList: any[]) => {
     const tracks = songList.map(convertToTrack)
     const startIndex = songList.findIndex((s) => s.id === song.id)
@@ -215,6 +224,7 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
@@ -248,6 +258,7 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[3]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -281,6 +292,7 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
+                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Upbeat Classics"

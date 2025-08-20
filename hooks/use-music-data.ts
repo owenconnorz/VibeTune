@@ -12,9 +12,12 @@ export function useTrendingMusic() {
     try {
       setLoading(true)
       setError(null)
+      console.log("[v0] Hook: Starting to load trending music...")
       const trendingSongs = await fetchTrendingMusic()
+      console.log("[v0] Hook: Received trending songs:", trendingSongs.length)
       setSongs(trendingSongs)
     } catch (err) {
+      console.log("[v0] Hook: Error in trending music:", err)
       setError(err instanceof Error ? err.message : "Failed to load trending music")
       console.error("Error loading trending music:", err)
     } finally {
@@ -44,9 +47,12 @@ export function useSearchMusic(query: string, enabled = false) {
       try {
         setLoading(true)
         setError(null)
+        console.log("[v0] Hook: Starting search for:", query)
         const results = await searchMusic(query)
+        console.log("[v0] Hook: Search results received:", results.length)
         setSongs(results)
       } catch (err) {
+        console.log("[v0] Hook: Search error:", err)
         setError(err instanceof Error ? err.message : "Search failed")
         console.error("Error searching music:", err)
       } finally {
@@ -71,12 +77,14 @@ export function useMoodPlaylist(queries: string[]) {
       try {
         setLoading(true)
         setError(null)
+        console.log("[v0] Hook: Loading mood playlist with queries:", queries)
 
         // Search for songs using the provided queries and combine results
         const allSongs: Song[] = []
         for (const query of queries) {
           try {
             const results = await searchMusic(query)
+            console.log("[v0] Hook: Query", query, "returned", results.length, "results")
             allSongs.push(...results.slice(0, 5)) // Take first 5 from each query
           } catch (err) {
             console.warn(`Failed to search for "${query}":`, err)
@@ -88,8 +96,10 @@ export function useMoodPlaylist(queries: string[]) {
           .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
           .slice(0, 15)
 
+        console.log("[v0] Hook: Final mood playlist songs:", uniqueSongs.length)
         setSongs(uniqueSongs)
       } catch (err) {
+        console.log("[v0] Hook: Mood playlist error:", err)
         setError(err instanceof Error ? err.message : "Failed to load mood playlist")
         console.error("Error loading mood playlist:", err)
       } finally {
