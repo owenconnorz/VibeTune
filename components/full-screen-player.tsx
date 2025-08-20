@@ -13,7 +13,7 @@ import {
   MoreHorizontal,
   List,
   Moon,
-  Settings,
+  BarChart3,
   Repeat,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -216,7 +216,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
           size="icon"
           className="text-white/60 hover:text-white bg-white/5 hover:bg-white/10 rounded-full w-12 h-12"
         >
-          <Settings className="w-5 h-5" />
+          <BarChart3 className="w-5 h-5" />
         </Button>
         <Button
           variant="ghost"
