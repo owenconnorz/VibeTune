@@ -47,7 +47,7 @@ export class YouTubeAPI {
       const response = await fetch(url.toString(), {
         headers: {
           Accept: "application/json",
-          "User-Agent": "OpenTune/1.0",
+          "User-Agent": "VibeTune/1.0",
         },
       })
 
@@ -82,7 +82,7 @@ export class YouTubeAPI {
       const response = await fetch(url.toString(), {
         headers: {
           Accept: "application/json",
-          "User-Agent": "OpenTune/1.0",
+          "User-Agent": "VibeTune/1.0",
         },
       })
 
@@ -112,7 +112,7 @@ export class YouTubeAPI {
       const response = await fetch(url.toString(), {
         headers: {
           Accept: "application/json",
-          "User-Agent": "OpenTune/1.0",
+          "User-Agent": "VibeTune/1.0",
         },
       })
 
@@ -143,7 +143,7 @@ export class YouTubeAPI {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${accessToken}`,
-          "User-Agent": "OpenTune/1.0",
+          "User-Agent": "VibeTune/1.0",
         },
       })
 
@@ -174,7 +174,7 @@ export class YouTubeAPI {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${accessToken}`,
-          "User-Agent": "OpenTune/1.0",
+          "User-Agent": "VibeTune/1.0",
         },
       })
 

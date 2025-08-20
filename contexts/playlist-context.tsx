@@ -26,7 +26,7 @@ interface PlaylistContextType {
 
 const PlaylistContext = createContext<PlaylistContextType | undefined>(undefined)
 
-const PLAYLISTS_STORAGE_KEY = "opentune-local-playlists"
+const PLAYLISTS_STORAGE_KEY = "vibetune-local-playlists"
 
 export function PlaylistProvider({ children }: { children: ReactNode }) {
   const [playlists, setPlaylists] = useState<LocalPlaylist[]>([])

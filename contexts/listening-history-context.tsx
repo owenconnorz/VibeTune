@@ -17,7 +17,7 @@ interface ListeningHistoryContextType {
 
 const ListeningHistoryContext = createContext<ListeningHistoryContextType | undefined>(undefined)
 
-const HISTORY_STORAGE_KEY = "opentune-listening-history"
+const HISTORY_STORAGE_KEY = "vibetune-listening-history"
 const MAX_HISTORY_ITEMS = 100
 
 export function ListeningHistoryProvider({ children }: { children: ReactNode }) {

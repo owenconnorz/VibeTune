@@ -21,8 +21,8 @@ export interface CacheSettings {
 }
 
 class MusicCacheManager {
-  private readonly CACHE_PREFIX = "opentune_music_"
-  private readonly SETTINGS_KEY = "opentune_cache_settings"
+  private readonly CACHE_PREFIX = "vibetune_music_"
+  private readonly SETTINGS_KEY = "vibetune_cache_settings"
 
   private defaultSettings: CacheSettings = {
     maxSize: 50, // 50MB default

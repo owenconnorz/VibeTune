@@ -47,8 +47,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isDownloading, setIsDownloading] = useState(false)
 
   useEffect(() => {
-    const savedDownloads = localStorage.getItem("opentune_downloads")
-    const savedDownloadedSongs = localStorage.getItem("opentune_downloaded_songs")
+    const savedDownloads = localStorage.getItem("vibetune_downloads")
+    const savedDownloadedSongs = localStorage.getItem("vibetune_downloaded_songs")
 
     if (savedDownloads) {
       try {
@@ -82,11 +82,11 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [])
 
   useEffect(() => {
-    localStorage.setItem("opentune_downloads", JSON.stringify(downloads))
+    localStorage.setItem("vibetune_downloads", JSON.stringify(downloads))
   }, [downloads])
 
   useEffect(() => {
-    localStorage.setItem("opentune_downloaded_songs", JSON.stringify(downloadedSongs))
+    localStorage.setItem("vibetune_downloaded_songs", JSON.stringify(downloadedSongs))
   }, [downloadedSongs])
 
   const simulateDownload = useCallback(

@@ -32,8 +32,8 @@ interface SyncContextType {
 
 const SyncContext = createContext<SyncContextType | undefined>(undefined)
 
-const SYNC_STORAGE_KEY = "opentune-sync-data"
-const SYNC_SETTINGS_KEY = "opentune-sync-settings"
+const SYNC_STORAGE_KEY = "vibetune-sync-data"
+const SYNC_SETTINGS_KEY = "vibetune-sync-settings"
 
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()

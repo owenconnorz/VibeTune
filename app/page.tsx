@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Bell, Search, MoreVertical, Home, Compass, Library, Settings } from "lucide-react"
+import { Bell, Search, Home, Compass, Library, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AudioPlayer } from "@/components/audio-player"
@@ -9,15 +9,16 @@ import { SearchModal } from "@/components/search-modal"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
-import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
+import { SongMenu } from "@/components/song-menu"
 import { DownloadButton } from "@/components/download-button"
 import { DownloadStatusBadge } from "@/components/download-status-badge"
 import { useTrendingMusic, useMoodPlaylist } from "@/hooks/use-music-data"
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { moodPlaylists } from "@/lib/music-data"
 import { useRouter } from "next/navigation"
+import { PWAStatus } from "@/components/pwa-status"
 
-export default function OpenTunePage() {
+export default function VibeTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const router = useRouter()
   const { user } = useAuth()
@@ -58,13 +59,15 @@ export default function OpenTunePage() {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
+      <PWAStatus />
+
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-2 bg-zinc-800">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-purple-500 rounded-md flex items-center justify-center">
             <span className="text-white font-bold text-xs">♪</span>
           </div>
-          <h1 className="text-lg font-semibold text-white">OpenTune</h1>
+          <h1 className="text-lg font-semibold text-white">VibeTune</h1>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white w-8 h-8">
@@ -196,14 +199,7 @@ export default function OpenTunePage() {
                       <div className="text-xs text-gray-500 mr-2">{song.duration}</div>
                       <div className="flex items-center gap-1">
                         <DownloadButton song={song} showProgress={true} />
-                        <AddToPlaylistDialog
-                          songs={[song]}
-                          trigger={
-                            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-                              <MoreVertical className="w-5 h-5" />
-                            </Button>
-                          }
-                        />
+                        <SongMenu song={song} />
                       </div>
                     </div>
                   ))}
@@ -237,7 +233,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
@@ -271,7 +266,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[3]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -305,7 +299,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Upbeat Classics"
