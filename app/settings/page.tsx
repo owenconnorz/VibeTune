@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowLeft,
   User,
@@ -10,21 +10,38 @@ import {
   SettingsIcon,
   CheckCircle,
   AlertCircle,
+  HardDrive,
+  Trash2,
+  RefreshCw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Progress } from "@/components/ui/progress"
+import { Slider } from "@/components/ui/slider"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
+import { musicCache, type CacheSettings, type CacheStats } from "@/lib/music-cache"
 
 export default function SettingsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading, signInWithGoogle, signOut } = useAuth()
   const { syncData, syncStatus, syncSettings, updateSyncSettings, performSync, clearSyncData } = useSync()
+
+  const [cacheSettings, setCacheSettings] = useState<CacheSettings>({
+    maxSize: 50,
+    defaultTTL: 24 * 60 * 60 * 1000,
+    enabled: true,
+  })
+  const [cacheStats, setCacheStats] = useState<CacheStats>({
+    totalItems: 0,
+    totalSize: 0,
+    oldestItem: null,
+    newestItem: null,
+  })
 
   useEffect(() => {
     // Check for OAuth callback results
@@ -36,6 +53,10 @@ export default function SettingsPage() {
     } else if (error) {
       console.error("OAuth error:", error)
     }
+
+    // Load cache settings and stats
+    setCacheSettings(musicCache.getSettings())
+    setCacheStats(musicCache.getStats())
   }, [searchParams])
 
   const handleGoogleLogin = async () => {
@@ -64,6 +85,43 @@ export default function SettingsPage() {
     if (!isoString) return "Never"
     const date = new Date(isoString)
     return date.toLocaleString()
+  }
+
+  const updateCacheSettings = (newSettings: Partial<CacheSettings>) => {
+    const updated = { ...cacheSettings, ...newSettings }
+    setCacheSettings(updated)
+    musicCache.updateSettings(newSettings)
+    setCacheStats(musicCache.getStats()) // Refresh stats
+  }
+
+  const clearCache = () => {
+    musicCache.clearAll()
+    setCacheStats(musicCache.getStats())
+  }
+
+  const cleanExpiredCache = () => {
+    musicCache.cleanExpired()
+    setCacheStats(musicCache.getStats())
+  }
+
+  const formatCacheSize = (bytes: number) => {
+    if (bytes === 0) return "0 B"
+    const k = 1024
+    const sizes = ["B", "KB", "MB", "GB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
+  }
+
+  const formatCacheAge = (timestamp: number | null) => {
+    if (!timestamp) return "N/A"
+    const now = Date.now()
+    const diff = now - timestamp
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const days = Math.floor(hours / 24)
+
+    if (days > 0) return `${days}d ago`
+    if (hours > 0) return `${hours}h ago`
+    return "< 1h ago"
   }
 
   if (loading) {
@@ -154,6 +212,111 @@ export default function SettingsPage() {
                   Sign Out
                 </Button>
               </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-zinc-800 border-zinc-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <HardDrive className="w-5 h-5 text-yellow-400" />
+              Cache Settings
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Manage local music data caching to improve performance
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white font-medium">Enable Cache</p>
+                <p className="text-gray-400 text-sm">Store music data locally for faster loading</p>
+              </div>
+              <Switch
+                checked={cacheSettings.enabled}
+                onCheckedChange={(checked) => updateCacheSettings({ enabled: checked })}
+              />
+            </div>
+
+            {cacheSettings.enabled && (
+              <>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-white font-medium">Cache Size Limit</p>
+                    <p className="text-gray-400 text-sm">{cacheSettings.maxSize} MB</p>
+                  </div>
+                  <Slider
+                    value={[cacheSettings.maxSize]}
+                    onValueChange={([value]) => updateCacheSettings({ maxSize: value })}
+                    max={200}
+                    min={10}
+                    step={10}
+                    className="w-full"
+                  />
+                  <p className="text-gray-400 text-xs">Adjust how much storage space can be used for caching</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-white font-medium">Cache Duration</p>
+                    <p className="text-gray-400 text-sm">
+                      {Math.round(cacheSettings.defaultTTL / (1000 * 60 * 60))} hours
+                    </p>
+                  </div>
+                  <Slider
+                    value={[cacheSettings.defaultTTL / (1000 * 60 * 60)]}
+                    onValueChange={([hours]) => updateCacheSettings({ defaultTTL: hours * 60 * 60 * 1000 })}
+                    max={168}
+                    min={1}
+                    step={1}
+                    className="w-full"
+                  />
+                  <p className="text-gray-400 text-xs">How long to keep cached data before refreshing</p>
+                </div>
+
+                <div className="pt-4 border-t border-zinc-700">
+                  <h4 className="text-white font-medium mb-3">Cache Statistics</h4>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-zinc-700/50 p-3 rounded-lg">
+                      <p className="text-gray-400 text-xs">Items Cached</p>
+                      <p className="text-white font-semibold">{cacheStats.totalItems}</p>
+                    </div>
+                    <div className="bg-zinc-700/50 p-3 rounded-lg">
+                      <p className="text-gray-400 text-xs">Storage Used</p>
+                      <p className="text-white font-semibold">{formatCacheSize(cacheStats.totalSize)}</p>
+                    </div>
+                    <div className="bg-zinc-700/50 p-3 rounded-lg">
+                      <p className="text-gray-400 text-xs">Oldest Item</p>
+                      <p className="text-white font-semibold">{formatCacheAge(cacheStats.oldestItem)}</p>
+                    </div>
+                    <div className="bg-zinc-700/50 p-3 rounded-lg">
+                      <p className="text-gray-400 text-xs">Newest Item</p>
+                      <p className="text-white font-semibold">{formatCacheAge(cacheStats.newestItem)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={cleanExpiredCache}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 border-zinc-600 text-gray-300 hover:bg-zinc-700 bg-transparent"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Clean Expired
+                    </Button>
+                    <Button
+                      onClick={clearCache}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 border-red-600 text-red-400 hover:bg-red-900/20 bg-transparent"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Clear All
+                    </Button>
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

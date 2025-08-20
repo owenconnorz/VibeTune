@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useMemo } from "react"
 import { useAudioPlayer } from "./audio-player-context"
 import { extractColorsFromImage, type ExtractedColors } from "@/lib/color-extractor"
 
@@ -22,29 +22,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     foreground: "#ffffff",
   })
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [lastThumbnail, setLastThumbnail] = useState<string | null>(null)
+
+  const currentThumbnail = useMemo(() => {
+    return state.currentTrack?.thumbnail || null
+  }, [state.currentTrack?.id, state.currentTrack?.thumbnail])
 
   useEffect(() => {
-    console.log(
-      "[v0] Theme: Current track changed:",
-      state.currentTrack?.title,
-      "Thumbnail:",
-      state.currentTrack?.thumbnail,
-    )
+    console.log("[v0] Theme: Current track changed:", state.currentTrack?.title, "Thumbnail:", currentThumbnail)
 
-    if (!state.currentTrack?.thumbnail) {
-      console.log("[v0] Theme: No thumbnail available, skipping color extraction")
+    if (!currentThumbnail || currentThumbnail === lastThumbnail) {
+      console.log("[v0] Theme: No thumbnail available or same as last, skipping color extraction")
       return
     }
 
     const updateTheme = async () => {
-      console.log("[v0] Theme: Starting color extraction for:", state.currentTrack.thumbnail)
+      console.log("[v0] Theme: Starting color extraction for:", currentThumbnail)
       setIsTransitioning(true)
+      setLastThumbnail(currentThumbnail)
 
       try {
-        const newColors = await extractColorsFromImage(state.currentTrack.thumbnail)
+        const newColors = await extractColorsFromImage(currentThumbnail)
         console.log("[v0] Theme: Extracted colors:", newColors)
 
-        // Apply colors to CSS custom properties for smooth transitions
         const root = document.documentElement
         root.style.setProperty("--theme-primary", newColors.primary)
         root.style.setProperty("--theme-secondary", newColors.secondary)
@@ -62,7 +62,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     updateTheme()
-  }, [state.currentTrack])
+  }, [currentThumbnail]) // Removed lastThumbnail from dependencies to prevent infinite loop
 
   return <ThemeContext.Provider value={{ colors, isTransitioning }}>{children}</ThemeContext.Provider>
 }

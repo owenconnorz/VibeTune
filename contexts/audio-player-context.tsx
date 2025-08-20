@@ -293,6 +293,67 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     return () => clearInterval(interval)
   }, [state.isPlaying, state.duration])
 
+  useEffect(() => {
+    if ("mediaSession" in navigator && state.currentTrack) {
+      // Set metadata for the notification
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: state.currentTrack.title,
+        artist: state.currentTrack.artist,
+        album: "OpenTune",
+        artwork: [
+          {
+            src: state.currentTrack.thumbnail,
+            sizes: "512x512",
+            type: "image/jpeg",
+          },
+        ],
+      })
+
+      // Set action handlers for notification controls
+      navigator.mediaSession.setActionHandler("play", () => {
+        dispatch({ type: "PLAY" })
+      })
+
+      navigator.mediaSession.setActionHandler("pause", () => {
+        dispatch({ type: "PAUSE" })
+      })
+
+      navigator.mediaSession.setActionHandler("previoustrack", () => {
+        if (state.currentIndex > 0) {
+          dispatch({ type: "PREVIOUS_TRACK" })
+        }
+      })
+
+      navigator.mediaSession.setActionHandler("nexttrack", () => {
+        if (state.currentIndex < state.queue.length - 1) {
+          dispatch({ type: "NEXT_TRACK" })
+        }
+      })
+
+      navigator.mediaSession.setActionHandler("seekto", (details) => {
+        if (details.seekTime && youtubePlayerRef.current && playerReadyRef.current) {
+          seekTo(details.seekTime)
+        }
+      })
+    }
+  }, [state.currentTrack, state.currentIndex, state.queue.length])
+
+  useEffect(() => {
+    if ("mediaSession" in navigator) {
+      navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused"
+    }
+  }, [state.isPlaying])
+
+  useEffect(() => {
+    if ("mediaSession" in navigator && state.duration > 0) {
+      navigator.mediaSession.setPositionState({
+        duration: state.duration,
+        playbackRate: 1,
+        position: state.currentTime,
+      })
+    }
+  }, [state.duration, Math.floor(state.currentTime)]) // Only update when currentTime changes by a full second
+
   const playTrack = (track: Track) => {
     dispatch({ type: "SET_TRACK", payload: track })
     dispatch({ type: "PLAY" })
