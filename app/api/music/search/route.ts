@@ -17,7 +17,6 @@ export async function GET(request: NextRequest) {
     const cachedData = musicCache.get(cacheKey)
 
     if (cachedData) {
-      console.log("[v0] Returning cached search results for:", query)
       return NextResponse.json({
         videos: cachedData.slice(0, maxResults),
         source: "cache",
@@ -26,68 +25,32 @@ export async function GET(request: NextRequest) {
     }
 
     const youtube = createYouTubeAPI()
-
-    console.log("[v0] Using YouTube Data API v3 to search for:", query)
     const results = await youtube.searchMusic(query, maxResults)
-    console.log("[v0] YouTube Data API v3 returned:", results.videos?.length || 0, "results for:", query)
 
     if (results.videos && results.videos.length > 0) {
-      musicCache.set(cacheKey, results.videos, 20 * 60 * 1000) // 20 minutes for real data
+      musicCache.set(cacheKey, results.videos, 20 * 60 * 1000)
       return NextResponse.json({ ...results, source: "youtube", query })
-    } else {
-      console.log("[v0] No results from YouTube Data API v3, using fallback search data for query:", query)
-      const queryLower = query.toLowerCase()
-      let fallbackResults =
-        fallbackSearchResults[queryLower] || fallbackSearchResults.default || fallbackSearchResults.pop || []
-
-      // If no specific match, try partial matching
-      if (fallbackResults.length === 0) {
-        const partialMatch = Object.keys(fallbackSearchResults).find(
-          (key) => key.includes(queryLower) || queryLower.includes(key),
-        )
-        if (partialMatch) {
-          fallbackResults = fallbackSearchResults[partialMatch]
-        }
-      }
-
-      if (fallbackResults.length > 0) {
-        musicCache.set(cacheKey, fallbackResults, 10 * 60 * 1000) // 10 minutes for fallback
-      }
-
-      console.log("[v0] Returning fallback results:", fallbackResults.length, "items for query:", query)
-      return NextResponse.json({
-        videos: fallbackResults.slice(0, maxResults),
-        source: "fallback",
-        query,
-      })
     }
+
+    const queryLower = query.toLowerCase()
+    const fallbackResults = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
+
+    return NextResponse.json({
+      videos: fallbackResults.slice(0, maxResults),
+      source: "fallback",
+      query,
+    })
   } catch (error) {
-    console.error("[v0] Search API error:", error)
-    console.log("[v0] YouTube Data API v3 error, falling back to mock data")
+    console.error("Search API error:", error)
 
     const query = new URL(request.url).searchParams.get("q") || ""
     const maxResults = Number.parseInt(new URL(request.url).searchParams.get("maxResults") || "20")
     const queryLower = query.toLowerCase()
-
-    let results = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
-
-    if (results.length === 0) {
-      const partialMatch = Object.keys(fallbackSearchResults).find(
-        (key) => key.includes(queryLower) || queryLower.includes(key),
-      )
-      if (partialMatch) {
-        results = fallbackSearchResults[partialMatch]
-      }
-    }
-
-    const cacheKey = getCacheKey.search(query)
-    if (results.length > 0) {
-      musicCache.set(cacheKey, results, 5 * 60 * 1000) // 5 minutes for error fallback
-    }
+    const fallbackResults = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
 
     return NextResponse.json({
-      videos: results.slice(0, maxResults),
-      source: "fallback_error",
+      videos: fallbackResults.slice(0, maxResults),
+      source: "error_fallback",
       query,
     })
   }

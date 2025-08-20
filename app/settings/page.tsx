@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import {
   ArrowLeft,
   User,
@@ -31,6 +31,8 @@ export default function SettingsPage() {
   const { user, loading, signInWithGoogle, signOut } = useAuth()
   const { syncData, syncStatus, syncSettings, updateSyncSettings, performSync, clearSyncData } = useSync()
 
+  const initialLoadComplete = useRef(false)
+
   const [cacheSettings, setCacheSettings] = useState<CacheSettings>({
     maxSize: 50,
     defaultTTL: 24 * 60 * 60 * 1000,
@@ -43,21 +45,31 @@ export default function SettingsPage() {
     newestItem: null,
   })
 
+  const loadCacheData = useCallback(() => {
+    const settings = musicCache.getSettings()
+    const stats = musicCache.getStats()
+
+    setCacheSettings(settings)
+    setCacheStats(stats)
+  }, [])
+
   useEffect(() => {
-    // Check for OAuth callback results
-    const success = searchParams.get("success")
-    const error = searchParams.get("error")
+    if (!initialLoadComplete.current) {
+      // Check for OAuth callback results
+      const success = searchParams.get("success")
+      const error = searchParams.get("error")
 
-    if (success === "connected") {
-      console.log("Successfully connected to Google")
-    } else if (error) {
-      console.error("OAuth error:", error)
+      if (success === "connected") {
+        console.log("Successfully connected to Google")
+      } else if (error) {
+        console.error("OAuth error:", error)
+      }
+
+      // Load cache settings and stats
+      loadCacheData()
+      initialLoadComplete.current = true
     }
-
-    // Load cache settings and stats
-    setCacheSettings(musicCache.getSettings())
-    setCacheStats(musicCache.getStats())
-  }, [searchParams])
+  }, [searchParams, loadCacheData])
 
   const handleGoogleLogin = async () => {
     try {
@@ -87,22 +99,28 @@ export default function SettingsPage() {
     return date.toLocaleString()
   }
 
-  const updateCacheSettings = (newSettings: Partial<CacheSettings>) => {
-    const updated = { ...cacheSettings, ...newSettings }
-    setCacheSettings(updated)
-    musicCache.updateSettings(newSettings)
-    setCacheStats(musicCache.getStats()) // Refresh stats
-  }
+  const updateCacheSettings = useCallback(
+    (newSettings: Partial<CacheSettings>) => {
+      const updated = { ...cacheSettings, ...newSettings }
+      setCacheSettings(updated)
+      musicCache.updateSettings(newSettings)
 
-  const clearCache = () => {
+      setTimeout(() => {
+        setCacheStats(musicCache.getStats())
+      }, 0)
+    },
+    [cacheSettings],
+  )
+
+  const clearCache = useCallback(() => {
     musicCache.clearAll()
     setCacheStats(musicCache.getStats())
-  }
+  }, [])
 
-  const cleanExpiredCache = () => {
+  const cleanExpiredCache = useCallback(() => {
     musicCache.cleanExpired()
     setCacheStats(musicCache.getStats())
-  }
+  }, [])
 
   const formatCacheSize = (bytes: number) => {
     if (bytes === 0) return "0 B"

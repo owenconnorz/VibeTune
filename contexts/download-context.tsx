@@ -61,7 +61,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           })),
         )
       } catch (error) {
-        console.error("[v0] Failed to load downloads:", error)
+        console.error("Failed to load downloads:", error)
       }
     }
 
@@ -76,7 +76,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           })),
         )
       } catch (error) {
-        console.error("[v0] Failed to load downloaded songs:", error)
+        console.error("Failed to load downloaded songs:", error)
       }
     }
   }, [])
@@ -91,8 +91,6 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const simulateDownload = useCallback(
     async (item: DownloadItem) => {
-      console.log("[v0] Starting download simulation for:", item.title)
-
       const updateProgress = (progress: number) => {
         setDownloads((prev) =>
           prev.map((d) =>
@@ -108,11 +106,9 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         )
       }
 
-      // Simulate download progress
       for (let progress = 0; progress <= 100; progress += 10) {
         await new Promise((resolve) => setTimeout(resolve, 200))
 
-        // Check if download was cancelled or paused
         const currentDownload = downloads.find((d) => d.id === item.id)
         if (!currentDownload || currentDownload.status === "cancelled" || currentDownload.status === "paused") {
           return
@@ -121,13 +117,10 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateProgress(progress)
       }
 
-      // Mark as completed
       const completedItem = { ...item, status: "completed" as const, progress: 100, completedAt: new Date() }
 
       setDownloads((prev) => prev.map((d) => (d.id === item.id ? completedItem : d)))
       setDownloadedSongs((prev) => [...prev, completedItem])
-
-      console.log("[v0] Download completed:", item.title)
     },
     [downloads],
   )
@@ -142,12 +135,10 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         url: song.url || "",
         status: "pending",
         progress: 0,
-        size: Math.floor(Math.random() * 10000000) + 3000000, // Random size between 3-13MB
+        size: Math.floor(Math.random() * 10000000) + 3000000,
         downloadedSize: 0,
         createdAt: new Date(),
       }
-
-      console.log("[v0] Adding song to download queue:", downloadItem.title)
 
       setDownloads((prev) => [...prev, downloadItem])
       setIsDownloading(true)
@@ -155,7 +146,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       try {
         await simulateDownload(downloadItem)
       } catch (error) {
-        console.error("[v0] Download failed:", error)
+        console.error("Download failed:", error)
         setDownloads((prev) => prev.map((d) => (d.id === downloadItem.id ? { ...d, status: "failed" as const } : d)))
       } finally {
         setIsDownloading(false)
@@ -165,13 +156,11 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   )
 
   const pauseDownload = useCallback((id: string) => {
-    console.log("[v0] Pausing download:", id)
     setDownloads((prev) => prev.map((d) => (d.id === id ? { ...d, status: "paused" as const } : d)))
   }, [])
 
   const resumeDownload = useCallback(
     async (id: string) => {
-      console.log("[v0] Resuming download:", id)
       const download = downloads.find((d) => d.id === id)
       if (download) {
         setDownloads((prev) => prev.map((d) => (d.id === id ? { ...d, status: "pending" as const } : d)))
@@ -182,18 +171,15 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   )
 
   const cancelDownload = useCallback((id: string) => {
-    console.log("[v0] Cancelling download:", id)
     setDownloads((prev) => prev.filter((d) => d.id !== id))
   }, [])
 
   const deleteDownload = useCallback((id: string) => {
-    console.log("[v0] Deleting download:", id)
     setDownloads((prev) => prev.filter((d) => d.id !== id))
     setDownloadedSongs((prev) => prev.filter((d) => d.id !== id))
   }, [])
 
   const clearAllDownloads = useCallback(() => {
-    console.log("[v0] Clearing all downloads")
     setDownloads([])
     setDownloadedSongs([])
   }, [])

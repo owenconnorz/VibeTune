@@ -267,7 +267,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     } else {
       pendingPlayRef.current = true
     }
-  }, [state.currentTrack, addToHistory])
+  }, [state.currentTrack]) // Removed addToHistory from dependency array to prevent infinite loop
 
   useEffect(() => {
     if (youtubePlayerRef.current && playerReadyRef.current) {

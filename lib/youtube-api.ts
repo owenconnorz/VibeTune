@@ -1,71 +1,5 @@
 // YouTube API utility functions for fetching music data using YouTube Data API v3
 
-interface CacheEntry {
-  data: any
-  timestamp: number
-  ttl: number
-}
-
-class APICache {
-  private cache = new Map<string, CacheEntry>()
-  private readonly DEFAULT_TTL = 30 * 60 * 1000 // 30 minutes
-
-  set(key: string, data: any, ttl = this.DEFAULT_TTL) {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl,
-    })
-  }
-
-  get(key: string): any | null {
-    const entry = this.cache.get(key)
-    if (!entry) return null
-
-    if (Date.now() - entry.timestamp > entry.ttl) {
-      this.cache.delete(key)
-      return null
-    }
-
-    return entry.data
-  }
-
-  clear() {
-    this.cache.clear()
-  }
-}
-
-class QuotaManager {
-  private isInBackoff = false
-  private backoffUntil = 0
-  private readonly BACKOFF_DURATION = 60 * 1000 // 1 minute
-
-  isQuotaExceeded(): boolean {
-    if (this.isInBackoff && Date.now() < this.backoffUntil) {
-      const remainingTime = Math.ceil((this.backoffUntil - Date.now()) / 1000)
-      console.log(`[v0] YouTube API in backoff, ${remainingTime}s remaining`)
-      return true
-    }
-
-    if (this.isInBackoff && Date.now() >= this.backoffUntil) {
-      this.isInBackoff = false
-      console.log(`[v0] YouTube API backoff period ended`)
-    }
-
-    return false
-  }
-
-  setQuotaExceeded() {
-    this.isInBackoff = true
-    this.backoffUntil = Date.now() + this.BACKOFF_DURATION
-    console.log(`[v0] YouTube API quota exceeded, backing off for ${this.BACKOFF_DURATION / 1000}s`)
-  }
-}
-
-// Global instances
-const apiCache = new APICache()
-const quotaManager = new QuotaManager()
-
 export interface YouTubeVideo {
   id: string
   title: string
@@ -100,77 +34,43 @@ export class YouTubeAPI {
   }
 
   async searchMusic(query: string, maxResults = 20): Promise<YouTubeSearchResult> {
-    const cacheKey = `search:${query}:${maxResults}`
-
-    // Check cache first
-    const cached = apiCache.get(cacheKey)
-    if (cached) {
-      console.log(`[v0] Using cached search results for: ${query}`)
-      return cached
-    }
-
-    // Check quota status
-    if (quotaManager.isQuotaExceeded()) {
-      throw new Error("YouTube API quota exceeded")
-    }
-
     try {
-      console.log(`[v0] Using YouTube Data API v3 to search for: ${query}`)
-
-      const musicQuery = `${query} music OR song OR audio OR track OR official`
       const url = new URL(`${this.baseUrl}/search`)
       url.searchParams.set("part", "snippet")
-      url.searchParams.set("q", musicQuery)
+      url.searchParams.set("q", query)
       url.searchParams.set("type", "video")
-      url.searchParams.set("maxResults", maxResults.toString())
+      url.searchParams.set("maxResults", Math.min(maxResults, 25).toString())
       url.searchParams.set("order", "relevance")
-      url.searchParams.set("videoCategoryId", "10") // Music category
+      url.searchParams.set("videoDuration", "medium")
       url.searchParams.set("key", this.apiKey)
 
-      const response = await fetch(url.toString())
+      const response = await fetch(url.toString(), {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "OpenTune/1.0",
+        },
+      })
 
       if (!response.ok) {
-        if (response.status === 403) {
-          quotaManager.setQuotaExceeded()
-        }
-        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
+        console.error(`YouTube API error: ${response.status} ${response.statusText}`)
+        throw new Error(`YouTube API error: ${response.status}`)
       }
 
       const data = await response.json()
       const videos = this.parseSearchResults(data.items || [])
-      const result = {
+
+      return {
         videos: this.filterMusicContent(videos),
         nextPageToken: data.nextPageToken,
       }
-
-      // Cache successful results
-      apiCache.set(cacheKey, result, 30 * 60 * 1000) // 30 minutes
-      console.log(`[v0] YouTube Data API search returned ${result.videos.length} results for: ${query}`)
-      return result
     } catch (error) {
-      console.error("Error searching YouTube:", error)
+      console.error(`Search error:`, error)
       throw error
     }
   }
 
   async getTrendingMusic(maxResults = 20): Promise<YouTubeVideo[]> {
-    const cacheKey = `trending:${maxResults}`
-
-    // Check cache first
-    const cached = apiCache.get(cacheKey)
-    if (cached) {
-      console.log(`[v0] Using cached trending music results`)
-      return cached
-    }
-
-    // Check quota status
-    if (quotaManager.isQuotaExceeded()) {
-      throw new Error("YouTube API quota exceeded")
-    }
-
     try {
-      console.log(`[v0] Using YouTube Data API v3 to fetch trending music`)
-
       const url = new URL(`${this.baseUrl}/videos`)
       url.searchParams.set("part", "snippet,statistics,contentDetails")
       url.searchParams.set("chart", "mostPopular")
@@ -179,41 +79,29 @@ export class YouTubeAPI {
       url.searchParams.set("maxResults", maxResults.toString())
       url.searchParams.set("key", this.apiKey)
 
-      const response = await fetch(url.toString())
+      const response = await fetch(url.toString(), {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "OpenTune/1.0",
+        },
+      })
 
       if (!response.ok) {
-        if (response.status === 403) {
-          quotaManager.setQuotaExceeded()
-        }
-        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
+        console.error(`YouTube API error: ${response.status} ${response.statusText}`)
+        throw new Error(`YouTube API error: ${response.status}`)
       }
 
       const data = await response.json()
       const videos = this.parseTrendingResults(data.items || [])
 
-      // Cache successful results for longer since trending changes less frequently
-      apiCache.set(cacheKey, videos, 60 * 60 * 1000) // 1 hour
-      console.log(`[v0] YouTube Data API trending returned ${videos.length} results`)
       return videos
     } catch (error) {
-      console.error("Error fetching trending music:", error)
+      console.error(`Trending error:`, error)
       throw error
     }
   }
 
   async getPlaylistVideos(playlistId: string, maxResults = 50): Promise<YouTubeVideo[]> {
-    const cacheKey = `playlist:${playlistId}:${maxResults}`
-
-    const cached = apiCache.get(cacheKey)
-    if (cached) {
-      console.log(`[v0] Using cached playlist results for: ${playlistId}`)
-      return cached
-    }
-
-    if (quotaManager.isQuotaExceeded()) {
-      throw new Error("YouTube API quota exceeded")
-    }
-
     try {
       const url = new URL(`${this.baseUrl}/playlistItems`)
       url.searchParams.set("part", "snippet")
@@ -221,31 +109,29 @@ export class YouTubeAPI {
       url.searchParams.set("maxResults", maxResults.toString())
       url.searchParams.set("key", this.apiKey)
 
-      const response = await fetch(url.toString())
+      const response = await fetch(url.toString(), {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "OpenTune/1.0",
+        },
+      })
 
       if (!response.ok) {
-        if (response.status === 403) {
-          quotaManager.setQuotaExceeded()
-        }
-        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
+        console.error(`YouTube API error: ${response.status} ${response.statusText}`)
+        throw new Error(`YouTube API error: ${response.status}`)
       }
 
       const data = await response.json()
       const videos = this.parsePlaylistResults(data.items || [])
 
-      apiCache.set(cacheKey, videos)
       return videos
     } catch (error) {
-      console.error("Error fetching playlist:", error)
+      console.error(`Playlist error:`, error)
       throw error
     }
   }
 
   async getUserPlaylists(accessToken: string, maxResults = 25): Promise<YouTubePlaylist[]> {
-    if (quotaManager.isQuotaExceeded()) {
-      throw new Error("YouTube API quota exceeded")
-    }
-
     try {
       const url = new URL(`${this.baseUrl}/playlists`)
       url.searchParams.set("part", "snippet,contentDetails")
@@ -255,30 +141,28 @@ export class YouTubeAPI {
 
       const response = await fetch(url.toString(), {
         headers: {
+          Accept: "application/json",
           Authorization: `Bearer ${accessToken}`,
+          "User-Agent": "OpenTune/1.0",
         },
       })
 
       if (!response.ok) {
-        if (response.status === 403) {
-          quotaManager.setQuotaExceeded()
-        }
-        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
+        console.error(`YouTube API error: ${response.status} ${response.statusText}`)
+        throw new Error(`YouTube API error: ${response.status}`)
       }
 
       const data = await response.json()
-      return this.parsePlaylistsResults(data.items || [])
+      const playlists = this.parsePlaylistsResults(data.items || [])
+
+      return playlists
     } catch (error) {
-      console.error("Error fetching user playlists:", error)
+      console.error(`User playlists error:`, error)
       throw error
     }
   }
 
   async getLikedVideos(accessToken: string, maxResults = 50): Promise<YouTubeVideo[]> {
-    if (quotaManager.isQuotaExceeded()) {
-      throw new Error("YouTube API quota exceeded")
-    }
-
     try {
       const url = new URL(`${this.baseUrl}/videos`)
       url.searchParams.set("part", "snippet,statistics,contentDetails")
@@ -288,21 +172,23 @@ export class YouTubeAPI {
 
       const response = await fetch(url.toString(), {
         headers: {
+          Accept: "application/json",
           Authorization: `Bearer ${accessToken}`,
+          "User-Agent": "OpenTune/1.0",
         },
       })
 
       if (!response.ok) {
-        if (response.status === 403) {
-          quotaManager.setQuotaExceeded()
-        }
-        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
+        console.error(`YouTube API error: ${response.status} ${response.statusText}`)
+        throw new Error(`YouTube API error: ${response.status}`)
       }
 
       const data = await response.json()
-      return this.parseTrendingResults(data.items || [])
+      const videos = this.parseTrendingResults(data.items || [])
+
+      return videos
     } catch (error) {
-      console.error("Error fetching liked videos:", error)
+      console.error(`Liked videos error:`, error)
       throw error
     }
   }
@@ -313,8 +199,8 @@ export class YouTubeAPI {
       title: item.snippet?.title || "Unknown Title",
       channelTitle: item.snippet?.channelTitle || "Unknown Channel",
       thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
-      duration: this.parseDuration(item.contentDetails?.duration || "PT3M30S"),
-      viewCount: item.statistics?.viewCount || "0",
+      duration: "3:30", // Duration not available in search results
+      viewCount: "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
     }))
   }
@@ -337,7 +223,7 @@ export class YouTubeAPI {
       title: item.snippet?.title || "Unknown Title",
       channelTitle: item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || "Unknown Channel",
       thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
-      duration: "3:30", // Duration not available in playlist items, would need separate API call
+      duration: "3:30",
       viewCount: "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
     }))
@@ -391,6 +277,8 @@ export class YouTubeAPI {
       "version",
       "ft.",
       "feat.",
+      "vevo",
+      "records",
     ]
 
     const nonMusicKeywords = [
@@ -400,8 +288,6 @@ export class YouTubeAPI {
       "reaction",
       "vlog",
       "interview",
-      "behind the scenes",
-      "making of",
       "documentary",
       "news",
       "talk show",
@@ -415,28 +301,36 @@ export class YouTubeAPI {
         const title = video.title.toLowerCase()
         const channelTitle = video.channelTitle.toLowerCase()
 
-        const hasMusicKeywords = musicKeywords.some((keyword) => title.includes(keyword))
+        const hasMusicKeywords = musicKeywords.some(
+          (keyword) => title.includes(keyword) || channelTitle.includes(keyword),
+        )
         const hasNonMusicKeywords = nonMusicKeywords.some((keyword) => title.includes(keyword))
 
-        // Filter out obvious non-music content
+        // Include VEVO channels and official content
+        if (channelTitle.includes("vevo") || title.includes("official")) {
+          return true
+        }
+
+        // Filter out non-music content
         if (hasNonMusicKeywords && !hasMusicKeywords) {
           return false
         }
 
-        return true
+        return hasMusicKeywords
       })
       .sort((a, b) => {
-        const aTitle = a.title.toLowerCase()
-        const bTitle = b.title.toLowerCase()
         const aChannel = a.channelTitle.toLowerCase()
         const bChannel = b.channelTitle.toLowerCase()
+        const aTitle = a.title.toLowerCase()
+        const bTitle = b.title.toLowerCase()
 
-        // Prioritize official music content
-        const aIsOfficial = aTitle.includes("official") || aChannel.includes("vevo") || aChannel.includes("records")
-        const bIsOfficial = bTitle.includes("official") || bChannel.includes("vevo") || bChannel.includes("records")
+        // Prioritize VEVO channels
+        if (aChannel.includes("vevo") && !bChannel.includes("vevo")) return -1
+        if (!aChannel.includes("vevo") && bChannel.includes("vevo")) return 1
 
-        if (aIsOfficial && !bIsOfficial) return -1
-        if (!aIsOfficial && bIsOfficial) return 1
+        // Prioritize official content
+        if (aTitle.includes("official") && !bTitle.includes("official")) return -1
+        if (!aTitle.includes("official") && bTitle.includes("official")) return 1
 
         return 0
       })
@@ -445,8 +339,3 @@ export class YouTubeAPI {
 
 // Create a singleton instance
 export const createYouTubeAPI = (apiKey?: string) => new YouTubeAPI(apiKey)
-
-export const clearYouTubeCache = () => {
-  apiCache.clear()
-  console.log("[v0] YouTube Data API cache cleared")
-}

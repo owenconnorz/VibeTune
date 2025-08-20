@@ -5,7 +5,7 @@ export interface Song {
   thumbnail: string
   duration: string
   viewCount: string
-  audioUrl?: string // Added optional audioUrl for playback
+  audioUrl?: string
 }
 
 export interface Playlist {
@@ -16,19 +16,15 @@ export interface Playlist {
   songs: Song[]
 }
 
-// Fetch trending music for home screen
 export async function fetchTrendingMusic(): Promise<Song[]> {
   try {
-    console.log("[v0] Fetching trending music...")
     const response = await fetch("/api/music/trending?maxResults=10")
 
     if (!response.ok) {
-      console.log("[v0] Trending API response not ok:", response.status, response.statusText)
       throw new Error("Failed to fetch trending music")
     }
 
     const data = await response.json()
-    console.log("[v0] Trending API response:", data)
 
     const results = data.videos.map((video: any) => ({
       id: video.id,
@@ -40,29 +36,23 @@ export async function fetchTrendingMusic(): Promise<Song[]> {
       audioUrl: video.audioUrl,
     }))
 
-    console.log("[v0] Mapped trending results:", results.length, "songs")
     return results
   } catch (error) {
-    console.error("[v0] Error fetching trending music:", error)
+    console.error("Error fetching trending music:", error)
     const { fallbackTrendingMusic } = await import("@/lib/fallback-data")
-    console.log("[v0] Using fallback trending data:", fallbackTrendingMusic.length, "songs")
     return fallbackTrendingMusic
   }
 }
 
-// Search for music
 export async function searchMusic(query: string): Promise<Song[]> {
   try {
-    console.log("[v0] Searching for:", query)
     const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}&maxResults=20`)
 
     if (!response.ok) {
-      console.log("[v0] Search API response not ok:", response.status, response.statusText)
       throw new Error("Failed to search music")
     }
 
     const data = await response.json()
-    console.log("[v0] Search API response:", data)
 
     const videos = data.videos || []
     const results = videos.map((video: any) => ({
@@ -75,18 +65,15 @@ export async function searchMusic(query: string): Promise<Song[]> {
       audioUrl: video.audioUrl,
     }))
 
-    console.log("[v0] Mapped search results:", results.length, "songs")
     return results
   } catch (error) {
-    console.error("[v0] Error searching music:", error)
+    console.error("Error searching music:", error)
     const { fallbackSearchResults } = await import("@/lib/fallback-data")
     const fallbackData = fallbackSearchResults[query.toLowerCase()] || fallbackSearchResults.default
-    console.log("[v0] Using fallback search data:", fallbackData.length, "songs")
     return fallbackData
   }
 }
 
-// Predefined playlists for mood-based sections
 export const moodPlaylists = {
   "morning-boost": {
     id: "morning-boost",

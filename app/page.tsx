@@ -16,14 +16,13 @@ import { useTrendingMusic, useMoodPlaylist } from "@/hooks/use-music-data"
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { moodPlaylists } from "@/lib/music-data"
 import { useRouter } from "next/navigation"
-import { musicCache } from "@/lib/music-cache"
 
 export default function OpenTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const router = useRouter()
   const { user } = useAuth()
   const { syncData } = useSync()
-  const { playTrack, playQueue, state } = useAudioPlayer() // Added state to access current track
+  const { playTrack, playQueue, state } = useAudioPlayer()
   const {
     songs: trendingSongs,
     loading: trendingLoading,
@@ -36,13 +35,6 @@ export default function OpenTunePage() {
     error: morningError,
   } = useMoodPlaylist(moodPlaylists["morning-boost"].queries)
 
-  useEffect(() => {
-    console.log("[v0] 🎵 CACHE CLEAR: Clearing mood playlist cache to force fresh YouTube Data API v3 calls")
-    const cacheKey = `mood_playlist_${moodPlaylists["morning-boost"].queries.join("_").toLowerCase().replace(/\s+/g, "_")}`
-    musicCache.remove(cacheKey)
-  }, [])
-
-  // Convert Song to Track format for audio player
   const convertToTrack = (song: any) => ({
     id: song.id,
     title: song.title,
@@ -51,101 +43,18 @@ export default function OpenTunePage() {
     duration: song.duration,
   })
 
-  console.log("[v0] 🎵 YOUTUBE DATA API v3 VALIDATION - Homepage data state:", {
-    trendingSongs: trendingSongs.length,
-    trendingLoading,
-    trendingError: trendingError ? `ERROR: ${trendingError}` : null,
-    morningBoostSongs: morningBoostSongs.length,
-    morningLoading,
-    morningError: morningError ? `ERROR: ${morningError}` : null,
-    timestamp: new Date().toISOString(),
-  })
-
-  if (trendingSongs.length > 0) {
-    console.log("[v0] 🎵 YOUTUBE DATA API v3 TRENDING SAMPLE:", {
-      firstSong: {
-        id: trendingSongs[0].id,
-        title: trendingSongs[0].title,
-        artist: trendingSongs[0].artist || trendingSongs[0].channelTitle,
-        thumbnail: trendingSongs[0].thumbnail ? "✅ Has thumbnail" : "❌ No thumbnail",
-        duration: trendingSongs[0].duration,
-      },
-      totalSongs: trendingSongs.length,
-      apiSource: "YouTube Data API v3",
-    })
-  }
-
-  if (morningBoostSongs.length > 0) {
-    console.log("[v0] 🎵 YOUTUBE DATA API v3 MORNING BOOST SAMPLE:", {
-      firstSong: {
-        id: morningBoostSongs[0].id,
-        title: morningBoostSongs[0].title,
-        artist: morningBoostSongs[0].artist || morningBoostSongs[0].channelTitle,
-        thumbnail: morningBoostSongs[0].thumbnail ? "✅ Has thumbnail" : "❌ No thumbnail",
-        duration: morningBoostSongs[0].duration,
-      },
-      totalSongs: morningBoostSongs.length,
-      apiSource: "YouTube Data API v3",
-    })
-  }
-
-  console.log("[v0] Current track:", state.currentTrack?.title || "None")
-
   useEffect(() => {
     if (trendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
-      console.log("[v0] 🎵 YOUTUBE DATA API v3 VALIDATION: Auto-setting first trending song as current track")
-      console.log("[v0] 🎵 Selected track for theme:", {
-        title: trendingSongs[0].title,
-        artist: trendingSongs[0].artist || trendingSongs[0].channelTitle,
-        thumbnail: trendingSongs[0].thumbnail,
-        source: "YouTube Data API v3",
-      })
       const firstTrack = convertToTrack(trendingSongs[0])
       playTrack(firstTrack)
     }
   }, [trendingSongs, state.currentTrack, trendingLoading])
 
   const handlePlaySong = (song: any, songList: any[]) => {
-    console.log(
-      "[v0] 🎵 YOUTUBE DATA API v3 PLAYBACK: Playing song:",
-      song.title,
-      "from list of",
-      songList.length,
-      "songs",
-    )
-    console.log("[v0] 🎵 Song details:", {
-      id: song.id,
-      title: song.title,
-      artist: song.artist || song.channelTitle,
-      thumbnail: song.thumbnail ? "✅ Has thumbnail" : "❌ No thumbnail",
-      duration: song.duration,
-      source: "YouTube Data API v3",
-    })
     const tracks = songList.map(convertToTrack)
     const startIndex = songList.findIndex((s) => s.id === song.id)
-    console.log("[v0] 🎵 Starting playback at index:", startIndex)
     playQueue(tracks, startIndex)
   }
-
-  useEffect(() => {
-    const logApiPerformance = () => {
-      console.log("[v0] 🎵 YOUTUBE DATA API v3 PERFORMANCE METRICS:", {
-        trendingLoaded: !trendingLoading && trendingSongs.length > 0,
-        morningBoostLoaded: !morningLoading && morningBoostSongs.length > 0,
-        totalSongsLoaded: trendingSongs.length + morningBoostSongs.length,
-        hasErrors: !!(trendingError || morningError),
-        loadingState: {
-          trending: trendingLoading ? "Loading..." : "Complete",
-          morningBoost: morningLoading ? "Loading..." : "Complete",
-        },
-        timestamp: new Date().toISOString(),
-      })
-    }
-
-    if (!trendingLoading && !morningLoading) {
-      logApiPerformance()
-    }
-  }, [trendingLoading, morningLoading, trendingSongs.length, morningBoostSongs.length, trendingError, morningError])
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
@@ -338,7 +247,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
@@ -372,7 +280,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[3]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -406,7 +313,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Upbeat Classics"

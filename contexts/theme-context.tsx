@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, useMemo } from "react"
+import { createContext, useContext, useState, useEffect, useMemo, useRef } from "react"
 import { useAudioPlayer } from "./audio-player-context"
 import { extractColorsFromImage, type ExtractedColors } from "@/lib/color-extractor"
 
@@ -22,28 +22,35 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     foreground: "#ffffff",
   })
   const [isTransitioning, setIsTransitioning] = useState(false)
-  const [lastThumbnail, setLastThumbnail] = useState<string | null>(null)
+  const lastThumbnailRef = useRef<string | null>(null)
+  const lastTrackIdRef = useRef<string | null>(null)
 
   const currentThumbnail = useMemo(() => {
-    return state.currentTrack?.thumbnail || null
+    if (!state.currentTrack?.id || !state.currentTrack?.thumbnail) {
+      return null
+    }
+    return state.currentTrack.thumbnail
   }, [state.currentTrack?.id, state.currentTrack?.thumbnail])
 
-  useEffect(() => {
-    console.log("[v0] Theme: Current track changed:", state.currentTrack?.title, "Thumbnail:", currentThumbnail)
+  const currentTrackId = state.currentTrack?.id || null
 
-    if (!currentThumbnail || currentThumbnail === lastThumbnail) {
-      console.log("[v0] Theme: No thumbnail available or same as last, skipping color extraction")
+  useEffect(() => {
+    if (!state.currentTrack || !currentTrackId || !currentThumbnail) {
+      return
+    }
+
+    if (currentTrackId === lastTrackIdRef.current && currentThumbnail === lastThumbnailRef.current) {
       return
     }
 
     const updateTheme = async () => {
-      console.log("[v0] Theme: Starting color extraction for:", currentThumbnail)
       setIsTransitioning(true)
-      setLastThumbnail(currentThumbnail)
+
+      lastTrackIdRef.current = currentTrackId
+      lastThumbnailRef.current = currentThumbnail
 
       try {
         const newColors = await extractColorsFromImage(currentThumbnail)
-        console.log("[v0] Theme: Extracted colors:", newColors)
 
         const root = document.documentElement
         root.style.setProperty("--theme-primary", newColors.primary)
@@ -52,17 +59,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         root.style.setProperty("--theme-background", newColors.background)
         root.style.setProperty("--theme-foreground", newColors.foreground)
 
-        console.log("[v0] Theme: Applied CSS custom properties")
         setColors(newColors)
       } catch (error) {
-        console.error("[v0] Theme: Failed to extract colors:", error)
+        console.error("Theme: Failed to extract colors:", error)
       } finally {
         setTimeout(() => setIsTransitioning(false), 500)
       }
     }
 
     updateTheme()
-  }, [currentThumbnail]) // Removed lastThumbnail from dependencies to prevent infinite loop
+  }, [currentTrackId, currentThumbnail])
 
   return <ThemeContext.Provider value={{ colors, isTransitioning }}>{children}</ThemeContext.Provider>
 }
