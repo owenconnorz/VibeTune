@@ -3,6 +3,8 @@ import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { AudioPlayerProvider } from "@/contexts/audio-player-context"
+import { AuthProvider } from "@/contexts/auth-context"
+import { SyncProvider } from "@/contexts/sync-context"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -28,7 +30,11 @@ html {
         `}</style>
       </head>
       <body>
-        <AudioPlayerProvider>{children}</AudioPlayerProvider>
+        <AuthProvider>
+          <SyncProvider>
+            <AudioPlayerProvider>{children}</AudioPlayerProvider>
+          </SyncProvider>
+        </AuthProvider>
       </body>
     </html>
   )

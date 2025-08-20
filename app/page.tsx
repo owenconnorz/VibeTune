@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AudioPlayer } from "@/components/audio-player"
 import { SearchModal } from "@/components/search-modal"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
+import { useAuth } from "@/contexts/auth-context"
+import { useSync } from "@/contexts/sync-context"
 import { useTrendingMusic, useMoodPlaylist } from "@/hooks/use-music-data"
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { moodPlaylists } from "@/lib/music-data"
@@ -15,6 +17,8 @@ import { useRouter } from "next/navigation"
 export default function OpenTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const router = useRouter()
+  const { user } = useAuth()
+  const { syncData } = useSync()
   const { playTrack, playQueue } = useAudioPlayer()
   const {
     songs: trendingSongs,
@@ -32,7 +36,7 @@ export default function OpenTunePage() {
   const convertToTrack = (song: any) => ({
     id: song.id,
     title: song.title,
-    artist: song.artist,
+    artist: song.artist || song.channelTitle,
     thumbnail: song.thumbnail,
     duration: song.duration,
   })
@@ -74,8 +78,8 @@ export default function OpenTunePage() {
             <Settings className="w-5 h-5" />
           </Button>
           <Avatar className="w-8 h-8">
-            <AvatarImage src="/diverse-profile-avatars.png" />
-            <AvatarFallback>U</AvatarFallback>
+            <AvatarImage src={user?.picture || "/diverse-profile-avatars.png"} />
+            <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
           </Avatar>
         </div>
       </header>
@@ -84,11 +88,74 @@ export default function OpenTunePage() {
       <nav className="flex gap-8 px-4 py-4 bg-zinc-800">
         <button className="text-gray-300 hover:text-white font-medium">History</button>
         <button className="text-gray-300 hover:text-white font-medium">Stats</button>
-        <button className="text-gray-300 hover:text-white font-medium">Liked</button>
+        <button className="text-gray-300 hover:text-white font-medium relative">
+          Liked
+          {user && syncData.likedSongs.length > 0 && (
+            <span className="absolute -top-1 -right-2 bg-yellow-600 text-black text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              {syncData.likedSongs.length > 99 ? "99+" : syncData.likedSongs.length}
+            </span>
+          )}
+        </button>
         <button className="text-gray-300 hover:text-white font-medium">Downloaded</button>
       </nav>
 
       <div className="px-4 pb-24">
+        {/* User's Synced Content */}
+        {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
+          <section className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-yellow-400">Your Music</h2>
+              <Button
+                variant="outline"
+                onClick={() => router.push("/library")}
+                className="border-zinc-600 text-gray-300 hover:bg-zinc-700 bg-transparent"
+              >
+                View All
+              </Button>
+            </div>
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {syncData.playlists.slice(0, 3).map((playlist) => (
+                <div
+                  key={playlist.id}
+                  className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => router.push("/library")}
+                >
+                  <div className="relative rounded-lg overflow-hidden mb-3">
+                    <img
+                      src={playlist.thumbnail || "/placeholder.svg?height=192&width=192&query=music playlist"}
+                      alt={playlist.title}
+                      className="w-full h-48 object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute bottom-4 left-4">
+                      <h3 className="text-white font-bold text-lg truncate">{playlist.title}</h3>
+                      <p className="text-yellow-400 font-bold text-sm">{playlist.videoCount} songs</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {syncData.likedSongs.length > 0 && (
+                <div
+                  className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => router.push("/library")}
+                >
+                  <div className="relative rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-red-500 to-pink-600">
+                    <div className="w-full h-48 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                          <span className="text-3xl">❤️</span>
+                        </div>
+                        <h3 className="text-white font-bold text-lg">Liked Songs</h3>
+                        <p className="text-white/80 font-bold text-sm">{syncData.likedSongs.length} songs</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         {/* Quick picks - Real Trending Music */}
         <section className="mb-8">
           <h2 className="text-2xl font-bold text-yellow-400 mb-6">Quick picks</h2>
@@ -148,7 +215,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
@@ -182,7 +248,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[3]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -216,7 +281,6 @@ export default function OpenTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Upbeat Classics"
@@ -261,8 +325,13 @@ export default function OpenTunePage() {
             <Compass className="w-6 h-6 text-gray-400 mb-1" />
             <span className="text-xs text-gray-400">Explore</span>
           </div>
-          <div className="flex flex-col items-center py-2 px-4">
-            <Library className="w-6 h-6 text-gray-400 mb-1" />
+          <div className="flex flex-col items-center py-2 px-4 cursor-pointer" onClick={() => router.push("/library")}>
+            <div className="relative">
+              <Library className="w-6 h-6 text-gray-400 mb-1" />
+              {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full"></div>
+              )}
+            </div>
             <span className="text-xs text-gray-400">Library</span>
           </div>
         </div>

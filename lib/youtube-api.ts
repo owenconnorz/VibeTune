@@ -17,6 +17,16 @@ export interface YouTubeSearchResult {
   nextPageToken?: string
 }
 
+export interface YouTubePlaylist {
+  id: string
+  title: string
+  description: string
+  thumbnail: string
+  videoCount: number
+  privacy: string
+  publishedAt: string
+}
+
 export class YouTubeAPI {
   private apiKey: string
 
@@ -135,6 +145,68 @@ export class YouTubeAPI {
       })
     } catch (error) {
       console.error("Error fetching playlist videos:", error)
+      throw error
+    }
+  }
+
+  async getUserPlaylists(accessToken: string, maxResults = 25): Promise<YouTubePlaylist[]> {
+    try {
+      const url = `${YOUTUBE_API_BASE_URL}/playlists?part=snippet,contentDetails&mine=true&maxResults=${maxResults}`
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(`YouTube API error: ${data.error?.message || "Unknown error"}`)
+      }
+
+      return data.items.map((item: any) => ({
+        id: item.id,
+        title: item.snippet.title,
+        description: item.snippet.description || "",
+        thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url || "",
+        videoCount: item.contentDetails.itemCount,
+        privacy: item.status?.privacyStatus || "private",
+        publishedAt: item.snippet.publishedAt,
+      }))
+    } catch (error) {
+      console.error("Error fetching user playlists:", error)
+      throw error
+    }
+  }
+
+  async getLikedVideos(accessToken: string, maxResults = 50): Promise<YouTubeVideo[]> {
+    try {
+      const url = `${YOUTUBE_API_BASE_URL}/videos?part=snippet,contentDetails,statistics&myRating=like&maxResults=${maxResults}`
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(`YouTube API error: ${data.error?.message || "Unknown error"}`)
+      }
+
+      return data.items.map((item: any) => ({
+        id: item.id,
+        title: item.snippet.title,
+        channelTitle: item.snippet.channelTitle,
+        thumbnail: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default.url,
+        duration: this.formatDuration(item.contentDetails.duration),
+        viewCount: item.statistics.viewCount,
+        publishedAt: item.snippet.publishedAt,
+      }))
+    } catch (error) {
+      console.error("Error fetching liked videos:", error)
       throw error
     }
   }

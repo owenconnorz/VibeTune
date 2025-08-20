@@ -1,33 +1,80 @@
 "use client"
 
-import { useState } from "react"
-import { ArrowLeft, User, Music, FolderSyncIcon as Sync, LogOut, SettingsIcon } from "lucide-react"
+import { useEffect } from "react"
+import {
+  ArrowLeft,
+  User,
+  Music,
+  FolderSyncIcon as Sync,
+  LogOut,
+  SettingsIcon,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { useRouter } from "next/navigation"
+import { Progress } from "@/components/ui/progress"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
+import { useSync } from "@/contexts/sync-context"
 
 export default function SettingsPage() {
   const router = useRouter()
-  const [isGoogleConnected, setIsGoogleConnected] = useState(false)
-  const [autoSync, setAutoSync] = useState(false)
-  const [syncPlaylists, setSyncPlaylists] = useState(true)
-  const [syncLikedSongs, setSyncLikedSongs] = useState(true)
+  const searchParams = useSearchParams()
+  const { user, loading, signInWithGoogle, signOut } = useAuth()
+  const { syncData, syncStatus, syncSettings, updateSyncSettings, performSync, clearSyncData } = useSync()
 
-  const handleGoogleLogin = () => {
-    // TODO: Implement Google OAuth
-    console.log("Google login clicked")
+  useEffect(() => {
+    // Check for OAuth callback results
+    const success = searchParams.get("success")
+    const error = searchParams.get("error")
+
+    if (success === "connected") {
+      console.log("Successfully connected to Google")
+    } else if (error) {
+      console.error("OAuth error:", error)
+    }
+  }, [searchParams])
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithGoogle()
+    } catch (error) {
+      console.error("Login failed:", error)
+    }
   }
 
-  const handleGoogleLogout = () => {
-    setIsGoogleConnected(false)
-    setAutoSync(false)
+  const handleGoogleLogout = async () => {
+    try {
+      await signOut()
+      clearSyncData()
+    } catch (error) {
+      console.error("Logout failed:", error)
+    }
   }
 
-  const handleSyncNow = () => {
-    // TODO: Implement sync functionality
-    console.log("Sync now clicked")
+  const handleSyncNow = async () => {
+    if (!user) return
+    await performSync()
+  }
+
+  const formatLastSyncTime = (isoString: string | null) => {
+    if (!isoString) return "Never"
+    const date = new Date(isoString)
+    return date.toLocaleString()
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-900 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -58,7 +105,7 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!isGoogleConnected ? (
+            {!user ? (
               <div className="space-y-4">
                 <p className="text-gray-300 text-sm">
                   Sign in with your Google account to access your YouTube Music playlists, liked songs, and enable
@@ -90,12 +137,12 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="w-12 h-12">
-                    <AvatarImage src="/placeholder.svg?height=48&width=48" />
-                    <AvatarFallback>JD</AvatarFallback>
+                    <AvatarImage src={user.picture || "/placeholder.svg"} />
+                    <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-white font-medium">John Doe</p>
-                    <p className="text-gray-400 text-sm">john.doe@gmail.com</p>
+                    <p className="text-white font-medium">{user.name}</p>
+                    <p className="text-gray-400 text-sm">{user.email}</p>
                   </div>
                 </div>
                 <Button
@@ -126,7 +173,11 @@ export default function SettingsPage() {
                 <p className="text-white font-medium">Auto Sync</p>
                 <p className="text-gray-400 text-sm">Automatically sync data when changes are detected</p>
               </div>
-              <Switch checked={autoSync} onCheckedChange={setAutoSync} disabled={!isGoogleConnected} />
+              <Switch
+                checked={syncSettings.autoSync}
+                onCheckedChange={(checked) => updateSyncSettings({ autoSync: checked })}
+                disabled={!user}
+              />
             </div>
 
             <div className="flex items-center justify-between">
@@ -134,7 +185,11 @@ export default function SettingsPage() {
                 <p className="text-white font-medium">Sync Playlists</p>
                 <p className="text-gray-400 text-sm">Import and sync your YouTube Music playlists</p>
               </div>
-              <Switch checked={syncPlaylists} onCheckedChange={setSyncPlaylists} disabled={!isGoogleConnected} />
+              <Switch
+                checked={syncSettings.syncPlaylists}
+                onCheckedChange={(checked) => updateSyncSettings({ syncPlaylists: checked })}
+                disabled={!user}
+              />
             </div>
 
             <div className="flex items-center justify-between">
@@ -142,19 +197,54 @@ export default function SettingsPage() {
                 <p className="text-white font-medium">Sync Liked Songs</p>
                 <p className="text-gray-400 text-sm">Import your liked songs from YouTube Music</p>
               </div>
-              <Switch checked={syncLikedSongs} onCheckedChange={setSyncLikedSongs} disabled={!isGoogleConnected} />
+              <Switch
+                checked={syncSettings.syncLikedSongs}
+                onCheckedChange={(checked) => updateSyncSettings({ syncLikedSongs: checked })}
+                disabled={!user}
+              />
             </div>
+
+            {syncStatus.isSync && (
+              <div className="space-y-3 pt-4 border-t border-zinc-700">
+                <div className="flex items-center gap-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400"></div>
+                  <p className="text-sm text-gray-300">{syncStatus.currentStep}</p>
+                </div>
+                <Progress value={syncStatus.progress} className="w-full" />
+              </div>
+            )}
+
+            {syncStatus.error && (
+              <div className="flex items-center gap-2 p-3 bg-red-900/20 border border-red-700 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-red-400" />
+                <p className="text-sm text-red-300">{syncStatus.error}</p>
+              </div>
+            )}
+
+            {syncStatus.currentStep === "Sync completed successfully" && (
+              <div className="flex items-center gap-2 p-3 bg-green-900/20 border border-green-700 rounded-lg">
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <p className="text-sm text-green-300">Sync completed successfully</p>
+              </div>
+            )}
 
             <div className="pt-4 border-t border-zinc-700">
               <Button
                 onClick={handleSyncNow}
-                disabled={!isGoogleConnected}
-                className="w-full bg-yellow-600 hover:bg-yellow-700 text-black font-medium"
+                disabled={!user || syncStatus.isSync}
+                className="w-full bg-yellow-600 hover:bg-yellow-700 text-black font-medium disabled:opacity-50"
               >
-                <Sync className="w-4 h-4 mr-2" />
-                Sync Now
+                <Sync className={`w-4 h-4 mr-2 ${syncStatus.isSync ? "animate-spin" : ""}`} />
+                {syncStatus.isSync ? "Syncing..." : "Sync Now"}
               </Button>
-              <p className="text-gray-400 text-xs mt-2 text-center">Last synced: Never</p>
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-gray-400 text-xs">Last synced: {formatLastSyncTime(syncData.lastSyncTime)}</p>
+                {syncData.playlists.length > 0 || syncData.likedSongs.length > 0 ? (
+                  <p className="text-gray-400 text-xs">
+                    {syncData.playlists.length} playlists, {syncData.likedSongs.length} liked songs
+                  </p>
+                ) : null}
+              </div>
             </div>
           </CardContent>
         </Card>
