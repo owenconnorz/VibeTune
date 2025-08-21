@@ -5,8 +5,6 @@ import { Search, Home, Compass, Library, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AudioPlayer } from "@/components/audio-player"
-import { SearchModal } from "@/components/search-modal"
-import { UpdateNotificationButton } from "@/components/update-notification"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
@@ -17,13 +15,8 @@ import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/l
 import { useRouter } from "next/navigation"
 
 const moodPlaylists = {
-  "morning-boost": {
-    queries: [
-      "upbeat morning songs 2024",
-      "energetic pop hits",
-      "feel good music playlist",
-      "morning motivation songs",
-    ],
+  "mixed-for-you": {
+    queries: ["mixed for you playlist 2024", "personalized music mix", "discover weekly hits", "your music taste mix"],
   },
 }
 
@@ -45,10 +38,10 @@ export default function VibeTunePage() {
     refetch: refetchTrending,
   } = useTrendingMusic()
   const {
-    songs: morningBoostSongs,
-    loading: morningLoading,
-    error: morningError,
-  } = useMoodPlaylist(moodPlaylists["morning-boost"].queries)
+    songs: mixedForYouSongs,
+    loading: mixedLoading,
+    error: mixedError,
+  } = useMoodPlaylist(moodPlaylists["mixed-for-you"].queries)
 
   const convertToTrack = (song: any) => ({
     id: song.id,
@@ -59,7 +52,7 @@ export default function VibeTunePage() {
   })
 
   const safeTrendingSongs = Array.isArray(trendingSongs) ? trendingSongs : []
-  const safeMorningBoostSongs = Array.isArray(morningBoostSongs) ? morningBoostSongs : []
+  const safeMixedForYouSongs = Array.isArray(mixedForYouSongs) ? mixedForYouSongs : []
 
   useEffect(() => {
     console.log(
@@ -107,12 +100,11 @@ export default function VibeTunePage() {
           <h1 className="text-lg font-semibold text-white">VibeTune</h1>
         </div>
         <div className="flex items-center gap-2">
-          <UpdateNotificationButton />
           <Button
             variant="ghost"
             size="icon"
             className="text-gray-300 hover:text-white w-8 h-8"
-            onClick={() => setIsSearchOpen(true)}
+            onClick={() => router.push("/search")}
           >
             <Search className="w-4 h-4" />
           </Button>
@@ -209,10 +201,10 @@ export default function VibeTunePage() {
           </section>
         )}
 
-        {/* Quick picks - Real Trending Music */}
+        {/* Quick Picks - Individual Songs */}
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-yellow-400">Quick picks</h2>
+            <h2 className="text-2xl font-bold text-yellow-400">Quick Picks</h2>
           </div>
 
           {trendingError ? (
@@ -247,107 +239,125 @@ export default function VibeTunePage() {
           )}
         </section>
 
-        {/* Morning Mood Boost - Real Playlist Data */}
+        {/* Mixed for You - Personalized Playlists */}
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-yellow-400">Morning Mood Boost</h2>
+            <h2 className="text-2xl font-bold text-yellow-400">Mixed for You</h2>
           </div>
 
-          {morningError ? (
-            <ErrorMessage message={morningError} />
+          {mixedError ? (
+            <ErrorMessage message={mixedError} />
           ) : (
             <div className="flex gap-4 overflow-x-auto pb-4">
-              {morningLoading ? (
+              {mixedLoading ? (
                 Array.from({ length: 3 }).map((_, i) => <PlaylistCardSkeleton key={i} />)
               ) : (
                 <>
-                  {/* Energetic Morning Hits */}
                   <div
                     className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() =>
-                      safeMorningBoostSongs.length > 0 &&
-                      handlePlaySong(safeMorningBoostSongs[0], safeMorningBoostSongs)
-                    }
+                    onClick={() => router.push("/library/your-mix")}
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
                       <img
-                        src={safeMorningBoostSongs[0]?.thumbnail || "/placeholder.svg?height=192&width=192"}
-                        alt="Morning Energy"
+                        src={
+                          safeMixedForYouSongs[0]?.thumbnail ||
+                          "/placeholder.svg?height=192&width=192&text=Your%20Mix&bg=6366f1&color=white" ||
+                          "/placeholder.svg" ||
+                          "/placeholder.svg"
+                        }
+                        alt="Your Mix"
                         className="w-full h-48 object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src =
+                            "/placeholder.svg?height=192&width=192&text=Your%20Mix&bg=6366f1&color=white"
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-4 left-4">
-                        <h3 className="text-white font-bold text-lg">Morning</h3>
-                        <h4 className="text-yellow-400 font-bold text-lg">Energy</h4>
+                        <h3 className="text-white font-bold text-lg">Your</h3>
+                        <h4 className="text-yellow-400 font-bold text-lg">Mix</h4>
                       </div>
                     </div>
-                    <h3 className="text-white font-semibold truncate">Morning Energy</h3>
+                    <h3 className="text-white font-semibold truncate">Your Mix</h3>
                     <p className="text-gray-400 text-sm truncate">
-                      {safeMorningBoostSongs
-                        .slice(0, 2)
-                        .map((s) => s.artist)
-                        .join(", ")}
-                      ...
+                      {safeMixedForYouSongs.length > 0
+                        ? safeMixedForYouSongs
+                            .slice(0, 2)
+                            .map((s) => s.artist)
+                            .join(", ") + "..."
+                        : "Personalized for you"}
                     </p>
                   </div>
 
-                  {/* Feel-Good Hits */}
                   <div
                     className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() =>
-                      safeMorningBoostSongs.length > 3 &&
-                      handlePlaySong(safeMorningBoostSongs[3], safeMorningBoostSongs)
-                    }
+                    onClick={() => router.push("/library/discover-mix")}
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
                       <img
-                        src={safeMorningBoostSongs[3]?.thumbnail || "/placeholder.svg?height=192&width=192"}
-                        alt="Feel-Good Pop"
+                        src={
+                          safeMixedForYouSongs[3]?.thumbnail ||
+                          "/placeholder.svg?height=192&width=192&text=Discover%20Mix&bg=10b981&color=white" ||
+                          "/placeholder.svg" ||
+                          "/placeholder.svg"
+                        }
+                        alt="Discover Mix"
                         className="w-full h-48 object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src =
+                            "/placeholder.svg?height=192&width=192&text=Discover%20Mix&bg=10b981&color=white"
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-4 left-4">
-                        <h3 className="text-white font-bold text-lg">Feel-Good</h3>
-                        <h4 className="text-yellow-400 font-bold text-lg">Pop & Rock</h4>
+                        <h3 className="text-white font-bold text-lg">Discover</h3>
+                        <h4 className="text-yellow-400 font-bold text-lg">Mix</h4>
                       </div>
                     </div>
-                    <h3 className="text-white font-semibold truncate">Feel-Good Pop & Rock</h3>
+                    <h3 className="text-white font-semibold truncate">Discover Mix</h3>
                     <p className="text-gray-400 text-sm truncate">
-                      {safeMorningBoostSongs
-                        .slice(3, 5)
-                        .map((s) => s.artist)
-                        .join(", ")}
-                      ...
+                      {safeMixedForYouSongs.length > 3
+                        ? safeMixedForYouSongs
+                            .slice(3, 5)
+                            .map((s) => s.artist)
+                            .join(", ") + "..."
+                        : "New discoveries"}
                     </p>
                   </div>
 
-                  {/* Upbeat Classics */}
                   <div
                     className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() =>
-                      safeMorningBoostSongs.length > 6 &&
-                      handlePlaySong(safeMorningBoostSongs[6], safeMorningBoostSongs)
-                    }
+                    onClick={() => router.push("/library/new-release-mix")}
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
                       <img
-                        src={safeMorningBoostSongs[6]?.thumbnail || "/placeholder.svg?height=192&width=192"}
-                        alt="Upbeat Classics"
+                        src={
+                          safeMixedForYouSongs[6]?.thumbnail ||
+                          "/placeholder.svg?height=192&width=192&text=New%20Release&bg=f59e0b&color=white" ||
+                          "/placeholder.svg" ||
+                          "/placeholder.svg"
+                        }
+                        alt="New Release Mix"
                         className="w-full h-48 object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src =
+                            "/placeholder.svg?height=192&width=192&text=New%20Release&bg=f59e0b&color=white"
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-4 left-4">
-                        <h3 className="text-white font-bold text-lg">Upbeat</h3>
-                        <h4 className="text-white font-bold text-lg">Classics</h4>
+                        <h3 className="text-white font-bold text-lg">New Release</h3>
+                        <h4 className="text-yellow-400 font-bold text-lg">Mix</h4>
                       </div>
                     </div>
-                    <h3 className="text-white font-semibold truncate">Upbeat Classics</h3>
+                    <h3 className="text-white font-semibold truncate">New Release Mix</h3>
                     <p className="text-gray-400 text-sm truncate">
-                      {safeMorningBoostSongs
-                        .slice(6, 8)
-                        .map((s) => s.artist)
-                        .join(", ")}
-                      ...
+                      {safeMixedForYouSongs.length > 6
+                        ? safeMixedForYouSongs
+                            .slice(6, 8)
+                            .map((s) => s.artist)
+                            .join(", ") + "..."
+                        : "Latest releases"}
                     </p>
                   </div>
                 </>
@@ -358,8 +368,6 @@ export default function VibeTunePage() {
       </div>
 
       <AudioPlayer />
-
-      <SearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-zinc-800 border-t border-zinc-700">

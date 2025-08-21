@@ -17,6 +17,8 @@ import {
   RefreshCw,
   Camera,
   Upload,
+  Youtube,
+  Link,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -28,12 +30,15 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
 import { musicCache, type CacheSettings, type CacheStats } from "@/lib/music-cache"
+import { createYouTubeAPI } from "@/lib/youtube-api"
+import { usePlaylist } from "@/contexts/playlist-context"
 
 export default function SettingsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading, signInWithGoogle, signOut } = useAuth()
   const { syncData, syncStatus, syncSettings, updateSyncSettings, performSync, clearSyncData } = useSync()
+  const { createPlaylist } = usePlaylist()
 
   const initialLoadComplete = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null) // Added ref for file input
@@ -53,6 +58,13 @@ export default function SettingsPage() {
     totalSize: 0,
     oldestItem: null,
     newestItem: null,
+  })
+
+  const [playlistImport, setPlaylistImport] = useState({
+    url: "",
+    isImporting: false,
+    error: null as string | null,
+    success: null as string | null,
   })
 
   const loadCacheData = useCallback(() => {
@@ -208,6 +220,54 @@ export default function SettingsPage() {
     if (days > 0) return `${days}d ago`
     if (hours > 0) return `${hours}h ago`
     return "< 1h ago"
+  }
+
+  const handlePlaylistImport = async () => {
+    if (!playlistImport.url.trim()) {
+      setPlaylistImport((prev) => ({ ...prev, error: "Please enter a playlist URL" }))
+      return
+    }
+
+    // Extract playlist ID from URL
+    const playlistIdMatch = playlistImport.url.match(/[?&]list=([^&]+)/)
+    if (!playlistIdMatch) {
+      setPlaylistImport((prev) => ({ ...prev, error: "Invalid YouTube playlist URL" }))
+      return
+    }
+
+    const playlistId = playlistIdMatch[1]
+    setPlaylistImport((prev) => ({ ...prev, isImporting: true, error: null, success: null }))
+
+    try {
+      const youtubeAPI = createYouTubeAPI()
+      const { playlist, videos } = await youtubeAPI.getPlaylistDetails(playlistId)
+
+      const playlistName = `${playlist.title} (Imported)`
+      const songs = videos.map((video: any) => ({
+        id: video.id,
+        title: video.title,
+        artist: video.channelTitle || "Unknown Artist",
+        thumbnail: video.thumbnail,
+        duration: video.duration,
+        type: "song" as const,
+      }))
+
+      const newPlaylist = createPlaylist(playlistName, songs, playlist.thumbnail)
+
+      setPlaylistImport((prev) => ({
+        ...prev,
+        isImporting: false,
+        success: `Successfully imported "${playlist.title}" with ${videos.length} songs to your library`,
+        url: "",
+      }))
+    } catch (error) {
+      console.error("Playlist import failed:", error)
+      setPlaylistImport((prev) => ({
+        ...prev,
+        isImporting: false,
+        error: "Failed to import playlist. Please check the URL and try again.",
+      }))
+    }
   }
 
   if (loading) {
@@ -389,6 +449,74 @@ export default function SettingsPage() {
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
 
               <p className="text-gray-400 text-xs">Supported formats: JPG, PNG, GIF. Maximum size: 5MB</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* YouTube Playlist Import Section */}
+        <Card className="bg-zinc-800 border-zinc-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Youtube className="w-5 h-5 text-red-500" />
+              Import from YouTube
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Import playlists from YouTube by pasting the playlist link
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Link className="w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Paste YouTube playlist URL here..."
+                  value={playlistImport.url}
+                  onChange={(e) =>
+                    setPlaylistImport((prev) => ({ ...prev, url: e.target.value, error: null, success: null }))
+                  }
+                  className="flex-1 bg-zinc-700 border border-zinc-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  disabled={playlistImport.isImporting}
+                />
+              </div>
+
+              <Button
+                onClick={handlePlaylistImport}
+                disabled={playlistImport.isImporting || !playlistImport.url.trim()}
+                className="w-full bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-50"
+              >
+                {playlistImport.isImporting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Importing...
+                  </>
+                ) : (
+                  <>
+                    <Youtube className="w-4 h-4 mr-2" />
+                    Import Playlist
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {playlistImport.error && (
+              <div className="flex items-center gap-2 p-3 bg-red-900/20 border border-red-700 rounded-lg">
+                <AlertCircle className="w-4 h-4 text-red-400" />
+                <p className="text-sm text-red-300">{playlistImport.error}</p>
+              </div>
+            )}
+
+            {playlistImport.success && (
+              <div className="flex items-center gap-2 p-3 bg-green-900/20 border border-green-700 rounded-lg">
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <p className="text-sm text-green-300">{playlistImport.success}</p>
+              </div>
+            )}
+
+            <div className="text-xs text-gray-400 space-y-1">
+              <p>• Paste any YouTube playlist URL (e.g., https://youtube.com/playlist?list=...)</p>
+              <p>• Imported playlists will be saved as regular playlists in your Library</p>
+              <p>• Re-importing the same playlist will create a new playlist with updated songs</p>
             </div>
           </CardContent>
         </Card>

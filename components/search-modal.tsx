@@ -56,10 +56,12 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     saveSearch(query)
   }
 
-  const handlePlayAll = () => {
-    if (songs.length === 0) return
+  const safeSongs = Array.isArray(songs) ? songs : []
 
-    const tracks = songs.map((song) => ({
+  const handlePlayAll = () => {
+    if (safeSongs.length === 0) return
+
+    const tracks = safeSongs.map((song) => ({
       id: song.id,
       title: song.title,
       artist: song.artist,
@@ -150,7 +152,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 <SongSkeleton key={i} />
               ))}
             </div>
-          ) : songs.length === 0 ? (
+          ) : safeSongs.length === 0 ? (
             <div className="p-4 text-center py-12">
               <p className="text-gray-400">No results found for "{query}"</p>
             </div>
@@ -159,7 +161,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-white font-semibold">
-                  {songs.length} result{songs.length !== 1 ? "s" : ""} for "{query}"
+                  {safeSongs.length} result{safeSongs.length !== 1 ? "s" : ""} for "{query}"
                 </h3>
                 <Button
                   onClick={handlePlayAll}
@@ -171,7 +173,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               </div>
 
               <div className="space-y-2">
-                {songs.map((song) => (
+                {safeSongs.map((song) => (
                   <div
                     key={song.id}
                     className="flex items-center gap-4 p-2 hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors"

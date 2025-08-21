@@ -42,6 +42,8 @@ export default function LibraryPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<"name" | "date" | "count">("date")
 
+  const [importedPlaylists, setImportedPlaylists] = useState<any[]>([])
+
   const [profileSettings, setProfileSettings] = useState({
     useCustomPicture: false,
     customPictureUrl: null as string | null,
@@ -55,6 +57,17 @@ export default function LibraryPage() {
       }
     } catch (error) {
       console.error("Failed to load profile settings:", error)
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("vibetuneImportedPlaylists")
+      if (saved) {
+        setImportedPlaylists(JSON.parse(saved))
+      }
+    } catch (error) {
+      console.error("Failed to load imported playlists:", error)
     }
   }, [])
 
@@ -94,7 +107,14 @@ export default function LibraryPage() {
     ...systemPlaylists,
     ...syncData.playlists.map((p) => ({ ...p, type: "synced" as const })),
     ...localPlaylists.map((p) => ({ ...p, type: "local" as const })),
+    ...importedPlaylists.map((p) => ({ ...p, type: "imported" as const })),
   ]
+
+  const allSongs = [
+    ...allLikedSongs,
+    ...syncData.playlists.flatMap((p) => p.videos || []),
+    ...localPlaylists.flatMap((p) => p.songs),
+  ].filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
 
   const filteredPlaylists = allPlaylists
     .filter((playlist) => playlist.title.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -113,12 +133,6 @@ export default function LibraryPage() {
           return bDate.getTime() - aDate.getTime()
       }
     })
-
-  const allSongs = [
-    ...allLikedSongs,
-    ...syncData.playlists.flatMap((p) => p.videos || []),
-    ...localPlaylists.flatMap((p) => p.songs),
-  ].filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
 
   const filteredSongs = allSongs.filter(
     (song) =>
@@ -145,6 +159,21 @@ export default function LibraryPage() {
 
     if (playlist.type === "local") {
       router.push(`/library/playlist/${playlist.id}`)
+      return
+    }
+
+    if (playlist.type === "imported") {
+      const songs = playlist.videos || []
+      if (songs.length > 0) {
+        const tracks = songs.map((song: any) => ({
+          id: song.id,
+          title: song.title,
+          artist: song.channelTitle || song.artist || "Unknown Artist",
+          thumbnail: song.thumbnail,
+          duration: song.duration,
+        }))
+        playQueue(tracks, 0)
+      }
       return
     }
 
@@ -183,6 +212,14 @@ export default function LibraryPage() {
   const handleDeletePlaylist = (playlistId: string) => {
     if (confirm("Are you sure you want to delete this playlist?")) {
       deletePlaylist(playlistId)
+    }
+  }
+
+  const handleDeleteImportedPlaylist = (playlistId: string) => {
+    if (confirm("Are you sure you want to delete this imported playlist?")) {
+      const updatedPlaylists = importedPlaylists.filter((p) => p.id !== playlistId)
+      setImportedPlaylists(updatedPlaylists)
+      localStorage.setItem("vibetuneImportedPlaylists", JSON.stringify(updatedPlaylists))
     }
   }
 
@@ -294,14 +331,18 @@ export default function LibraryPage() {
                         </p>
                         <p className="text-gray-500 text-xs capitalize">{playlist.type}</p>
                       </div>
-                      {playlist.type === "local" && (
+                      {(playlist.type === "local" || playlist.type === "imported") && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-400 h-8 w-8"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleDeletePlaylist(playlist.id)
+                            if (playlist.type === "local") {
+                              handleDeletePlaylist(playlist.id)
+                            } else if (playlist.type === "imported") {
+                              handleDeleteImportedPlaylist(playlist.id)
+                            }
                           }}
                         >
                           <Trash2 className="w-4 h-4" />

@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import type React from "react"
+
+import { useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Play, Heart, Edit, Trash2, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -17,6 +19,93 @@ interface PlaylistPageProps {
   }
 }
 
+const VirtualizedSongList = ({
+  songs,
+  onPlaySong,
+  onRemoveSong,
+}: {
+  songs: any[]
+  onPlaySong: (song: any, songList: any[]) => void
+  onRemoveSong: (songId: string) => void
+}) => {
+  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 50 })
+  const itemHeight = 64 // Height of each song item in pixels
+  const containerHeight = 600 // Max height of the scrollable container
+
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const scrollTop = e.currentTarget.scrollTop
+      const start = Math.floor(scrollTop / itemHeight)
+      const visibleCount = Math.ceil(containerHeight / itemHeight)
+      const end = Math.min(start + visibleCount + 10, songs.length) // Add buffer of 10 items
+
+      setVisibleRange({ start: Math.max(0, start - 5), end }) // Add buffer before visible area
+    },
+    [songs.length],
+  )
+
+  const visibleSongs = useMemo(() => {
+    return songs.slice(visibleRange.start, visibleRange.end)
+  }, [songs, visibleRange])
+
+  const totalHeight = songs.length * itemHeight
+  const offsetY = visibleRange.start * itemHeight
+
+  return (
+    <div className="overflow-auto" style={{ maxHeight: containerHeight }} onScroll={handleScroll}>
+      <div style={{ height: totalHeight, position: "relative" }}>
+        <div style={{ transform: `translateY(${offsetY}px)` }}>
+          {visibleSongs.map((song, index) => {
+            const actualIndex = visibleRange.start + index
+            return (
+              <div
+                key={`${song.id}-${actualIndex}`}
+                className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
+                style={{ height: itemHeight }}
+                onClick={() => onPlaySong(song, songs)}
+              >
+                <div className="w-4 text-gray-500 text-sm">{actualIndex + 1}</div>
+                <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {song.thumbnail ? (
+                    <img
+                      src={song.thumbnail || "/placeholder.svg"}
+                      alt={song.title}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <Music className="w-6 h-6 text-gray-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-white font-medium truncate">{song.title}</h3>
+                  <p className="text-gray-400 text-sm truncate">{song.artist}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
+                  <DownloadedIcon songId={song.id} />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRemoveSong(song.id)
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-400"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                  <SongMenu song={song} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function PlaylistPage({ params }: PlaylistPageProps) {
   const router = useRouter()
   const { getPlaylist, updatePlaylist, deletePlaylist, removeSongFromPlaylist } = usePlaylist()
@@ -26,6 +115,43 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
   const [editDescription, setEditDescription] = useState("")
 
   const playlist = getPlaylist(params.id)
+
+  const handlePlaySong = useCallback(
+    (song: any, songList: any[]) => {
+      const tracks = songList.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        artist: s.artist,
+        thumbnail: s.thumbnail,
+        duration: s.duration,
+      }))
+      const startIndex = songList.findIndex((s) => s.id === song.id)
+      playQueue(tracks, startIndex)
+    },
+    [playQueue],
+  )
+
+  const handleRemoveSong = useCallback(
+    (songId: string) => {
+      if (confirm("Remove this song from the playlist?")) {
+        removeSongFromPlaylist(params.id, songId)
+      }
+    },
+    [removeSongFromPlaylist, params.id],
+  )
+
+  const handlePlayAll = useCallback(() => {
+    if (playlist?.songs.length > 0) {
+      const tracks = playlist.songs.map((song) => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        duration: song.duration,
+      }))
+      playQueue(tracks, 0)
+    }
+  }, [playlist?.songs, playQueue])
 
   if (!playlist) {
     return (
@@ -60,37 +186,6 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
     if (confirm(`Are you sure you want to delete "${playlist.title}"?`)) {
       deletePlaylist(params.id)
       router.push("/library")
-    }
-  }
-
-  const handlePlayAll = () => {
-    if (playlist.songs.length > 0) {
-      const tracks = playlist.songs.map((song) => ({
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        thumbnail: song.thumbnail,
-        duration: song.duration,
-      }))
-      playQueue(tracks, 0)
-    }
-  }
-
-  const handlePlaySong = (song: any, songList: any[]) => {
-    const tracks = songList.map((s: any) => ({
-      id: s.id,
-      title: s.title,
-      artist: s.artist,
-      thumbnail: s.thumbnail,
-      duration: s.duration,
-    }))
-    const startIndex = songList.findIndex((s) => s.id === song.id)
-    playQueue(tracks, startIndex)
-  }
-
-  const handleRemoveSong = (songId: string) => {
-    if (confirm("Remove this song from the playlist?")) {
-      removeSongFromPlaylist(params.id, songId)
     }
   }
 
@@ -200,48 +295,7 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
             <p className="text-gray-400 mb-4">Add songs to get started</p>
           </div>
         ) : (
-          <div className="space-y-2">
-            {playlist.songs.map((song, index) => (
-              <div
-                key={`${song.id}-${index}`}
-                className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
-                onClick={() => handlePlaySong(song, playlist.songs)}
-              >
-                <div className="w-4 text-gray-500 text-sm">{index + 1}</div>
-                <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {song.thumbnail ? (
-                    <img
-                      src={song.thumbnail || "/placeholder.svg"}
-                      alt={song.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <Music className="w-6 h-6 text-gray-400" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-medium truncate">{song.title}</h3>
-                  <p className="text-gray-400 text-sm truncate">{song.artist}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
-                  <DownloadedIcon songId={song.id} />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleRemoveSong(song.id)
-                    }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-400"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                  <SongMenu song={song} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <VirtualizedSongList songs={playlist.songs} onPlaySong={handlePlaySong} onRemoveSong={handleRemoveSong} />
         )}
       </div>
     </div>

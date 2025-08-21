@@ -15,7 +15,7 @@ export interface LocalPlaylist {
 
 interface PlaylistContextType {
   playlists: LocalPlaylist[]
-  createPlaylist: (title: string, description?: string) => LocalPlaylist
+  createPlaylist: (title: string, songs?: Song[], thumbnail?: string) => LocalPlaylist
   updatePlaylist: (id: string, updates: Partial<LocalPlaylist>) => void
   deletePlaylist: (id: string) => void
   addSongToPlaylist: (playlistId: string, song: Song) => void
@@ -48,13 +48,13 @@ export function PlaylistProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(PLAYLISTS_STORAGE_KEY, JSON.stringify(playlists))
   }, [playlists])
 
-  const createPlaylist = (title: string, description = ""): LocalPlaylist => {
+  const createPlaylist = (title: string, songs: Song[] = [], thumbnail?: string): LocalPlaylist => {
     const newPlaylist: LocalPlaylist = {
       id: `playlist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       title,
-      description,
-      thumbnail: "/music-playlist-concept.png",
-      songs: [],
+      description: "",
+      thumbnail: thumbnail || "/music-playlist-concept.png",
+      songs,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }

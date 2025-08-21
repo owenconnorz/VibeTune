@@ -1,82 +1,180 @@
-export function generateAlbumArtwork(artist: string, title: string): string {
-  // Generate consistent color based on artist name
-  const colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#F7DC6F", "#85C1E9"]
+import { searchMusic as apiSearchMusic, fetchTrending } from "./youtube-api"
+
+// Song interface for type safety
+export interface Song {
+  id: string
+  title: string
+  artist: string
+  thumbnail: string
+  duration: string
+  type: "song"
+}
+
+// Enhanced search results interface
+export interface EnhancedSearchResults {
+  all: Song[]
+  songs: Song[]
+  artists: Song[]
+  albums: Song[]
+  playlists: Song[]
+}
+
+// Generate album artwork with artist initials
+export function generateAlbumArtwork(artist: string, title?: string): string {
+  // Create a hash from the artist name for consistent colors
   let hash = 0
   for (let i = 0; i < artist.length; i++) {
-    hash = artist.charCodeAt(i) + ((hash << 5) - hash)
+    const char = artist.charCodeAt(i)
+    hash = (hash << 5) - hash + char
+    hash = hash & hash // Convert to 32-bit integer
   }
-  const color = colors[Math.abs(hash) % colors.length]
+
+  // Generate color from hash
+  const hue = Math.abs(hash) % 360
+  const saturation = 60 + (Math.abs(hash) % 40) // 60-100%
+  const lightness = 45 + (Math.abs(hash) % 20) // 45-65%
 
   // Get artist initials
   const initials = artist
     .split(" ")
     .map((word) => word.charAt(0).toUpperCase())
+    .slice(0, 2)
     .join("")
-    .substring(0, 2)
 
-  // Create SVG with artist initials
+  // Create SVG
   const svg = `
-    <svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
-      <rect width="300" height="300" fill="${color}"/>
-      <text x="150" y="150" font-family="Arial, sans-serif" font-size="80" font-weight="bold" 
-            text-anchor="middle" dominant-baseline="central" fill="white">
-        ${initials}
-      </text>
-      <circle cx="250" cy="50" r="15" fill="white" opacity="0.3"/>
-      <circle cx="50" cy="250" r="20" fill="white" opacity="0.2"/>
+    <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+      <rect width="200" height="200" fill="hsl(${hue}, ${saturation}%, ${lightness}%)"/>
+      <text x="100" y="120" fontFamily="Arial, sans-serif" fontSize="60" fontWeight="bold" 
+            textAnchor="middle" fill="white" opacity="0.9">${initials}</text>
     </svg>
   `
 
-  // Convert to data URL
-  const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`
-  console.log(`[v0] Generated SVG album artwork for: ${artist} - ${title}`)
-  return dataUrl
+  return `data:image/svg+xml;base64,${btoa(svg)}`
+}
+
+// Basic search function
+export async function searchMusic(query: string): Promise<Song[]> {
+  try {
+    console.log("[v0] Searching music for:", query)
+    const results = await apiSearchMusic(query)
+    const videos = results.videos || []
+    console.log("[v0] Search results:", videos.length, "songs")
+    return videos.map((video) => ({
+      id: video.id,
+      title: video.title,
+      artist: video.channelTitle,
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+      type: "song" as const,
+    }))
+  } catch (error) {
+    console.error("[v0] Search error:", error)
+    return []
+  }
+}
+
+// Enhanced search with categories
+export async function searchMusicEnhanced(query: string): Promise<EnhancedSearchResults> {
+  try {
+    console.log("[v0] Enhanced search for:", query)
+    const searchResults = await apiSearchMusic(query)
+
+    const allResults = searchResults.videos || []
+    console.log("[v0] Enhanced search got results:", allResults.length, "items")
+
+    // Categorize results based on content analysis
+    const songs: Song[] = []
+    const artists: Song[] = []
+    const albums: Song[] = []
+    const playlists: Song[] = []
+
+    allResults.forEach((item) => {
+      const song: Song = {
+        id: item.id,
+        title: item.title,
+        artist: item.channelTitle,
+        thumbnail: item.thumbnail,
+        duration: item.duration,
+        type: "song" as const,
+      }
+
+      // Categorize based on title patterns
+      const title = song.title.toLowerCase()
+      const artist = song.artist.toLowerCase()
+
+      if (title.includes("playlist") || title.includes("mix")) {
+        playlists.push(song)
+      } else if (title.includes("album") || title.includes("full album")) {
+        albums.push(song)
+      } else if (title === artist || title.includes("artist") || title.includes("channel")) {
+        artists.push(song)
+      } else {
+        songs.push(song)
+      }
+    })
+
+    console.log("[v0] Categorized results:", {
+      songs: songs.length,
+      artists: artists.length,
+      albums: albums.length,
+      playlists: playlists.length,
+    })
+
+    return {
+      all: songs.concat(artists, albums, playlists),
+      songs,
+      artists,
+      albums,
+      playlists,
+    }
+  } catch (error) {
+    console.error("[v0] Enhanced search error:", error)
+    return {
+      all: [],
+      songs: [],
+      artists: [],
+      albums: [],
+      playlists: [],
+    }
+  }
+}
+
+// Fetch trending music
+export async function fetchTrendingMusic(): Promise<Song[]> {
+  try {
+    console.log("[v0] Fetching trending music")
+    const results = await fetchTrending()
+    console.log("[v0] Trending results:", results.length, "songs")
+    return results.map((video) => ({
+      id: video.id,
+      title: video.title,
+      artist: video.channelTitle,
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+      type: "song" as const,
+    }))
+  } catch (error) {
+    console.error("[v0] Trending fetch error:", error)
+    return []
+  }
 }
 
 // Mood playlists configuration
 export const moodPlaylists = {
   "morning-boost": {
     name: "Morning Mood Boost",
-    queries: ["upbeat morning music", "energetic pop songs", "feel good hits"],
-  },
-  sleep: {
-    name: "Sleep",
-    queries: ["relaxing sleep music", "ambient sounds", "peaceful instrumental"],
+    description: "Start your day with energy",
+    queries: ["upbeat morning songs", "energetic pop music", "feel good hits"],
   },
   chill: {
-    name: "Chill",
-    queries: ["chill music", "lo-fi beats", "relaxing songs"],
+    name: "Chill Vibes",
+    description: "Relaxing background music",
+    queries: ["chill music", "relaxing songs", "ambient music"],
   },
   workout: {
-    name: "Workout",
-    queries: ["workout music", "high energy songs", "gym motivation"],
+    name: "Workout Mix",
+    description: "High energy workout music",
+    queries: ["workout music", "gym songs", "high energy music"],
   },
-}
-
-// Fetch trending music function
-export async function fetchTrendingMusic() {
-  try {
-    const response = await fetch("/api/music/trending")
-    if (!response.ok) {
-      throw new Error("Failed to fetch trending music")
-    }
-    return await response.json()
-  } catch (error) {
-    console.error("[v0] Error fetching trending music:", error)
-    return []
-  }
-}
-
-// Search music function
-export async function searchMusic(query: string) {
-  try {
-    const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`)
-    if (!response.ok) {
-      throw new Error("Failed to search music")
-    }
-    return await response.json()
-  } catch (error) {
-    console.error("[v0] Error searching music:", error)
-    return []
-  }
 }
