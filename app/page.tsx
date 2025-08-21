@@ -67,6 +67,25 @@ const MemoizedPlaylistCard = React.memo(({ playlist, onClick }: any) => (
   </div>
 ))
 
+const CategoryCard = React.memo(({ category, onClick }: any) => (
+  <div className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={onClick}>
+    <div className={`relative rounded-lg overflow-hidden mb-3 bg-gradient-to-br ${category.gradient} h-48`}>
+      <OptimizedImage
+        src={category.image}
+        alt={category.title}
+        width={192}
+        height={192}
+        className="w-full h-full object-cover mix-blend-overlay opacity-60"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+      <div className="absolute bottom-4 left-4 right-4">
+        <h3 className="text-white font-bold text-lg leading-tight mb-1">{category.title}</h3>
+        <p className="text-white/80 text-sm leading-tight">{category.description}</p>
+      </div>
+    </div>
+  </div>
+))
+
 export default function VibeTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [profileSettings, setProfileSettings] = useState({
@@ -89,6 +108,102 @@ export default function VibeTunePage() {
     loading: mixedLoading,
     error: mixedError,
   } = useMoodPlaylist(moodPlaylists["mixed-for-you"].queries)
+
+  const musicCategories = useMemo(
+    () => [
+      {
+        title: "Hip-Hop Classics",
+        description: "The Notorious B.I.G., Tupac, Nas",
+        gradient: "from-blue-600 to-purple-700",
+        image: "/placeholder.svg?height=200&width=200&text=Hip-Hop&bg=1e40af&color=white",
+      },
+      {
+        title: "R&B Party-Starters",
+        description: "Destiny's Child, Beyoncé, Usher",
+        gradient: "from-orange-500 to-red-600",
+        image: "/placeholder.svg?height=200&width=200&text=R%26B&bg=ea580c&color=white",
+      },
+      {
+        title: "Classic Pop Party",
+        description: "Blondie, Queen, ABBA",
+        gradient: "from-pink-500 to-purple-600",
+        image: "/placeholder.svg?height=200&width=200&text=Pop&bg=ec4899&color=white",
+      },
+    ],
+    [],
+  )
+
+  const feelGoodCategories = useMemo(
+    () => [
+      {
+        title: "Feel-Good Pop & Rock",
+        description: "Ed Sheeran, Taylor Swift, Maroon 5",
+        gradient: "from-orange-400 to-red-500",
+        image: "/placeholder.svg?height=200&width=200&text=Pop%20Rock&bg=fb923c&color=white",
+      },
+      {
+        title: "Happy Pop Hits",
+        description: "Ed Sheeran, Bruno Mars, Dua Lipa",
+        gradient: "from-yellow-400 to-orange-500",
+        image: "/placeholder.svg?height=200&width=200&text=Happy&bg=facc15&color=black",
+      },
+      {
+        title: "Feel-Good R&B Vibes",
+        description: "Bruno Mars, The Weeknd, SZA",
+        gradient: "from-purple-600 to-pink-600",
+        image: "/placeholder.svg?height=200&width=200&text=R%26B&bg=9333ea&color=white",
+      },
+    ],
+    [],
+  )
+
+  const throwbackCategories = useMemo(
+    () => [
+      {
+        title: "80s Sing-Alongs",
+        description: "Madonna, Kiss, Bon Jovi",
+        gradient: "from-blue-400 to-cyan-500",
+        image: "/placeholder.svg?height=200&width=200&text=80s&bg=60a5fa&color=white",
+      },
+      {
+        title: "Relaxing 80s Rock",
+        description: "UB40, Huey Lewis, Phil Collins",
+        gradient: "from-gray-600 to-gray-800",
+        image: "/placeholder.svg?height=200&width=200&text=80s%20Rock&bg=4b5563&color=white",
+      },
+      {
+        title: "'90s Dance",
+        description: "The Chemical Brothers, Fatboy Slim",
+        gradient: "from-cyan-400 to-blue-600",
+        image: "/placeholder.svg?height=200&width=200&text=90s&bg=22d3ee&color=black",
+      },
+    ],
+    [],
+  )
+
+  const freshMusicCategories = useMemo(
+    () => [
+      {
+        title: "K.iNG",
+        description: "IVE, LE SSERAFIM, NewJeans",
+        gradient: "from-pink-400 to-purple-600",
+        image: "/placeholder.svg?height=200&width=200&text=K-Pop&bg=f472b6&color=white",
+      },
+      {
+        title: "Pop Royalty",
+        description: "Jonas Brothers, Taylor Swift",
+        gradient: "from-gray-700 to-black",
+        image: "/placeholder.svg?height=200&width=200&text=Pop&bg=374151&color=white",
+      },
+      {
+        title: "House Music",
+        description: "Chris Lake, Calvin Harris",
+        gradient: "from-blue-600 to-indigo-700",
+        image: "/placeholder.svg?height=200&width=200&text=House&bg=2563eb&color=white",
+      },
+    ],
+    [],
+  )
 
   const convertToTrack = useCallback(
     (song: any) => ({
@@ -169,7 +284,7 @@ export default function VibeTunePage() {
                 <div className="w-full h-48 flex items-center justify-center">
                   <div className="text-center">
                     <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                      <span className="text-3xl">❤️</span>
+                      <span className="text-white font-bold text-xs">❤️</span>
                     </div>
                     <h3 className="text-white font-bold text-lg">Liked Songs</h3>
                     <p className="text-white/80 font-bold text-sm">{syncData.likedSongs.length} songs</p>
@@ -266,6 +381,188 @@ export default function VibeTunePage() {
                     ))}
             </div>
           )}
+        </section>
+
+        {/* Music Categories */}
+        <section className="mb-8">
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {musicCategories.map((category, index) => (
+              <CategoryCard
+                key={index}
+                category={{
+                  ...category,
+                  image: safeTrendingSongs[index]?.thumbnail || category.image,
+                }}
+                onClick={() => router.push(`/genre/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Feel Good */}
+        <section className="mb-8">
+          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Feel good</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {feelGoodCategories.map((category, index) => (
+              <CategoryCard
+                key={index}
+                category={{
+                  ...category,
+                  image: safeTrendingSongs[index + 3]?.thumbnail || category.image,
+                }}
+                onClick={() => router.push(`/mood/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Music Videos */}
+        <section className="mb-8">
+          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Music videos for you</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {safeTrendingSongs.slice(0, 3).map((song, index) => (
+              <div
+                key={song.id}
+                className="flex-shrink-0 w-64 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => handlePlaySong(song, safeTrendingSongs)}
+              >
+                <div className="relative rounded-lg overflow-hidden mb-3">
+                  <OptimizedImage
+                    src={song.thumbnail}
+                    alt={song.title}
+                    width={256}
+                    height={144}
+                    className="w-full h-36 object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                      <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[6px] border-y-transparent ml-1"></div>
+                    </div>
+                  </div>
+                </div>
+                <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
+                <p className="text-gray-400 text-xs truncate">{song.artist}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* New Releases */}
+        <section className="mb-8">
+          <h2 className="text-2xl font-bold text-yellow-400 mb-6">New releases</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {safeMixedForYouSongs.slice(0, 3).map((song, index) => (
+              <div
+                key={song.id}
+                className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => handlePlaySong(song, safeMixedForYouSongs)}
+              >
+                <div className="relative rounded-lg overflow-hidden mb-3">
+                  <OptimizedImage
+                    src={song.thumbnail}
+                    alt={song.title}
+                    width={192}
+                    height={192}
+                    className="w-full h-48 object-cover"
+                  />
+                  <div className="absolute bottom-2 right-2">
+                    <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                      <div className="w-0 h-0 border-l-[6px] border-l-white border-y-[4px] border-y-transparent ml-0.5"></div>
+                    </div>
+                  </div>
+                </div>
+                <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
+                <p className="text-gray-400 text-xs truncate">{song.artist}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Throwback Thursday */}
+        <section className="mb-8">
+          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Throwback Thursday</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {throwbackCategories.map((category, index) => (
+              <CategoryCard
+                key={index}
+                category={{
+                  ...category,
+                  image: safeTrendingSongs[index + 6]?.thumbnail || category.image,
+                }}
+                onClick={() => router.push(`/throwback/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Fresh New Music */}
+        <section className="mb-8">
+          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Fresh new music</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {freshMusicCategories.map((category, index) => (
+              <CategoryCard
+                key={index}
+                category={{
+                  ...category,
+                  image: safeMixedForYouSongs[index + 3]?.thumbnail || category.image,
+                }}
+                onClick={() => router.push(`/fresh/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* Albums for You */}
+        <section className="mb-8">
+          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Albums for you</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {safeTrendingSongs.slice(3, 6).map((song, index) => (
+              <div
+                key={song.id}
+                className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => handlePlaySong(song, safeTrendingSongs)}
+              >
+                <div className="relative rounded-lg overflow-hidden mb-3">
+                  <OptimizedImage
+                    src={song.thumbnail}
+                    alt={song.title}
+                    width={192}
+                    height={192}
+                    className="w-full h-48 object-cover"
+                  />
+                </div>
+                <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
+                <p className="text-gray-400 text-xs truncate">{song.artist}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Take it Easy */}
+        <section className="mb-8">
+          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Take it easy</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {safeMixedForYouSongs.slice(6, 9).map((song, index) => (
+              <div
+                key={song.id}
+                className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => handlePlaySong(song, safeMixedForYouSongs)}
+              >
+                <div className="relative rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-green-400 to-blue-500">
+                  <OptimizedImage
+                    src={song.thumbnail}
+                    alt={song.title}
+                    width={192}
+                    height={192}
+                    className="w-full h-48 object-cover mix-blend-overlay opacity-70"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                </div>
+                <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
+                <p className="text-gray-400 text-xs truncate">{song.artist}</p>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* Mixed for You - Personalized Playlists */}
