@@ -60,7 +60,6 @@ export function AudioPlayer() {
         setIsAnimating(true)
 
         if (deltaX > 0) {
-          console.log("[v0] Swipe right detected, going to previous track")
           setSwipeOffset(300)
           setTimeout(() => {
             previousTrack()
@@ -68,7 +67,6 @@ export function AudioPlayer() {
             setIsAnimating(false)
           }, 200)
         } else {
-          console.log("[v0] Swipe left detected, going to next track")
           setSwipeOffset(-300)
           setTimeout(() => {
             nextTrack()
@@ -77,7 +75,6 @@ export function AudioPlayer() {
           }, 200)
         }
       } else if (deltaY > 50 && velocityY > 0.3) {
-        console.log("[v0] Mini player swipe up detected, opening full-screen player")
         setIsFullScreenOpen(true)
         setSwipeOffset(0)
       } else {
@@ -95,24 +92,16 @@ export function AudioPlayer() {
   }, [])
 
   const getAlbumArtwork = useCallback((track: any) => {
-    console.log("[v0] getAlbumArtwork called with track:", track?.title, "thumbnail:", track?.thumbnail)
-
     if (!track) {
-      console.log("[v0] No track provided, using default placeholder")
       return "/placeholder.svg?height=40&width=40"
     }
 
     if (track.thumbnail && !track.thumbnail.includes("placeholder.svg")) {
-      console.log("[v0] Using real YouTube thumbnail:", track.thumbnail)
       return track.thumbnail
     }
 
-    console.log("[v0] Using simple placeholder fallback")
     return "/placeholder.svg?height=40&width=40"
   }, [])
-
-  console.log("[v0] Mini player colors:", colors)
-  console.log("[v0] Current track:", state.currentTrack?.title, "Thumbnail:", state.currentTrack?.thumbnail)
 
   if (!state.currentTrack) {
     return null

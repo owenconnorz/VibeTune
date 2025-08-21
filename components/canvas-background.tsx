@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 
 interface CanvasBackgroundProps {
@@ -12,7 +12,7 @@ export function CanvasBackground({ isEnabled, className = "" }: CanvasBackground
   const { state } = useAudioPlayer()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animationRef = useRef<number>()
-  const [particles, setParticles] = useState<
+  const particlesRef = useRef<
     Array<{
       x: number
       y: number
@@ -55,7 +55,7 @@ export function CanvasBackground({ isEnabled, className = "" }: CanvasBackground
           opacity: Math.random() * 0.8 + 0.2,
         })
       }
-      setParticles(newParticles)
+      particlesRef.current = newParticles
     }
 
     initParticles()
@@ -80,33 +80,28 @@ export function CanvasBackground({ isEnabled, className = "" }: CanvasBackground
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, canvas.offsetWidth, canvas.offsetHeight)
 
-      // Update and draw particles
-      setParticles((prevParticles) =>
-        prevParticles.map((particle) => {
-          // Update position
-          particle.x += particle.vx * (state.isPlaying ? 1 : 0.3)
-          particle.y += particle.vy * (state.isPlaying ? 1 : 0.3)
+      particlesRef.current.forEach((particle) => {
+        // Update position
+        particle.x += particle.vx * (state.isPlaying ? 1 : 0.3)
+        particle.y += particle.vy * (state.isPlaying ? 1 : 0.3)
 
-          // Bounce off edges
-          if (particle.x <= 0 || particle.x >= canvas.offsetWidth) particle.vx *= -1
-          if (particle.y <= 0 || particle.y >= canvas.offsetHeight) particle.vy *= -1
+        // Bounce off edges
+        if (particle.x <= 0 || particle.x >= canvas.offsetWidth) particle.vx *= -1
+        if (particle.y <= 0 || particle.y >= canvas.offsetHeight) particle.vy *= -1
 
-          // Keep particles in bounds
-          particle.x = Math.max(0, Math.min(canvas.offsetWidth, particle.x))
-          particle.y = Math.max(0, Math.min(canvas.offsetHeight, particle.y))
+        // Keep particles in bounds
+        particle.x = Math.max(0, Math.min(canvas.offsetWidth, particle.x))
+        particle.y = Math.max(0, Math.min(canvas.offsetHeight, particle.y))
 
-          // Draw particle
-          ctx.save()
-          ctx.globalAlpha = particle.opacity * (state.isPlaying ? 1 : 0.5)
-          ctx.fillStyle = particle.color
-          ctx.beginPath()
-          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2)
-          ctx.fill()
-          ctx.restore()
-
-          return particle
-        }),
-      )
+        // Draw particle
+        ctx.save()
+        ctx.globalAlpha = particle.opacity * (state.isPlaying ? 1 : 0.5)
+        ctx.fillStyle = particle.color
+        ctx.beginPath()
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
+      })
 
       // Add pulsing effect based on music
       if (state.isPlaying) {

@@ -139,19 +139,9 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(und
 export function AudioPlayerProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(audioPlayerReducer, initialState)
   const videoModeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const isInitializedRef = useRef(false)
+  const lastAddedTrackRef = useRef<string | null>(null)
   const { addToHistory } = useListeningHistory()
   const { isDownloaded, getOfflineAudio } = useDownload()
-
-  useEffect(() => {
-    if (!isInitializedRef.current) {
-      const savedVideoMode = localStorage.getItem("vibetuneVideoMode") === "true"
-      if (savedVideoMode !== state.isVideoMode) {
-        dispatch({ type: "SET_VIDEO_MODE", payload: savedVideoMode })
-      }
-      isInitializedRef.current = true
-    }
-  }, [])
 
   const setVideoMode = useCallback((enabled: boolean) => {
     if (videoModeTimeoutRef.current) {
@@ -172,25 +162,14 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [])
 
-  const memoizedAddToHistory = useCallback(
-    (track: Track) => {
-      addToHistory(track)
-    },
-    [addToHistory],
-  )
-
   useEffect(() => {
-    if (state.currentTrack) {
+    if (state.currentTrack && lastAddedTrackRef.current !== state.currentTrack.id) {
       dispatch({ type: "SET_LOADING", payload: true })
       dispatch({ type: "SET_ERROR", payload: null })
-      memoizedAddToHistory(state.currentTrack)
-
-      if (isDownloaded(state.currentTrack.id)) {
-        console.log("[v0] Track is downloaded:", state.currentTrack.id)
-        dispatch({ type: "SET_ERROR", payload: "Playing offline version ✓" })
-      }
+      addToHistory(state.currentTrack)
+      lastAddedTrackRef.current = state.currentTrack.id
     }
-  }, [state.currentTrack, memoizedAddToHistory, isDownloaded])
+  }, [state.currentTrack, addToHistory])
 
   useEffect(() => {
     if ("mediaSession" in navigator && state.currentTrack) {

@@ -22,6 +22,9 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDestroyedRef = useRef(false)
+  const prevIsPlayingRef = useRef<boolean | null>(null)
+  const prevCurrentTimeRef = useRef<number | null>(null)
+  const prevVolumeRef = useRef<number | null>(null)
   const { state } = useAudioPlayer()
 
   const isVideoMode = showVideo || state.isVideoMode
@@ -121,6 +124,10 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
   useEffect(() => {
     if (!playerRef.current || isDestroyedRef.current) return
 
+    // Only update if the playing state actually changed
+    if (prevIsPlayingRef.current === state.isPlaying) return
+    prevIsPlayingRef.current = state.isPlaying
+
     try {
       if (state.isPlaying) {
         if (typeof playerRef.current.playVideo === "function") {
@@ -137,22 +144,35 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
   }, [state.isPlaying])
 
   useEffect(() => {
-    if (playerRef.current && typeof playerRef.current.seekTo === "function" && !isDestroyedRef.current) {
-      try {
+    if (!playerRef.current || isDestroyedRef.current) return
+
+    // Only seek if the time difference is significant (more than 1 second)
+    const timeDiff = Math.abs((prevCurrentTimeRef.current || 0) - state.currentTime)
+    if (timeDiff < 1) return
+    prevCurrentTimeRef.current = state.currentTime
+
+    try {
+      if (typeof playerRef.current.seekTo === "function") {
         playerRef.current.seekTo(state.currentTime, true)
-      } catch (error) {
-        console.error("[v0] Error seeking video:", error)
       }
+    } catch (error) {
+      console.error("[v0] Error seeking video:", error)
     }
   }, [state.currentTime])
 
   useEffect(() => {
-    if (playerRef.current && typeof playerRef.current.setVolume === "function" && !isDestroyedRef.current) {
-      try {
+    if (!playerRef.current || isDestroyedRef.current) return
+
+    // Only update if volume actually changed
+    if (prevVolumeRef.current === state.volume) return
+    prevVolumeRef.current = state.volume
+
+    try {
+      if (typeof playerRef.current.setVolume === "function") {
         playerRef.current.setVolume(state.volume * 100)
-      } catch (error) {
-        console.error("[v0] Error setting video volume:", error)
       }
+    } catch (error) {
+      console.error("[v0] Error setting video volume:", error)
     }
   }, [state.volume])
 

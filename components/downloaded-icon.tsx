@@ -2,18 +2,19 @@
 
 import { Check } from "lucide-react"
 import { useDownload } from "@/contexts/download-context"
+import { memo } from "react"
 
 interface DownloadedIconProps {
   songId: string
   className?: string
 }
 
-export function DownloadedIcon({ songId, className = "" }: DownloadedIconProps) {
+export const DownloadedIcon = memo(function DownloadedIcon({ songId, className = "" }: DownloadedIconProps) {
   const { isDownloaded } = useDownload()
 
-  console.log("[v0] Checking download status for:", songId, "Downloaded:", isDownloaded(songId))
+  const downloaded = isDownloaded(songId)
 
-  if (!isDownloaded(songId)) {
+  if (!downloaded) {
     return null
   }
 
@@ -22,4 +23,4 @@ export function DownloadedIcon({ songId, className = "" }: DownloadedIconProps) 
       <Check className="w-3 h-3 text-white" />
     </div>
   )
-}
+})

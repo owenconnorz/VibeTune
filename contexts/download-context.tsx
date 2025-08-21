@@ -31,7 +31,7 @@ export interface DownloadContextType {
 }
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 
 const DownloadContext = createContext<DownloadContextType | undefined>(undefined)
 
@@ -314,11 +314,15 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [downloads],
   )
 
+  const downloadedSongIds = useMemo(() => {
+    return new Set(downloadedSongs.map((song) => song.id))
+  }, [downloadedSongs])
+
   const isDownloaded = useCallback(
     (id: string) => {
-      return downloadedSongs.some((d) => d.id === id)
+      return downloadedSongIds.has(id)
     },
-    [downloadedSongs],
+    [downloadedSongIds],
   )
 
   const downloadSong = useCallback(

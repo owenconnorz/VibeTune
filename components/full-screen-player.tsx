@@ -25,6 +25,7 @@ import { useTheme } from "@/contexts/theme-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { YouTubePlayer } from "@/components/youtube-player"
 import { CanvasBackground } from "@/components/canvas-background"
+import { ErrorBoundaryComponent } from "./error-boundary"
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -43,16 +44,24 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
   const lastTime = useRef(0)
   const velocity = useRef(0)
   const [canvasSettings, setCanvasSettings] = useState({ enableCanvas: false })
+  const canvasInitializedRef = useRef(false)
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("vibetuneVideoSettings")
-      if (saved) {
-        const settings = JSON.parse(saved)
-        setCanvasSettings({ enableCanvas: settings.enableCanvas || false })
+    if (!canvasInitializedRef.current) {
+      try {
+        if (typeof window !== "undefined" && window.localStorage) {
+          const saved = localStorage.getItem("vibetuneVideoSettings")
+          if (saved) {
+            const settings = JSON.parse(saved)
+            const enableCanvas = settings.enableCanvas || false
+            setCanvasSettings((prev) => (prev.enableCanvas !== enableCanvas ? { enableCanvas } : prev))
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load canvas settings:", error)
+        setCanvasSettings((prev) => (prev.enableCanvas !== false ? { enableCanvas: false } : prev))
       }
-    } catch (error) {
-      console.error("Failed to load canvas settings:", error)
+      canvasInitializedRef.current = true
     }
   }, [])
 
@@ -76,7 +85,6 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
       const deltaY = currentY - startY.current
       const currentTime = Date.now()
 
-      // Calculate velocity for momentum
       const timeDelta = currentTime - lastTime.current
       if (timeDelta > 0) {
         velocity.current = (currentY - lastY.current) / timeDelta
@@ -85,7 +93,6 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
       lastY.current = currentY
       lastTime.current = currentTime
 
-      // Only allow downward swipe with minimum threshold
       if (deltaY > 0) {
         setDragY(Math.min(deltaY, window.innerHeight * 0.8))
       }
@@ -119,27 +126,35 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
     return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
-  const handleToggleLike = () => {
-    if (state.currentTrack) {
-      toggleLike({
-        id: state.currentTrack.id,
-        title: state.currentTrack.title,
-        artist: state.currentTrack.artist,
-        thumbnail: state.currentTrack.thumbnail,
-        duration: state.currentTrack.duration,
-      })
+  const handleToggleLike = useCallback(() => {
+    try {
+      if (state.currentTrack) {
+        toggleLike({
+          id: state.currentTrack.id,
+          title: state.currentTrack.title,
+          artist: state.currentTrack.artist,
+          thumbnail: state.currentTrack.thumbnail,
+          duration: state.currentTrack.duration,
+        })
+      }
+    } catch (error) {
+      console.error("Failed to toggle like:", error)
     }
-  }
+  }, [state.currentTrack, toggleLike])
 
-  const handleToggleVideoMode = () => {
-    setVideoMode(!state.isVideoMode)
-  }
+  const handleToggleVideoMode = useCallback(() => {
+    try {
+      setVideoMode(!state.isVideoMode)
+    } catch (error) {
+      console.error("Failed to toggle video mode:", error)
+    }
+  }, [state.isVideoMode, setVideoMode])
 
-  if (!isOpen || !state.currentTrack) return null
+  if (!isOpen || !state.currentTrack || !colors) return null
 
   const progressPercentage = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0
 
-  const dynamicBackground = `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 50%, ${colors.accent} 100%)`
+  const dynamicBackground = `linear-gradient(135deg, ${colors.primary || "#1a1a1a"} 0%, ${colors.secondary || "#2a2a2a"} 50%, ${colors.accent || "#3a3a3a"} 100%)`
 
   return (
     <div
@@ -165,7 +180,6 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
           </div>
         </div>
 
-        {/* Drag Indicator */}
         <div className="flex justify-center mb-4 sm:mb-8">
           <div className="w-12 h-1 bg-white/30 rounded-full"></div>
         </div>
@@ -198,20 +212,32 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
 
             {state.isVideoMode ? (
               <div className="relative w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-black">
-                <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
+                <ErrorBoundaryComponent
+                  fallback={
+                    <div className="w-full h-full bg-black flex items-center justify-center text-white">
+                      Video unavailable
+                    </div>
+                  }
+                >
+                  <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
+                </ErrorBoundaryComponent>
               </div>
             ) : (
               <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl mx-auto">
-                <CanvasBackground isEnabled={canvasSettings.enableCanvas} className="rounded-2xl sm:rounded-3xl" />
+                <ErrorBoundaryComponent fallback={null}>
+                  <CanvasBackground isEnabled={canvasSettings.enableCanvas} className="rounded-2xl sm:rounded-3xl" />
+                </ErrorBoundaryComponent>
                 <img
                   src={state.currentTrack.thumbnail || "/placeholder.svg"}
                   alt={`${state.currentTrack.title} album cover`}
                   className="w-full h-full object-cover relative z-10"
+                  onError={(e) => {
+                    e.currentTarget.src = "/placeholder.svg"
+                  }}
                 />
-                {/* Overlay text effect like in the reference */}
                 <div className="absolute inset-0 flex items-center justify-center z-20">
                   <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
-                    {state.currentTrack.artist?.toUpperCase()}
+                    {state.currentTrack.artist?.toUpperCase() || "UNKNOWN"}
                   </div>
                 </div>
               </div>
