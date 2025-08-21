@@ -371,10 +371,11 @@ export class YouTubeAPI {
       id: item.id?.videoId || item.id,
       title: item.snippet?.title || "Unknown Title",
       channelTitle: item.snippet?.channelTitle || "Unknown Channel",
-      thumbnail: generateAlbumArtwork(
-        item.snippet?.title || "Unknown Title",
-        item.snippet?.channelTitle || "Unknown Channel",
-      ),
+      thumbnail:
+        item.snippet?.thumbnails?.high?.url ||
+        item.snippet?.thumbnails?.medium?.url ||
+        item.snippet?.thumbnails?.default?.url ||
+        "/placeholder.svg?height=300&width=300",
       duration: "3:30", // Duration not available in search results
       viewCount: "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
@@ -386,10 +387,11 @@ export class YouTubeAPI {
       id: item.id,
       title: item.snippet?.title || "Unknown Title",
       channelTitle: item.snippet?.channelTitle || "Unknown Channel",
-      thumbnail: generateAlbumArtwork(
-        item.snippet?.title || "Unknown Title",
-        item.snippet?.channelTitle || "Unknown Channel",
-      ),
+      thumbnail:
+        item.snippet?.thumbnails?.high?.url ||
+        item.snippet?.thumbnails?.medium?.url ||
+        item.snippet?.thumbnails?.default?.url ||
+        "/placeholder.svg?height=300&width=300",
       duration: this.parseDuration(item.contentDetails?.duration || "PT3M30S"),
       viewCount: item.statistics?.viewCount || "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
@@ -401,10 +403,11 @@ export class YouTubeAPI {
       id: item.snippet?.resourceId?.videoId || "",
       title: item.snippet?.title || "Unknown Title",
       channelTitle: item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || "Unknown Channel",
-      thumbnail: generateAlbumArtwork(
-        item.snippet?.title || "Unknown Title",
-        item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || "Unknown Channel",
-      ),
+      thumbnail:
+        item.snippet?.thumbnails?.high?.url ||
+        item.snippet?.thumbnails?.medium?.url ||
+        item.snippet?.thumbnails?.default?.url ||
+        "/placeholder.svg?height=300&width=300",
       duration: "3:30",
       viewCount: "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
@@ -558,48 +561,3 @@ export class YouTubeAPI {
 
 // Create a singleton instance
 export const createYouTubeAPI = (apiKey?: string) => new YouTubeAPI(apiKey)
-
-function generateAlbumArtwork(title: string, artist: string): string {
-  // Extract album name from title (remove common patterns)
-  const cleanTitle = title
-    .replace(/$$Official.*?$$/gi, "")
-    .replace(/\[Official.*?\]/gi, "")
-    .replace(/- Official.*$/gi, "")
-    .replace(/Official.*$/gi, "")
-    .replace(/$$.*?Video.*?$$/gi, "")
-    .replace(/\[.*?Video.*?\]/gi, "")
-    .replace(/HD|4K|Audio|Lyrics/gi, "")
-    .trim()
-
-  const cleanArtist = artist
-    .replace(/VEVO|Official|Records|Music/gi, "")
-    .replace(/\s+/g, " ")
-    .trim()
-
-  // Generate a color based on artist name for consistent theming
-  const colors = [
-    "#FF6B6B",
-    "#4ECDC4",
-    "#45B7D1",
-    "#96CEB4",
-    "#FFEAA7",
-    "#DDA0DD",
-    "#98D8C8",
-    "#F7DC6F",
-    "#BB8FCE",
-    "#85C1E9",
-  ]
-
-  let hash = 0
-  for (let i = 0; i < cleanArtist.length; i++) {
-    hash = cleanArtist.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const colorIndex = Math.abs(hash) % colors.length
-  const backgroundColor = colors[colorIndex]
-
-  // Create album artwork URL with artist and song info
-  const encodedTitle = encodeURIComponent(cleanTitle.substring(0, 20))
-  const encodedArtist = encodeURIComponent(cleanArtist.substring(0, 15))
-
-  return `/placeholder.svg?height=300&width=300&text=${encodedArtist}%0A${encodedTitle}&bg=${backgroundColor.replace("#", "")}&color=white`
-}

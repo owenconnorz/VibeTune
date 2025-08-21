@@ -48,6 +48,22 @@ export default function VibeTunePage() {
     duration: song.duration,
   })
 
+  const getAlbumArtwork = (song: any) => {
+    if (!song) {
+      console.log("[v0] Song object is undefined, using placeholder")
+      return "/placeholder.svg?height=60&width=60"
+    }
+
+    console.log("[v0] Song thumbnail data:", {
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      thumbnail: song.thumbnail,
+    })
+
+    return song.thumbnail || "/placeholder.svg?height=60&width=60"
+  }
+
   useEffect(() => {
     if (trendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
       const firstTrack = convertToTrack(trendingSongs[0])
@@ -204,9 +220,13 @@ export default function VibeTunePage() {
                       onClick={() => handlePlaySong(song, trendingSongs)}
                     >
                       <img
-                        src={song.thumbnail || "/placeholder.svg?height=60&width=60"}
+                        src={getAlbumArtwork(song) || "/placeholder.svg"}
                         alt={`${song.title} thumbnail`}
                         className="w-15 h-15 rounded-lg object-cover"
+                        onError={(e) => {
+                          console.log("[v0] Image failed to load:", e.currentTarget.src)
+                          e.currentTarget.src = "/placeholder.svg?height=60&width=60"
+                        }}
                       />
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg font-semibold text-white truncate">{song.title}</h3>
@@ -248,12 +268,15 @@ export default function VibeTunePage() {
                       <img
                         src={
                           morningBoostSongs[0]?.thumbnail ||
-                          "/placeholder.svg?height=192&width=192&query=morning energy music" ||
-                          "/placeholder.svg" ||
+                          "/placeholder.svg?height=192&width=192" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
                         className="w-full h-48 object-cover"
+                        onError={(e) => {
+                          console.log("[v0] Morning playlist image failed to load:", e.currentTarget.src)
+                          e.currentTarget.src = "/placeholder.svg?height=192&width=192"
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-4 left-4">
@@ -282,12 +305,15 @@ export default function VibeTunePage() {
                       <img
                         src={
                           morningBoostSongs[3]?.thumbnail ||
-                          "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
-                          "/placeholder.svg" ||
+                          "/placeholder.svg?height=192&width=192" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
                         className="w-full h-48 object-cover"
+                        onError={(e) => {
+                          console.log("[v0] Feel-good playlist image failed to load:", e.currentTarget.src)
+                          e.currentTarget.src = "/placeholder.svg?height=192&width=192"
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-4 left-4">
@@ -316,12 +342,15 @@ export default function VibeTunePage() {
                       <img
                         src={
                           morningBoostSongs[6]?.thumbnail ||
-                          "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
-                          "/placeholder.svg" ||
+                          "/placeholder.svg?height=192&width=192" ||
                           "/placeholder.svg"
                         }
                         alt="Upbeat Classics"
                         className="w-full h-48 object-cover"
+                        onError={(e) => {
+                          console.log("[v0] Upbeat classics image failed to load:", e.currentTarget.src)
+                          e.currentTarget.src = "/placeholder.svg?height=192&width=192"
+                        }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-4 left-4">

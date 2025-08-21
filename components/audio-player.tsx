@@ -9,6 +9,7 @@ import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useTheme } from "@/contexts/theme-context"
 import { useState, useCallback } from "react"
 import { FullScreenPlayer } from "./full-screen-player"
+import { generateAlbumArtwork } from "@/lib/music-data"
 
 export function AudioPlayer() {
   const { state, togglePlay, nextTrack, seekTo, setVolume } = useAudioPlayer()
@@ -46,6 +47,19 @@ export function AudioPlayer() {
 
   const handleTouchCancel = useCallback(() => {
     setTouchStart(null)
+  }, [])
+
+  const getAlbumArtwork = useCallback((track: any) => {
+    console.log("[v0] getAlbumArtwork called with track:", track?.title, "thumbnail:", track?.thumbnail)
+
+    if (!track) {
+      console.log("[v0] No track provided, using default placeholder")
+      return "/placeholder.svg?height=40&width=40"
+    }
+
+    const artwork = generateAlbumArtwork(track.artist || "Unknown", track.title || "Unknown")
+    console.log("[v0] Generated artwork URL:", artwork)
+    return artwork
   }, [])
 
   console.log("[v0] Mini player colors:", colors)
@@ -95,9 +109,14 @@ export function AudioPlayer() {
             onTouchCancel={handleTouchCancel}
           >
             <img
-              src={state.currentTrack.thumbnail || "/placeholder.svg"}
+              src={getAlbumArtwork(state.currentTrack) || "/placeholder.svg"}
               alt={`${state.currentTrack.title} album cover`}
               className="w-10 h-10 rounded-md object-cover shadow-lg"
+              onError={(e) => {
+                console.log("[v0] Mini player image failed to load, trying fallback")
+                const target = e.target as HTMLImageElement
+                target.src = "/placeholder.svg?height=40&width=40"
+              }}
             />
             <div className="min-w-0 flex-1">
               <h3 className="text-white font-semibold truncate drop-shadow-sm text-sm">{state.currentTrack.title}</h3>
