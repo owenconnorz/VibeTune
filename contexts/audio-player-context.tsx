@@ -3,6 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useReducer, useRef, useEffect } from "react"
 import { useListeningHistory } from "./listening-history-context"
+import { useDownload } from "./download-context"
 
 export interface Track {
   id: string
@@ -23,6 +24,7 @@ interface AudioPlayerState {
   currentIndex: number
   isLoading: boolean
   error: string | null
+  isVideoMode: boolean
 }
 
 type AudioPlayerAction =
@@ -38,6 +40,7 @@ type AudioPlayerAction =
   | { type: "SET_VOLUME"; payload: number }
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null }
+  | { type: "SET_VIDEO_MODE"; payload: boolean }
 
 const initialState: AudioPlayerState = {
   currentTrack: null,
@@ -49,6 +52,7 @@ const initialState: AudioPlayerState = {
   currentIndex: -1,
   isLoading: false,
   error: null,
+  isVideoMode: typeof window !== "undefined" ? localStorage.getItem("vibetuneVideoMode") === "true" : false,
 }
 
 function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction): AudioPlayerState {
@@ -108,6 +112,11 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
       return { ...state, isLoading: action.payload }
     case "SET_ERROR":
       return { ...state, error: action.payload, isLoading: false }
+    case "SET_VIDEO_MODE":
+      if (typeof window !== "undefined") {
+        localStorage.setItem("vibetuneVideoMode", action.payload.toString())
+      }
+      return { ...state, isVideoMode: action.payload }
     default:
       return state
   }
@@ -122,6 +131,7 @@ interface AudioPlayerContextType {
   previousTrack: () => void
   seekTo: (time: number) => void
   setVolume: (volume: number) => void
+  setVideoMode: (enabled: boolean) => void
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined)
@@ -132,9 +142,16 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const playerReadyRef = useRef(false)
   const pendingPlayRef = useRef(false)
   const { addToHistory } = useListeningHistory()
+  const { isDownloaded, getOfflineAudio } = useDownload()
 
   useEffect(() => {
-    // Load YouTube IFrame API
+    const savedVideoMode = localStorage.getItem("vibetuneVideoMode") === "true"
+    if (savedVideoMode !== state.isVideoMode) {
+      dispatch({ type: "SET_VIDEO_MODE", payload: savedVideoMode })
+    }
+  }, [])
+
+  useEffect(() => {
     if (!window.YT) {
       const tag = document.createElement("script")
       tag.src = "https://www.youtube.com/iframe_api"
@@ -151,18 +168,23 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     function initializePlayer() {
       const playerContainer = document.createElement("div")
       playerContainer.id = "youtube-player"
-      playerContainer.style.display = "none"
+      playerContainer.style.display = state.isVideoMode ? "block" : "none"
+      playerContainer.style.position = "fixed"
+      playerContainer.style.top = "0"
+      playerContainer.style.left = "0"
+      playerContainer.style.zIndex = "9999"
+      playerContainer.style.backgroundColor = "black"
       document.body.appendChild(playerContainer)
 
       youtubePlayerRef.current = new window.YT.Player("youtube-player", {
-        height: "0",
-        width: "0",
-        videoId: "dQw4w9WgXcQ", // Default video ID to prevent initialization errors
+        height: state.isVideoMode ? "315" : "0",
+        width: state.isVideoMode ? "560" : "0",
+        videoId: "dQw4w9WgXcQ",
         playerVars: {
           autoplay: 0,
-          controls: 0,
-          disablekb: 1,
-          fs: 0,
+          controls: state.isVideoMode ? 1 : 0,
+          disablekb: state.isVideoMode ? 0 : 1,
+          fs: state.isVideoMode ? 1 : 0,
           modestbranding: 1,
           rel: 0,
           enablejsapi: 1,
@@ -236,7 +258,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         youtubePlayerRef.current.destroy()
       }
     }
-  }, [])
+  }, [state.isVideoMode])
 
   const handlePlay = () => {
     if (!youtubePlayerRef.current || !playerReadyRef.current || !state.currentTrack) {
@@ -285,7 +307,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     } else {
       pendingPlayRef.current = true
     }
-  }, [state.currentTrack]) // Removed addToHistory from dependency array to prevent infinite loop
+  }, [state.currentTrack])
 
   useEffect(() => {
     if (youtubePlayerRef.current && playerReadyRef.current) {
@@ -317,7 +339,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     if ("mediaSession" in navigator && state.currentTrack) {
-      // Set metadata for the notification
       navigator.mediaSession.metadata = new MediaMetadata({
         title: state.currentTrack.title,
         artist: state.currentTrack.artist,
@@ -356,7 +377,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         ],
       })
 
-      // Set action handlers for media session
       navigator.mediaSession.setActionHandler("play", () => {
         dispatch({ type: "PLAY" })
       })
@@ -365,12 +385,10 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         dispatch({ type: "PAUSE" })
       })
 
-      // Always register previoustrack handler
       navigator.mediaSession.setActionHandler("previoustrack", () => {
         dispatch({ type: "PREVIOUS_TRACK" })
       })
 
-      // Always register nexttrack handler
       navigator.mediaSession.setActionHandler("nexttrack", () => {
         dispatch({ type: "NEXT_TRACK" })
       })
@@ -432,7 +450,19 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_VOLUME", payload: volume })
   }
 
-  const loadCurrentTrack = () => {
+  const setVideoMode = (enabled: boolean) => {
+    dispatch({ type: "SET_VIDEO_MODE", payload: enabled })
+
+    const playerContainer = document.getElementById("youtube-player")
+    if (playerContainer) {
+      playerContainer.style.display = enabled ? "block" : "none"
+      if (youtubePlayerRef.current) {
+        youtubePlayerRef.current.setSize(enabled ? 560 : 0, enabled ? 315 : 0)
+      }
+    }
+  }
+
+  const loadCurrentTrack = async () => {
     if (!youtubePlayerRef.current || !playerReadyRef.current || !state.currentTrack) {
       return
     }
@@ -445,7 +475,26 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       return
     }
 
-    // Check if this is a sample/fallback track
+    if (isDownloaded(videoId)) {
+      console.log("[v0] Playing offline version of:", videoId)
+      try {
+        const offlineAudio = await getOfflineAudio(videoId)
+        if (offlineAudio) {
+          console.log("[v0] Offline audio available, playing offline version")
+          dispatch({ type: "SET_ERROR", payload: "Playing offline version ✓" })
+          dispatch({ type: "SET_LOADING", payload: false })
+          dispatch({ type: "PLAY" })
+          youtubePlayerRef.current.loadVideoById({
+            videoId: videoId,
+            startSeconds: 0,
+          })
+          return
+        }
+      } catch (error) {
+        console.error("[v0] Failed to load offline audio:", error)
+      }
+    }
+
     if (videoId.startsWith("default") || videoId.length < 10) {
       console.log("[v0] Sample track detected, cannot play:", videoId)
       dispatch({ type: "SET_ERROR", payload: "Sample track - real music not available" })
@@ -480,6 +529,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         previousTrack,
         seekTo,
         setVolume,
+        setVideoMode,
       }}
     >
       {children}

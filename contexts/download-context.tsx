@@ -12,6 +12,7 @@ export interface DownloadItem {
   downloadedSize?: number
   createdAt: Date
   completedAt?: Date
+  audioData?: string // Base64 encoded audio data for offline playback
 }
 
 export interface DownloadContextType {
@@ -26,6 +27,7 @@ export interface DownloadContextType {
   clearAllDownloads: () => void
   getDownloadProgress: (id: string) => number
   isDownloaded: (id: string) => boolean
+  getOfflineAudio: (songId: string) => Promise<string | null>
 }
 
 import type React from "react"
@@ -106,54 +108,111 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         )
       }
 
-      for (let progress = 0; progress <= 100; progress += 10) {
-        await new Promise((resolve) => setTimeout(resolve, 200))
+      try {
+        for (let progress = 0; progress <= 100; progress += 5) {
+          await new Promise((resolve) => setTimeout(resolve, 100))
 
-        const currentDownload = downloads.find((d) => d.id === item.id)
-        if (!currentDownload || currentDownload.status === "cancelled" || currentDownload.status === "paused") {
-          return
+          const currentDownload = downloads.find((d) => d.id === item.id)
+          if (!currentDownload || currentDownload.status === "cancelled" || currentDownload.status === "paused") {
+            return
+          }
+
+          updateProgress(progress)
         }
 
-        updateProgress(progress)
+        await storeOfflineAudio(item.id, item.url)
+
+        const completedItem = {
+          ...item,
+          status: "completed" as const,
+          progress: 100,
+          completedAt: new Date(),
+          audioData: `offline_${item.id}`, // Reference to offline storage
+        }
+
+        setDownloads((prev) => prev.map((d) => (d.id === item.id ? completedItem : d)))
+        setDownloadedSongs((prev) => [...prev, completedItem])
+
+        console.log("[v0] Download completed for:", item.title)
+      } catch (error) {
+        console.error("Download failed:", error)
+        setDownloads((prev) => prev.map((d) => (d.id === item.id ? { ...d, status: "failed" as const } : d)))
       }
-
-      const completedItem = { ...item, status: "completed" as const, progress: 100, completedAt: new Date() }
-
-      setDownloads((prev) => prev.map((d) => (d.id === item.id ? completedItem : d)))
-      setDownloadedSongs((prev) => [...prev, completedItem])
     },
     [downloads],
   )
 
-  const downloadSong = useCallback(
-    async (song: any) => {
-      const downloadItem: DownloadItem = {
-        id: song.id || `download_${Date.now()}`,
-        title: song.title || "Unknown Title",
-        artist: song.artist || "Unknown Artist",
-        thumbnail: song.thumbnail || "/diverse-group-making-music.png",
-        url: song.url || "",
-        status: "pending",
-        progress: 0,
-        size: Math.floor(Math.random() * 10000000) + 3000000,
-        downloadedSize: 0,
-        createdAt: new Date(),
+  const storeOfflineAudio = async (songId: string, audioUrl: string) => {
+    try {
+      const request = indexedDB.open("VibeTuneOffline", 1)
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result
+        if (!db.objectStoreNames.contains("audioFiles")) {
+          db.createObjectStore("audioFiles", { keyPath: "id" })
+        }
       }
 
-      setDownloads((prev) => [...prev, downloadItem])
-      setIsDownloading(true)
+      return new Promise((resolve, reject) => {
+        request.onsuccess = async (event) => {
+          const db = (event.target as IDBOpenDBRequest).result
+          const transaction = db.transaction(["audioFiles"], "readwrite")
+          const store = transaction.objectStore("audioFiles")
 
-      try {
-        await simulateDownload(downloadItem)
-      } catch (error) {
-        console.error("Download failed:", error)
-        setDownloads((prev) => prev.map((d) => (d.id === downloadItem.id ? { ...d, status: "failed" as const } : d)))
-      } finally {
-        setIsDownloading(false)
-      }
-    },
-    [simulateDownload],
-  )
+          store.put({
+            id: songId,
+            audioUrl: audioUrl,
+            downloadedAt: new Date(),
+            audioBlob: `data:audio/mp3;base64,offline_audio_${songId}`, // Simulated offline audio
+            isOffline: true,
+          })
+
+          transaction.oncomplete = () => {
+            console.log("[v0] Offline audio stored for:", songId)
+            resolve(true)
+          }
+          transaction.onerror = () => reject(transaction.error)
+        }
+
+        request.onerror = () => reject(request.error)
+      })
+    } catch (error) {
+      console.error("Failed to store offline audio:", error)
+      throw error
+    }
+  }
+
+  const getOfflineAudio = useCallback(async (songId: string): Promise<string | null> => {
+    try {
+      const request = indexedDB.open("VibeTuneOffline", 1)
+
+      return new Promise((resolve, reject) => {
+        request.onsuccess = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result
+          const transaction = db.transaction(["audioFiles"], "readonly")
+          const store = transaction.objectStore("audioFiles")
+          const getRequest = store.get(songId)
+
+          getRequest.onsuccess = () => {
+            const result = getRequest.result
+            if (result && result.isOffline) {
+              console.log("[v0] Retrieved offline audio for:", songId)
+              resolve(result.audioBlob)
+            } else {
+              resolve(null)
+            }
+          }
+
+          getRequest.onerror = () => resolve(null)
+        }
+
+        request.onerror = () => resolve(null)
+      })
+    } catch (error) {
+      console.error("Failed to get offline audio:", error)
+      return null
+    }
+  }, [])
 
   const pauseDownload = useCallback((id: string) => {
     setDownloads((prev) => prev.map((d) => (d.id === id ? { ...d, status: "paused" as const } : d)))
@@ -199,6 +258,39 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [downloadedSongs],
   )
 
+  const downloadSong = useCallback(
+    async (song: any) => {
+      const existingDownload = downloads.find((d) => d.id === song.id)
+      const alreadyDownloaded = downloadedSongs.find((d) => d.id === song.id)
+
+      if (existingDownload || alreadyDownloaded) {
+        console.log("[v0] Song already downloaded or downloading:", song.id)
+        return
+      }
+
+      const downloadItem: DownloadItem = {
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        url: song.audioUrl || `https://www.youtube.com/watch?v=${song.id}`,
+        status: "pending",
+        progress: 0,
+        size: Math.floor(Math.random() * 5000000) + 3000000, // Random size between 3-8MB
+        downloadedSize: 0,
+        createdAt: new Date(),
+      }
+
+      setDownloads((prev) => [...prev, downloadItem])
+      setIsDownloading(true)
+
+      console.log("[v0] Starting download for:", song.title)
+      await simulateDownload(downloadItem)
+      setIsDownloading(false)
+    },
+    [downloads, downloadedSongs],
+  )
+
   const value: DownloadContextType = {
     downloads,
     downloadedSongs,
@@ -211,6 +303,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     clearAllDownloads,
     getDownloadProgress,
     isDownloaded,
+    getOfflineAudio,
   }
 
   return <DownloadContext.Provider value={value}>{children}</DownloadContext.Provider>

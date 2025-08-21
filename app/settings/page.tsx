@@ -67,6 +67,10 @@ export default function SettingsPage() {
     success: null as string | null,
   })
 
+  const [videoSettings, setVideoSettings] = useState({
+    enableVideo: false,
+  })
+
   const loadCacheData = useCallback(() => {
     const settings = musicCache.getSettings()
     const stats = musicCache.getStats()
@@ -83,6 +87,26 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error("Failed to load profile settings:", error)
+    }
+  }, [])
+
+  const loadVideoSettings = useCallback(() => {
+    try {
+      const saved = localStorage.getItem("vibetuneVideoSettings")
+      if (saved) {
+        setVideoSettings(JSON.parse(saved))
+      }
+    } catch (error) {
+      console.error("Failed to load video settings:", error)
+    }
+  }, [])
+
+  const saveVideoSettings = useCallback((settings: typeof videoSettings) => {
+    try {
+      localStorage.setItem("vibetuneVideoSettings", JSON.stringify(settings))
+      setVideoSettings(settings)
+    } catch (error) {
+      console.error("Failed to save video settings:", error)
     }
   }, [])
 
@@ -147,9 +171,10 @@ export default function SettingsPage() {
       // Load cache settings and stats
       loadCacheData()
       loadProfileSettings() // Added profile settings loading
+      loadVideoSettings()
       initialLoadComplete.current = true
     }
-  }, [searchParams, loadCacheData, loadProfileSettings])
+  }, [searchParams, loadCacheData, loadProfileSettings, loadVideoSettings])
 
   const handleGoogleLogin = async () => {
     try {
@@ -728,6 +753,17 @@ export default function SettingsPage() {
             <CardDescription className="text-gray-400">Customize your music experience</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-white font-medium">Video Mode</p>
+                <p className="text-gray-400 text-sm">Watch music videos instead of audio-only playback</p>
+              </div>
+              <Switch
+                checked={videoSettings.enableVideo}
+                onCheckedChange={(checked) => saveVideoSettings({ enableVideo: checked })}
+              />
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-white font-medium">High Quality Audio</p>

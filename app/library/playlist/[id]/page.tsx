@@ -2,9 +2,9 @@
 
 import type React from "react"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Play, Heart, Edit, Trash2, Music } from "lucide-react"
+import { ArrowLeft, Play, Heart, Edit, Trash2, Music, Download, Camera } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -29,6 +29,7 @@ const VirtualizedSongList = ({
   onRemoveSong: (songId: string) => void
 }) => {
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: 50 })
+  const containerRef = useRef<HTMLDivElement>(null)
   const itemHeight = 64 // Height of each song item in pixels
   const containerHeight = 600 // Max height of the scrollable container
 
@@ -52,54 +53,61 @@ const VirtualizedSongList = ({
   const offsetY = visibleRange.start * itemHeight
 
   return (
-    <div className="overflow-auto" style={{ maxHeight: containerHeight }} onScroll={handleScroll}>
-      <div style={{ height: totalHeight, position: "relative" }}>
-        <div style={{ transform: `translateY(${offsetY}px)` }}>
-          {visibleSongs.map((song, index) => {
-            const actualIndex = visibleRange.start + index
-            return (
-              <div
-                key={`${song.id}-${actualIndex}`}
-                className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
-                style={{ height: itemHeight }}
-                onClick={() => onPlaySong(song, songs)}
-              >
-                <div className="w-4 text-gray-500 text-sm">{actualIndex + 1}</div>
-                <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-                  {song.thumbnail ? (
-                    <img
-                      src={song.thumbnail || "/placeholder.svg"}
-                      alt={song.title}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <Music className="w-6 h-6 text-gray-400" />
-                  )}
+    <div className="relative">
+      <div ref={containerRef} className="overflow-auto" style={{ maxHeight: containerHeight }} onScroll={handleScroll}>
+        <div style={{ height: totalHeight, position: "relative" }}>
+          <div style={{ transform: `translateY(${offsetY}px)` }}>
+            {visibleSongs.map((song, index) => {
+              const actualIndex = visibleRange.start + index
+              if (!song || typeof song !== "object" || !song.id) {
+                console.warn("[v0] Invalid song object:", song)
+                return null
+              }
+
+              return (
+                <div
+                  key={`${song.id}-${actualIndex}`}
+                  className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
+                  style={{ height: itemHeight }}
+                  onClick={() => onPlaySong(song, songs)}
+                >
+                  <div className="w-4 text-gray-500 text-sm">{actualIndex + 1}</div>
+                  <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {song.thumbnail ? (
+                      <img
+                        src={song.thumbnail || "/placeholder.svg"}
+                        alt={song.title || "Song"}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <Music className="w-6 h-6 text-gray-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-medium truncate">{song.title || "Unknown Title"}</h3>
+                    <p className="text-gray-400 text-sm truncate">{song.artist || "Unknown Artist"}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
+                    <DownloadedIcon songId={song.id} />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onRemoveSong(song.id)
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-400"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <SongMenu song={song} />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-medium truncate">{song.title}</h3>
-                  <p className="text-gray-400 text-sm truncate">{song.artist}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
-                  <DownloadedIcon songId={song.id} />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onRemoveSong(song.id)
-                    }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-400"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                  <SongMenu song={song} />
-                </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -113,6 +121,9 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const playlist = getPlaylist(params.id)
 
@@ -153,6 +164,85 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
     }
   }, [playlist?.songs, playQueue])
 
+  const handleDownloadAll = useCallback(async () => {
+    if (!playlist?.songs.length) return
+
+    setIsDownloading(true)
+    try {
+      const songList = playlist.songs
+        .map((song, index) => `${index + 1}. ${song.title} - ${song.artist} (${song.duration || "Unknown duration"})`)
+        .join("\n")
+
+      const playlistInfo =
+        `Playlist: ${playlist.title}\n` +
+        `Description: ${playlist.description || "No description"}\n` +
+        `Songs: ${playlist.songs.length}\n` +
+        `Created: ${new Date(playlist.createdAt).toLocaleDateString()}\n\n` +
+        songList
+
+      const blob = new Blob([playlistInfo], { type: "text/plain" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `${playlist.title.replace(/[^a-z0-9]/gi, "_")}_playlist.txt`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error("Download failed:", error)
+    } finally {
+      setIsDownloading(false)
+    }
+  }, [playlist])
+
+  const handleImageUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0]
+      if (!file) return
+
+      if (!file.type.startsWith("image/")) {
+        alert("Please select an image file")
+        return
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image size must be less than 5MB")
+        return
+      }
+
+      setIsUploadingImage(true)
+      try {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string
+          updatePlaylist(params.id, {
+            thumbnail: dataUrl,
+          })
+          setIsUploadingImage(false)
+        }
+        reader.onerror = () => {
+          alert("Failed to read image file")
+          setIsUploadingImage(false)
+        }
+        reader.readAsDataURL(file)
+      } catch (error) {
+        console.error("Image upload failed:", error)
+        alert("Failed to upload image")
+        setIsUploadingImage(false)
+      }
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    },
+    [updatePlaylist, params.id],
+  )
+
+  const handleImageClick = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
   if (!playlist) {
     return (
       <div className="min-h-screen bg-zinc-900 text-white flex items-center justify-center">
@@ -191,7 +281,6 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
-      {/* Header */}
       <header className="relative">
         <div className="absolute inset-0 bg-gradient-to-b from-purple-600/20 to-zinc-900" />
         <div className="relative p-6">
@@ -205,7 +294,10 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
           </Button>
 
           <div className="flex items-end gap-6">
-            <div className="w-48 h-48 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
+            <div
+              className="relative w-48 h-48 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer group hover:bg-zinc-600 transition-colors"
+              onClick={handleImageClick}
+            >
               {playlist.thumbnail ? (
                 <img
                   src={playlist.thumbnail || "/placeholder.svg"}
@@ -215,7 +307,19 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
               ) : (
                 <Music className="w-16 h-16 text-gray-400" />
               )}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                {isUploadingImage ? (
+                  <div className="text-white text-sm">Uploading...</div>
+                ) : (
+                  <div className="text-white text-center">
+                    <Camera className="w-8 h-8 mx-auto mb-2" />
+                    <div className="text-sm">Change Image</div>
+                  </div>
+                )}
+              </div>
             </div>
+
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
 
             <div className="flex-1 min-w-0">
               <p className="text-sm text-gray-300 mb-2">Playlist</p>
@@ -265,7 +369,6 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
         </div>
       </header>
 
-      {/* Controls */}
       <div className="px-6 py-4 flex items-center gap-4">
         <Button
           onClick={handlePlayAll}
@@ -278,6 +381,16 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
         <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
           <Heart className="w-5 h-5" />
         </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleDownloadAll}
+          disabled={playlist.songs.length === 0 || isDownloading}
+          className="text-gray-400 hover:text-white disabled:opacity-50"
+          title="Download playlist info"
+        >
+          <Download className={`w-5 h-5 ${isDownloading ? "animate-pulse" : ""}`} />
+        </Button>
         <Button variant="ghost" size="icon" onClick={handleEdit} className="text-gray-400 hover:text-white">
           <Edit className="w-5 h-5" />
         </Button>
@@ -286,7 +399,6 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
         </Button>
       </div>
 
-      {/* Songs List */}
       <div className="px-6 pb-32">
         {playlist.songs.length === 0 ? (
           <div className="text-center py-12">

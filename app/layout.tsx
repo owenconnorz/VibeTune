@@ -51,17 +51,17 @@ html {
         <AuthProvider>
           <SyncProvider>
             <ListeningHistoryProvider>
-              <AudioPlayerProvider>
-                <PlaylistProvider>
-                  <DownloadProvider>
+              <DownloadProvider>
+                <AudioPlayerProvider>
+                  <PlaylistProvider>
                     <LikedSongsProvider>
                       <ThemeProvider>
                         <UpdateProvider>{children}</UpdateProvider>
                       </ThemeProvider>
                     </LikedSongsProvider>
-                  </DownloadProvider>
-                </PlaylistProvider>
-              </AudioPlayerProvider>
+                  </PlaylistProvider>
+                </AudioPlayerProvider>
+              </DownloadProvider>
             </ListeningHistoryProvider>
           </SyncProvider>
         </AuthProvider>

@@ -1,12 +1,14 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { useAudioPlayer } from "@/contexts/audio-player-context"
 
 interface YouTubePlayerProps {
   videoId: string
   onReady?: () => void
   onStateChange?: (state: number) => void
   onError?: (error: any) => void
+  showVideo?: boolean
 }
 
 declare global {
@@ -16,9 +18,12 @@ declare global {
   }
 }
 
-export function YouTubePlayer({ videoId, onReady, onStateChange, onError }: YouTubePlayerProps) {
+export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVideo = false }: YouTubePlayerProps) {
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const { state } = useAudioPlayer()
+
+  const isVideoMode = showVideo || state.isVideoMode
 
   useEffect(() => {
     // Load YouTube IFrame API
@@ -36,14 +41,14 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError }: YouT
     function initializePlayer() {
       if (containerRef.current && !playerRef.current) {
         playerRef.current = new window.YT.Player(containerRef.current, {
-          height: "0",
-          width: "0",
+          height: isVideoMode ? "315" : "0",
+          width: isVideoMode ? "560" : "0",
           videoId: videoId,
           playerVars: {
             autoplay: 0,
-            controls: 0,
-            disablekb: 1,
-            fs: 0,
+            controls: isVideoMode ? 1 : 0,
+            disablekb: isVideoMode ? 0 : 1,
+            fs: isVideoMode ? 1 : 0,
             iv_load_policy: 3,
             modestbranding: 1,
             playsinline: 1,
@@ -64,7 +69,13 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError }: YouT
         playerRef.current = null
       }
     }
-  }, [videoId, onReady, onStateChange, onError])
+  }, [videoId, onReady, onStateChange, onError, isVideoMode])
+
+  useEffect(() => {
+    if (playerRef.current) {
+      playerRef.current.setSize(isVideoMode ? 560 : 0, isVideoMode ? 315 : 0)
+    }
+  }, [isVideoMode])
 
   // Expose player methods
   useEffect(() => {
@@ -73,7 +84,17 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError }: YouT
     }
   }, [videoId])
 
-  return <div ref={containerRef} style={{ display: "none" }} />
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        display: isVideoMode ? "block" : "none",
+        maxWidth: "100%",
+        aspectRatio: isVideoMode ? "16/9" : "auto",
+      }}
+      className={isVideoMode ? "rounded-lg overflow-hidden shadow-lg" : ""}
+    />
+  )
 }
 
 // Player control methods

@@ -15,12 +15,15 @@ import {
   Moon,
   BarChart3,
   Repeat,
+  Video,
+  Music,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useTheme } from "@/contexts/theme-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
+import { YouTubePlayer } from "@/components/youtube-player"
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -28,7 +31,7 @@ interface FullScreenPlayerProps {
 }
 
 export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
-  const { state, togglePlay, nextTrack, previousTrack, seekTo } = useAudioPlayer()
+  const { state, togglePlay, nextTrack, previousTrack, seekTo, setVideoMode } = useAudioPlayer()
   const { colors, isTransitioning } = useTheme()
   const { isLiked, toggleLike } = useLikedSongs()
   const [dragY, setDragY] = useState(0)
@@ -114,6 +117,10 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
     }
   }
 
+  const handleToggleVideoMode = () => {
+    setVideoMode(!state.isVideoMode)
+  }
+
   if (!isOpen || !state.currentTrack) return null
 
   const progressPercentage = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0
@@ -140,7 +147,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
         <div className="flex items-center justify-center pt-8 sm:pt-12 pb-4 sm:pb-8 px-4">
           <div className="text-center">
             <h1 className="text-white text-lg sm:text-xl font-semibold">Now Playing</h1>
-            <p className="text-white/80 text-xs sm:text-sm mt-1">CHRONOLOGY</p>
+            <p className="text-white/80 text-xs sm:text-sm mt-1">{state.isVideoMode ? "VIDEO MODE" : "AUDIO MODE"}</p>
           </div>
         </div>
 
@@ -150,19 +157,25 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
         </div>
 
         <div className="flex justify-center px-4 sm:px-8 mb-6 sm:mb-8">
-          <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
-            <img
-              src={state.currentTrack.thumbnail || "/placeholder.svg"}
-              alt={`${state.currentTrack.title} album cover`}
-              className="w-full h-full object-cover"
-            />
-            {/* Overlay text effect like in the reference */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
-                {state.currentTrack.artist?.toUpperCase()}
+          {state.isVideoMode ? (
+            <div className="relative w-full max-w-md aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-black">
+              <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
+            </div>
+          ) : (
+            <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
+              <img
+                src={state.currentTrack.thumbnail || "/placeholder.svg"}
+                alt={`${state.currentTrack.title} album cover`}
+                className="w-full h-full object-cover"
+              />
+              {/* Overlay text effect like in the reference */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
+                  {state.currentTrack.artist?.toUpperCase()}
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="px-4 sm:px-8 mb-4 sm:mb-6">
@@ -174,6 +187,20 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
               <p className="text-white/80 text-base sm:text-lg truncate">{state.currentTrack.artist}</p>
             </div>
             <div className="flex gap-2 sm:gap-3 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`${
+                  state.isVideoMode ? "text-white bg-white/20" : "text-white/80 bg-white/10"
+                } hover:text-white hover:bg-white/20 rounded-full w-10 h-10 sm:w-12 sm:h-12`}
+                onClick={handleToggleVideoMode}
+              >
+                {state.isVideoMode ? (
+                  <Video className="w-4 h-4 sm:w-5 sm:h-5" />
+                ) : (
+                  <Music className="w-4 h-4 sm:w-5 sm:h-5" />
+                )}
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
