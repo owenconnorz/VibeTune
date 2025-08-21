@@ -85,6 +85,10 @@ export class YouTubeAPI {
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || process.env.YOUTUBE_API_KEY || "AIzaSyBIQVGnXO2T7smsxf6q_MWxMD1sQzek1Nc"
+    console.log("[v0] YouTube API initialized")
+    console.log("[v0] API key exists:", !!this.apiKey)
+    console.log("[v0] API key source:", apiKey ? "parameter" : process.env.YOUTUBE_API_KEY ? "environment" : "fallback")
+    console.log("[v0] Environment YOUTUBE_API_KEY exists:", !!process.env.YOUTUBE_API_KEY)
   }
 
   private isQuotaExceeded(): boolean {
@@ -102,7 +106,10 @@ export class YouTubeAPI {
   }
 
   async searchMusic(query: string, maxResults = 20): Promise<YouTubeSearchResult> {
+    console.log("[v0] Starting searchMusic for query:", query)
+
     if (this.isQuotaExceeded()) {
+      console.log("[v0] Quota exceeded, returning fallback data")
       return {
         videos: FALLBACK_SEARCH_SONGS.filter(
           (song) =>
@@ -119,12 +126,14 @@ export class YouTubeAPI {
       const musicQuery = `${query} music song audio track official`
       url.searchParams.set("q", musicQuery)
       url.searchParams.set("type", "video")
-      url.searchParams.set("maxResults", Math.min(maxResults * 2, 50).toString()) // Get more results to filter
+      url.searchParams.set("maxResults", Math.min(maxResults * 2, 50).toString())
       url.searchParams.set("order", "relevance")
-      url.searchParams.set("videoDuration", "medium") // 4-20 minutes, good for songs
+      url.searchParams.set("videoDuration", "medium")
       url.searchParams.set("videoDefinition", "any")
-      url.searchParams.set("videoCategoryId", "10") // Music category
+      url.searchParams.set("videoCategoryId", "10")
       url.searchParams.set("key", this.apiKey)
+
+      console.log("[v0] Making YouTube API request to:", url.toString().replace(this.apiKey, "***API_KEY***"))
 
       const response = await fetch(url.toString(), {
         headers: {
@@ -133,25 +142,39 @@ export class YouTubeAPI {
         },
       })
 
+      console.log("[v0] YouTube API response status:", response.status)
+      console.log("[v0] YouTube API response ok:", response.ok)
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.log("[v0] YouTube API error response:", errorText)
+
         if (response.status === 403) {
+          console.log("[v0] 403 error - marking quota as exceeded")
           this.markQuotaExceeded()
           return {
             videos: FALLBACK_SEARCH_SONGS.slice(0, maxResults),
             nextPageToken: undefined,
           }
         }
-        throw new Error(`YouTube API error: ${response.status}`)
+        throw new Error(`YouTube API error: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
+      console.log("[v0] YouTube API returned", data.items?.length || 0, "items")
+
       const videos = this.parseSearchResults(data.items || [])
+      const filteredVideos = this.filterMusicContent(videos).slice(0, maxResults)
+
+      console.log("[v0] Filtered to", filteredVideos.length, "music videos")
 
       return {
-        videos: this.filterMusicContent(videos).slice(0, maxResults),
+        videos: filteredVideos,
         nextPageToken: data.nextPageToken,
       }
     } catch (error) {
+      console.error("[v0] YouTube API searchMusic error:", error)
+      console.log("[v0] Returning fallback search data due to error")
       return {
         videos: FALLBACK_SEARCH_SONGS.slice(0, maxResults),
         nextPageToken: undefined,
@@ -160,7 +183,10 @@ export class YouTubeAPI {
   }
 
   async getTrendingMusic(maxResults = 20): Promise<YouTubeVideo[]> {
+    console.log("[v0] Starting getTrendingMusic")
+
     if (this.isQuotaExceeded()) {
+      console.log("[v0] Quota exceeded, returning fallback trending data")
       return FALLBACK_TRENDING_SONGS.slice(0, maxResults)
     }
 
@@ -168,10 +194,12 @@ export class YouTubeAPI {
       const url = new URL(`${this.baseUrl}/videos`)
       url.searchParams.set("part", "snippet,statistics,contentDetails")
       url.searchParams.set("chart", "mostPopular")
-      url.searchParams.set("videoCategoryId", "10") // Music category
+      url.searchParams.set("videoCategoryId", "10")
       url.searchParams.set("regionCode", "US")
       url.searchParams.set("maxResults", maxResults.toString())
       url.searchParams.set("key", this.apiKey)
+
+      console.log("[v0] Making trending API request to:", url.toString().replace(this.apiKey, "***API_KEY***"))
 
       const response = await fetch(url.toString(), {
         headers: {
@@ -180,25 +208,39 @@ export class YouTubeAPI {
         },
       })
 
+      console.log("[v0] Trending API response status:", response.status)
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.log("[v0] Trending API error response:", errorText)
+
         if (response.status === 403) {
+          console.log("[v0] 403 error - marking quota as exceeded")
           this.markQuotaExceeded()
           return FALLBACK_TRENDING_SONGS.slice(0, maxResults)
         }
-        throw new Error(`YouTube API error: ${response.status}`)
+        throw new Error(`YouTube API error: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
+      console.log("[v0] Trending API returned", data.items?.length || 0, "items")
+
       const videos = this.parseTrendingResults(data.items || [])
+      console.log("[v0] Parsed", videos.length, "trending videos")
 
       return videos
     } catch (error) {
+      console.error("[v0] YouTube API getTrendingMusic error:", error)
+      console.log("[v0] Returning fallback trending data due to error")
       return FALLBACK_TRENDING_SONGS.slice(0, maxResults)
     }
   }
 
   async getPlaylistVideos(playlistId: string, maxResults = 50): Promise<YouTubeVideo[]> {
+    console.log("[v0] Starting getPlaylistVideos for playlistId:", playlistId)
+
     if (this.isQuotaExceeded()) {
+      console.log("[v0] Quota exceeded, returning fallback playlist data")
       return FALLBACK_TRENDING_SONGS.slice(0, maxResults)
     }
 
@@ -209,6 +251,8 @@ export class YouTubeAPI {
       url.searchParams.set("maxResults", maxResults.toString())
       url.searchParams.set("key", this.apiKey)
 
+      console.log("[v0] Making playlist API request to:", url.toString().replace(this.apiKey, "***API_KEY***"))
+
       const response = await fetch(url.toString(), {
         headers: {
           Accept: "application/json",
@@ -216,19 +260,30 @@ export class YouTubeAPI {
         },
       })
 
+      console.log("[v0] Playlist API response status:", response.status)
+
       if (!response.ok) {
+        const errorText = await response.text()
+        console.log("[v0] Playlist API error response:", errorText)
+
         if (response.status === 403) {
+          console.log("[v0] 403 error - marking quota as exceeded")
           this.markQuotaExceeded()
           return FALLBACK_TRENDING_SONGS.slice(0, maxResults)
         }
-        throw new Error(`YouTube API error: ${response.status}`)
+        throw new Error(`YouTube API error: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
+      console.log("[v0] Playlist API returned", data.items?.length || 0, "items")
+
       const videos = this.parsePlaylistResults(data.items || [])
+      console.log("[v0] Parsed", videos.length, "playlist videos")
 
       return videos
     } catch (error) {
+      console.error("[v0] YouTube API getPlaylistVideos error:", error)
+      console.log("[v0] Returning fallback playlist data due to error")
       return FALLBACK_TRENDING_SONGS.slice(0, maxResults)
     }
   }
@@ -241,6 +296,8 @@ export class YouTubeAPI {
       url.searchParams.set("maxResults", maxResults.toString())
       url.searchParams.set("key", this.apiKey)
 
+      console.log("[v0] Making user playlists API request to:", url.toString().replace(this.apiKey, "***API_KEY***"))
+
       const response = await fetch(url.toString(), {
         headers: {
           Accept: "application/json",
@@ -249,17 +306,23 @@ export class YouTubeAPI {
         },
       })
 
+      console.log("[v0] User playlists API response status:", response.status)
+
       if (!response.ok) {
-        console.error(`YouTube API error: ${response.status} ${response.statusText}`)
-        throw new Error(`YouTube API error: ${response.status}`)
+        const errorText = await response.text()
+        console.log("[v0] User playlists API error response:", errorText)
+        throw new Error(`YouTube API error: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
+      console.log("[v0] User playlists API returned", data.items?.length || 0, "items")
+
       const playlists = this.parsePlaylistsResults(data.items || [])
+      console.log("[v0] Parsed", playlists.length, "user playlists")
 
       return playlists
     } catch (error) {
-      console.error(`User playlists error:`, error)
+      console.error("[v0] User playlists error:", error)
       throw error
     }
   }
@@ -272,6 +335,8 @@ export class YouTubeAPI {
       url.searchParams.set("maxResults", maxResults.toString())
       url.searchParams.set("key", this.apiKey)
 
+      console.log("[v0] Making liked videos API request to:", url.toString().replace(this.apiKey, "***API_KEY***"))
+
       const response = await fetch(url.toString(), {
         headers: {
           Accept: "application/json",
@@ -280,17 +345,23 @@ export class YouTubeAPI {
         },
       })
 
+      console.log("[v0] Liked videos API response status:", response.status)
+
       if (!response.ok) {
-        console.error(`YouTube API error: ${response.status} ${response.statusText}`)
-        throw new Error(`YouTube API error: ${response.status}`)
+        const errorText = await response.text()
+        console.log("[v0] Liked videos API error response:", errorText)
+        throw new Error(`YouTube API error: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
+      console.log("[v0] Liked videos API returned", data.items?.length || 0, "items")
+
       const videos = this.parseTrendingResults(data.items || [])
+      console.log("[v0] Parsed", videos.length, "liked videos")
 
       return videos
     } catch (error) {
-      console.error(`Liked videos error:`, error)
+      console.error("[v0] Liked videos error:", error)
       throw error
     }
   }
