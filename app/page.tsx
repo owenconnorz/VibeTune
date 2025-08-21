@@ -14,8 +14,18 @@ import { SongMenu } from "@/components/song-menu"
 import { DownloadedIcon } from "@/components/downloaded-icon"
 import { useTrendingMusic, useMoodPlaylist } from "@/hooks/use-music-data"
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
-import { moodPlaylists } from "@/lib/music-data"
 import { useRouter } from "next/navigation"
+
+const moodPlaylists = {
+  "morning-boost": {
+    queries: [
+      "upbeat morning songs 2024",
+      "energetic pop hits",
+      "feel good music playlist",
+      "morning motivation songs",
+    ],
+  },
+}
 
 export default function VibeTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -48,12 +58,26 @@ export default function VibeTunePage() {
     duration: song.duration,
   })
 
+  const safeTrendingSongs = Array.isArray(trendingSongs) ? trendingSongs : []
+  const safeMorningBoostSongs = Array.isArray(morningBoostSongs) ? morningBoostSongs : []
+
   useEffect(() => {
-    if (trendingSongs && trendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
-      const firstTrack = convertToTrack(trendingSongs[0])
+    console.log(
+      "[v0] trendingSongs type:",
+      typeof trendingSongs,
+      "isArray:",
+      Array.isArray(trendingSongs),
+      "value:",
+      trendingSongs,
+    )
+  }, [trendingSongs])
+
+  useEffect(() => {
+    if (safeTrendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
+      const firstTrack = convertToTrack(safeTrendingSongs[0])
       playTrack(firstTrack)
     }
-  }, [trendingSongs, state.currentTrack, trendingLoading])
+  }, [safeTrendingSongs, state.currentTrack, trendingLoading])
 
   useEffect(() => {
     try {
@@ -197,11 +221,11 @@ export default function VibeTunePage() {
             <div className="space-y-4">
               {trendingLoading
                 ? Array.from({ length: 4 }).map((_, i) => <SongSkeleton key={i} />)
-                : (trendingSongs || []).slice(0, 6).map((song) => (
+                : safeTrendingSongs.slice(0, 6).map((song) => (
                     <div
                       key={song.id}
                       className="flex items-center gap-4 cursor-pointer hover:bg-zinc-800/50 rounded-lg p-2 -m-2 transition-colors"
-                      onClick={() => handlePlaySong(song, trendingSongs || [])}
+                      onClick={() => handlePlaySong(song, safeTrendingSongs)}
                     >
                       <img
                         src={song.thumbnail || "/placeholder.svg?height=60&width=60"}
@@ -241,12 +265,13 @@ export default function VibeTunePage() {
                   <div
                     className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() =>
-                      morningBoostSongs.length > 0 && handlePlaySong(morningBoostSongs[0], morningBoostSongs)
+                      safeMorningBoostSongs.length > 0 &&
+                      handlePlaySong(safeMorningBoostSongs[0], safeMorningBoostSongs)
                     }
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
                       <img
-                        src={morningBoostSongs[0]?.thumbnail || "/placeholder.svg?height=192&width=192"}
+                        src={safeMorningBoostSongs[0]?.thumbnail || "/placeholder.svg?height=192&width=192"}
                         alt="Morning Energy"
                         className="w-full h-48 object-cover"
                       />
@@ -258,7 +283,7 @@ export default function VibeTunePage() {
                     </div>
                     <h3 className="text-white font-semibold truncate">Morning Energy</h3>
                     <p className="text-gray-400 text-sm truncate">
-                      {morningBoostSongs
+                      {safeMorningBoostSongs
                         .slice(0, 2)
                         .map((s) => s.artist)
                         .join(", ")}
@@ -270,12 +295,13 @@ export default function VibeTunePage() {
                   <div
                     className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() =>
-                      morningBoostSongs.length > 3 && handlePlaySong(morningBoostSongs[3], morningBoostSongs)
+                      safeMorningBoostSongs.length > 3 &&
+                      handlePlaySong(safeMorningBoostSongs[3], safeMorningBoostSongs)
                     }
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
                       <img
-                        src={morningBoostSongs[3]?.thumbnail || "/placeholder.svg?height=192&width=192"}
+                        src={safeMorningBoostSongs[3]?.thumbnail || "/placeholder.svg?height=192&width=192"}
                         alt="Feel-Good Pop"
                         className="w-full h-48 object-cover"
                       />
@@ -287,7 +313,7 @@ export default function VibeTunePage() {
                     </div>
                     <h3 className="text-white font-semibold truncate">Feel-Good Pop & Rock</h3>
                     <p className="text-gray-400 text-sm truncate">
-                      {morningBoostSongs
+                      {safeMorningBoostSongs
                         .slice(3, 5)
                         .map((s) => s.artist)
                         .join(", ")}
@@ -299,12 +325,13 @@ export default function VibeTunePage() {
                   <div
                     className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() =>
-                      morningBoostSongs.length > 6 && handlePlaySong(morningBoostSongs[6], morningBoostSongs)
+                      safeMorningBoostSongs.length > 6 &&
+                      handlePlaySong(safeMorningBoostSongs[6], safeMorningBoostSongs)
                     }
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
                       <img
-                        src={morningBoostSongs[6]?.thumbnail || "/placeholder.svg?height=192&width=192"}
+                        src={safeMorningBoostSongs[6]?.thumbnail || "/placeholder.svg?height=192&width=192"}
                         alt="Upbeat Classics"
                         className="w-full h-48 object-cover"
                       />
@@ -316,7 +343,7 @@ export default function VibeTunePage() {
                     </div>
                     <h3 className="text-white font-semibold truncate">Upbeat Classics</h3>
                     <p className="text-gray-400 text-sm truncate">
-                      {morningBoostSongs
+                      {safeMorningBoostSongs
                         .slice(6, 8)
                         .map((s) => s.artist)
                         .join(", ")}
