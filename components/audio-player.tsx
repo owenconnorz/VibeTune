@@ -57,6 +57,11 @@ export function AudioPlayer() {
       return "/placeholder.svg?height=40&width=40"
     }
 
+    if (track.thumbnail && !track.thumbnail.includes("placeholder.svg")) {
+      console.log("[v0] Using real YouTube thumbnail:", track.thumbnail)
+      return track.thumbnail
+    }
+
     const artwork = generateAlbumArtwork(track.artist || "Unknown", track.title || "Unknown")
     console.log("[v0] Generated artwork URL:", artwork)
     return artwork
@@ -115,7 +120,17 @@ export function AudioPlayer() {
               onError={(e) => {
                 console.log("[v0] Mini player image failed to load, trying fallback")
                 const target = e.target as HTMLImageElement
-                target.src = "/placeholder.svg?height=40&width=40"
+                if (
+                  target.src !==
+                  generateAlbumArtwork(state.currentTrack.artist || "Unknown", state.currentTrack.title || "Unknown")
+                ) {
+                  target.src = generateAlbumArtwork(
+                    state.currentTrack.artist || "Unknown",
+                    state.currentTrack.title || "Unknown",
+                  )
+                } else {
+                  target.src = "/placeholder.svg?height=40&width=40"
+                }
               }}
             />
             <div className="min-w-0 flex-1">

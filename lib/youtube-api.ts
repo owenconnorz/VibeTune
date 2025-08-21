@@ -30,8 +30,7 @@ const FALLBACK_TRENDING_SONGS: YouTubeVideo[] = [
     id: "fallback1",
     title: "Beautiful",
     channelTitle: "Eminem",
-    thumbnail:
-      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiM4QjVDRjYiLz48dGV4dCB4PSIxNTAiIHk9IjEzMCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkVtaW5lbTwvdGV4dD48dGV4dCB4PSIxNTAiIHk9IjE3MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QmVhdXRpZnVsPC90ZXh0Pjwvc3ZnPg==",
+    thumbnail: "/placeholder.svg?height=300&width=300",
     duration: "6:17",
     viewCount: "1000000",
     publishedAt: new Date().toISOString(),
@@ -39,9 +38,8 @@ const FALLBACK_TRENDING_SONGS: YouTubeVideo[] = [
   {
     id: "fallback2",
     title: "The Look",
-    channelTitle: "Metronomy",
-    thumbnail:
-      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNFRjQ0NDQiLz48dGV4dCB4PSIxNTAiIHk9IjEzMCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk1ldHJvbm9teTwvdGV4dD48dGV4dCB4PSIxNTAiIHk9IjE3MCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGhlIExvb2s8L3RleHQ+PC9zdmc+",
+    channelTitle: "Roxette",
+    thumbnail: "/placeholder.svg?height=300&width=300",
     duration: "3:58",
     viewCount: "500000",
     publishedAt: new Date().toISOString(),
@@ -49,9 +47,8 @@ const FALLBACK_TRENDING_SONGS: YouTubeVideo[] = [
   {
     id: "fallback3",
     title: "Sucker for Pain",
-    channelTitle: "Lil Wayne, Wiz Khalif, Imagine Dragons",
-    thumbnail:
-      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiMxMEI5ODEiLz48dGV4dCB4PSIxNTAiIHk9IjEzMCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlZhcmlvdXM8L3RleHQ+PHRleHQgeD0iMTUwIiB5PSIxNzAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNiIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlN1Y2tlciBmb3IgUGFpbjwvdGV4dD48L3N2Zz4=",
+    channelTitle: "Lil Wayne, Wiz Khalifa, Imagine Dragons",
+    thumbnail: "/placeholder.svg?height=300&width=300",
     duration: "4:03",
     viewCount: "2000000",
     publishedAt: new Date().toISOString(),
@@ -63,8 +60,7 @@ const FALLBACK_SEARCH_SONGS: YouTubeVideo[] = [
     id: "search1",
     title: "Sample Song 1",
     channelTitle: "Sample Artist",
-    thumbnail:
-      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNGNTlFMEIiLz48dGV4dCB4PSIxNTAiIHk9IjEzMCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNhbXBsZSBBcnRpc3Q8L3RleHQ+PHRleHQgeD0iMTUwIiB5PSIxNzAiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNhbXBsZSBTb25nIDE8L3RleHQ+PC9zdmc+",
+    thumbnail: "/placeholder.svg?height=300&width=300",
     duration: "3:30",
     viewCount: "100000",
     publishedAt: new Date().toISOString(),
@@ -73,8 +69,7 @@ const FALLBACK_SEARCH_SONGS: YouTubeVideo[] = [
     id: "search2",
     title: "Sample Song 2",
     channelTitle: "Another Artist",
-    thumbnail:
-      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiMwNkI2RDQiLz48dGV4dCB4PSIxNTAiIHk9IjEzMCIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjIwIiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0id2hpdGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkFub3RoZXIgQXJ0aXN0PC90ZXh0Pjx0ZXh0IHg9IjE1MCIgeT0iMTcwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5TYW1wbGUgU29uZyAyPC90ZXh0Pjwvc3ZnPg==",
+    thumbnail: "/placeholder.svg?height=300&width=300",
     duration: "4:15",
     viewCount: "200000",
     publishedAt: new Date().toISOString(),
@@ -380,8 +375,8 @@ export class YouTubeAPI {
         item.snippet?.thumbnails?.high?.url ||
         item.snippet?.thumbnails?.medium?.url ||
         item.snippet?.thumbnails?.default?.url ||
-        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiM2QjczODAiLz48L3N2Zz4=",
-      duration: "3:30", // Duration not available in search results
+        "/placeholder.svg?height=300&width=300",
+      duration: "3:30",
       viewCount: "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
     }))
@@ -396,7 +391,7 @@ export class YouTubeAPI {
         item.snippet?.thumbnails?.high?.url ||
         item.snippet?.thumbnails?.medium?.url ||
         item.snippet?.thumbnails?.default?.url ||
-        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiM2QjczODAiLz48L3N2Zz4=",
+        "/placeholder.svg?height=300&width=300",
       duration: this.parseDuration(item.contentDetails?.duration || "PT3M30S"),
       viewCount: item.statistics?.viewCount || "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
@@ -412,7 +407,7 @@ export class YouTubeAPI {
         item.snippet?.thumbnails?.high?.url ||
         item.snippet?.thumbnails?.medium?.url ||
         item.snippet?.thumbnails?.default?.url ||
-        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiM2QjczODAiLz48L3N2Zz4=",
+        "/placeholder.svg?height=300&width=300",
       duration: "3:30",
       viewCount: "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
