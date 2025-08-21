@@ -9,7 +9,6 @@ import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useTheme } from "@/contexts/theme-context"
 import { useState, useCallback } from "react"
 import { FullScreenPlayer } from "./full-screen-player"
-import { generateAlbumArtwork } from "@/lib/music-data"
 
 export function AudioPlayer() {
   const { state, togglePlay, nextTrack, seekTo, setVolume } = useAudioPlayer()
@@ -62,9 +61,8 @@ export function AudioPlayer() {
       return track.thumbnail
     }
 
-    const artwork = generateAlbumArtwork(track.artist || "Unknown", track.title || "Unknown")
-    console.log("[v0] Generated artwork URL:", artwork)
-    return artwork
+    console.log("[v0] Using simple placeholder fallback")
+    return "/placeholder.svg?height=40&width=40"
   }, [])
 
   console.log("[v0] Mini player colors:", colors)
@@ -120,15 +118,7 @@ export function AudioPlayer() {
               onError={(e) => {
                 console.log("[v0] Mini player image failed to load, trying fallback")
                 const target = e.target as HTMLImageElement
-                if (
-                  target.src !==
-                  generateAlbumArtwork(state.currentTrack.artist || "Unknown", state.currentTrack.title || "Unknown")
-                ) {
-                  target.src = generateAlbumArtwork(
-                    state.currentTrack.artist || "Unknown",
-                    state.currentTrack.title || "Unknown",
-                  )
-                } else {
+                if (target.src !== "/placeholder.svg?height=40&width=40") {
                   target.src = "/placeholder.svg?height=40&width=40"
                 }
               }}
