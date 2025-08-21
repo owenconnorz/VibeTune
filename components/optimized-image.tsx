@@ -73,6 +73,7 @@ export function OptimizedImage({
           "transition-opacity duration-300",
           isLoading ? "opacity-0" : "opacity-100",
           fill ? "object-cover" : "",
+          className, // Apply the same className to the Image element for proper styling inheritance
         )}
         onLoad={handleLoad}
         onError={handleError}
@@ -96,7 +97,7 @@ export function ThumbnailImage({
       alt={alt}
       width={size}
       height={size}
-      className={cn("rounded-lg", className)}
+      className={cn("aspect-square", className)}
       sizes={`${size}px`}
       {...props}
     />

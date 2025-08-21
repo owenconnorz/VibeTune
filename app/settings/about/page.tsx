@@ -1,6 +1,8 @@
+"use client"
 import { ArrowLeft, Info, Github, Heart, Star, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import InstallAppButton from "@/components/install-app-button"
 
 export default function AboutSettings() {
   return (
@@ -20,19 +22,24 @@ export default function AboutSettings() {
         <div className="space-y-6">
           <div className="text-center mb-8">
             <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-              <span className="text-2xl font-bold">OT</span>
+              <span className="text-2xl font-bold">VT</span>
             </div>
-            <h2 className="text-xl font-semibold mb-2">OpenTune</h2>
+            <h2 className="text-xl font-semibold mb-2">VibeTune</h2>
             <p className="text-gray-400">Version 1.0.0</p>
           </div>
 
           {/* App Description */}
           <div className="bg-white/5 rounded-xl p-4 mb-6">
             <p className="text-gray-300 leading-relaxed">
-              OpenTune is a modern music streaming app that brings you unlimited access to your favorite songs,
+              VibeTune is a modern music streaming app that brings you unlimited access to your favorite songs,
               playlists, and artists. Discover new music, create custom playlists, and enjoy high-quality audio
               streaming.
             </p>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-3">Install App</h3>
+            <InstallAppButton />
           </div>
 
           {/* Features */}
@@ -71,7 +78,7 @@ export default function AboutSettings() {
               className="w-full justify-start gap-3 bg-white/5 border-white/10 hover:bg-white/10"
               asChild
             >
-              <a href="https://github.com/opentune" target="_blank" rel="noopener noreferrer">
+              <a href="https://github.com/vibetune" target="_blank" rel="noopener noreferrer">
                 <Github className="w-5 h-5" />
                 View on GitHub
               </a>
@@ -82,7 +89,7 @@ export default function AboutSettings() {
               className="w-full justify-start gap-3 bg-white/5 border-white/10 hover:bg-white/10"
               asChild
             >
-              <a href="mailto:support@opentune.app">
+              <a href="mailto:support@vibetune.app">
                 <Info className="w-5 h-5" />
                 Contact Support
               </a>
@@ -91,7 +98,7 @@ export default function AboutSettings() {
 
           {/* Legal */}
           <div className="text-center text-sm text-gray-400 mt-8 space-y-2">
-            <p>© 2024 OpenTune. All rights reserved.</p>
+            <p>© 2024 VibeTune. All rights reserved.</p>
             <div className="flex justify-center gap-4">
               <Link href="/privacy" className="hover:text-white transition-colors">
                 Privacy Policy

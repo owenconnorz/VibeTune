@@ -57,7 +57,9 @@ export default function SearchPage() {
     setError(null)
 
     try {
+      console.log("[v0] Starting search for:", searchQuery)
       const results = await searchMusicEnhanced(searchQuery)
+      console.log("[v0] Search results received:", results)
 
       const allResults = [...results.songs, ...results.artists, ...results.albums, ...results.playlists]
 
@@ -68,9 +70,11 @@ export default function SearchPage() {
         albums: results.albums,
         playlists: results.playlists,
       })
+
+      console.log("[v0] Total results found:", allResults.length)
     } catch (err) {
       setError("Failed to search music")
-      console.error("Search error:", err)
+      console.error("[v0] Search error:", err)
     } finally {
       setLoading(false)
     }

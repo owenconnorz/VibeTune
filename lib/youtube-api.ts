@@ -87,22 +87,94 @@ const FALLBACK_TRENDING_SONGS: YouTubeVideo[] = [
 
 const FALLBACK_SEARCH_SONGS: YouTubeVideo[] = [
   {
-    id: "search1",
-    title: "Sample Song 1",
-    channelTitle: "Sample Artist",
-    thumbnail: "/placeholder.svg?height=300&width=300",
-    duration: "3:30",
-    viewCount: "100000",
-    publishedAt: new Date().toISOString(),
+    id: "dQw4w9WgXcQ",
+    title: "Never Gonna Give You Up",
+    channelTitle: "Rick Astley",
+    thumbnail: "/rick-astley-dance.png",
+    duration: "3:33",
+    viewCount: "1400000000",
+    publishedAt: "1987-07-27T00:00:00Z",
   },
   {
-    id: "search2",
-    title: "Sample Song 2",
-    channelTitle: "Another Artist",
+    id: "kJQP7kiw5Fk",
+    title: "Despacito",
+    channelTitle: "Luis Fonsi ft. Daddy Yankee",
+    thumbnail: "/generic-latin-pop-song.png",
+    duration: "4:42",
+    viewCount: "8000000000",
+    publishedAt: "2017-01-12T00:00:00Z",
+  },
+  {
+    id: "fJ9rUzIMcZQ",
+    title: "Bohemian Rhapsody",
+    channelTitle: "Queen",
+    thumbnail: "/queen-bohemian-rhapsody.png",
+    duration: "5:55",
+    viewCount: "1800000000",
+    publishedAt: "1975-10-31T00:00:00Z",
+  },
+  {
+    id: "L_jWHffIx5E",
+    title: "Smells Like Teen Spirit",
+    channelTitle: "Nirvana",
     thumbnail: "/placeholder.svg?height=300&width=300",
-    duration: "4:15",
-    viewCount: "200000",
-    publishedAt: new Date().toISOString(),
+    duration: "5:01",
+    viewCount: "1200000000",
+    publishedAt: "1991-09-10T00:00:00Z",
+  },
+  {
+    id: "9bZkp7q19f0",
+    title: "Gangnam Style",
+    channelTitle: "PSY",
+    thumbnail: "/generic-korean-pop-dance.png",
+    duration: "4:13",
+    viewCount: "4600000000",
+    publishedAt: "2012-07-15T00:00:00Z",
+  },
+  {
+    id: "YQHsXMglC9A",
+    title: "Hello",
+    channelTitle: "Adele",
+    thumbnail: "/placeholder.svg?height=300&width=300",
+    duration: "4:55",
+    viewCount: "3200000000",
+    publishedAt: "2015-10-23T00:00:00Z",
+  },
+  {
+    id: "hT_nvWreIhg",
+    title: "Shape of You",
+    channelTitle: "Ed Sheeran",
+    thumbnail: "/placeholder.svg?height=300&width=300",
+    duration: "3:53",
+    viewCount: "5800000000",
+    publishedAt: "2017-01-06T00:00:00Z",
+  },
+  {
+    id: "RgKAFK5djSk",
+    title: "Wrecking Ball",
+    channelTitle: "Miley Cyrus",
+    thumbnail: "/placeholder.svg?height=300&width=300",
+    duration: "3:41",
+    viewCount: "1100000000",
+    publishedAt: "2013-09-09T00:00:00Z",
+  },
+  {
+    id: "CevxZvSJLk8",
+    title: "Roar",
+    channelTitle: "Katy Perry",
+    thumbnail: "/placeholder.svg?height=300&width=300",
+    duration: "3:43",
+    viewCount: "3700000000",
+    publishedAt: "2013-09-05T00:00:00Z",
+  },
+  {
+    id: "JGwWNGJdvx8",
+    title: "See You Again",
+    channelTitle: "Wiz Khalifa ft. Charlie Puth",
+    thumbnail: "/placeholder.svg?height=300&width=300",
+    duration: "3:57",
+    viewCount: "5500000000",
+    publishedAt: "2015-04-06T00:00:00Z",
   },
 ]
 
@@ -137,30 +209,25 @@ export class YouTubeAPI {
 
   async searchMusic(query: string, maxResults = 20): Promise<YouTubeSearchResult> {
     console.log("[v0] Starting searchMusic for query:", query)
+    console.log("[v0] API Key available:", !!this.apiKey)
+    console.log("[v0] Quota exceeded status:", this.isQuotaExceeded())
 
     if (this.isQuotaExceeded()) {
-      console.log("[v0] Quota exceeded, returning fallback data")
-      return {
-        videos: FALLBACK_SEARCH_SONGS.filter(
-          (song) =>
-            song.title.toLowerCase().includes(query.toLowerCase()) ||
-            song.channelTitle.toLowerCase().includes(query.toLowerCase()),
-        ).slice(0, maxResults),
-        nextPageToken: undefined,
-      }
+      console.log("[v0] Quota exceeded, using enhanced fallback data")
+      return this.getFallbackResults(query, maxResults)
     }
 
     try {
       const url = new URL(`${this.baseUrl}/search`)
       url.searchParams.set("part", "snippet")
-      const musicQuery = `${query} music song audio track official`
+      const musicQuery = `${query} official music video song`
       url.searchParams.set("q", musicQuery)
       url.searchParams.set("type", "video")
       url.searchParams.set("maxResults", Math.min(maxResults * 2, 50).toString())
       url.searchParams.set("order", "relevance")
       url.searchParams.set("videoDuration", "medium")
       url.searchParams.set("videoDefinition", "any")
-      url.searchParams.set("videoCategoryId", "10")
+      url.searchParams.set("videoCategoryId", "10") // Music category
       url.searchParams.set("key", this.apiKey)
 
       console.log("[v0] Making YouTube API request to:", url.toString().replace(this.apiKey, "***API_KEY***"))
@@ -169,6 +236,7 @@ export class YouTubeAPI {
         headers: {
           Accept: "application/json",
           "User-Agent": "VibeTune/1.0",
+          Referer: "https://vibetune-music.vercel.app",
         },
       })
 
@@ -180,35 +248,50 @@ export class YouTubeAPI {
         console.log("[v0] YouTube API error response:", errorText)
 
         if (response.status === 403) {
-          console.log("[v0] 403 error - marking quota as exceeded")
+          console.log("[v0] 403 error - quota exceeded, switching to fallback mode")
           this.markQuotaExceeded()
-          return {
-            videos: FALLBACK_SEARCH_SONGS.slice(0, maxResults),
-            nextPageToken: undefined,
-          }
+          return this.getFallbackResults(query, maxResults)
         }
-        throw new Error(`YouTube API error: ${response.status} - ${errorText}`)
+
+        if (response.status === 400) {
+          console.log("[v0] 400 error - bad request, returning fallback results")
+          return this.getFallbackResults(query, maxResults)
+        }
+
+        console.log("[v0] API error, returning fallback results")
+        return this.getFallbackResults(query, maxResults)
       }
 
       const data = await response.json()
       console.log("[v0] YouTube API returned", data.items?.length || 0, "items")
 
-      const videos = this.parseSearchResults(data.items || [])
-      const filteredVideos = this.filterMusicContent(videos).slice(0, maxResults)
+      if (!data.items || data.items.length === 0) {
+        console.log("[v0] No items returned from YouTube API, using fallback")
+        return this.getFallbackResults(query, maxResults)
+      }
+
+      const videoIds = data.items.map((item: any) => item.id.videoId).filter(Boolean)
+      const videosWithDetails = await this.getVideoDetails(videoIds)
+
+      const filteredVideos = this.filterMusicContent(videosWithDetails).slice(0, maxResults)
 
       console.log("[v0] Filtered to", filteredVideos.length, "music videos")
+
+      if (filteredVideos.length === 0) {
+        console.log("[v0] No music videos found after filtering, using fallback")
+        return this.getFallbackResults(query, maxResults)
+      }
 
       return {
         videos: filteredVideos,
         nextPageToken: data.nextPageToken,
       }
     } catch (error) {
-      console.error("[v0] YouTube API searchMusic error:", error)
-      console.log("[v0] Returning fallback search data due to error")
-      return {
-        videos: FALLBACK_SEARCH_SONGS.slice(0, maxResults),
-        nextPageToken: undefined,
-      }
+      console.log("[v0] YouTube API searchMusic error:", error)
+
+      console.log("[v0] Caught error, returning fallback results")
+      this.markQuotaExceeded() // Mark quota as exceeded to prevent further API calls
+      return this.getFallbackResults(query, maxResults)
     }
   }
 
@@ -714,7 +797,7 @@ export class YouTubeAPI {
   ): Promise<YouTubeSearchResult> {
     const url = new URL(`${this.baseUrl}/search`)
     url.searchParams.set("part", "snippet")
-    const musicQuery = `${query} music song audio track official`
+    const musicQuery = `${query} official music video song`
     url.searchParams.set("q", musicQuery)
     url.searchParams.set("type", "video")
     url.searchParams.set("maxResults", Math.min(maxResults * 2, 50).toString())
@@ -775,7 +858,7 @@ export class YouTubeAPI {
         item.snippet?.thumbnails?.medium?.url ||
         item.snippet?.thumbnails?.default?.url ||
         "/placeholder.svg?height=300&width=300",
-      duration: this.parseDuration(item.contentDetails?.duration || "PT3M30S"),
+      duration: this.formatDuration(item.contentDetails?.duration || "PT3M30S"),
       viewCount: item.statistics?.viewCount || "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
     }))
@@ -845,10 +928,10 @@ export class YouTubeAPI {
     }))
   }
 
-  private parseDuration(duration: string): string {
-    if (!duration || !duration.startsWith("PT")) return "3:30"
+  private formatDuration(isoDuration: string): string {
+    if (!isoDuration) return "3:30"
 
-    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+    const match = isoDuration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
     if (!match) return "3:30"
 
     const hours = Number.parseInt(match[1] || "0")
@@ -857,9 +940,9 @@ export class YouTubeAPI {
 
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
-    } else {
-      return `${minutes}:${seconds.toString().padStart(2, "0")}`
     }
+
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`
   }
 
   private filterMusicContent(videos: YouTubeVideo[]): YouTubeVideo[] {
@@ -1101,6 +1184,70 @@ export class YouTubeAPI {
     }
 
     return "Unknown Artist"
+  }
+
+  private getFallbackResults(query: string, maxResults: number): YouTubeSearchResult {
+    const queryLower = query.toLowerCase()
+    const filteredFallback = FALLBACK_SEARCH_SONGS.filter(
+      (song) =>
+        song.title.toLowerCase().includes(queryLower) ||
+        song.channelTitle.toLowerCase().includes(queryLower) ||
+        queryLower
+          .split(" ")
+          .some((word) => song.title.toLowerCase().includes(word) || song.channelTitle.toLowerCase().includes(word)),
+    )
+
+    console.log(
+      "[v0] Quota exceeded - returning",
+      filteredFallback.length,
+      "enhanced fallback results for query:",
+      query,
+    )
+
+    return {
+      videos:
+        filteredFallback.length > 0
+          ? filteredFallback.slice(0, maxResults)
+          : FALLBACK_SEARCH_SONGS.slice(0, maxResults),
+      nextPageToken: undefined,
+    }
+  }
+
+  private async getVideoDetails(videoIds: string[]): Promise<YouTubeVideo[]> {
+    if (videoIds.length === 0) return []
+
+    try {
+      const url = new URL(`${this.baseUrl}/videos`)
+      url.searchParams.set("part", "snippet,contentDetails,statistics")
+      url.searchParams.set("id", videoIds.join(","))
+      url.searchParams.set("key", this.apiKey)
+
+      const response = await fetch(url.toString())
+
+      if (!response.ok) {
+        console.error("[v0] Error fetching video details:", response.status)
+        return this.parseSearchResults(videoIds.map((id) => ({ id: { videoId: id }, snippet: {} })))
+      }
+
+      const data = await response.json()
+
+      return data.items.map((item: any) => ({
+        id: item.id,
+        title: item.snippet?.title || "Unknown Title",
+        channelTitle: item.snippet?.channelTitle || "Unknown Channel",
+        thumbnail:
+          item.snippet?.thumbnails?.high?.url ||
+          item.snippet?.thumbnails?.medium?.url ||
+          item.snippet?.thumbnails?.default?.url ||
+          "/placeholder.svg?height=300&width=300",
+        duration: this.formatDuration(item.contentDetails?.duration) || "3:30",
+        viewCount: item.statistics?.viewCount || "0",
+        publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
+      }))
+    } catch (error) {
+      console.error("[v0] Error getting video details:", error)
+      return this.parseSearchResults(videoIds.map((id) => ({ id: { videoId: id }, snippet: {} })))
+    }
   }
 }
 

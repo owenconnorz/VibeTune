@@ -144,10 +144,11 @@ export function AudioPlayer() {
           >
             <div className="flex-shrink-0 cursor-pointer" onClick={() => setIsFullScreenOpen(true)}>
               <ThumbnailImage
+                key={state.currentTrack.id}
                 src={getAlbumArtwork(state.currentTrack) || "/placeholder.svg"}
                 alt={`${state.currentTrack.title} album cover`}
                 size={48}
-                className="rounded-full shadow-lg border-2 border-white/10"
+                className="rounded-full shadow-lg border-2 border-white/10 object-cover"
                 priority={true}
               />
             </div>

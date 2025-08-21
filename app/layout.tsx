@@ -15,18 +15,24 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: "VibeTune Music App",
-  description: "Your personal music streaming experience",
+  description: "A modern music streaming app with unlimited access to your favorite songs",
   generator: "v0.app",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "VibeTune",
+  },
   openGraph: {
     type: "website",
     siteName: "VibeTune",
     title: "VibeTune Music App",
-    description: "Your personal music streaming experience",
+    description: "A modern music streaming app with unlimited access to your favorite songs",
   },
   twitter: {
     card: "summary",
     title: "VibeTune Music App",
-    description: "Your personal music streaming experience",
+    description: "A modern music streaming app with unlimited access to your favorite songs",
   },
 }
 
@@ -59,6 +65,13 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <meta name="theme-color" content="#f97316" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="VibeTune" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://www.googleapis.com" />
