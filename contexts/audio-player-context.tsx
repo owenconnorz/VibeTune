@@ -139,31 +139,30 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(und
 export function AudioPlayerProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(audioPlayerReducer, initialState)
   const videoModeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const isInitializedRef = useRef(false)
   const { addToHistory } = useListeningHistory()
   const { isDownloaded, getOfflineAudio } = useDownload()
 
   useEffect(() => {
-    const savedVideoMode = localStorage.getItem("vibetuneVideoMode") === "true"
-    if (savedVideoMode !== state.isVideoMode) {
-      dispatch({ type: "SET_VIDEO_MODE", payload: savedVideoMode })
+    if (!isInitializedRef.current) {
+      const savedVideoMode = localStorage.getItem("vibetuneVideoMode") === "true"
+      if (savedVideoMode !== state.isVideoMode) {
+        dispatch({ type: "SET_VIDEO_MODE", payload: savedVideoMode })
+      }
+      isInitializedRef.current = true
     }
   }, [])
 
-  const setVideoMode = useCallback(
-    (enabled: boolean) => {
-      if (videoModeTimeoutRef.current) {
-        clearTimeout(videoModeTimeoutRef.current)
-      }
+  const setVideoMode = useCallback((enabled: boolean) => {
+    if (videoModeTimeoutRef.current) {
+      clearTimeout(videoModeTimeoutRef.current)
+    }
 
-      videoModeTimeoutRef.current = setTimeout(() => {
-        if (state.isVideoMode !== enabled) {
-          dispatch({ type: "SET_VIDEO_MODE", payload: enabled })
-          console.log("[v0] Video mode set to:", enabled)
-        }
-      }, 150)
-    },
-    [state.isVideoMode],
-  )
+    videoModeTimeoutRef.current = setTimeout(() => {
+      dispatch({ type: "SET_VIDEO_MODE", payload: enabled })
+      console.log("[v0] Video mode set to:", enabled)
+    }, 150)
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -173,18 +172,25 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [])
 
+  const memoizedAddToHistory = useCallback(
+    (track: Track) => {
+      addToHistory(track)
+    },
+    [addToHistory],
+  )
+
   useEffect(() => {
     if (state.currentTrack) {
       dispatch({ type: "SET_LOADING", payload: true })
       dispatch({ type: "SET_ERROR", payload: null })
-      addToHistory(state.currentTrack)
+      memoizedAddToHistory(state.currentTrack)
 
       if (isDownloaded(state.currentTrack.id)) {
         console.log("[v0] Track is downloaded:", state.currentTrack.id)
         dispatch({ type: "SET_ERROR", payload: "Playing offline version ✓" })
       }
     }
-  }, [state.currentTrack, addToHistory, isDownloaded])
+  }, [state.currentTrack, memoizedAddToHistory, isDownloaded])
 
   useEffect(() => {
     if ("mediaSession" in navigator && state.currentTrack) {

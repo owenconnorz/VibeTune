@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { ArrowLeft, User, Globe, Play, HardDrive, Shield, RefreshCw, Info, Palette, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -8,104 +8,98 @@ import { useAuth } from "@/contexts/auth-context"
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user } = useAuth() // Removed loading dependency to prevent blocking
 
   const [profileSettings, setProfileSettings] = useState({
     useCustomPicture: false,
     customPictureUrl: null as string | null,
   })
 
-  const loadProfileSettings = useCallback(() => {
-    try {
-      const saved = localStorage.getItem("vibetuneProfileSettings")
-      if (saved) {
-        setProfileSettings(JSON.parse(saved))
-      }
-    } catch (error) {
-      console.error("Failed to load profile settings:", error)
-    }
-  }, [])
+  const settingsCategories = useMemo(
+    () => [
+      {
+        id: "appearance",
+        title: "Appearance",
+        icon: Palette,
+        description: "Theme, display, and visual settings",
+      },
+      {
+        id: "account",
+        title: "Account",
+        icon: User,
+        description: "Google account and profile settings",
+      },
+      {
+        id: "content",
+        title: "Content",
+        icon: Globe,
+        description: "YouTube import and sync settings",
+      },
+      {
+        id: "player",
+        title: "Player and audio",
+        icon: Play,
+        description: "Music playback and audio preferences",
+      },
+      {
+        id: "storage",
+        title: "Storage",
+        icon: HardDrive,
+        description: "Cache and local storage management",
+      },
+      {
+        id: "privacy",
+        title: "Privacy",
+        icon: Shield,
+        description: "Data privacy and security settings",
+      },
+      {
+        id: "backup",
+        title: "Backup and restore",
+        icon: RefreshCw,
+        description: "Sync and backup your music data",
+      },
+      {
+        id: "about",
+        title: "About",
+        icon: Info,
+        description: "App information and support",
+      },
+    ],
+    [],
+  )
 
   useEffect(() => {
-    loadProfileSettings()
-  }, [loadProfileSettings])
+    const loadProfileSettings = () => {
+      try {
+        const saved = localStorage.getItem("vibetuneProfileSettings")
+        if (saved) {
+          setProfileSettings(JSON.parse(saved))
+        }
+      } catch (error) {
+        console.error("Failed to load profile settings:", error)
+      }
+    }
 
-  const settingsCategories = [
-    {
-      id: "appearance",
-      title: "Appearance",
-      icon: Palette,
-      description: "Theme, display, and visual settings",
-    },
-    {
-      id: "account",
-      title: "Account",
-      icon: User,
-      description: "Google account and profile settings",
-    },
-    {
-      id: "content",
-      title: "Content",
-      icon: Globe,
-      description: "YouTube import and sync settings",
-    },
-    {
-      id: "player",
-      title: "Player and audio",
-      icon: Play,
-      description: "Music playback and audio preferences",
-    },
-    {
-      id: "storage",
-      title: "Storage",
-      icon: HardDrive,
-      description: "Cache and local storage management",
-    },
-    {
-      id: "privacy",
-      title: "Privacy",
-      icon: Shield,
-      description: "Data privacy and security settings",
-    },
-    {
-      id: "backup",
-      title: "Backup and restore",
-      icon: RefreshCw,
-      description: "Sync and backup your music data",
-    },
-    {
-      id: "about",
-      title: "About",
-      icon: Info,
-      description: "App information and support",
-    },
-  ]
+    const timeoutId = setTimeout(loadProfileSettings, 0)
+    return () => clearTimeout(timeoutId)
+  }, [])
 
-  const handleCategoryClick = (categoryId: string) => {
-    // Navigate to specific settings category
-    router.push(`/settings/${categoryId}`)
-  }
+  const handleCategoryClick = useCallback(
+    (categoryId: string) => {
+      router.push(`/settings/${categoryId}`)
+    },
+    [router],
+  )
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-zinc-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading...</p>
-        </div>
-      </div>
-    )
-  }
+  const handleBack = useCallback(() => {
+    router.back()
+  }, [router])
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
       <header className="flex items-center p-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-gray-300 hover:text-white mr-4"
-          onClick={() => router.back()}
-        >
+        <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white mr-4" onClick={handleBack}>
           <ArrowLeft className="w-6 h-6" />
         </Button>
         <h1 className="text-2xl font-semibold text-white">Settings</h1>
