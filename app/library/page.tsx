@@ -1,12 +1,26 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { User, Grid3X3, Heart, CheckCircle, Play, Plus, Search, Trash2, Music } from "lucide-react"
+import {
+  User,
+  Heart,
+  CheckCircle,
+  Play,
+  Plus,
+  Search,
+  Trash2,
+  Music,
+  Settings,
+  Home,
+  Compass,
+  Library,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { AudioPlayer } from "@/components/audio-player"
+import { UpdateNotificationButton } from "@/components/update-notification"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
 import { usePlaylist } from "@/contexts/playlist-context"
@@ -158,85 +172,78 @@ export default function LibraryPage() {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
-      <header className="flex items-center justify-between p-4 bg-zinc-900">
-        <h1 className="text-2xl font-bold text-white">Library</h1>
-        <div className="flex items-center gap-4">
-          {activeTab === "playlists" && (
-            <Button onClick={handleCreatePlaylist} size="sm" className="bg-yellow-600 hover:bg-yellow-700 text-black">
-              <Plus className="w-4 h-4 mr-2" />
-              New Playlist
-            </Button>
-          )}
-          <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-            <User className="w-6 h-6" />
+      <header className="flex items-center justify-between px-4 py-2 bg-zinc-800">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-purple-500 rounded-md flex items-center justify-center">
+            <span className="text-white font-bold text-xs">♪</span>
+          </div>
+          <h1 className="text-lg font-semibold text-white">VibeTune</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <UpdateNotificationButton />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-300 hover:text-white w-8 h-8"
+            onClick={() => setSearchQuery("")}
+          >
+            <Search className="w-4 h-4" />
           </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-300 hover:text-white w-8 h-8"
+            onClick={() => router.push("/settings")}
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
+          <Avatar className="w-7 h-7">
+            <AvatarImage src={user?.picture || "/diverse-group-making-music.png"} />
+            <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+          </Avatar>
         </div>
       </header>
 
-      <nav className="flex gap-8 px-4 py-4 bg-zinc-900 border-b border-zinc-800">
-        {[
-          { key: "playlists", label: "Playlists", count: allPlaylists.length },
-          { key: "songs", label: "Songs", count: allSongs.length },
-          { key: "downloads", label: "Downloads", count: downloadedSongs.length },
-          { key: "albums", label: "Albums", count: 0 },
-          { key: "artists", label: "Artists", count: 0 },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            className={`font-medium text-lg flex items-center gap-2 ${
-              activeTab === tab.key ? "text-white" : "text-gray-400 hover:text-gray-300"
-            }`}
-            onClick={() => setActiveTab(tab.key as any)}
-          >
-            {tab.label}
-            {tab.count > 0 && <span className="text-xs bg-zinc-700 px-2 py-1 rounded-full">{tab.count}</span>}
-          </button>
-        ))}
+      <nav className="flex gap-6 px-4 py-2 bg-zinc-800 border-b border-zinc-700">
+        <button className="text-gray-300 hover:text-white font-medium text-sm">History</button>
+        <button className="text-gray-300 hover:text-white font-medium text-sm">Stats</button>
+        <button className="text-gray-300 hover:text-white font-medium text-sm relative">
+          Liked
+          {user && allLikedSongs.length > 0 && (
+            <span className="absolute -top-1 -right-2 bg-yellow-600 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
+              {allLikedSongs.length > 99 ? "99+" : allLikedSongs.length}
+            </span>
+          )}
+        </button>
+        <button className="text-gray-300 hover:text-white font-medium text-sm">Downloaded</button>
       </nav>
 
-      <div className="flex items-center justify-between px-4 py-4 bg-zinc-900 border-b border-zinc-800">
-        <div className="flex items-center gap-4 flex-1">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder={`Search ${activeTab}...`}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-zinc-800 border-zinc-700 text-white"
-            />
-          </div>
-          {activeTab === "playlists" && (
-            <div className="flex items-center gap-2 text-gray-300">
-              <span className="text-sm">Sort by:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-zinc-800 border-zinc-700 text-white text-sm rounded px-2 py-1"
-              >
-                <option value="date">Date updated</option>
-                <option value="name">Name</option>
-                <option value="count">Song count</option>
-              </select>
-            </div>
-          )}
-        </div>
-        <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-          <Grid3X3 className="w-5 h-5" />
-        </Button>
+      <div className="flex items-center justify-between px-6 py-4 bg-zinc-900 border-b border-zinc-800">
+        <h2 className="text-2xl font-bold text-white">Your Library</h2>
+        {activeTab === "playlists" && (
+          <Button
+            onClick={handleCreatePlaylist}
+            size="sm"
+            className="bg-yellow-600 hover:bg-yellow-700 text-black font-medium"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Playlist
+          </Button>
+        )}
       </div>
 
-      <div className="px-4 pb-32">
+      <div className="px-6 py-6 pb-32">
         {activeTab === "playlists" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {filteredPlaylists.map((playlist) => (
                 <Card
                   key={playlist.id}
-                  className="bg-zinc-800 border-zinc-700 hover:bg-zinc-750 transition-colors cursor-pointer group"
+                  className="bg-zinc-800 border-zinc-700 hover:bg-zinc-750 transition-all duration-200 cursor-pointer group hover:scale-105"
                   onClick={() => handlePlayPlaylist(playlist)}
                 >
                   <CardContent className="p-4 relative">
-                    <div className="aspect-square mb-3 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden relative">
+                    <div className="aspect-square mb-3 bg-zinc-700 rounded-xl flex items-center justify-center overflow-hidden relative shadow-lg">
                       {playlist.thumbnail ? (
                         <img
                           src={playlist.thumbnail || "/placeholder.svg"}
@@ -246,28 +253,30 @@ export default function LibraryPage() {
                       ) : playlist.icon ? (
                         <playlist.icon className={`w-12 h-12 ${playlist.color}`} />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                          <Music className="w-8 h-8 text-white" />
+                        <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                          <Music className="w-10 h-10 text-white" />
                         </div>
                       )}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Play className="w-8 h-8 text-white" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Play className="w-10 h-10 text-white drop-shadow-lg" />
                       </div>
                     </div>
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-semibold text-sm mb-1 truncate">{playlist.title}</h3>
-                        <p className="text-gray-400 text-xs">
+                        <h3 className="text-white font-semibold text-sm mb-1 truncate leading-tight">
+                          {playlist.title}
+                        </h3>
+                        <p className="text-gray-400 text-xs mb-1">
                           {playlist.count || playlist.songs?.length || playlist.videos?.length || 0} song
                           {(playlist.count || playlist.songs?.length || playlist.videos?.length || 0) !== 1 ? "s" : ""}
                         </p>
-                        <p className="text-gray-500 text-xs capitalize mt-1">{playlist.type}</p>
+                        <p className="text-gray-500 text-xs capitalize">{playlist.type}</p>
                       </div>
                       {playlist.type === "local" && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-400 h-8 w-8"
                           onClick={(e) => {
                             e.stopPropagation()
                             handleDeletePlaylist(playlist.id)
@@ -281,11 +290,19 @@ export default function LibraryPage() {
                 </Card>
               ))}
               {filteredPlaylists.length === 0 && (
-                <div className="col-span-2 text-center py-12">
-                  <Music className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400 mb-4">{searchQuery ? "No playlists found" : "No playlists yet"}</p>
+                <div className="col-span-full text-center py-16">
+                  <Music className="w-20 h-20 text-gray-600 mx-auto mb-6" />
+                  <h3 className="text-xl font-semibold text-gray-300 mb-2">
+                    {searchQuery ? "No playlists found" : "No playlists yet"}
+                  </h3>
+                  <p className="text-gray-500 mb-6">
+                    {searchQuery ? "Try adjusting your search terms" : "Create your first playlist to get started"}
+                  </p>
                   {!searchQuery && (
-                    <Button onClick={handleCreatePlaylist} className="bg-yellow-600 hover:bg-yellow-700 text-black">
+                    <Button
+                      onClick={handleCreatePlaylist}
+                      className="bg-yellow-600 hover:bg-yellow-700 text-black font-medium"
+                    >
                       <Plus className="w-4 h-4 mr-2" />
                       Create Your First Playlist
                     </Button>
@@ -297,14 +314,14 @@ export default function LibraryPage() {
         )}
 
         {activeTab === "songs" && (
-          <div className="space-y-2">
+          <div className="space-y-1">
             {filteredSongs.map((song, index) => (
               <div
                 key={`${song.id}-${index}`}
-                className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
+                className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group transition-colors"
                 onClick={() => handlePlaySong(song, filteredSongs)}
               >
-                <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="w-12 h-12 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                   {song.thumbnail ? (
                     <img
                       src={song.thumbnail || "/placeholder.svg"}
@@ -316,21 +333,26 @@ export default function LibraryPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-medium truncate">{song.title}</h3>
+                  <h3 className="text-white font-medium truncate leading-tight">{song.title}</h3>
                   <p className="text-gray-400 text-sm truncate">
                     {song.channelTitle || song.artist || "Unknown Artist"}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
+                <div className="flex items-center gap-3">
+                  {song.duration && <span className="text-gray-500 text-sm font-mono">{song.duration}</span>}
                   <SongMenu song={song} />
                 </div>
               </div>
             ))}
             {filteredSongs.length === 0 && (
-              <div className="text-center py-12">
-                <Music className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400">{searchQuery ? "No songs found" : "No songs in your library yet"}</p>
+              <div className="text-center py-16">
+                <Music className="w-20 h-20 text-gray-600 mx-auto mb-6" />
+                <h3 className="text-xl font-semibold text-gray-300 mb-2">
+                  {searchQuery ? "No songs found" : "No songs in your library yet"}
+                </h3>
+                <p className="text-gray-500">
+                  {searchQuery ? "Try adjusting your search terms" : "Start adding songs to your playlists"}
+                </p>
               </div>
             )}
           </div>
@@ -343,14 +365,14 @@ export default function LibraryPage() {
             {downloadedSongs.length > 0 && (
               <div>
                 <h3 className="text-xl font-bold text-white mb-4">Downloaded Songs</h3>
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {filteredDownloadedSongs.map((song, index) => (
                     <div
                       key={`${song.id}-${index}`}
-                      className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
+                      className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group transition-colors"
                       onClick={() => handlePlaySong(song, filteredDownloadedSongs)}
                     >
-                      <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="w-12 h-12 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
                         {song.thumbnail ? (
                           <img
                             src={song.thumbnail || "/placeholder.svg"}
@@ -362,12 +384,12 @@ export default function LibraryPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-medium truncate">{song.title}</h3>
+                        <h3 className="text-white font-medium truncate leading-tight">{song.title}</h3>
                         <p className="text-gray-400 text-sm truncate">{song.artist}</p>
                         <p className="text-green-500 text-xs">Downloaded {song.completedAt?.toLocaleDateString()}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-sm">
+                      <div className="flex items-center gap-3">
+                        <span className="text-gray-500 text-sm font-mono">
                           {song.size ? `${(song.size / (1024 * 1024)).toFixed(1)} MB` : ""}
                         </span>
                         <SongMenu song={song} />
@@ -381,86 +403,42 @@ export default function LibraryPage() {
         )}
 
         {(activeTab === "albums" || activeTab === "artists") && (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="text-center py-16">
+            <div className="w-20 h-20 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-6">
               {activeTab === "albums" ? (
-                <div className="w-8 h-8 bg-zinc-600 rounded"></div>
+                <div className="w-10 h-10 bg-zinc-600 rounded-lg"></div>
               ) : (
-                <User className="w-8 h-8 text-gray-400" />
+                <User className="w-10 h-10 text-gray-400" />
               )}
             </div>
-            <p className="text-gray-400 mb-2">{activeTab === "albums" ? "Albums" : "Artists"} coming soon</p>
-            <p className="text-gray-500 text-sm">We're working on organizing your music by {activeTab}</p>
+            <h3 className="text-xl font-semibold text-gray-300 mb-2">
+              {activeTab === "albums" ? "Albums" : "Artists"} coming soon
+            </h3>
+            <p className="text-gray-500">We're working on organizing your music by {activeTab}</p>
           </div>
         )}
       </div>
 
-      {state.currentTrack && (
-        <div className="fixed bottom-20 left-0 right-0 bg-zinc-800 border-t border-zinc-700 p-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden">
-              {state.currentTrack.thumbnail ? (
-                <img
-                  src={state.currentTrack.thumbnail || "/placeholder.svg"}
-                  alt={state.currentTrack.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Music className="w-6 h-6 text-gray-400" />
-              )}
+      <AudioPlayer />
+
+      <nav className="fixed bottom-0 left-0 right-0 bg-zinc-800 border-t border-zinc-700">
+        <div className="flex items-center justify-around py-1">
+          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={() => router.push("/")}>
+            <Home className="w-5 h-5 text-gray-400 mb-0.5" />
+            <span className="text-[10px] text-gray-400">Home</span>
+          </div>
+          <div className="flex flex-col items-center py-1 px-3">
+            <Compass className="w-5 h-5 text-gray-400 mb-0.5" />
+            <span className="text-[10px] text-gray-400">Explore</span>
+          </div>
+          <div className="flex flex-col items-center py-1 px-3">
+            <div className="bg-yellow-600 rounded-full p-1.5 mb-0.5">
+              <Library className="w-4 h-4 text-black" />
             </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-white font-semibold text-sm truncate">{state.currentTrack.title}</h4>
-              <p className="text-gray-400 text-xs truncate">{state.currentTrack.artist}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <SongMenu
-                song={{
-                  id: state.currentTrack.id,
-                  title: state.currentTrack.title,
-                  artist: state.currentTrack.artist,
-                  thumbnail: state.currentTrack.thumbnail,
-                  duration: state.currentTrack.duration,
-                }}
-              />
-              <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white">
-                <Heart className="w-5 h-5" />
-              </Button>
-            </div>
+            <span className="text-[10px] text-white font-medium">Library</span>
           </div>
         </div>
-      )}
-
-      <div className="fixed bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800">
-        <div className="flex items-center justify-around py-3">
-          <Link href="/" className="flex flex-col items-center gap-1">
-            <div className="w-6 h-6 text-gray-400 hover:text-white transition-colors">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-              </svg>
-            </div>
-            <span className="text-xs text-gray-400 hover:text-white transition-colors">Home</span>
-          </Link>
-
-          <Link href="/?search=true" className="flex flex-col items-center gap-1">
-            <div className="w-6 h-6 text-gray-400 hover:text-white transition-colors">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5S13.09 5 9.5 5 5 7.01 5 9.5 7.01 14 9.5 14c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-              </svg>
-            </div>
-            <span className="text-xs text-gray-400 hover:text-white transition-colors">Search</span>
-          </Link>
-
-          <div className="flex flex-col items-center gap-1">
-            <div className="w-8 h-8 bg-yellow-600 rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-            </div>
-            <span className="text-xs text-white font-medium">Library</span>
-          </div>
-        </div>
-      </div>
+      </nav>
     </div>
   )
 }
