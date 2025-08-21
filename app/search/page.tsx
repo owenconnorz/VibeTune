@@ -7,8 +7,6 @@ import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
-import { DownloadButton } from "@/components/download-button"
-import { DownloadStatusBadge } from "@/components/download-status-badge"
 import { BulkDownloadButton } from "@/components/bulk-download-button"
 import { searchMusic } from "@/lib/music-data"
 
@@ -134,11 +132,9 @@ export default function SearchPage() {
                   <p className="text-gray-400 text-sm truncate">
                     {song.artist || song.channelTitle || "Unknown Artist"}
                   </p>
-                  <DownloadStatusBadge songId={song.id} className="mt-1" />
                 </div>
                 <div className="flex items-center gap-2">
                   {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
-                  <DownloadButton song={song} showProgress={true} />
                   <AddToPlaylistDialog
                     songs={[song]}
                     trigger={

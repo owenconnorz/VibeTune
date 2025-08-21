@@ -11,8 +11,6 @@ import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
 import { SongMenu } from "@/components/song-menu"
-import { DownloadButton } from "@/components/download-button"
-import { DownloadStatusBadge } from "@/components/download-status-badge"
 import { DownloadedIcon } from "@/components/downloaded-icon"
 import { useTrendingMusic, useMoodPlaylist } from "@/hooks/use-music-data"
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
@@ -191,12 +189,10 @@ export default function VibeTunePage() {
                       <div className="flex-1 min-w-0">
                         <h3 className="text-lg font-semibold text-white truncate">{song.title}</h3>
                         <p className="text-gray-400 truncate">{song.artist}</p>
-                        <DownloadStatusBadge songId={song.id} className="mt-1" />
                       </div>
                       <div className="text-xs text-gray-500 mr-2">{song.duration}</div>
                       <div className="flex items-center gap-1">
                         <DownloadedIcon songId={song.id} className="mr-1" />
-                        <DownloadButton song={song} showProgress={true} />
                         <SongMenu song={song} />
                       </div>
                     </div>
@@ -231,7 +227,6 @@ export default function VibeTunePage() {
                         src={
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg" ||
                           "/placeholder.svg" ||
                           "/placeholder.svg"
@@ -269,7 +264,6 @@ export default function VibeTunePage() {
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
                           "/placeholder.svg" ||
                           "/placeholder.svg" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -303,7 +297,6 @@ export default function VibeTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg" ||
                           "/placeholder.svg" ||
                           "/placeholder.svg"

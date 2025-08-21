@@ -25,7 +25,7 @@ export const DownloadStatusBadge: React.FC<DownloadStatusBadgeProps> = ({ songId
     if (downloaded) {
       return {
         icon: <Check className="h-3 w-3" />,
-        text: "Downloaded",
+        text: "",
         variant: "default" as const,
         className: "bg-green-500 hover:bg-green-600",
       }
@@ -72,7 +72,7 @@ export const DownloadStatusBadge: React.FC<DownloadStatusBadgeProps> = ({ songId
     <div className={className}>
       <Badge variant={statusInfo.variant} className={`flex items-center gap-1 ${statusInfo.className}`}>
         {statusInfo.icon}
-        <span className="text-xs">{statusInfo.text}</span>
+        {statusInfo.text && <span className="text-xs">{statusInfo.text}</span>}
       </Badge>
 
       {showProgress && currentDownload?.status === "downloading" && <Progress value={progress} className="h-1 mt-1" />}

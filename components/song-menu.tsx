@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { useState } from "react"
 import {
   Play,
   Plus,
@@ -15,9 +16,10 @@ import {
   RefreshCw,
   Info,
   MoreVertical,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { usePlaylist } from "@/contexts/playlist-context"
 import { useDownload } from "@/contexts/download-context"
@@ -37,10 +39,13 @@ interface SongMenuProps {
 }
 
 export function SongMenu({ song, trigger, className }: SongMenuProps) {
+  const [open, setOpen] = useState(false)
   const { addToQueue, playNext } = useAudioPlayer()
   const { addSongToPlaylist } = usePlaylist()
   const { downloadSong } = useDownload()
   const { isLiked, toggleLike } = useLikedSongs()
+
+  const closeMenu = () => setOpen(false)
 
   const handlePlayNext = () => {
     const track = {
@@ -55,6 +60,7 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
       title: "Added to queue",
       description: `"${song.title}" will play next`,
     })
+    closeMenu()
   }
 
   const handleAddToQueue = () => {
@@ -70,24 +76,25 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
       title: "Added to queue",
       description: `"${song.title}" added to queue`,
     })
+    closeMenu()
   }
 
   const handleAddToLibrary = () => {
-    // Add to a default "Library" playlist
     addSongToPlaylist("library", song)
     toast({
       title: "Added to library",
       description: `"${song.title}" saved to your library`,
     })
+    closeMenu()
   }
 
   const handleAddToPlaylist = () => {
-    // Add to a default "My Playlist"
     addSongToPlaylist("default", song)
     toast({
       title: "Added to playlist",
       description: `"${song.title}" added to playlist`,
     })
+    closeMenu()
   }
 
   const handleDownload = () => {
@@ -96,6 +103,7 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
       title: "Download started",
       description: `Downloading "${song.title}"`,
     })
+    closeMenu()
   }
 
   const handleShare = async () => {
@@ -117,6 +125,7 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
         description: "Song link copied to clipboard",
       })
     }
+    closeMenu()
   }
 
   const handleStartRadio = () => {
@@ -124,6 +133,7 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
       title: "Starting radio",
       description: `Starting radio based on "${song.title}"`,
     })
+    closeMenu()
   }
 
   const handleViewArtist = () => {
@@ -131,6 +141,7 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
       title: "View artist",
       description: `Viewing ${song.artist}'s profile`,
     })
+    closeMenu()
   }
 
   const handleViewAlbum = () => {
@@ -138,6 +149,7 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
       title: "View album",
       description: `Viewing album information`,
     })
+    closeMenu()
   }
 
   const handleRefetch = () => {
@@ -145,6 +157,7 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
       title: "Refreshing",
       description: "Updating song information",
     })
+    closeMenu()
   }
 
   const handleDetails = () => {
@@ -152,6 +165,7 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
       title: "Song details",
       description: `Showing details for "${song.title}"`,
     })
+    closeMenu()
   }
 
   const handleToggleLike = () => {
@@ -160,125 +174,140 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
       title: isLiked(song.id) ? "Removed from liked songs" : "Added to liked songs",
       description: `"${song.title}" ${isLiked(song.id) ? "removed from" : "added to"} your liked songs`,
     })
+    closeMenu()
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         {trigger || (
           <Button variant="ghost" size="icon" className={`text-gray-400 hover:text-white ${className}`}>
             <MoreVertical className="w-4 h-4" />
           </Button>
         )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        className="w-80 bg-zinc-900/95 backdrop-blur-sm border-zinc-700/50 rounded-2xl shadow-2xl p-4"
-        align="end"
-      >
-        <div className="flex gap-3 mb-4">
-          <Button
-            variant="secondary"
-            size="lg"
-            className="flex-1 h-12 bg-zinc-700/80 hover:bg-zinc-600/80 text-white rounded-xl font-medium"
-            onClick={handlePlayNext}
-          >
-            <Play className="w-5 h-5 mr-2" />
-            Play next
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="flex-1 h-12 bg-zinc-700/80 hover:bg-zinc-600/80 text-white rounded-xl font-medium"
-            onClick={handleAddToPlaylist}
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add to playlist
-          </Button>
-          <Button
-            variant="secondary"
-            size="lg"
-            className="flex-1 h-12 bg-zinc-700/80 hover:bg-zinc-600/80 text-white rounded-xl font-medium"
-            onClick={handleShare}
-          >
-            <Share className="w-5 h-5 mr-2" />
-            Share
+      </DialogTrigger>
+      <DialogContent className="fixed bottom-0 left-0 right-0 h-[50vh] w-full max-w-none bg-zinc-900/95 backdrop-blur-sm border-zinc-700/50 rounded-t-3xl shadow-2xl p-0 overflow-hidden z-50 transform translate-y-0">
+        <div className="flex justify-end p-4 pb-2">
+          <Button variant="ghost" size="icon" onClick={closeMenu} className="text-gray-400 hover:text-white">
+            <X className="w-5 h-5" />
           </Button>
         </div>
 
-        <div className="space-y-1">
-          <DropdownMenuItem
-            onClick={handleStartRadio}
-            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
-          >
-            <Radio className="w-5 h-5 mr-4 text-gray-400" />
-            Start radio
-          </DropdownMenuItem>
+        <div className="px-6 pb-6 overflow-y-auto">
+          <div className="flex gap-3 mb-6">
+            <Button
+              variant="secondary"
+              size="lg"
+              className="flex-1 h-14 bg-zinc-700/80 hover:bg-zinc-600/80 text-white rounded-xl font-medium text-base"
+              onClick={handlePlayNext}
+            >
+              <Play className="w-5 h-5 mr-2" />
+              Play next
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              className="flex-1 h-14 bg-zinc-700/80 hover:bg-zinc-600/80 text-white rounded-xl font-medium text-base"
+              onClick={handleAddToPlaylist}
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Add to playlist
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
+              className="flex-1 h-14 bg-zinc-700/80 hover:bg-zinc-600/80 text-white rounded-xl font-medium text-base"
+              onClick={handleShare}
+            >
+              <Share className="w-5 h-5 mr-2" />
+              Share
+            </Button>
+          </div>
 
-          <DropdownMenuItem
-            onClick={() => {}}
-            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
-          >
-            <Edit className="w-5 h-5 mr-4 text-gray-400" />
-            Edit
-          </DropdownMenuItem>
+          <div className="space-y-2">
+            <Button
+              variant="ghost"
+              onClick={handleStartRadio}
+              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
+            >
+              <Radio className="w-6 h-6 mr-4 text-gray-400" />
+              Start radio
+            </Button>
 
-          <DropdownMenuItem
-            onClick={handleAddToQueue}
-            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
-          >
-            <ListPlus className="w-5 h-5 mr-4 text-gray-400" />
-            Add to queue
-          </DropdownMenuItem>
+            <Button
+              variant="ghost"
+              onClick={() => {}}
+              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
+            >
+              <Edit className="w-6 h-6 mr-4 text-gray-400" />
+              Edit
+            </Button>
 
-          <DropdownMenuItem
-            onClick={handleAddToLibrary}
-            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
-          >
-            <Library className="w-5 h-5 mr-4 text-gray-400" />
-            Add to library
-          </DropdownMenuItem>
+            <Button
+              variant="ghost"
+              onClick={handleAddToQueue}
+              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
+            >
+              <ListPlus className="w-6 h-6 mr-4 text-gray-400" />
+              Add to queue
+            </Button>
 
-          <DropdownMenuItem
-            onClick={handleDownload}
-            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
-          >
-            <Download className="w-5 h-5 mr-4 text-gray-400" />
-            Download
-          </DropdownMenuItem>
+            <Button
+              variant="ghost"
+              onClick={handleAddToLibrary}
+              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
+            >
+              <Library className="w-6 h-6 mr-4 text-gray-400" />
+              Add to library
+            </Button>
 
-          <DropdownMenuItem
-            onClick={handleViewArtist}
-            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
-          >
-            <User className="w-5 h-5 mr-4 text-gray-400" />
-            View artist
-          </DropdownMenuItem>
+            <Button
+              variant="ghost"
+              onClick={handleDownload}
+              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
+            >
+              <Download className="w-6 h-6 mr-4 text-gray-400" />
+              Download
+            </Button>
 
-          <DropdownMenuItem
-            onClick={handleViewAlbum}
-            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
-          >
-            <Disc className="w-5 h-5 mr-4 text-gray-400" />
-            View album
-          </DropdownMenuItem>
+            <Button
+              variant="ghost"
+              onClick={handleViewArtist}
+              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
+            >
+              <User className="w-6 h-6 mr-4 text-gray-400" />
+              View artist
+            </Button>
 
-          <DropdownMenuItem
-            onClick={handleRefetch}
-            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
-          >
-            <RefreshCw className="w-5 h-5 mr-4 text-gray-400" />
-            Refetch
-          </DropdownMenuItem>
+            <Button
+              variant="ghost"
+              onClick={handleViewAlbum}
+              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
+            >
+              <Disc className="w-6 h-6 mr-4 text-gray-400" />
+              View album
+            </Button>
 
-          <DropdownMenuItem
-            onClick={handleDetails}
-            className="text-white hover:bg-zinc-700/50 rounded-lg h-12 px-3 text-base font-medium"
-          >
-            <Info className="w-5 h-5 mr-4 text-gray-400" />
-            Details
-          </DropdownMenuItem>
+            <Button
+              variant="ghost"
+              onClick={handleRefetch}
+              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
+            >
+              <RefreshCw className="w-6 h-6 mr-4 text-gray-400" />
+              Refetch
+            </Button>
+
+            <Button
+              variant="ghost"
+              onClick={handleDetails}
+              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
+            >
+              <Info className="w-6 h-6 mr-4 text-gray-400" />
+              Details
+            </Button>
+          </div>
         </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { User, Grid3X3, Heart, CheckCircle, Play, Plus, Search, Trash2, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,7 +13,6 @@ import { usePlaylist } from "@/contexts/playlist-context"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useDownload } from "@/contexts/download-context"
 import { DownloadManager } from "@/components/download-manager"
-import { DownloadButton } from "@/components/download-button"
 import { SongMenu } from "@/components/song-menu"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 
@@ -23,11 +23,10 @@ export default function LibraryPage() {
   const { playlists: localPlaylists, createPlaylist, deletePlaylist } = usePlaylist()
   const { downloadedSongs } = useDownload()
   const { state, playTrack, playQueue } = useAudioPlayer()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<"playlists" | "songs" | "albums" | "artists" | "downloads">("playlists")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<"name" | "date" | "count">("date")
-  const [expandedLikedSongs, setExpandedLikedSongs] = useState(false)
-  const [expandedDownloadedSongs, setExpandedDownloadedSongs] = useState(false)
 
   const allLikedSongs = [
     ...syncData.likedSongs,
@@ -105,12 +104,17 @@ export default function LibraryPage() {
 
   const handlePlayPlaylist = (playlist: any) => {
     if (playlist.id === "liked") {
-      setExpandedLikedSongs(!expandedLikedSongs)
+      router.push("/library/liked")
       return
     }
 
     if (playlist.id === "downloaded") {
-      setExpandedDownloadedSongs(!expandedDownloadedSongs)
+      router.push("/library/downloaded")
+      return
+    }
+
+    if (playlist.type === "local") {
+      router.push(`/library/playlist/${playlist.id}`)
       return
     }
 
@@ -247,21 +251,7 @@ export default function LibraryPage() {
                         </div>
                       )}
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        {playlist.id === "liked" ? (
-                          expandedLikedSongs ? (
-                            <div className="w-8 h-8 text-white">▲</div>
-                          ) : (
-                            <div className="w-8 h-8 text-white">▼</div>
-                          )
-                        ) : playlist.id === "downloaded" ? (
-                          expandedDownloadedSongs ? (
-                            <div className="w-8 h-8 text-white">▲</div>
-                          ) : (
-                            <div className="w-8 h-8 text-white">▼</div>
-                          )
-                        ) : (
-                          <Play className="w-8 h-8 text-white" />
-                        )}
+                        <Play className="w-8 h-8 text-white" />
                       </div>
                     </div>
                     <div className="flex items-start justify-between">
@@ -303,125 +293,6 @@ export default function LibraryPage() {
                 </div>
               )}
             </div>
-
-            {expandedLikedSongs && allLikedSongs.length > 0 && (
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Heart className="w-6 h-6 text-red-500" />
-                    Liked Songs ({allLikedSongs.length})
-                  </h3>
-                  <Button
-                    onClick={() => {
-                      const tracks = allLikedSongs.map((song: any) => ({
-                        id: song.id,
-                        title: song.title,
-                        artist: song.channelTitle || song.artist || "Unknown Artist",
-                        thumbnail: song.thumbnail,
-                        duration: song.duration,
-                      }))
-                      playQueue(tracks, 0)
-                    }}
-                    className="bg-yellow-600 hover:bg-yellow-700 text-black"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Play All
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {allLikedSongs.map((song, index) => (
-                    <div
-                      key={`liked-${song.id}-${index}`}
-                      className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
-                      onClick={() => handlePlaySong(song, allLikedSongs)}
-                    >
-                      <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {song.thumbnail ? (
-                          <img
-                            src={song.thumbnail || "/placeholder.svg"}
-                            alt={song.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Music className="w-6 h-6 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-medium truncate">{song.title}</h3>
-                        <p className="text-gray-400 text-sm truncate">
-                          {song.channelTitle || song.artist || "Unknown Artist"}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
-                        <DownloadButton song={song} />
-                        <SongMenu song={song} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {expandedDownloadedSongs && downloadedSongs.length > 0 && (
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <CheckCircle className="w-6 h-6 text-green-500" />
-                    Downloaded Songs ({downloadedSongs.length})
-                  </h3>
-                  <Button
-                    onClick={() => {
-                      const tracks = downloadedSongs.map((song: any) => ({
-                        id: song.id,
-                        title: song.title,
-                        artist: song.artist || "Unknown Artist",
-                        thumbnail: song.thumbnail,
-                        duration: song.duration,
-                      }))
-                      playQueue(tracks, 0)
-                    }}
-                    className="bg-yellow-600 hover:bg-yellow-700 text-black"
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Play All
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {downloadedSongs.map((song, index) => (
-                    <div
-                      key={`downloaded-${song.id}-${index}`}
-                      className="flex items-center gap-4 p-3 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
-                      onClick={() => handlePlaySong(song, downloadedSongs)}
-                    >
-                      <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {song.thumbnail ? (
-                          <img
-                            src={song.thumbnail || "/placeholder.svg"}
-                            alt={song.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Music className="w-6 h-6 text-gray-400" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-medium truncate">{song.title}</h3>
-                        <p className="text-gray-400 text-sm truncate">{song.artist}</p>
-                        <p className="text-green-500 text-xs">Downloaded {song.completedAt?.toLocaleDateString()}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-sm">
-                          {song.size ? `${(song.size / (1024 * 1024)).toFixed(1)} MB` : ""}
-                        </span>
-                        <CheckCircle className="w-4 h-4 text-green-500" />
-                        <SongMenu song={song} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -452,7 +323,6 @@ export default function LibraryPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
-                  <DownloadButton song={song} />
                   <SongMenu song={song} />
                 </div>
               </div>
