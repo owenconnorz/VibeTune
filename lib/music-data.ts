@@ -16,6 +16,51 @@ export interface Playlist {
   songs: Song[]
 }
 
+function generateAlbumArtwork(title: string, artist: string): string {
+  // Extract album name from title (remove common patterns)
+  const cleanTitle = title
+    .replace(/$$Official.*?$$/gi, "")
+    .replace(/\[Official.*?\]/gi, "")
+    .replace(/- Official.*$/gi, "")
+    .replace(/Official.*$/gi, "")
+    .replace(/$$.*?Video.*?$$/gi, "")
+    .replace(/\[.*?Video.*?\]/gi, "")
+    .replace(/HD|4K|Audio|Lyrics/gi, "")
+    .trim()
+
+  const cleanArtist = artist
+    .replace(/VEVO|Official|Records|Music/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+
+  // Generate a color based on artist name for consistent theming
+  const colors = [
+    "#FF6B6B",
+    "#4ECDC4",
+    "#45B7D1",
+    "#96CEB4",
+    "#FFEAA7",
+    "#DDA0DD",
+    "#98D8C8",
+    "#F7DC6F",
+    "#BB8FCE",
+    "#85C1E9",
+  ]
+
+  let hash = 0
+  for (let i = 0; i < cleanArtist.length; i++) {
+    hash = cleanArtist.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const colorIndex = Math.abs(hash) % colors.length
+  const backgroundColor = colors[colorIndex]
+
+  // Create album artwork URL with artist and song info
+  const encodedTitle = encodeURIComponent(cleanTitle.substring(0, 20))
+  const encodedArtist = encodeURIComponent(cleanArtist.substring(0, 15))
+
+  return `/placeholder.svg?height=300&width=300&text=${encodedArtist}%0A${encodedTitle}&bg=${backgroundColor.replace("#", "")}&color=white`
+}
+
 export async function fetchTrendingMusic(): Promise<Song[]> {
   try {
     const response = await fetch("/api/music/trending?maxResults=10")
@@ -30,7 +75,7 @@ export async function fetchTrendingMusic(): Promise<Song[]> {
       id: video.id,
       title: video.title,
       artist: video.channelTitle,
-      thumbnail: video.thumbnail,
+      thumbnail: generateAlbumArtwork(video.title, video.channelTitle),
       duration: video.duration,
       viewCount: video.viewCount,
       audioUrl: video.audioUrl,
@@ -59,7 +104,7 @@ export async function searchMusic(query: string): Promise<Song[]> {
       id: video.id,
       title: video.title,
       artist: video.channelTitle || video.artist,
-      thumbnail: video.thumbnail,
+      thumbnail: generateAlbumArtwork(video.title, video.channelTitle || video.artist),
       duration: video.duration,
       viewCount: video.viewCount || "0",
       audioUrl: video.audioUrl,

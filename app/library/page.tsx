@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   User,
@@ -41,6 +41,22 @@ export default function LibraryPage() {
   const [activeTab, setActiveTab] = useState<"playlists" | "songs" | "albums" | "artists" | "downloads">("playlists")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<"name" | "date" | "count">("date")
+
+  const [profileSettings, setProfileSettings] = useState({
+    useCustomPicture: false,
+    customPictureUrl: null as string | null,
+  })
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("vibetuneProfileSettings")
+      if (saved) {
+        setProfileSettings(JSON.parse(saved))
+      }
+    } catch (error) {
+      console.error("Failed to load profile settings:", error)
+    }
+  }, [])
 
   const allLikedSongs = [
     ...syncData.likedSongs,
@@ -198,7 +214,13 @@ export default function LibraryPage() {
             <Settings className="w-4 h-4" />
           </Button>
           <Avatar className="w-7 h-7">
-            <AvatarImage src={user?.picture || "/diverse-group-making-music.png"} />
+            <AvatarImage
+              src={
+                profileSettings.useCustomPicture && profileSettings.customPictureUrl
+                  ? profileSettings.customPictureUrl
+                  : user?.picture || "/diverse-group-making-music.png"
+              }
+            />
             <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
           </Avatar>
         </div>

@@ -19,6 +19,11 @@ import { useRouter } from "next/navigation"
 
 export default function VibeTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [profileSettings, setProfileSettings] = useState({
+    useCustomPicture: false,
+    customPictureUrl: null as string | null,
+  })
+
   const router = useRouter()
   const { user } = useAuth()
   const { syncData } = useSync()
@@ -49,6 +54,17 @@ export default function VibeTunePage() {
       playTrack(firstTrack)
     }
   }, [trendingSongs, state.currentTrack, trendingLoading])
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("vibetuneProfileSettings")
+      if (saved) {
+        setProfileSettings(JSON.parse(saved))
+      }
+    } catch (error) {
+      console.error("Failed to load profile settings:", error)
+    }
+  }, [])
 
   const handlePlaySong = (song: any, songList: any[]) => {
     const tracks = songList.map(convertToTrack)
@@ -85,7 +101,13 @@ export default function VibeTunePage() {
             <Settings className="w-4 h-4" />
           </Button>
           <Avatar className="w-7 h-7">
-            <AvatarImage src={user?.picture || "/diverse-group-making-music.png"} />
+            <AvatarImage
+              src={
+                profileSettings.useCustomPicture && profileSettings.customPictureUrl
+                  ? profileSettings.customPictureUrl
+                  : user?.picture || "/diverse-group-making-music.png"
+              }
+            />
             <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
           </Avatar>
         </div>
@@ -228,7 +250,6 @@ export default function VibeTunePage() {
                           morningBoostSongs[0]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=morning energy music" ||
                           "/placeholder.svg" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Morning Energy"
@@ -263,7 +284,6 @@ export default function VibeTunePage() {
                           morningBoostSongs[3]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=feel good pop music" ||
                           "/placeholder.svg" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
                         alt="Feel-Good Pop"
@@ -297,7 +317,6 @@ export default function VibeTunePage() {
                         src={
                           morningBoostSongs[6]?.thumbnail ||
                           "/placeholder.svg?height=192&width=192&query=upbeat classic hits" ||
-                          "/placeholder.svg" ||
                           "/placeholder.svg" ||
                           "/placeholder.svg"
                         }
@@ -339,7 +358,7 @@ export default function VibeTunePage() {
             </div>
             <span className="text-[10px] text-white font-medium">Home</span>
           </div>
-          <div className="flex flex-col items-center py-1 px-3">
+          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={() => router.push("/explore")}>
             <Compass className="w-5 h-5 text-gray-400 mb-0.5" />
             <span className="text-[10px] text-gray-400">Explore</span>
           </div>

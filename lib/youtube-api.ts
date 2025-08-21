@@ -116,11 +116,14 @@ export class YouTubeAPI {
     try {
       const url = new URL(`${this.baseUrl}/search`)
       url.searchParams.set("part", "snippet")
-      url.searchParams.set("q", query)
+      const musicQuery = `${query} music song audio track official`
+      url.searchParams.set("q", musicQuery)
       url.searchParams.set("type", "video")
-      url.searchParams.set("maxResults", Math.min(maxResults, 25).toString())
+      url.searchParams.set("maxResults", Math.min(maxResults * 2, 50).toString()) // Get more results to filter
       url.searchParams.set("order", "relevance")
-      url.searchParams.set("videoDuration", "medium")
+      url.searchParams.set("videoDuration", "medium") // 4-20 minutes, good for songs
+      url.searchParams.set("videoDefinition", "any")
+      url.searchParams.set("videoCategoryId", "10") // Music category
       url.searchParams.set("key", this.apiKey)
 
       const response = await fetch(url.toString(), {
@@ -145,7 +148,7 @@ export class YouTubeAPI {
       const videos = this.parseSearchResults(data.items || [])
 
       return {
-        videos: this.filterMusicContent(videos),
+        videos: this.filterMusicContent(videos).slice(0, maxResults),
         nextPageToken: data.nextPageToken,
       }
     } catch (error) {
@@ -297,7 +300,10 @@ export class YouTubeAPI {
       id: item.id?.videoId || item.id,
       title: item.snippet?.title || "Unknown Title",
       channelTitle: item.snippet?.channelTitle || "Unknown Channel",
-      thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
+      thumbnail: generateAlbumArtwork(
+        item.snippet?.title || "Unknown Title",
+        item.snippet?.channelTitle || "Unknown Channel",
+      ),
       duration: "3:30", // Duration not available in search results
       viewCount: "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
@@ -309,7 +315,10 @@ export class YouTubeAPI {
       id: item.id,
       title: item.snippet?.title || "Unknown Title",
       channelTitle: item.snippet?.channelTitle || "Unknown Channel",
-      thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
+      thumbnail: generateAlbumArtwork(
+        item.snippet?.title || "Unknown Title",
+        item.snippet?.channelTitle || "Unknown Channel",
+      ),
       duration: this.parseDuration(item.contentDetails?.duration || "PT3M30S"),
       viewCount: item.statistics?.viewCount || "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
@@ -321,7 +330,10 @@ export class YouTubeAPI {
       id: item.snippet?.resourceId?.videoId || "",
       title: item.snippet?.title || "Unknown Title",
       channelTitle: item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || "Unknown Channel",
-      thumbnail: item.snippet?.thumbnails?.medium?.url || item.snippet?.thumbnails?.default?.url || "",
+      thumbnail: generateAlbumArtwork(
+        item.snippet?.title || "Unknown Title",
+        item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || "Unknown Channel",
+      ),
       duration: "3:30",
       viewCount: "0",
       publishedAt: item.snippet?.publishedAt || new Date().toISOString(),
@@ -376,9 +388,34 @@ export class YouTubeAPI {
       "version",
       "ft.",
       "feat.",
+      "featuring",
       "vevo",
       "records",
+      "music video",
+      "mv",
+      "lyric",
+      "lyrics",
+      "instrumental",
+      "karaoke",
+      "unplugged",
+      "sessions",
+      "radio edit",
+      "extended",
+      "original mix",
+      "clean version",
+      "explicit",
     ]
+
+    const highPriorityKeywords = [
+      "vevo",
+      "official",
+      "music video",
+      "official video",
+      "official audio",
+      "official music video",
+    ]
+
+    const musicChannelKeywords = ["vevo", "records", "music", "entertainment", "official", "label", "studios"]
 
     const nonMusicKeywords = [
       "tutorial",
@@ -393,48 +430,105 @@ export class YouTubeAPI {
       "podcast",
       "gameplay",
       "unboxing",
+      "behind the scenes",
+      "making of",
+      "breakdown",
+      "analysis",
+      "explained",
+      "theory",
+      "lesson",
+      "course",
     ]
 
     return videos
-      .filter((video) => {
+      .map((video) => {
         const title = video.title.toLowerCase()
         const channelTitle = video.channelTitle.toLowerCase()
+        let score = 0
 
-        const hasMusicKeywords = musicKeywords.some(
-          (keyword) => title.includes(keyword) || channelTitle.includes(keyword),
-        )
-        const hasNonMusicKeywords = nonMusicKeywords.some((keyword) => title.includes(keyword))
+        // High priority content
+        highPriorityKeywords.forEach((keyword) => {
+          if (title.includes(keyword) || channelTitle.includes(keyword)) {
+            score += 10
+          }
+        })
 
-        // Include VEVO channels and official content
-        if (channelTitle.includes("vevo") || title.includes("official")) {
-          return true
-        }
+        // Music channel bonus
+        musicChannelKeywords.forEach((keyword) => {
+          if (channelTitle.includes(keyword)) {
+            score += 5
+          }
+        })
 
-        // Filter out non-music content
-        if (hasNonMusicKeywords && !hasMusicKeywords) {
-          return false
-        }
+        // General music keywords
+        musicKeywords.forEach((keyword) => {
+          if (title.includes(keyword) || channelTitle.includes(keyword)) {
+            score += 2
+          }
+        })
 
-        return hasMusicKeywords
+        // Penalty for non-music content
+        nonMusicKeywords.forEach((keyword) => {
+          if (title.includes(keyword)) {
+            score -= 5
+          }
+        })
+
+        return { ...video, score }
       })
-      .sort((a, b) => {
-        const aChannel = a.channelTitle.toLowerCase()
-        const bChannel = b.channelTitle.toLowerCase()
-        const aTitle = a.title.toLowerCase()
-        const bTitle = b.title.toLowerCase()
-
-        // Prioritize VEVO channels
-        if (aChannel.includes("vevo") && !bChannel.includes("vevo")) return -1
-        if (!aChannel.includes("vevo") && bChannel.includes("vevo")) return 1
-
-        // Prioritize official content
-        if (aTitle.includes("official") && !bTitle.includes("official")) return -1
-        if (!aTitle.includes("official") && bTitle.includes("official")) return 1
-
-        return 0
+      .filter((video) => {
+        // Only include videos with positive music score
+        return video.score > 0
       })
+      .sort((a, b) => b.score - a.score) // Sort by music relevance score
+      .map(({ score, ...video }) => video) // Remove score from final result
   }
 }
 
 // Create a singleton instance
 export const createYouTubeAPI = (apiKey?: string) => new YouTubeAPI(apiKey)
+
+function generateAlbumArtwork(title: string, artist: string): string {
+  // Extract album name from title (remove common patterns)
+  const cleanTitle = title
+    .replace(/$$Official.*?$$/gi, "")
+    .replace(/\[Official.*?\]/gi, "")
+    .replace(/- Official.*$/gi, "")
+    .replace(/Official.*$/gi, "")
+    .replace(/$$.*?Video.*?$$/gi, "")
+    .replace(/\[.*?Video.*?\]/gi, "")
+    .replace(/HD|4K|Audio|Lyrics/gi, "")
+    .trim()
+
+  const cleanArtist = artist
+    .replace(/VEVO|Official|Records|Music/gi, "")
+    .replace(/\s+/g, " ")
+    .trim()
+
+  // Generate a color based on artist name for consistent theming
+  const colors = [
+    "#FF6B6B",
+    "#4ECDC4",
+    "#45B7D1",
+    "#96CEB4",
+    "#FFEAA7",
+    "#DDA0DD",
+    "#98D8C8",
+    "#F7DC6F",
+    "#BB8FCE",
+    "#85C1E9",
+  ]
+
+  let hash = 0
+  for (let i = 0; i < cleanArtist.length; i++) {
+    hash = cleanArtist.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const colorIndex = Math.abs(hash) % colors.length
+  const backgroundColor = colors[colorIndex]
+
+  // Create album artwork URL with artist and song info
+  const encodedTitle = encodeURIComponent(cleanTitle.substring(0, 20))
+  const encodedArtist = encodeURIComponent(cleanArtist.substring(0, 15))
+
+  return `/placeholder.svg?height=300&width=300&text=${encodedArtist}%0A${encodedTitle}&bg=${backgroundColor.replace("#", "")}&color=white`
+}

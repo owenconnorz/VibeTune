@@ -191,23 +191,41 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
           onError: (event: any) => {
             console.error("[v0] YouTube player error:", event.data)
             let errorMessage = "Failed to load video"
+            let shouldSkip = false
+
             switch (event.data) {
               case 2:
                 errorMessage = "Invalid video ID or parameter"
+                shouldSkip = true
                 break
               case 5:
                 errorMessage = "Video cannot be played in HTML5 player"
+                shouldSkip = true
                 break
               case 100:
                 errorMessage = "Video not found"
+                shouldSkip = true
                 break
               case 101:
               case 150:
-                errorMessage = "Video cannot be embedded"
+                errorMessage = "Video cannot be embedded - skipping to next track"
+                shouldSkip = true
                 break
             }
+
             dispatch({ type: "SET_ERROR", payload: errorMessage })
             dispatch({ type: "SET_LOADING", payload: false })
+            dispatch({ type: "PAUSE" })
+
+            if (shouldSkip && state.queue.length > 1 && state.currentIndex < state.queue.length - 1) {
+              console.log("[v0] Auto-skipping to next track due to playback error")
+              setTimeout(() => {
+                dispatch({ type: "NEXT_TRACK" })
+                dispatch({ type: "PLAY" })
+              }, 1500) // Brief delay to show error message
+            } else if (shouldSkip) {
+              console.log("[v0] No more tracks to skip to")
+            }
           },
         },
       })
