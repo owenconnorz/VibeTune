@@ -30,6 +30,26 @@ export const metadata: Metadata = {
   },
 }
 
+const CombinedProviders = ({ children }: { children: React.ReactNode }) => (
+  <AuthProvider>
+    <SyncProvider>
+      <ListeningHistoryProvider>
+        <DownloadProvider>
+          <AudioPlayerProvider>
+            <PlaylistProvider>
+              <LikedSongsProvider>
+                <ThemeProvider>
+                  <UpdateProvider>{children}</UpdateProvider>
+                </ThemeProvider>
+              </LikedSongsProvider>
+            </PlaylistProvider>
+          </AudioPlayerProvider>
+        </DownloadProvider>
+      </ListeningHistoryProvider>
+    </SyncProvider>
+  </AuthProvider>
+)
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -39,6 +59,10 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://www.googleapis.com" />
+        <link rel="dns-prefetch" href="https://i.ytimg.com" />
         <style>{`
 html {
   font-family: ${GeistSans.style.fontFamily};
@@ -48,23 +72,7 @@ html {
         `}</style>
       </head>
       <body>
-        <AuthProvider>
-          <SyncProvider>
-            <ListeningHistoryProvider>
-              <DownloadProvider>
-                <AudioPlayerProvider>
-                  <PlaylistProvider>
-                    <LikedSongsProvider>
-                      <ThemeProvider>
-                        <UpdateProvider>{children}</UpdateProvider>
-                      </ThemeProvider>
-                    </LikedSongsProvider>
-                  </PlaylistProvider>
-                </AudioPlayerProvider>
-              </DownloadProvider>
-            </ListeningHistoryProvider>
-          </SyncProvider>
-        </AuthProvider>
+        <CombinedProviders>{children}</CombinedProviders>
       </body>
     </html>
   )

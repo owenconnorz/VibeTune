@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React from "react"
+
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Search, Home, Compass, Library, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -13,12 +15,57 @@ import { DownloadedIcon } from "@/components/downloaded-icon"
 import { useTrendingMusic, useMoodPlaylist } from "@/hooks/use-music-data"
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { useRouter } from "next/navigation"
+import { OptimizedImage } from "@/components/optimized-image"
 
 const moodPlaylists = {
   "mixed-for-you": {
     queries: ["mixed for you playlist 2024", "personalized music mix", "discover weekly hits", "your music taste mix"],
   },
 }
+
+const MemoizedSongItem = React.memo(({ song, onPlay, trendingSongs }: any) => (
+  <div
+    className="flex items-center gap-4 cursor-pointer hover:bg-zinc-800/50 rounded-lg p-2 -m-2 transition-colors"
+    onClick={() => onPlay(song, trendingSongs)}
+  >
+    <OptimizedImage
+      src={song.thumbnail}
+      alt={`${song.title} thumbnail`}
+      width={60}
+      height={60}
+      className="w-15 h-15 rounded-lg object-cover"
+    />
+    <div className="flex-1 min-w-0">
+      <h3 className="text-lg font-semibold text-white truncate">{song.title}</h3>
+      <p className="text-gray-400 truncate">{song.artist}</p>
+    </div>
+    <div className="text-xs text-gray-500 mr-2">{song.duration}</div>
+    <div className="flex items-center gap-1">
+      <DownloadedIcon songId={song.id} className="mr-1" />
+      <SongMenu song={song} />
+    </div>
+  </div>
+))
+
+const MemoizedPlaylistCard = React.memo(({ playlist, onClick }: any) => (
+  <div className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity" onClick={onClick}>
+    <div className="relative rounded-lg overflow-hidden mb-3">
+      <OptimizedImage
+        src={playlist.thumbnail}
+        alt={playlist.title}
+        width={192}
+        height={192}
+        className="w-full h-48 object-cover"
+        fallback="/music-playlist-concept.png"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+      <div className="absolute bottom-4 left-4">
+        <h3 className="text-white font-bold text-lg truncate">{playlist.title}</h3>
+        <p className="text-yellow-400 font-bold text-sm">{playlist.videoCount} songs</p>
+      </div>
+    </div>
+  </div>
+))
 
 export default function VibeTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -43,34 +90,29 @@ export default function VibeTunePage() {
     error: mixedError,
   } = useMoodPlaylist(moodPlaylists["mixed-for-you"].queries)
 
-  const convertToTrack = (song: any) => ({
-    id: song.id,
-    title: song.title,
-    artist: song.artist || song.channelTitle,
-    thumbnail: song.thumbnail,
-    duration: song.duration,
-  })
+  const convertToTrack = useCallback(
+    (song: any) => ({
+      id: song.id,
+      title: song.title,
+      artist: song.artist || song.channelTitle,
+      thumbnail: song.thumbnail,
+      duration: song.duration,
+    }),
+    [],
+  )
 
-  const safeTrendingSongs = Array.isArray(trendingSongs) ? trendingSongs : []
-  const safeMixedForYouSongs = Array.isArray(mixedForYouSongs) ? mixedForYouSongs : []
-
-  useEffect(() => {
-    console.log(
-      "[v0] trendingSongs type:",
-      typeof trendingSongs,
-      "isArray:",
-      Array.isArray(trendingSongs),
-      "value:",
-      trendingSongs,
-    )
-  }, [trendingSongs])
+  const safeTrendingSongs = useMemo(() => (Array.isArray(trendingSongs) ? trendingSongs : []), [trendingSongs])
+  const safeMixedForYouSongs = useMemo(
+    () => (Array.isArray(mixedForYouSongs) ? mixedForYouSongs : []),
+    [mixedForYouSongs],
+  )
 
   useEffect(() => {
     if (safeTrendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
       const firstTrack = convertToTrack(safeTrendingSongs[0])
       playTrack(firstTrack)
     }
-  }, [safeTrendingSongs, state.currentTrack, trendingLoading])
+  }, [safeTrendingSongs, state.currentTrack, trendingLoading, convertToTrack, playTrack])
 
   useEffect(() => {
     try {
@@ -83,11 +125,63 @@ export default function VibeTunePage() {
     }
   }, [])
 
-  const handlePlaySong = (song: any, songList: any[]) => {
-    const tracks = songList.map(convertToTrack)
-    const startIndex = songList.findIndex((s) => s.id === song.id)
-    playQueue(tracks, startIndex)
-  }
+  const handlePlaySong = useCallback(
+    (song: any, songList: any[]) => {
+      const tracks = songList.map(convertToTrack)
+      const startIndex = songList.findIndex((s) => s.id === song.id)
+      playQueue(tracks, startIndex)
+    },
+    [convertToTrack, playQueue],
+  )
+
+  const handleSearchClick = useCallback(() => router.push("/search"), [router])
+  const handleSettingsClick = useCallback(() => router.push("/settings"), [router])
+  const handleLibraryClick = useCallback(() => router.push("/library"), [router])
+  const handleExploreClick = useCallback(() => router.push("/explore"), [router])
+
+  const userContent = useMemo(() => {
+    if (!user || (syncData.playlists.length === 0 && syncData.likedSongs.length === 0)) {
+      return null
+    }
+
+    return (
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-yellow-400">Your Music</h2>
+          <Button
+            variant="outline"
+            onClick={handleLibraryClick}
+            className="border-zinc-600 text-gray-300 hover:bg-zinc-700 bg-transparent"
+          >
+            View All
+          </Button>
+        </div>
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {syncData.playlists.slice(0, 3).map((playlist) => (
+            <MemoizedPlaylistCard key={playlist.id} playlist={playlist} onClick={handleLibraryClick} />
+          ))}
+          {syncData.likedSongs.length > 0 && (
+            <div
+              className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={handleLibraryClick}
+            >
+              <div className="relative rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-red-500 to-pink-600">
+                <div className="w-full h-48 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                      <span className="text-3xl">❤️</span>
+                    </div>
+                    <h3 className="text-white font-bold text-lg">Liked Songs</h3>
+                    <p className="text-white/80 font-bold text-sm">{syncData.likedSongs.length} songs</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+    )
+  }, [user, syncData.playlists, syncData.likedSongs, handleLibraryClick])
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
@@ -104,7 +198,7 @@ export default function VibeTunePage() {
             variant="ghost"
             size="icon"
             className="text-gray-300 hover:text-white w-8 h-8"
-            onClick={() => router.push("/search")}
+            onClick={handleSearchClick}
           >
             <Search className="w-4 h-4" />
           </Button>
@@ -112,7 +206,7 @@ export default function VibeTunePage() {
             variant="ghost"
             size="icon"
             className="text-gray-300 hover:text-white w-8 h-8"
-            onClick={() => router.push("/settings")}
+            onClick={handleSettingsClick}
           >
             <Settings className="w-4 h-4" />
           </Button>
@@ -146,60 +240,7 @@ export default function VibeTunePage() {
 
       <div className="px-4 pb-20">
         {/* User's Synced Content */}
-        {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
-          <section className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-yellow-400">Your Music</h2>
-              <Button
-                variant="outline"
-                onClick={() => router.push("/library")}
-                className="border-zinc-600 text-gray-300 hover:bg-zinc-700 bg-transparent"
-              >
-                View All
-              </Button>
-            </div>
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {syncData.playlists.slice(0, 3).map((playlist) => (
-                <div
-                  key={playlist.id}
-                  className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => router.push("/library")}
-                >
-                  <div className="relative rounded-lg overflow-hidden mb-3">
-                    <img
-                      src={playlist.thumbnail || "/placeholder.svg?height=192&width=192&query=music playlist"}
-                      alt={playlist.title}
-                      className="w-full h-48 object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-4 left-4">
-                      <h3 className="text-white font-bold text-lg truncate">{playlist.title}</h3>
-                      <p className="text-yellow-400 font-bold text-sm">{playlist.videoCount} songs</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {syncData.likedSongs.length > 0 && (
-                <div
-                  className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => router.push("/library")}
-                >
-                  <div className="relative rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-red-500 to-pink-600">
-                    <div className="w-full h-48 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                          <span className="text-3xl">❤️</span>
-                        </div>
-                        <h3 className="text-white font-bold text-lg">Liked Songs</h3>
-                        <p className="text-white/80 font-bold text-sm">{syncData.likedSongs.length} songs</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
+        {userContent}
 
         {/* Quick Picks - Individual Songs */}
         <section className="mb-8">
@@ -213,28 +254,16 @@ export default function VibeTunePage() {
             <div className="space-y-4">
               {trendingLoading
                 ? Array.from({ length: 4 }).map((_, i) => <SongSkeleton key={i} />)
-                : safeTrendingSongs.slice(0, 6).map((song) => (
-                    <div
-                      key={song.id}
-                      className="flex items-center gap-4 cursor-pointer hover:bg-zinc-800/50 rounded-lg p-2 -m-2 transition-colors"
-                      onClick={() => handlePlaySong(song, safeTrendingSongs)}
-                    >
-                      <img
-                        src={song.thumbnail || "/placeholder.svg?height=60&width=60"}
-                        alt={`${song.title} thumbnail`}
-                        className="w-15 h-15 rounded-lg object-cover"
+                : safeTrendingSongs
+                    .slice(0, 6)
+                    .map((song) => (
+                      <MemoizedSongItem
+                        key={song.id}
+                        song={song}
+                        onPlay={handlePlaySong}
+                        trendingSongs={safeTrendingSongs}
                       />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-white truncate">{song.title}</h3>
-                        <p className="text-gray-400 truncate">{song.artist}</p>
-                      </div>
-                      <div className="text-xs text-gray-500 mr-2">{song.duration}</div>
-                      <div className="flex items-center gap-1">
-                        <DownloadedIcon songId={song.id} className="mr-1" />
-                        <SongMenu song={song} />
-                      </div>
-                    </div>
-                  ))}
+                    ))}
             </div>
           )}
         </section>
@@ -258,19 +287,13 @@ export default function VibeTunePage() {
                     onClick={() => router.push("/library/your-mix")}
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
-                      <img
-                        src={
-                          safeMixedForYouSongs[0]?.thumbnail ||
-                          "/placeholder.svg?height=192&width=192&text=Your%20Mix&bg=6366f1&color=white" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg"
-                        }
+                      <OptimizedImage
+                        src={safeMixedForYouSongs[0]?.thumbnail}
                         alt="Your Mix"
+                        width={192}
+                        height={192}
                         className="w-full h-48 object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src =
-                            "/placeholder.svg?height=192&width=192&text=Your%20Mix&bg=6366f1&color=white"
-                        }}
+                        fallback="/placeholder.svg?height=192&width=192&text=Your%20Mix&bg=6366f1&color=white"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-4 left-4">
@@ -294,19 +317,13 @@ export default function VibeTunePage() {
                     onClick={() => router.push("/library/discover-mix")}
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
-                      <img
-                        src={
-                          safeMixedForYouSongs[3]?.thumbnail ||
-                          "/placeholder.svg?height=192&width=192&text=Discover%20Mix&bg=10b981&color=white" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg"
-                        }
+                      <OptimizedImage
+                        src={safeMixedForYouSongs[3]?.thumbnail}
                         alt="Discover Mix"
+                        width={192}
+                        height={192}
                         className="w-full h-48 object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src =
-                            "/placeholder.svg?height=192&width=192&text=Discover%20Mix&bg=10b981&color=white"
-                        }}
+                        fallback="/placeholder.svg?height=192&width=192&text=Discover%20Mix&bg=10b981&color=white"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-4 left-4">
@@ -330,19 +347,13 @@ export default function VibeTunePage() {
                     onClick={() => router.push("/library/new-release-mix")}
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
-                      <img
-                        src={
-                          safeMixedForYouSongs[6]?.thumbnail ||
-                          "/placeholder.svg?height=192&width=192&text=New%20Release&bg=f59e0b&color=white" ||
-                          "/placeholder.svg" ||
-                          "/placeholder.svg"
-                        }
+                      <OptimizedImage
+                        src={safeMixedForYouSongs[6]?.thumbnail}
                         alt="New Release Mix"
+                        width={192}
+                        height={192}
                         className="w-full h-48 object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src =
-                            "/placeholder.svg?height=192&width=192&text=New%20Release&bg=f59e0b&color=white"
-                        }}
+                        fallback="/placeholder.svg?height=192&width=192&text=New%20Release&bg=f59e0b&color=white"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                       <div className="absolute bottom-4 left-4">
@@ -378,11 +389,11 @@ export default function VibeTunePage() {
             </div>
             <span className="text-[10px] text-white font-medium">Home</span>
           </div>
-          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={() => router.push("/explore")}>
+          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleExploreClick}>
             <Compass className="w-5 h-5 text-gray-400 mb-0.5" />
             <span className="text-[10px] text-gray-400">Explore</span>
           </div>
-          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={() => router.push("/library")}>
+          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleLibraryClick}>
             <div className="relative">
               <Library className="w-5 h-5 text-gray-400 mb-0.5" />
               {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (

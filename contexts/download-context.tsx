@@ -49,6 +49,34 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isDownloading, setIsDownloading] = useState(false)
 
   useEffect(() => {
+    const initializeDB = async () => {
+      try {
+        const request = indexedDB.open("VibeTuneOffline", 1)
+
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result
+          console.log("[v0] Initializing IndexedDB with audioFiles object store")
+          if (!db.objectStoreNames.contains("audioFiles")) {
+            db.createObjectStore("audioFiles", { keyPath: "id" })
+          }
+        }
+
+        request.onsuccess = () => {
+          console.log("[v0] IndexedDB initialized successfully")
+        }
+
+        request.onerror = (error) => {
+          console.error("[v0] Failed to initialize IndexedDB:", error)
+        }
+      } catch (error) {
+        console.error("[v0] IndexedDB initialization error:", error)
+      }
+    }
+
+    initializeDB()
+  }, [])
+
+  useEffect(() => {
     const savedDownloads = localStorage.getItem("vibetune_downloads")
     const savedDownloadedSongs = localStorage.getItem("vibetune_downloaded_songs")
 
@@ -149,6 +177,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result
         if (!db.objectStoreNames.contains("audioFiles")) {
+          console.log("[v0] Creating audioFiles object store")
           db.createObjectStore("audioFiles", { keyPath: "id" })
         }
       }
@@ -156,6 +185,26 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return new Promise((resolve, reject) => {
         request.onsuccess = async (event) => {
           const db = (event.target as IDBOpenDBRequest).result
+
+          if (!db.objectStoreNames.contains("audioFiles")) {
+            console.error("[v0] Object store 'audioFiles' not found after initialization")
+            // Try to create it if it doesn't exist
+            db.close()
+            const upgradeRequest = indexedDB.open("VibeTuneOffline", db.version + 1)
+            upgradeRequest.onupgradeneeded = (upgradeEvent) => {
+              const upgradeDb = (upgradeEvent.target as IDBOpenDBRequest).result
+              if (!upgradeDb.objectStoreNames.contains("audioFiles")) {
+                upgradeDb.createObjectStore("audioFiles", { keyPath: "id" })
+              }
+            }
+            upgradeRequest.onsuccess = () => {
+              console.log("[v0] Object store created successfully")
+              resolve(true)
+            }
+            upgradeRequest.onerror = () => reject(upgradeRequest.error)
+            return
+          }
+
           const transaction = db.transaction(["audioFiles"], "readwrite")
           const store = transaction.objectStore("audioFiles")
 
@@ -189,6 +238,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return new Promise((resolve, reject) => {
         request.onsuccess = (event) => {
           const db = (event.target as IDBOpenDBRequest).result
+
+          if (!db.objectStoreNames.contains("audioFiles")) {
+            console.log("[v0] Object store 'audioFiles' not found, returning null")
+            resolve(null)
+            return
+          }
+
           const transaction = db.transaction(["audioFiles"], "readonly")
           const store = transaction.objectStore("audioFiles")
           const getRequest = store.get(songId)
@@ -199,14 +255,21 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               console.log("[v0] Retrieved offline audio for:", songId)
               resolve(result.audioBlob)
             } else {
+              console.log("[v0] No offline audio found for:", songId)
               resolve(null)
             }
           }
 
-          getRequest.onerror = () => resolve(null)
+          getRequest.onerror = () => {
+            console.log("[v0] Error retrieving offline audio for:", songId)
+            resolve(null)
+          }
         }
 
-        request.onerror = () => resolve(null)
+        request.onerror = () => {
+          console.log("[v0] IndexedDB connection error")
+          resolve(null)
+        }
       })
     } catch (error) {
       console.error("Failed to get offline audio:", error)

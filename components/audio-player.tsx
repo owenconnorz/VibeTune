@@ -8,6 +8,7 @@ import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useTheme } from "@/contexts/theme-context"
 import { useState, useCallback } from "react"
 import { FullScreenPlayer } from "./full-screen-player"
+import { ThumbnailImage } from "./optimized-image"
 
 export function AudioPlayer() {
   const { state, togglePlay, nextTrack, previousTrack, seekTo, setVolume } = useAudioPlayer()
@@ -153,17 +154,12 @@ export function AudioPlayer() {
             onTouchCancel={handleTouchCancel}
           >
             <div className="flex-shrink-0 cursor-pointer" onClick={() => setIsFullScreenOpen(true)}>
-              <img
+              <ThumbnailImage
                 src={getAlbumArtwork(state.currentTrack) || "/placeholder.svg"}
                 alt={`${state.currentTrack.title} album cover`}
-                className="w-12 h-12 rounded-full object-cover shadow-lg border-2 border-white/10"
-                onError={(e) => {
-                  console.log("[v0] Mini player image failed to load, trying fallback")
-                  const target = e.target as HTMLImageElement
-                  if (target.src !== "/placeholder.svg?height=40&width=40") {
-                    target.src = "/placeholder.svg?height=40&width=40"
-                  }
-                }}
+                size={48}
+                className="rounded-full shadow-lg border-2 border-white/10"
+                priority={true}
               />
             </div>
 

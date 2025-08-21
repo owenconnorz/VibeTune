@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useReducer, useRef, useEffect } from "react"
+import { createContext, useContext, useReducer, useRef, useEffect, useCallback } from "react"
 import { useListeningHistory } from "./listening-history-context"
 import { useDownload } from "./download-context"
 
@@ -138,9 +138,7 @@ const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(und
 
 export function AudioPlayerProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(audioPlayerReducer, initialState)
-  const youtubePlayerRef = useRef<any>(null)
-  const playerReadyRef = useRef(false)
-  const pendingPlayRef = useRef(false)
+  const videoModeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { addToHistory } = useListeningHistory()
   const { isDownloaded, getOfflineAudio } = useDownload()
 
@@ -151,191 +149,42 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [])
 
-  useEffect(() => {
-    if (!window.YT) {
-      const tag = document.createElement("script")
-      tag.src = "https://www.youtube.com/iframe_api"
-      const firstScriptTag = document.getElementsByTagName("script")[0]
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
-
-      window.onYouTubeIframeAPIReady = () => {
-        initializePlayer()
+  const setVideoMode = useCallback(
+    (enabled: boolean) => {
+      if (videoModeTimeoutRef.current) {
+        clearTimeout(videoModeTimeoutRef.current)
       }
-    } else {
-      initializePlayer()
-    }
 
-    function initializePlayer() {
-      const playerContainer = document.createElement("div")
-      playerContainer.id = "youtube-player"
-      playerContainer.style.display = state.isVideoMode ? "block" : "none"
-      playerContainer.style.position = "fixed"
-      playerContainer.style.top = "0"
-      playerContainer.style.left = "0"
-      playerContainer.style.zIndex = "9999"
-      playerContainer.style.backgroundColor = "black"
-      document.body.appendChild(playerContainer)
-
-      youtubePlayerRef.current = new window.YT.Player("youtube-player", {
-        height: state.isVideoMode ? "315" : "0",
-        width: state.isVideoMode ? "560" : "0",
-        videoId: "dQw4w9WgXcQ",
-        playerVars: {
-          autoplay: 0,
-          controls: state.isVideoMode ? 1 : 0,
-          disablekb: state.isVideoMode ? 0 : 1,
-          fs: state.isVideoMode ? 1 : 0,
-          modestbranding: 1,
-          rel: 0,
-          enablejsapi: 1,
-          origin: window.location.origin,
-        },
-        events: {
-          onReady: () => {
-            console.log("[v0] YouTube player ready")
-            playerReadyRef.current = true
-            if (pendingPlayRef.current && state.currentTrack) {
-              loadCurrentTrack()
-            }
-          },
-          onStateChange: (event: any) => {
-            if (event.data === window.YT.PlayerState.ENDED) {
-              dispatch({ type: "PAUSE" })
-              if (state.currentIndex < state.queue.length - 1) {
-                dispatch({ type: "NEXT_TRACK" })
-              }
-            } else if (event.data === window.YT.PlayerState.PLAYING) {
-              dispatch({ type: "SET_LOADING", payload: false })
-            } else if (event.data === window.YT.PlayerState.PAUSED) {
-              dispatch({ type: "SET_LOADING", payload: false })
-            }
-          },
-          onError: (event: any) => {
-            console.error("[v0] YouTube player error:", event.data)
-            let errorMessage = "Failed to load video"
-            let shouldSkip = false
-
-            switch (event.data) {
-              case 2:
-                errorMessage = "Invalid video ID or parameter"
-                shouldSkip = true
-                break
-              case 5:
-                errorMessage = "Video cannot be played in HTML5 player"
-                shouldSkip = true
-                break
-              case 100:
-                errorMessage = "Video not found"
-                shouldSkip = true
-                break
-              case 101:
-              case 150:
-                errorMessage = "Video cannot be embedded - skipping to next track"
-                shouldSkip = true
-                break
-            }
-
-            dispatch({ type: "SET_ERROR", payload: errorMessage })
-            dispatch({ type: "SET_LOADING", payload: false })
-            dispatch({ type: "PAUSE" })
-
-            if (shouldSkip && state.queue.length > 1 && state.currentIndex < state.queue.length - 1) {
-              console.log("[v0] Auto-skipping to next track due to playback error")
-              setTimeout(() => {
-                dispatch({ type: "NEXT_TRACK" })
-                dispatch({ type: "PLAY" })
-              }, 1500) // Brief delay to show error message
-            } else if (shouldSkip) {
-              console.log("[v0] No more tracks to skip to")
-            }
-          },
-        },
-      })
-    }
-
-    return () => {
-      if (youtubePlayerRef.current) {
-        youtubePlayerRef.current.destroy()
-      }
-    }
-  }, [state.isVideoMode])
-
-  const handlePlay = () => {
-    if (!youtubePlayerRef.current || !playerReadyRef.current || !state.currentTrack) {
-      pendingPlayRef.current = true
-      return
-    }
-
-    try {
-      youtubePlayerRef.current.playVideo()
-      pendingPlayRef.current = false
-    } catch (error) {
-      console.error("[v0] Error playing YouTube video:", error)
-      dispatch({ type: "SET_ERROR", payload: "Failed to play video" })
-    }
-  }
-
-  const handlePause = () => {
-    if (!youtubePlayerRef.current || !playerReadyRef.current) return
-
-    try {
-      youtubePlayerRef.current.pauseVideo()
-      pendingPlayRef.current = false
-    } catch (error) {
-      console.error("[v0] Error pausing YouTube video:", error)
-    }
-  }
-
-  useEffect(() => {
-    if (state.isPlaying) {
-      handlePlay()
-    } else {
-      handlePause()
-    }
-  }, [state.isPlaying])
-
-  useEffect(() => {
-    if (!state.currentTrack || !youtubePlayerRef.current) return
-
-    dispatch({ type: "SET_LOADING", payload: true })
-    dispatch({ type: "SET_ERROR", payload: null })
-
-    addToHistory(state.currentTrack)
-
-    if (playerReadyRef.current) {
-      loadCurrentTrack()
-    } else {
-      pendingPlayRef.current = true
-    }
-  }, [state.currentTrack])
-
-  useEffect(() => {
-    if (youtubePlayerRef.current && playerReadyRef.current) {
-      youtubePlayerRef.current.setVolume(state.volume * 100)
-    }
-  }, [state.volume])
-
-  useEffect(() => {
-    if (!youtubePlayerRef.current) return
-
-    const interval = setInterval(() => {
-      if (youtubePlayerRef.current && playerReadyRef.current && state.isPlaying) {
-        try {
-          const currentTime = youtubePlayerRef.current.getCurrentTime()
-          const duration = youtubePlayerRef.current.getDuration()
-
-          dispatch({ type: "SET_CURRENT_TIME", payload: currentTime || 0 })
-          if (duration && duration !== state.duration) {
-            dispatch({ type: "SET_DURATION", payload: duration })
-          }
-        } catch (error) {
-          // Ignore errors during time updates
+      videoModeTimeoutRef.current = setTimeout(() => {
+        if (state.isVideoMode !== enabled) {
+          dispatch({ type: "SET_VIDEO_MODE", payload: enabled })
+          console.log("[v0] Video mode set to:", enabled)
         }
-      }
-    }, 1000)
+      }, 150)
+    },
+    [state.isVideoMode],
+  )
 
-    return () => clearInterval(interval)
-  }, [state.isPlaying, state.duration])
+  useEffect(() => {
+    return () => {
+      if (videoModeTimeoutRef.current) {
+        clearTimeout(videoModeTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (state.currentTrack) {
+      dispatch({ type: "SET_LOADING", payload: true })
+      dispatch({ type: "SET_ERROR", payload: null })
+      addToHistory(state.currentTrack)
+
+      if (isDownloaded(state.currentTrack.id)) {
+        console.log("[v0] Track is downloaded:", state.currentTrack.id)
+        dispatch({ type: "SET_ERROR", payload: "Playing offline version ✓" })
+      }
+    }
+  }, [state.currentTrack, addToHistory, isDownloaded])
 
   useEffect(() => {
     if ("mediaSession" in navigator && state.currentTrack) {
@@ -394,8 +243,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       })
 
       navigator.mediaSession.setActionHandler("seekto", (details) => {
-        if (details.seekTime && youtubePlayerRef.current && playerReadyRef.current) {
-          seekTo(details.seekTime)
+        if (details.seekTime) {
+          dispatch({ type: "SET_CURRENT_TIME", payload: details.seekTime })
         }
       })
 
@@ -436,86 +285,11 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }
 
   const seekTo = (time: number) => {
-    if (youtubePlayerRef.current && playerReadyRef.current) {
-      try {
-        youtubePlayerRef.current.seekTo(time, true)
-        dispatch({ type: "SET_CURRENT_TIME", payload: time })
-      } catch (error) {
-        console.error("[v0] Error seeking:", error)
-      }
-    }
+    dispatch({ type: "SET_CURRENT_TIME", payload: time })
   }
 
   const setVolume = (volume: number) => {
     dispatch({ type: "SET_VOLUME", payload: volume })
-  }
-
-  const setVideoMode = (enabled: boolean) => {
-    dispatch({ type: "SET_VIDEO_MODE", payload: enabled })
-
-    const playerContainer = document.getElementById("youtube-player")
-    if (playerContainer) {
-      playerContainer.style.display = enabled ? "block" : "none"
-      if (youtubePlayerRef.current) {
-        youtubePlayerRef.current.setSize(enabled ? 560 : 0, enabled ? 315 : 0)
-      }
-    }
-  }
-
-  const loadCurrentTrack = async () => {
-    if (!youtubePlayerRef.current || !playerReadyRef.current || !state.currentTrack) {
-      return
-    }
-
-    const videoId = state.currentTrack.id
-
-    if (!videoId || typeof videoId !== "string") {
-      console.error("[v0] Invalid video ID:", videoId)
-      dispatch({ type: "SET_ERROR", payload: "Invalid video ID" })
-      return
-    }
-
-    if (isDownloaded(videoId)) {
-      console.log("[v0] Playing offline version of:", videoId)
-      try {
-        const offlineAudio = await getOfflineAudio(videoId)
-        if (offlineAudio) {
-          console.log("[v0] Offline audio available, playing offline version")
-          dispatch({ type: "SET_ERROR", payload: "Playing offline version ✓" })
-          dispatch({ type: "SET_LOADING", payload: false })
-          dispatch({ type: "PLAY" })
-          youtubePlayerRef.current.loadVideoById({
-            videoId: videoId,
-            startSeconds: 0,
-          })
-          return
-        }
-      } catch (error) {
-        console.error("[v0] Failed to load offline audio:", error)
-      }
-    }
-
-    if (videoId.startsWith("default") || videoId.length < 10) {
-      console.log("[v0] Sample track detected, cannot play:", videoId)
-      dispatch({ type: "SET_ERROR", payload: "Sample track - real music not available" })
-      dispatch({ type: "SET_LOADING", payload: false })
-      dispatch({ type: "PAUSE" })
-      return
-    }
-
-    try {
-      console.log("[v0] Loading video:", videoId)
-      youtubePlayerRef.current.loadVideoById({
-        videoId: videoId,
-        startSeconds: 0,
-      })
-      youtubePlayerRef.current.setVolume(state.volume * 100)
-      dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
-    } catch (error) {
-      console.error("[v0] Error loading YouTube video:", error)
-      dispatch({ type: "SET_ERROR", payload: "Failed to load video" })
-      dispatch({ type: "SET_LOADING", payload: false })
-    }
   }
 
   return (

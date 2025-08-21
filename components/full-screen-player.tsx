@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { useEffect } from "react"
 import { useState, useRef, useCallback } from "react"
 import {
   Play,
@@ -24,6 +24,7 @@ import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useTheme } from "@/contexts/theme-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { YouTubePlayer } from "@/components/youtube-player"
+import { CanvasBackground } from "@/components/canvas-background"
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -41,6 +42,19 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
   const lastY = useRef(0)
   const lastTime = useRef(0)
   const velocity = useRef(0)
+  const [canvasSettings, setCanvasSettings] = useState({ enableCanvas: false })
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("vibetuneVideoSettings")
+      if (saved) {
+        const settings = JSON.parse(saved)
+        setCanvasSettings({ enableCanvas: settings.enableCanvas || false })
+      }
+    } catch (error) {
+      console.error("Failed to load canvas settings:", error)
+    }
+  }, [])
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     e.preventDefault()
@@ -157,25 +171,52 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
         </div>
 
         <div className="flex justify-center px-4 sm:px-8 mb-6 sm:mb-8">
-          {state.isVideoMode ? (
-            <div className="relative w-full max-w-md aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-black">
-              <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
+          <div className="w-full max-w-md">
+            <div className="flex justify-center mb-4">
+              <Button
+                variant="ghost"
+                className={`${
+                  state.isVideoMode
+                    ? "text-white bg-white/20 border-white/30"
+                    : "text-white/80 bg-white/10 border-white/20"
+                } hover:text-white hover:bg-white/25 rounded-full px-6 py-2 border transition-all duration-200 flex items-center gap-2`}
+                onClick={handleToggleVideoMode}
+              >
+                {state.isVideoMode ? (
+                  <>
+                    <Video className="w-4 h-4" />
+                    <span className="text-sm font-medium">Video</span>
+                  </>
+                ) : (
+                  <>
+                    <Music className="w-4 h-4" />
+                    <span className="text-sm font-medium">Audio</span>
+                  </>
+                )}
+              </Button>
             </div>
-          ) : (
-            <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
-              <img
-                src={state.currentTrack.thumbnail || "/placeholder.svg"}
-                alt={`${state.currentTrack.title} album cover`}
-                className="w-full h-full object-cover"
-              />
-              {/* Overlay text effect like in the reference */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
-                  {state.currentTrack.artist?.toUpperCase()}
+
+            {state.isVideoMode ? (
+              <div className="relative w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-black">
+                <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
+              </div>
+            ) : (
+              <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl mx-auto">
+                <CanvasBackground isEnabled={canvasSettings.enableCanvas} className="rounded-2xl sm:rounded-3xl" />
+                <img
+                  src={state.currentTrack.thumbnail || "/placeholder.svg"}
+                  alt={`${state.currentTrack.title} album cover`}
+                  className="w-full h-full object-cover relative z-10"
+                />
+                {/* Overlay text effect like in the reference */}
+                <div className="absolute inset-0 flex items-center justify-center z-20">
+                  <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
+                    {state.currentTrack.artist?.toUpperCase()}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="px-4 sm:px-8 mb-4 sm:mb-6">
@@ -187,20 +228,6 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
               <p className="text-white/80 text-base sm:text-lg truncate">{state.currentTrack.artist}</p>
             </div>
             <div className="flex gap-2 sm:gap-3 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`${
-                  state.isVideoMode ? "text-white bg-white/20" : "text-white/80 bg-white/10"
-                } hover:text-white hover:bg-white/20 rounded-full w-10 h-10 sm:w-12 sm:h-12`}
-                onClick={handleToggleVideoMode}
-              >
-                {state.isVideoMode ? (
-                  <Video className="w-4 h-4 sm:w-5 sm:h-5" />
-                ) : (
-                  <Music className="w-4 h-4 sm:w-5 sm:h-5" />
-                )}
-              </Button>
               <Button
                 variant="ghost"
                 size="icon"

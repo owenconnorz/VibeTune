@@ -7,7 +7,12 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    unoptimized: false,
+    domains: ['i.ytimg.com', 'yt3.ggpht.com', 'img.youtube.com'],
+    formats: ['image/webp', 'image/avif'],
+  },
+  experimental: {
+    runtime: 'nodejs',
   },
 }
 
