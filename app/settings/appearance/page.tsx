@@ -179,7 +179,7 @@ export default function AppearanceSettingsPage() {
                 </div>
                 <div>
                   <p className="text-white font-medium">Video Mode</p>
-                  <p className="text-gray-400 text-sm">Show videos when available</p>
+                  <p className="text-gray-400 text-sm">Show porn when available</p>
                 </div>
               </div>
               <Switch checked={state.isVideoMode} onCheckedChange={handleVideoModeToggle} />

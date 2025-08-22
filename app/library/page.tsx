@@ -43,11 +43,7 @@ export default function LibraryPage() {
   const [sortBy, setSortBy] = useState<"name" | "date" | "count">("date")
 
   const [importedPlaylists, setImportedPlaylists] = useState<any[]>([])
-
-  const [profileSettings, setProfileSettings] = useState({
-    useCustomPicture: false,
-    customPictureUrl: null as string | null,
-  })
+  const [videoPlaylists, setVideoPlaylists] = useState<Array<{ id: string; name: string; videos: any[] }>>([])
 
   useEffect(() => {
     try {
@@ -69,7 +65,21 @@ export default function LibraryPage() {
     } catch (error) {
       console.error("Failed to load imported playlists:", error)
     }
+
+    try {
+      const savedVideoPlaylists = localStorage.getItem("videoPlaylists")
+      if (savedVideoPlaylists) {
+        setVideoPlaylists(JSON.parse(savedVideoPlaylists))
+      }
+    } catch (error) {
+      console.error("Failed to load video playlists:", error)
+    }
   }, [])
+
+  const [profileSettings, setProfileSettings] = useState({
+    useCustomPicture: false,
+    customPictureUrl: null as string | null,
+  })
 
   const allLikedSongs = [
     ...syncData.likedSongs,
@@ -108,6 +118,13 @@ export default function LibraryPage() {
     ...syncData.playlists.map((p) => ({ ...p, type: "synced" as const })),
     ...localPlaylists.map((p) => ({ ...p, type: "local" as const })),
     ...importedPlaylists.map((p) => ({ ...p, type: "imported" as const })),
+    ...videoPlaylists.map((p) => ({
+      ...p,
+      type: "video" as const,
+      title: p.name,
+      count: p.videos.length,
+      thumbnail: p.videos[0]?.thumb || p.videos[0]?.default_thumb?.src,
+    })),
   ]
 
   const allSongs = [
@@ -154,6 +171,11 @@ export default function LibraryPage() {
 
     if (playlist.id === "downloaded") {
       router.push("/library/downloaded")
+      return
+    }
+
+    if (playlist.type === "video") {
+      router.push(`/library/video-playlist/${playlist.id}`)
       return
     }
 
@@ -220,6 +242,14 @@ export default function LibraryPage() {
       const updatedPlaylists = importedPlaylists.filter((p) => p.id !== playlistId)
       setImportedPlaylists(updatedPlaylists)
       localStorage.setItem("vibetuneImportedPlaylists", JSON.stringify(updatedPlaylists))
+    }
+  }
+
+  const handleDeleteVideoPlaylist = (playlistId: string) => {
+    if (confirm("Are you sure you want to delete this video playlist?")) {
+      const updatedPlaylists = videoPlaylists.filter((p) => p.id !== playlistId)
+      setVideoPlaylists(updatedPlaylists)
+      localStorage.setItem("videoPlaylists", JSON.stringify(updatedPlaylists))
     }
   }
 
@@ -331,7 +361,7 @@ export default function LibraryPage() {
                         </p>
                         <p className="text-gray-500 text-xs capitalize">{playlist.type}</p>
                       </div>
-                      {(playlist.type === "local" || playlist.type === "imported") && (
+                      {(playlist.type === "local" || playlist.type === "imported" || playlist.type === "video") && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -342,6 +372,8 @@ export default function LibraryPage() {
                               handleDeletePlaylist(playlist.id)
                             } else if (playlist.type === "imported") {
                               handleDeleteImportedPlaylist(playlist.id)
+                            } else if (playlist.type === "video") {
+                              handleDeleteVideoPlaylist(playlist.id)
                             }
                           }}
                         >

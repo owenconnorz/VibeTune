@@ -135,7 +135,7 @@ export default function SearchPage() {
   const categories = [
     { id: "all", label: "All", count: getTotalResults() },
     { id: "songs", label: "Songs", count: categorizedResults.songs.length },
-    { id: "videos", label: "Videos", count: categorizedResults.songs.length },
+    { id: "videos", label: "Porn", count: categorizedResults.songs.length },
     { id: "albums", label: "Albums", count: categorizedResults.albums.length },
     { id: "artists", label: "Artists", count: categorizedResults.artists.length },
   ]

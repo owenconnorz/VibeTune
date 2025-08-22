@@ -188,7 +188,7 @@ export default function ContentSettingsPage() {
                 <Youtube className="w-6 h-6 text-red-500" />
                 <div>
                   <p className="text-white font-medium">YouTube</p>
-                  <p className="text-gray-400 text-sm">Import playlists and videos</p>
+                  <p className="text-gray-400 text-sm">Import playlists and porn</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

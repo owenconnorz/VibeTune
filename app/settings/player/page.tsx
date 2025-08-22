@@ -244,14 +244,14 @@ export default function PlayerAudioSettingsPage() {
                 </div>
                 <div>
                   <p className="text-white font-medium">Video Mode</p>
-                  <p className="text-gray-400 text-sm">Show videos when available</p>
+                  <p className="text-gray-400 text-sm">Show porn when available</p>
                 </div>
               </div>
               <Switch checked={state.isVideoMode} onCheckedChange={setVideoMode} />
             </div>
 
             <div className="text-xs text-gray-400 space-y-1 pt-2 border-t border-zinc-700">
-              <p>• Video mode shows music videos when available</p>
+              <p>• Video mode shows porn when available</p>
               <p>• Audio mode shows album artwork and visualizations</p>
               <p>• You can toggle between modes anytime during playback</p>
             </div>

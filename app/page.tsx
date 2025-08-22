@@ -256,6 +256,7 @@ export default function VibeTunePage() {
   const handleSettingsClick = useCallback(() => router.push("/settings"), [router])
   const handleLibraryClick = useCallback(() => router.push("/library"), [router])
   const handleExploreClick = useCallback(() => router.push("/explore"), [router])
+  const handleVideosClick = useCallback(() => router.push("/videos"), [router])
 
   const userContent = useMemo(() => {
     if (!user || (syncData.playlists.length === 0 && syncData.likedSongs.length === 0)) {
@@ -785,6 +786,14 @@ export default function VibeTunePage() {
           <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleExploreClick}>
             <Compass className="w-5 h-5 text-gray-400 mb-0.5" />
             <span className="text-[10px] text-gray-400">Explore</span>
+          </div>
+          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleVideosClick}>
+            <div className="w-5 h-5 text-gray-400 mb-0.5 flex items-center justify-center">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V2zM5 8a1 1 0 000 2h8a1 1 0 100-2H5z" />
+              </svg>
+            </div>
+            <span className="text-[10px] text-gray-400">Porn</span>
           </div>
           <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleLibraryClick}>
             <div className="relative">
