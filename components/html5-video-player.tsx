@@ -325,8 +325,7 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
           <div className="text-center mb-4">
             <h3 className="text-lg font-semibold text-white mb-2">Adult Content</h3>
             <p className="text-zinc-400 text-sm mb-4">
-              This video cannot be embedded due to site restrictions. You can try logging in or watch it on the original
-              site.
+              This video works best on eporner's video player. Click below to watch it with full functionality.
             </p>
           </div>
           <div className="flex gap-2">
@@ -336,7 +335,7 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
             </Button>
             <Button onClick={openInNewTab} className="bg-orange-500 hover:bg-orange-600 text-white">
               <ExternalLink className="w-4 h-4 mr-2" />
-              Watch on Eporner
+              Watch on Eporner Player
             </Button>
           </div>
         </div>

@@ -9,7 +9,7 @@ import { useTheme } from "@/contexts/theme-context"
 import { useState, useCallback } from "react"
 import { FullScreenPlayer } from "./full-screen-player"
 import { ThumbnailImage } from "./optimized-image"
-import { YouTubePlayer } from "@/components/youtube-player"
+import { InnertubePlayer } from "@/components/innertube-player"
 import { ErrorBoundaryComponent } from "./error-boundary"
 
 export function AudioPlayer() {
@@ -128,7 +128,7 @@ export function AudioPlayer() {
       {state.currentTrack && !isEpornerVideo && (
         <div className="fixed -top-[9999px] -left-[9999px] w-1 h-1 overflow-hidden opacity-0 pointer-events-none">
           <ErrorBoundaryComponent fallback={null}>
-            <YouTubePlayer videoId={state.currentTrack.id} showVideo={false} />
+            <InnertubePlayer videoId={state.currentTrack.id} showVideo={false} />
           </ErrorBoundaryComponent>
         </div>
       )}

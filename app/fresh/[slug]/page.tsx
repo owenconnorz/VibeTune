@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useMoodPlaylist } from "@/hooks/use-music-data"
 import { SongMenu } from "@/components/song-menu"
-import { DownloadedIcon } from "@/components/downloaded-icon"
 import { OptimizedImage } from "@/components/optimized-image"
 import { SongSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 
@@ -112,7 +111,6 @@ export default function FreshPage() {
                     </div>
                     <div className="text-gray-400 text-sm">{song.duration}</div>
                     <div className="flex items-center gap-2">
-                      <DownloadedIcon songId={song.id} />
                       <SongMenu song={song} />
                     </div>
                   </div>

@@ -10,7 +10,6 @@ import {
   Edit,
   ListPlus,
   Library,
-  Download,
   User,
   Disc,
   RefreshCw,
@@ -22,7 +21,6 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { usePlaylist } from "@/contexts/playlist-context"
-import { useDownload } from "@/contexts/download-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { toast } from "@/hooks/use-toast"
 
@@ -42,7 +40,6 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
   const [open, setOpen] = useState(false)
   const { addToQueue, playNext } = useAudioPlayer()
   const { addSongToPlaylist } = usePlaylist()
-  const { downloadSong } = useDownload()
   const { isLiked, toggleLike } = useLikedSongs()
 
   const closeMenu = () => setOpen(false)
@@ -93,15 +90,6 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
     toast({
       title: "Added to playlist",
       description: `"${song.title}" added to playlist`,
-    })
-    closeMenu()
-  }
-
-  const handleDownload = () => {
-    downloadSong(song)
-    toast({
-      title: "Download started",
-      description: `Downloading "${song.title}"`,
     })
     closeMenu()
   }
@@ -259,15 +247,6 @@ export function SongMenu({ song, trigger, className }: SongMenuProps) {
             >
               <Library className="w-6 h-6 mr-4 text-gray-400" />
               Add to library
-            </Button>
-
-            <Button
-              variant="ghost"
-              onClick={handleDownload}
-              className="w-full justify-start text-white hover:bg-zinc-700/50 rounded-xl h-14 px-4 text-lg font-medium"
-            >
-              <Download className="w-6 h-6 mr-4 text-gray-400" />
-              Download
             </Button>
 
             <Button

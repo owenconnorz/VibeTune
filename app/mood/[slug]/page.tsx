@@ -6,7 +6,6 @@ import { ArrowLeft, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { SongMenu } from "@/components/song-menu"
-import { DownloadedIcon } from "@/components/downloaded-icon"
 import { OptimizedImage } from "@/components/optimized-image"
 import { SongSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
@@ -138,7 +137,6 @@ export default function MoodPage() {
                 </div>
                 <div className="text-gray-400 text-sm">{song.duration}</div>
                 <div className="flex items-center gap-2">
-                  <DownloadedIcon songId={song.id} />
                   <SongMenu song={song} />
                 </div>
               </div>

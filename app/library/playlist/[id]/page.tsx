@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { usePlaylist } from "@/contexts/playlist-context"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { SongMenu } from "@/components/song-menu"
-import { DownloadedIcon } from "@/components/downloaded-icon"
 
 interface PlaylistPageProps {
   params: {
@@ -90,7 +89,6 @@ const VirtualizedSongList = ({
                   </div>
                   <div className="flex items-center gap-2">
                     {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
-                    <DownloadedIcon songId={song.id} />
                     <Button
                       variant="ghost"
                       size="icon"

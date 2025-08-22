@@ -3,7 +3,6 @@
 import type React from "react"
 import { createContext, useContext, useReducer, useRef, useEffect, useCallback } from "react"
 import { useListeningHistory } from "./listening-history-context"
-import { useDownload } from "./download-context"
 import { PermissionsManager } from "@/lib/permissions"
 
 export interface Track {
@@ -147,7 +146,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const lastAddedTrackRef = useRef<string | null>(null)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
   const { addToHistory } = useListeningHistory()
-  const { isDownloaded, getOfflineAudio } = useDownload()
 
   useEffect(() => {
     const manageWakeLock = async () => {

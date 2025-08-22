@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useRef } from "react"
 import { Search, X, Play, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -12,22 +14,53 @@ interface SearchModalProps {
   onClose: () => void
 }
 
+const POPULAR_SUGGESTIONS = [
+  "Hip Hop",
+  "Pop",
+  "Rock",
+  "R&B",
+  "Jazz",
+  "Electronic",
+  "Country",
+  "Reggae",
+  "Classical",
+  "Blues",
+  "Folk",
+  "Indie",
+  "Alternative",
+  "Rap",
+  "Soul",
+]
+
+const TRENDING_SEARCHES = [
+  "Top hits 2024",
+  "Chill vibes",
+  "Workout music",
+  "Study music",
+  "Party playlist",
+  "Love songs",
+  "Road trip music",
+  "Relaxing music",
+  "Upbeat songs",
+  "Acoustic covers",
+]
+
 export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [query, setQuery] = useState("")
   const [recentSearches, setRecentSearches] = useState<string[]>([])
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const { playTrack, playQueue } = useAudioPlayer()
 
   const { songs, loading, error } = useSearchMusic(query, query.length > 2)
 
-  // Focus input when modal opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus()
     }
   }, [isOpen])
 
-  // Load recent searches from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("recentSearches")
     if (saved) {
@@ -35,7 +68,23 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     }
   }, [])
 
-  // Save search to recent searches
+  useEffect(() => {
+    if (query.length > 0) {
+      const allSuggestions = [...POPULAR_SUGGESTIONS, ...TRENDING_SEARCHES, ...recentSearches]
+      const filtered = allSuggestions
+        .filter(
+          (suggestion) =>
+            suggestion.toLowerCase().includes(query.toLowerCase()) && suggestion.toLowerCase() !== query.toLowerCase(),
+        )
+        .slice(0, 5)
+      setSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }, [query, recentSearches])
+
   const saveSearch = (searchQuery: string) => {
     if (!searchQuery.trim()) return
 
@@ -77,6 +126,17 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     localStorage.removeItem("recentSearches")
   }
 
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuery(suggestion)
+    setShowSuggestions(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setShowSuggestions(false)
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -92,8 +152,24 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               placeholder="Search for songs, artists, albums..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setShowSuggestions(suggestions.length > 0)}
               className="w-full bg-zinc-800 text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 bg-zinc-800 border border-zinc-700 rounded-lg mt-1 shadow-lg z-10">
+                {suggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="w-full text-left px-4 py-2 hover:bg-zinc-700 text-white first:rounded-t-lg last:rounded-b-lg transition-colors"
+                  >
+                    <Search className="inline w-4 h-4 mr-2 text-gray-400" />
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="text-gray-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -103,7 +179,6 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
         {/* Search Content */}
         <div className="overflow-y-auto max-h-[calc(80vh-80px)]">
           {query.length === 0 ? (
-            /* Recent Searches */
             <div className="p-4">
               {recentSearches.length > 0 ? (
                 <>
@@ -118,7 +193,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       Clear all
                     </Button>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 mb-6">
                     {recentSearches.map((search, index) => (
                       <button
                         key={index}
@@ -131,8 +206,40 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     ))}
                   </div>
                 </>
-              ) : (
-                <div className="text-center py-12">
+              ) : null}
+
+              <div className="mb-6">
+                <h3 className="text-white font-semibold mb-4">Trending searches</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {TRENDING_SEARCHES.slice(0, 6).map((trend, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setQuery(trend)}
+                      className="text-left p-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+                    >
+                      <span className="text-white text-sm">{trend}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-white font-semibold mb-4">Popular genres</h3>
+                <div className="flex flex-wrap gap-2">
+                  {POPULAR_SUGGESTIONS.slice(0, 10).map((genre, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setQuery(genre)}
+                      className="px-3 py-2 bg-zinc-800 hover:bg-yellow-400 hover:text-black rounded-full text-sm text-white transition-colors"
+                    >
+                      {genre}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {recentSearches.length === 0 && (
+                <div className="text-center py-8">
                   <Search className="w-12 h-12 text-gray-600 mx-auto mb-4" />
                   <p className="text-gray-400">Start typing to search for music</p>
                 </div>
@@ -157,7 +264,6 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               <p className="text-gray-400">No results found for "{query}"</p>
             </div>
           ) : (
-            /* Search Results */
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-white font-semibold">

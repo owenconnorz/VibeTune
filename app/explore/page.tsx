@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { AudioPlayer } from "@/components/audio-player"
 import { UpdateNotificationButton } from "@/components/update-notification"
 import { SongMenu } from "@/components/song-menu"
-import { DownloadedIcon } from "@/components/downloaded-icon"
 import { useAuth } from "@/contexts/auth-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
@@ -143,12 +142,6 @@ export default function ExplorePage() {
             <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{likedSongs.length}</span>
           )}
         </button>
-        <button
-          onClick={() => router.push("/library/downloaded")}
-          className="text-gray-400 hover:text-white transition-colors"
-        >
-          Downloaded
-        </button>
       </nav>
 
       {/* Main Content */}
@@ -216,7 +209,6 @@ export default function ExplorePage() {
 
                     <div className="flex items-center gap-3">
                       <span className="text-sm text-gray-400">{song.duration}</span>
-                      <DownloadedIcon song={song} />
                       <SongMenu song={song} />
                     </div>
                   </div>

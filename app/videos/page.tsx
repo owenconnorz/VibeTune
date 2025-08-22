@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Play, Eye, Plus, ThumbsUp, Heart, Share, Download, Filter, ChevronDown } from "lucide-react"
+import { Search, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { AudioPlayer } from "@/components/audio-player"
@@ -41,6 +41,7 @@ export default function VideosPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [playlists, setPlaylists] = useState<Array<{ id: string; name: string; videos: Video[] }>>([])
   const [hasInitialLoad, setHasInitialLoad] = useState(false)
+  const [activeFilter, setActiveFilter] = useState("Hot")
 
   useEffect(() => {
     const savedPlaylists = localStorage.getItem("videoPlaylists")
@@ -58,9 +59,9 @@ export default function VideosPage() {
 
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // Increased timeout for scraping
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
 
-      const response = await fetch(`/api/eporner/search?query=${encodeURIComponent(query)}&page=${page}&per_page=12`, {
+      const response = await fetch(`/api/eporner/search?query=${encodeURIComponent(query)}&page=${page}`, {
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
@@ -123,18 +124,17 @@ export default function VideosPage() {
       id: `eporner_${video.id}`,
       title: video.title,
       artist: "Video",
-      album: "Porn Videos",
-      duration: Number.parseInt(video.length_min) * 60, // Convert minutes to seconds
-      audioUrl: "", // No audio URL for videos
-      videoUrl: video.url, // Use the video URL for HTML5 player
+      album: "Adult Videos",
+      duration: 0,
+      audioUrl: "",
+      videoUrl: video.url,
       thumbnail: video.default_thumb?.src || video.thumb || "/placeholder.svg",
-      isVideo: true, // Flag to indicate this is video content
+      isVideo: true,
       source: "eporner",
-      // Explicitly do NOT set videoId to prevent YouTube player usage
     }
 
-    setVideoMode(true) // Enable video mode
-    playTrack(videoTrack) // Play the video in the media player
+    setVideoMode(true)
+    playTrack(videoTrack)
   }
 
   const handleAddToPlaylist = (video: Video) => {
@@ -173,31 +173,45 @@ export default function VideosPage() {
 
   const handleDownload = async (video: Video) => {
     try {
-      const response = await fetch(`/api/eporner/download?videoId=${video.id}&title=${encodeURIComponent(video.title)}`)
-
-      if (!response.ok) {
-        throw new Error("Download failed")
+      if (video.url && video.url.startsWith("http")) {
+        const response = await fetch(`/api/eporner/download?url=${encodeURIComponent(video.url)}`)
+        if (response.ok) {
+          const blob = await response.blob()
+          const downloadUrl = window.URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = downloadUrl
+          a.download = `${video.title}.mp4`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          window.URL.revokeObjectURL(downloadUrl)
+        } else {
+          alert("Download failed. Please try again.")
+        }
+      } else {
+        alert("No download link available for this video.")
       }
-
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.style.display = "none"
-      a.href = url
-      a.download = `${video.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.mp4`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
     } catch (error) {
       console.error("[v0] Download error:", error)
-      alert("Download failed. Please try again.")
+      alert("Failed to download video. Please try again.")
     }
+  }
+
+  const handleFilterChange = (filter: string) => {
+    setActiveFilter(filter)
+    setCurrentPage(1)
+    const queryMap: { [key: string]: string } = {
+      Hot: "popular",
+      New: "latest",
+      Top: "top-rated",
+      "All Styles": "most-viewed",
+    }
+    fetchVideos(queryMap[filter] || "popular")
   }
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="bg-black border-b border-gray-800 p-4">
+      <div className="bg-black p-4">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
@@ -216,33 +230,25 @@ export default function VideosPage() {
           </div>
         </div>
 
-        <div className="flex gap-8 mb-6 overflow-x-auto">
-          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">HOME</button>
-          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">CONTENT</button>
-          <button className="text-purple-400 font-semibold whitespace-nowrap border-b-2 border-purple-400 pb-2">
-            CATEGORIES
-          </button>
-          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">APP</button>
-          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">AFFILIATE</button>
+        <h2 className="text-2xl font-bold text-white mb-6 text-center">Trending AI Porn For All Styles</h2>
+
+        <div className="flex gap-2 mb-6 justify-center">
+          {["Hot", "New", "Top", "All Styles"].map((filter) => (
+            <button
+              key={filter}
+              onClick={() => handleFilterChange(filter)}
+              className={`px-6 py-3 rounded-xl font-semibold transition-colors ${
+                activeFilter === filter ? "bg-pink-600 text-white" : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              {filter}
+            </button>
+          ))}
         </div>
 
-        <div className="flex gap-4 mb-6">
-          <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-4 py-2 cursor-pointer">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <span className="text-gray-300">Random</span>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
-          </div>
-          <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-4 py-2 cursor-pointer">
-            <span className="text-gray-300">All Time</span>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
-          </div>
+        <div className="flex justify-center mb-8">
+          <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
         </div>
-
-        <h2 className="text-4xl font-bold text-white mb-8 leading-tight">
-          Find Your Next
-          <br />
-          Obsession
-        </h2>
       </div>
 
       <div className="p-4 pb-20">
@@ -255,88 +261,36 @@ export default function VideosPage() {
           </div>
         ) : (
           <>
-            <div className="space-y-6">
-              {videos.map((video) => (
+            <div className="columns-2 md:columns-3 lg:columns-4 gap-2 space-y-2">
+              {videos.map((video, index) => (
                 <div
                   key={video.id}
-                  className="bg-black rounded-2xl overflow-hidden hover:bg-gray-900 transition-colors group"
+                  className="break-inside-avoid mb-2 group cursor-pointer"
+                  onClick={() => handleVideoClick(video)}
                 >
-                  <div className="relative aspect-video">
+                  <div className="relative rounded-lg overflow-hidden">
                     <img
                       src={
                         video.default_thumb?.src ||
                         video.thumb ||
-                        "/placeholder.svg?height=400&width=600&query=video thumbnail" ||
-                        "/placeholder.svg" ||
-                        "/placeholder.svg"
+                        `/placeholder.svg?height=${300 + (index % 3) * 100 || "/placeholder.svg"}&width=300&query=AI+generated+content+${index + 1}`
                       }
                       alt={video.title}
-                      className="w-full h-full object-cover rounded-2xl"
+                      className="w-full h-auto object-cover hover:scale-105 transition-transform duration-300"
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
                         if (!target.src.includes("placeholder.svg")) {
-                          target.src = "/video-thumbnail.png"
+                          target.src = `/placeholder.svg?height=${300 + (index % 3) * 100}&width=300&query=AI+generated+content+${index + 1}`
                         }
                       }}
                     />
-                    <div
-                      className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-2xl"
-                      onClick={() => handleVideoClick(video)}
-                    >
-                      <div className="bg-white bg-opacity-20 rounded-full p-6">
-                        <Play className="w-12 h-12 text-white" />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <div className="bg-white bg-opacity-20 rounded-full p-3">
+                          <Play className="w-6 h-6 text-white" />
+                        </div>
                       </div>
-                    </div>
-                    <div className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white text-sm px-3 py-1 rounded-lg font-medium">
-                      {formatDuration(video.length_min)}
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-                    <h3
-                      className="font-bold text-xl text-white mb-3 hover:text-purple-400 cursor-pointer leading-tight"
-                      title={video.title}
-                      onClick={() => handleVideoClick(video)}
-                    >
-                      {video.title}
-                    </h3>
-
-                    <div className="flex items-center gap-6 text-gray-400 mb-4">
-                      <div className="flex items-center gap-2">
-                        <Eye className="w-5 h-5" />
-                        <span className="text-lg font-medium">{formatViews(video.views)} Views</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <ThumbsUp className="w-5 h-5" />
-                        <span className="text-lg font-medium">92% Up</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <button className="text-gray-400 hover:text-purple-400">
-                          <Heart className="w-6 h-6" />
-                        </button>
-                        <button className="text-gray-400 hover:text-white">
-                          <Share className="w-6 h-6" />
-                        </button>
-                        <button
-                          onClick={() => handleDownload(video)}
-                          className="text-gray-400 hover:text-green-500"
-                          title="Download video"
-                        >
-                          <Download className="w-6 h-6" />
-                        </button>
-                      </div>
-                      <Button
-                        onClick={() => handleAddToPlaylist(video)}
-                        size="sm"
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add to Playlist
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -348,7 +302,7 @@ export default function VideosPage() {
                 <Button
                   onClick={loadMore}
                   disabled={isLoading}
-                  className="bg-purple-600 text-white hover:bg-purple-700 px-8 py-3 rounded-lg font-medium"
+                  className="bg-pink-600 text-white hover:bg-pink-700 px-8 py-3 rounded-xl font-semibold"
                 >
                   {isLoading ? "Loading..." : "Load More"}
                 </Button>
@@ -362,8 +316,8 @@ export default function VideosPage() {
                     Unable to load videos. The service may be temporarily unavailable.
                   </p>
                   <Button
-                    onClick={() => fetchVideos("popular")}
-                    className="bg-purple-600 text-white hover:bg-purple-700 rounded-lg"
+                    onClick={() => fetchVideos("recent-videos")}
+                    className="bg-pink-600 text-white hover:bg-pink-700 rounded-xl"
                   >
                     Try Again
                   </Button>
@@ -372,6 +326,12 @@ export default function VideosPage() {
             )}
           </>
         )}
+      </div>
+
+      <div className="fixed bottom-20 right-4">
+        <Button className="bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-full font-semibold shadow-lg">
+          Create AI Porn
+        </Button>
       </div>
 
       <AudioPlayer />

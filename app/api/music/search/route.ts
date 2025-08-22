@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createYouTubeAPI } from "@/lib/youtube-api"
+import { createInnertubeAPI } from "@/lib/innertube-api"
 import { fallbackSearchResults } from "@/lib/fallback-data"
 import { musicCache, getCacheKey } from "@/lib/music-cache"
 
@@ -10,8 +10,7 @@ export async function GET(request: NextRequest) {
     const maxResults = Number.parseInt(searchParams.get("maxResults") || "20")
 
     console.log("[v0] Search API called with query:", query)
-    console.log("[v0] YouTube API Key available:", !!process.env.YOUTUBE_API_KEY)
-    console.log("[v0] Environment:", process.env.NODE_ENV)
+    console.log("[v0] Using Innertube API")
 
     if (!query) {
       return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
@@ -29,13 +28,13 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log("[v0] Creating YouTube API instance...")
-    const youtube = createYouTubeAPI()
+    console.log("[v0] Creating Innertube API instance...")
+    const innertube = createInnertubeAPI()
 
-    console.log("[v0] Calling YouTube API searchMusic...")
-    const results = await youtube.searchMusic(query, maxResults)
+    console.log("[v0] Calling Innertube API searchMusic...")
+    const results = await innertube.searchMusic(query, maxResults)
 
-    console.log("[v0] YouTube API results:", {
+    console.log("[v0] Innertube API results:", {
       hasVideos: !!results.videos,
       videoCount: results.videos?.length || 0,
       firstVideoTitle: results.videos?.[0]?.title || "none",
@@ -43,11 +42,11 @@ export async function GET(request: NextRequest) {
 
     if (results.videos && results.videos.length > 0) {
       musicCache.set(cacheKey, results.videos, 20 * 60 * 1000)
-      console.log("[v0] Returning YouTube results for:", query)
-      return NextResponse.json({ ...results, source: "youtube", query })
+      console.log("[v0] Returning Innertube results for:", query)
+      return NextResponse.json({ ...results, source: "innertube", query })
     }
 
-    console.log("[v0] No YouTube results, using fallback data for:", query)
+    console.log("[v0] No Innertube results, using fallback data for:", query)
     const queryLower = query.toLowerCase()
     const fallbackResults = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
 

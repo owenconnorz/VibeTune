@@ -1,7 +1,6 @@
 "use client"
 
 import React from "react"
-
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Search, Home, Compass, Library, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -18,12 +17,6 @@ import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/l
 import { useRouter } from "next/navigation"
 import { OptimizedImage } from "@/components/optimized-image"
 import { prefetchGenreData, prefetchPopularGenres } from "@/lib/genre-prefetch"
-
-const moodPlaylists = {
-  "mixed-for-you": {
-    queries: ["mixed for you playlist 2024", "personalized music mix", "discover weekly hits", "your music taste mix"],
-  },
-}
 
 const MemoizedSongItem = React.memo(({ song, onPlay, trendingSongs }: any) => (
   <div
@@ -118,7 +111,6 @@ const CategoryCard = React.memo(({ category, onClick, genreSlug }: any) => {
 })
 
 export default function VibeTunePage() {
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [profileSettings, setProfileSettings] = useState({
     useCustomPicture: false,
     customPictureUrl: null as string | null,
@@ -141,8 +133,7 @@ export default function VibeTunePage() {
     loading: mixedLoading,
     error: mixedError,
     source: mixedSource,
-    refetch: refetchMixed,
-  } = useMoodPlaylist(moodPlaylists["mixed-for-you"].queries)
+  } = useMoodPlaylist(["mixed for you playlist 2024", "personalized music mix", "discover weekly hits"])
   const {
     songs: newReleasesSongs,
     loading: newReleasesLoading,

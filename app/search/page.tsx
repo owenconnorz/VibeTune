@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { useEffect } from "react"
 import { useState, useMemo } from "react"
 import { Search, ArrowLeft, MoreVertical, User, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -33,6 +33,38 @@ interface CategorizedResults {
   playlists: SearchResult[]
 }
 
+const POPULAR_QUERIES = [
+  "Top hits 2024",
+  "Chill music",
+  "Workout playlist",
+  "Study music",
+  "Party songs",
+  "Love ballads",
+  "Hip hop beats",
+  "Electronic dance",
+  "Acoustic covers",
+  "Jazz classics",
+]
+
+const GENRE_SUGGESTIONS = [
+  "Hip Hop",
+  "Pop",
+  "Rock",
+  "R&B",
+  "Jazz",
+  "Electronic",
+  "Country",
+  "Reggae",
+  "Classical",
+  "Blues",
+  "Folk",
+  "Indie",
+  "Alternative",
+  "Rap",
+  "Soul",
+  "Funk",
+]
+
 export default function SearchPage() {
   const router = useRouter()
   const { playQueue } = useAudioPlayer()
@@ -40,6 +72,8 @@ export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState<string>("all")
   const [error, setError] = useState<string | null>(null)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestions, setSuggestions] = useState<string[]>([])
 
   const {
     items: searchResults,
@@ -80,6 +114,23 @@ export default function SearchPage() {
       playlists,
     }
   }, [searchResults])
+
+  useEffect(() => {
+    if (query.length > 0 && !searchQuery) {
+      const recentSearches = JSON.parse(localStorage.getItem("recentSearches") || "[]")
+      const allSuggestions = [...POPULAR_QUERIES, ...GENRE_SUGGESTIONS, ...recentSearches]
+      const filtered = allSuggestions
+        .filter(
+          (suggestion) =>
+            suggestion.toLowerCase().includes(query.toLowerCase()) && suggestion.toLowerCase() !== query.toLowerCase(),
+        )
+        .slice(0, 6)
+      setSuggestions(filtered)
+      setShowSuggestions(filtered.length > 0)
+    } else {
+      setShowSuggestions(false)
+    }
+  }, [query, searchQuery])
 
   const handlePlaySong = (song: SearchResult, songList: SearchResult[]) => {
     const tracks = songList
@@ -143,7 +194,11 @@ export default function SearchPage() {
   const handleSearch = () => {
     if (query.trim()) {
       setSearchQuery(query.trim())
+      setShowSuggestions(false)
       resetSearch()
+      const recentSearches = JSON.parse(localStorage.getItem("recentSearches") || "[]")
+      const updated = [query.trim(), ...recentSearches.filter((s: string) => s !== query.trim())].slice(0, 10)
+      localStorage.setItem("recentSearches", JSON.stringify(updated))
     }
   }
 
@@ -156,6 +211,13 @@ export default function SearchPage() {
   const handleClearSearch = () => {
     setQuery("")
     setSearchQuery("")
+    resetSearch()
+  }
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuery(suggestion)
+    setSearchQuery(suggestion)
+    setShowSuggestions(false)
     resetSearch()
   }
 
@@ -173,9 +235,24 @@ export default function SearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyPress={handleKeyPress}
+            onFocus={() => setShowSuggestions(suggestions.length > 0)}
             className="pl-10 pr-20 bg-zinc-800 border-zinc-700 text-white placeholder-gray-400 rounded-full"
             autoFocus
           />
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 bg-zinc-800 border border-zinc-700 rounded-lg mt-1 shadow-lg z-10">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className="w-full text-left px-4 py-3 hover:bg-zinc-700 text-white first:rounded-t-lg last:rounded-b-lg transition-colors flex items-center gap-2"
+                >
+                  <Search className="w-4 h-4 text-gray-400" />
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
             {query && (
               <Button
@@ -349,10 +426,36 @@ export default function SearchPage() {
         )}
 
         {!searchQuery && (
-          <div className="text-center py-12">
-            <Search className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400 mb-2">Search for music</p>
-            <p className="text-gray-500 text-sm">Find songs, artists, and albums</p>
+          <div className="space-y-6 py-6">
+            <div>
+              <h2 className="text-xl font-bold text-white mb-4">Popular searches</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {POPULAR_QUERIES.slice(0, 8).map((popularQuery, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSuggestionClick(popularQuery)}
+                    className="text-left p-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+                  >
+                    <span className="text-white font-medium">{popularQuery}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-bold text-white mb-4">Browse by genre</h2>
+              <div className="flex flex-wrap gap-2">
+                {GENRE_SUGGESTIONS.map((genre, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSuggestionClick(genre)}
+                    className="px-4 py-2 bg-zinc-800 hover:bg-yellow-400 hover:text-black rounded-full text-white transition-colors"
+                  >
+                    {genre}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -6,11 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch"
 import { Progress } from "@/components/ui/progress"
 import { useRouter } from "next/navigation"
-import { useDownload } from "@/contexts/download-context"
 
 export default function StorageSettingsPage() {
   const router = useRouter()
-  const { downloadedSongs, clearAllDownloads } = useDownload()
 
   const [storageInfo, setStorageInfo] = useState({
     totalUsed: 0,
@@ -37,7 +35,7 @@ export default function StorageSettingsPage() {
   const calculateStorageUsage = async () => {
     try {
       // Estimate storage usage
-      const downloadedSize = downloadedSongs.length * 4 // Rough estimate: 4MB per song
+      const downloadedSize = 0 // No downloaded songs
       const cacheSize = Math.floor(Math.random() * 100) + 50 // Simulated cache size
       const thumbnailCache = Math.floor(Math.random() * 20) + 10 // Simulated thumbnail cache
       const audioCache = Math.floor(Math.random() * 200) + 100 // Simulated audio cache
@@ -100,7 +98,6 @@ export default function StorageSettingsPage() {
 
   const handleClearDownloads = async () => {
     try {
-      await clearAllDownloads()
       await calculateStorageUsage()
     } catch (error) {
       console.error("Failed to clear downloads:", error)
@@ -156,7 +153,7 @@ export default function StorageSettingsPage() {
                   <span className="text-sm text-gray-300">Downloaded Songs</span>
                 </div>
                 <p className="text-white font-semibold">{formatSize(storageInfo.downloadedSize)}</p>
-                <p className="text-xs text-gray-400">{downloadedSongs.length} songs</p>
+                <p className="text-xs text-gray-400">0 songs</p>
               </div>
 
               <div className="space-y-2">
@@ -227,7 +224,7 @@ export default function StorageSettingsPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleClearDownloads}
-                disabled={downloadedSongs.length === 0}
+                disabled={true}
                 className="bg-red-600 border-red-500 text-white hover:bg-red-500"
               >
                 Clear All

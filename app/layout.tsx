@@ -7,12 +7,12 @@ import { AuthProvider } from "@/contexts/auth-context"
 import { SyncProvider } from "@/contexts/sync-context"
 import { ThemeProvider } from "@/contexts/theme-context"
 import { PlaylistProvider } from "@/contexts/playlist-context"
-import { DownloadProvider } from "@/contexts/download-context"
 import { ListeningHistoryProvider } from "@/contexts/listening-history-context"
 import { UpdateProvider } from "@/contexts/update-context"
 import { LikedSongsProvider } from "@/contexts/liked-songs-context"
 import { RefreshProvider } from "@/contexts/refresh-context"
 import { SettingsProvider } from "@/contexts/settings-context"
+import { DownloadProvider } from "@/contexts/download-context"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { DiscordRPCIntegration } from "@/components/discord-rpc-integration"
 import { AgeVerificationModal } from "@/components/age-verification-modal"
@@ -45,10 +45,10 @@ const CombinedProviders = ({ children }: { children: React.ReactNode }) => (
   <AuthProvider>
     <SyncProvider>
       <ListeningHistoryProvider>
-        <DownloadProvider>
-          <AudioPlayerProvider>
-            <PlaylistProvider>
-              <LikedSongsProvider>
+        <AudioPlayerProvider>
+          <PlaylistProvider>
+            <LikedSongsProvider>
+              <DownloadProvider>
                 <ThemeProvider>
                   <RefreshProvider>
                     <UpdateProvider>
@@ -60,10 +60,10 @@ const CombinedProviders = ({ children }: { children: React.ReactNode }) => (
                     </UpdateProvider>
                   </RefreshProvider>
                 </ThemeProvider>
-              </LikedSongsProvider>
-            </PlaylistProvider>
-          </AudioPlayerProvider>
-        </DownloadProvider>
+              </DownloadProvider>
+            </LikedSongsProvider>
+          </PlaylistProvider>
+        </AudioPlayerProvider>
       </ListeningHistoryProvider>
     </SyncProvider>
   </AuthProvider>

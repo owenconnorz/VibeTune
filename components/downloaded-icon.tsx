@@ -1,26 +1,29 @@
-"use client"
-
-import { Check } from "lucide-react"
+import { Download, Check } from "lucide-react"
 import { useDownload } from "@/contexts/download-context"
-import { memo } from "react"
 
 interface DownloadedIconProps {
-  songId: string
+  trackId: string
   className?: string
 }
 
-export const DownloadedIcon = memo(function DownloadedIcon({ songId, className = "" }: DownloadedIconProps) {
-  const { isDownloaded } = useDownload()
+export function DownloadedIcon({ trackId, className = "" }: DownloadedIconProps) {
+  const { isDownloaded, isDownloading, downloadProgress } = useDownload()
 
-  const downloaded = isDownloaded(songId)
-
-  if (!downloaded) {
-    return null
+  if (isDownloading(trackId)) {
+    const progress = downloadProgress[trackId] || 0
+    return (
+      <div className={`relative ${className}`}>
+        <Download className="w-4 h-4 text-muted-foreground animate-pulse" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-xs font-mono text-white bg-black bg-opacity-50 rounded px-1">{progress}%</div>
+        </div>
+      </div>
+    )
   }
 
-  return (
-    <div className={`flex items-center justify-center w-5 h-5 bg-green-600 rounded-full shadow-lg ${className}`}>
-      <Check className="w-3 h-3 text-white" />
-    </div>
-  )
-})
+  if (isDownloaded(trackId)) {
+    return <Check className={`w-4 h-4 text-green-500 ${className}`} />
+  }
+
+  return null
+}
