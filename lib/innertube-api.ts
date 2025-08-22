@@ -89,8 +89,9 @@ export class InnertubeAPI {
   private baseUrl = "https://www.youtube.com/youtubei/v1"
   private context = {
     client: {
-      clientName: "WEB",
-      clientVersion: "2.20231201.01.00",
+      clientName: "ANDROID",
+      clientVersion: "19.09.37",
+      androidSdkVersion: 30,
       hl: "en",
       gl: "US",
       utcOffsetMinutes: 0,
@@ -142,7 +143,7 @@ export class InnertubeAPI {
 
       const data = await this.makeRequest("search", {
         query: query,
-        params: "EgIQAQ%3D%3D", // Filter for videos only
+        params: "EgIQAQ%3D%3D", // Music filter for better audio content
       })
 
       console.log("[v0] Innertube API success - processing results for query:", query)
@@ -170,7 +171,7 @@ export class InnertubeAPI {
     try {
       const data = await this.makeRequest("browse", {
         browseId: "FEtrending",
-        params: "4gINGgt5dG1hX2NoYXJ0cw%3D%3D", // Music trending
+        params: "4gINGgt5dG1hX2NoYXJ0cw%3D%3D", // Music trending with audio priority
       })
 
       console.log("[v0] Innertube trending API success")
