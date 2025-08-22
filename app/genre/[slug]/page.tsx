@@ -11,6 +11,7 @@ import { OptimizedImage } from "@/components/optimized-image"
 import { SongSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { searchMusic } from "@/lib/music-data"
+import { genreCache } from "@/lib/genre-cache"
 
 const genreQueries: Record<string, string[]> = {
   "hip-hop-classics": [
@@ -40,11 +41,43 @@ export default function GenrePage() {
     fetchMore: async (page: number) => {
       console.log("[v0] Fetching genre songs page:", page, "for:", slug)
 
-      // Rotate through queries for variety
+      if (page === 1) {
+        const cached = genreCache.get(slug)
+        if (cached && cached.songs.length > 0) {
+          console.log("[v0] Using cached genre data:", slug, cached.songs.length, "songs")
+          return {
+            items: cached.songs.slice(0, 8), // Return first page from cache
+            hasMore: cached.songs.length > 8 || cached.pages > 1,
+          }
+        }
+      }
+
+      // If page 2+ and we have cached data, use it
+      if (page > 1) {
+        const cached = genreCache.get(slug)
+        if (cached && cached.songs.length >= page * 8) {
+          const startIndex = (page - 1) * 8
+          const endIndex = page * 8
+          console.log("[v0] Using cached data for page", page)
+          return {
+            items: cached.songs.slice(startIndex, endIndex),
+            hasMore: cached.songs.length > endIndex,
+          }
+        }
+      }
+
+      // Fallback to API call
       const queryIndex = (page - 1) % queries.length
       const query = queries[queryIndex]
 
       const results = await searchMusic(query)
+
+      // Cache the results
+      if (page === 1) {
+        genreCache.set(slug, results, 1)
+      } else {
+        genreCache.append(slug, results, page)
+      }
 
       return {
         items: results,

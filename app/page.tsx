@@ -16,6 +16,7 @@ import { useTrendingMusic, useMoodPlaylist, useNewReleases } from "@/hooks/use-m
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { useRouter } from "next/navigation"
 import { OptimizedImage } from "@/components/optimized-image"
+import { prefetchGenreData, prefetchPopularGenres } from "@/lib/genre-prefetch"
 
 const moodPlaylists = {
   "mixed-for-you": {
@@ -67,11 +68,21 @@ const MemoizedPlaylistCard = React.memo(({ playlist, onClick }: any) => (
   </div>
 ))
 
-const CategoryCard = React.memo(({ category, onClick }: any) => {
+const CategoryCard = React.memo(({ category, onClick, genreSlug }: any) => {
   const hasRealThumbnail = category.image && category.image.startsWith("https://img.youtube.com")
 
+  const handleMouseEnter = useCallback(() => {
+    if (genreSlug) {
+      prefetchGenreData(genreSlug, 2) // Prefetch 2 pages on hover
+    }
+  }, [genreSlug])
+
   return (
-    <div className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={onClick}>
+    <div
+      className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
+      onClick={onClick}
+      onMouseEnter={handleMouseEnter}
+    >
       <div
         className={`relative rounded-lg overflow-hidden mb-3 h-48 ${
           hasRealThumbnail ? "bg-zinc-800" : `bg-gradient-to-br ${category.gradient}`
@@ -222,6 +233,15 @@ export default function VibeTunePage() {
     }
   }, [])
 
+  useEffect(() => {
+    // Prefetch popular genres in the background after a short delay
+    const timer = setTimeout(() => {
+      prefetchPopularGenres()
+    }, 3000) // Wait 3 seconds after page load
+
+    return () => clearTimeout(timer)
+  }, [])
+
   const handlePlaySong = useCallback(
     (song: any, songList: any[]) => {
       const tracks = songList.map(convertToTrack)
@@ -289,18 +309,21 @@ export default function VibeTunePage() {
         description: "The Notorious B.I.G., Tupac, Nas",
         gradient: "from-blue-600 to-purple-700",
         image: "https://img.youtube.com/vi/5RDSkR8_AQ0/hqdefault.jpg", // Biggie - Juicy
+        slug: "hip-hop-classics",
       },
       {
         title: "R&B Party-Starters",
         description: "Destiny's Child, Beyoncé, Usher",
         gradient: "from-orange-500 to-red-600",
         image: "https://img.youtube.com/vi/VBmMU_iwe6U/hqdefault.jpg", // Destiny's Child - Say My Name
+        slug: "r-b-party-starters",
       },
       {
         title: "Classic Pop Party",
         description: "Blondie, Queen, ABBA",
         gradient: "from-pink-500 to-purple-600",
         image: "https://img.youtube.com/vi/fJ9rUzIMcZQ/hqdefault.jpg", // Queen - Bohemian Rhapsody
+        slug: "classic-pop-party",
       },
     ],
     [],
@@ -313,18 +336,21 @@ export default function VibeTunePage() {
         description: "Ed Sheeran, Taylor Swift, Maroon 5",
         gradient: "from-orange-400 to-red-500",
         image: "https://img.youtube.com/vi/JGwWNGJdvx8/hqdefault.jpg", // Wiz Khalifa - See You Again
+        slug: "feel-good-pop-rock",
       },
       {
         title: "Happy Pop Hits",
         description: "Ed Sheeran, Bruno Mars, Dua Lipa",
         gradient: "from-yellow-400 to-orange-500",
         image: "https://img.youtube.com/vi/hT_nvWreIhg/hqdefault.jpg", // Ed Sheeran - Shape of You
+        slug: "happy-pop-hits",
       },
       {
         title: "Feel-Good R&B Vibes",
         description: "Bruno Mars, The Weeknd, SZA",
         gradient: "from-purple-600 to-pink-600",
         image: "https://img.youtube.com/vi/UqyT8IEBkvY/hqdefault.jpg", // Bruno Mars - Count On Me
+        slug: "feel-good-r-b-vibes",
       },
     ],
     [],
@@ -473,7 +499,8 @@ export default function VibeTunePage() {
               <CategoryCard
                 key={index}
                 category={category}
-                onClick={() => router.push(`/genre/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
+                genreSlug={category.slug}
+                onClick={() => router.push(`/genre/${category.slug}`)}
               />
             ))}
           </div>
@@ -487,7 +514,8 @@ export default function VibeTunePage() {
               <CategoryCard
                 key={index}
                 category={category}
-                onClick={() => router.push(`/mood/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
+                genreSlug={category.slug}
+                onClick={() => router.push(`/mood/${category.slug}`)}
               />
             ))}
           </div>
