@@ -89,9 +89,8 @@ export class InnertubeAPI {
   private baseUrl = "https://www.youtube.com/youtubei/v1"
   private context = {
     client: {
-      clientName: "ANDROID",
-      clientVersion: "19.09.37",
-      androidSdkVersion: 30,
+      clientName: "WEB",
+      clientVersion: "2.20240304.00.00",
       hl: "en",
       gl: "US",
       utcOffsetMinutes: 0,
@@ -102,7 +101,7 @@ export class InnertubeAPI {
   }
 
   constructor() {
-    console.log("[v0] Innertube API initialized")
+    console.log("[v0] Innertube API initialized with WEB client")
   }
 
   private async makeRequest(endpoint: string, data: any): Promise<any> {
@@ -111,7 +110,12 @@ export class InnertubeAPI {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          Accept: "application/json",
+          "Accept-Language": "en-US,en;q=0.9",
+          Origin: "https://www.youtube.com",
+          Referer: "https://www.youtube.com/",
         },
         body: JSON.stringify({
           context: this.context,
@@ -119,11 +123,17 @@ export class InnertubeAPI {
         }),
       })
 
+      console.log("[v0] Innertube API response status:", response.status)
+
       if (!response.ok) {
-        throw new Error(`Innertube API error: ${response.status}`)
+        const errorText = await response.text()
+        console.error("[v0] Innertube API error response:", errorText)
+        throw new Error(`Innertube API error: ${response.status} - ${errorText}`)
       }
 
-      return await response.json()
+      const result = await response.json()
+      console.log("[v0] Innertube API response received successfully")
+      return result
     } catch (error) {
       console.error("[v0] Innertube API request failed:", error)
       throw error
@@ -293,24 +303,34 @@ export class InnertubeAPI {
   }
 
   private extractThumbnail(thumbnailData: any): string {
+    console.log("[v0] Extracting thumbnail from data:", thumbnailData)
+
     if (!thumbnailData?.thumbnails) {
+      console.log("[v0] No thumbnail data available, using placeholder")
       return "/placeholder.svg?height=300&width=300"
     }
 
     const thumbnails = thumbnailData.thumbnails
+    console.log("[v0] Available thumbnails:", thumbnails.length)
+
     // Sort by width descending to get the highest quality first
     const sortedThumbnails = thumbnails.sort((a: any, b: any) => (b.width || 0) - (a.width || 0))
 
-    // Prefer thumbnails with width >= 720px for better quality, fallback to >= 480px
     const highRes =
       sortedThumbnails.find((t: any) => t.width >= 720) ||
       sortedThumbnails.find((t: any) => t.width >= 480) ||
+      sortedThumbnails.find((t: any) => t.width >= 320) ||
       sortedThumbnails[0]
 
-    const thumbnailUrl = highRes?.url || "/placeholder.svg?height=300&width=300"
+    if (!highRes?.url) {
+      console.log("[v0] No valid thumbnail URL found, using placeholder")
+      return "/placeholder.svg?height=300&width=300"
+    }
 
-    // Ensure HTTPS for better compatibility
-    return thumbnailUrl.startsWith("//") ? `https:${thumbnailUrl}` : thumbnailUrl
+    const thumbnailUrl = highRes.url.startsWith("//") ? `https:${highRes.url}` : highRes.url
+    console.log("[v0] Selected thumbnail:", thumbnailUrl, "Resolution:", highRes.width + "x" + highRes.height)
+
+    return thumbnailUrl
   }
 
   private formatDuration(durationText: string): string {

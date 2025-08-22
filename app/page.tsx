@@ -42,6 +42,29 @@ const MemoizedSongItem = React.memo(({ song, onPlay, trendingSongs }: any) => (
   </div>
 ))
 
+const CategoryCardSkeleton = React.memo(() => (
+  <div className="flex-shrink-0 w-48">
+    <div className="w-full h-48 bg-zinc-700 rounded-lg animate-pulse mb-3"></div>
+    <div className="h-4 bg-zinc-700 rounded animate-pulse mb-2"></div>
+    <div className="h-3 bg-zinc-700 rounded animate-pulse w-3/4"></div>
+  </div>
+))
+
+const VideoCardSkeleton = React.memo(() => (
+  <div className="flex-shrink-0 w-48">
+    <div className="w-full h-48 bg-zinc-700 rounded-lg animate-pulse mb-3"></div>
+    <div className="h-4 bg-zinc-700 rounded animate-pulse mb-2"></div>
+    <div className="h-3 bg-zinc-700 rounded animate-pulse w-2/3"></div>
+  </div>
+))
+
+const SectionHeaderSkeleton = React.memo(() => (
+  <div className="flex items-center justify-between mb-6">
+    <div className="h-8 bg-zinc-700 rounded animate-pulse w-48"></div>
+    <div className="h-6 bg-zinc-700 rounded animate-pulse w-20"></div>
+  </div>
+))
+
 const MemoizedPlaylistCard = React.memo(({ playlist, onClick }: any) => (
   <div className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity" onClick={onClick}>
     <div className="relative rounded-lg overflow-hidden mb-3">
@@ -421,21 +444,27 @@ export default function VibeTunePage() {
 
         {/* Quick Picks - Individual Songs */}
         <section className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-yellow-400">Quick Picks</h2>
-            <div className="flex items-center gap-2">
-              {trendingSource === "fallback" && (
-                <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
-              )}
+          {trendingLoading ? (
+            <SectionHeaderSkeleton />
+          ) : (
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-yellow-400">Quick Picks</h2>
+              <div className="flex items-center gap-2">
+                {trendingSource === "fallback" && (
+                  <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">
+                    Using fallback data
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {trendingError ? (
             <ErrorMessage message={trendingError} onRetry={refetchTrending} />
           ) : (
             <div className="space-y-4">
               {trendingLoading
-                ? Array.from({ length: 4 }).map((_, i) => <SongSkeleton key={i} />)
+                ? Array.from({ length: 6 }).map((_, i) => <SongSkeleton key={i} />)
                 : quickPicksSongs.map((song) => (
                     <MemoizedSongItem
                       key={song.id}
@@ -450,178 +479,267 @@ export default function VibeTunePage() {
 
         {/* Music Categories */}
         <section className="mb-8">
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {musicCategories.map((category, index) => (
-              <CategoryCard
-                key={index}
-                category={category}
-                genreSlug={category.slug}
-                onClick={() => router.push(`/genre/${category.slug}`)}
-              />
-            ))}
-          </div>
+          {trendingLoading ? (
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <CategoryCardSkeleton key={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {musicCategories.map((category, index) => (
+                <CategoryCard
+                  key={index}
+                  category={category}
+                  genreSlug={category.slug}
+                  onClick={() => router.push(`/genre/${category.slug}`)}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Feel Good */}
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Feel good</h2>
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {feelGoodCategories.map((category, index) => (
-              <CategoryCard
-                key={index}
-                category={category}
-                genreSlug={category.slug}
-                onClick={() => router.push(`/mood/${category.slug}`)}
-              />
-            ))}
-          </div>
+          {trendingLoading ? (
+            <>
+              <div className="h-8 bg-zinc-700 rounded animate-pulse w-32 mb-6"></div>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <CategoryCardSkeleton key={i} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-yellow-400 mb-6">Feel good</h2>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {feelGoodCategories.map((category, index) => (
+                  <CategoryCard
+                    key={index}
+                    category={category}
+                    genreSlug={category.slug}
+                    onClick={() => router.push(`/mood/${category.slug}`)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </section>
 
         {/* Music Videos */}
         <section className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-yellow-400">Music videos for you</h2>
-            <div className="flex items-center gap-2">
-              {newReleasesSource === "fallback" && (
-                <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
-              )}
-            </div>
-          </div>
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {newReleasesLoading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex-shrink-0 w-64">
-                  <div className="w-full h-48 bg-zinc-700 rounded-lg animate-pulse mb-3"></div>
-                  <div className="h-4 bg-zinc-700 rounded animate-pulse mb-2"></div>
-                  <div className="h-3 bg-zinc-700 rounded animate-pulse w-3/4"></div>
+          {newReleasesLoading ? (
+            <>
+              <SectionHeaderSkeleton />
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <VideoCardSkeleton key={i} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-yellow-400">Music videos for you</h2>
+                <div className="flex items-center gap-2">
+                  {newReleasesSource === "fallback" && (
+                    <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">
+                      Using fallback data
+                    </span>
+                  )}
                 </div>
-              ))
-            ) : newReleasesError ? (
-              <div className="text-red-400 text-sm">Failed to load new releases</div>
-            ) : (
-              safeNewReleasesSongs.slice(0, 6).map((song, index) => (
-                <div
-                  key={song.id}
-                  className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
-                  onClick={() => handlePlaySong(song, safeNewReleasesSongs)}
-                >
-                  <div className="relative rounded-lg overflow-hidden mb-3">
-                    <OptimizedImage
-                      src={song.thumbnail}
-                      alt={song.title}
-                      width={192}
-                      height={192}
-                      className="w-full h-48 object-cover"
-                    />
-                  </div>
-                  <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
-                  <p className="text-gray-400 text-sm truncate">{song.artist}</p>
-                </div>
-              ))
-            )}
-          </div>
+              </div>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {newReleasesError ? (
+                  <div className="text-red-400 text-sm">Failed to load new releases</div>
+                ) : (
+                  safeNewReleasesSongs.slice(0, 6).map((song, index) => (
+                    <div
+                      key={song.id}
+                      className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => handlePlaySong(song, safeNewReleasesSongs)}
+                    >
+                      <div className="relative rounded-lg overflow-hidden mb-3">
+                        <OptimizedImage
+                          src={song.thumbnail}
+                          alt={song.title}
+                          width={192}
+                          height={192}
+                          className="w-full h-48 object-cover"
+                        />
+                      </div>
+                      <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
+                      <p className="text-gray-400 text-sm truncate">{song.artist}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </section>
 
         {/* Throwback Thursday */}
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Throwback Thursday</h2>
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {throwbackCategories.map((category, index) => (
-              <CategoryCard
-                key={index}
-                category={category}
-                onClick={() => router.push(`/throwback/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
-              />
-            ))}
-          </div>
+          {trendingLoading ? (
+            <>
+              <div className="h-8 bg-zinc-700 rounded animate-pulse w-48 mb-6"></div>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <CategoryCardSkeleton key={i} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-yellow-400 mb-6">Throwback Thursday</h2>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {throwbackCategories.map((category, index) => (
+                  <CategoryCard
+                    key={index}
+                    category={category}
+                    onClick={() => router.push(`/throwback/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </section>
 
         {/* Fresh New Music */}
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Fresh new music</h2>
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {freshMusicCategories.map((category, index) => (
-              <CategoryCard
-                key={index}
-                category={category}
-                onClick={() => router.push(`/fresh/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
-              />
-            ))}
-          </div>
+          {trendingLoading ? (
+            <>
+              <div className="h-8 bg-zinc-700 rounded animate-pulse w-40 mb-6"></div>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <CategoryCardSkeleton key={i} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-yellow-400 mb-6">Fresh new music</h2>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {freshMusicCategories.map((category, index) => (
+                  <CategoryCard
+                    key={index}
+                    category={category}
+                    onClick={() => router.push(`/fresh/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </section>
 
         {/* Albums for You */}
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Albums for you</h2>
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {safeTrendingSongs.slice(3, 6).map((song, index) => (
-              <div
-                key={song.id}
-                className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => handlePlaySong(song, safeTrendingSongs)}
-              >
-                <div className="relative rounded-lg overflow-hidden mb-3">
-                  <OptimizedImage
-                    src={song.thumbnail}
-                    alt={song.title}
-                    width={192}
-                    height={192}
-                    className="w-full h-48 object-cover"
-                  />
-                </div>
-                <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
-                <p className="text-gray-400 text-sm truncate">{song.artist}</p>
+          {trendingLoading ? (
+            <>
+              <div className="h-8 bg-zinc-700 rounded animate-pulse w-36 mb-6"></div>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <VideoCardSkeleton key={i} />
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-yellow-400 mb-6">Albums for you</h2>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {safeTrendingSongs.slice(3, 6).map((song, index) => (
+                  <div
+                    key={song.id}
+                    className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => handlePlaySong(song, safeTrendingSongs)}
+                  >
+                    <div className="relative rounded-lg overflow-hidden mb-3">
+                      <OptimizedImage
+                        src={song.thumbnail}
+                        alt={song.title}
+                        width={192}
+                        height={192}
+                        className="w-full h-48 object-cover"
+                      />
+                    </div>
+                    <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
+                    <p className="text-gray-400 text-sm truncate">{song.artist}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </section>
 
         {/* Take it Easy */}
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Take it easy</h2>
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {safeMixedForYouSongs.slice(6, 9).map((song, index) => (
-              <div
-                key={song.id}
-                className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => handlePlaySong(song, safeMixedForYouSongs)}
-              >
-                <div className="relative rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-green-400 to-blue-500">
-                  <OptimizedImage
-                    src={song.thumbnail}
-                    alt={song.title}
-                    width={192}
-                    height={192}
-                    className="w-full h-48 object-cover mix-blend-overlay opacity-70"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                </div>
-                <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
-                <p className="text-gray-400 text-sm truncate">{song.artist}</p>
+          {mixedLoading ? (
+            <>
+              <div className="h-8 bg-zinc-700 rounded animate-pulse w-32 mb-6"></div>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <VideoCardSkeleton key={i} />
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-yellow-400 mb-6">Take it easy</h2>
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {safeMixedForYouSongs.slice(6, 9).map((song, index) => (
+                  <div
+                    key={song.id}
+                    className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => handlePlaySong(song, safeMixedForYouSongs)}
+                  >
+                    <div className="relative rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-green-400 to-blue-500">
+                      <OptimizedImage
+                        src={song.thumbnail}
+                        alt={song.title}
+                        width={192}
+                        height={192}
+                        className="w-full h-48 object-cover mix-blend-overlay opacity-70"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    </div>
+                    <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
+                    <p className="text-gray-400 text-sm truncate">{song.artist}</p>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </section>
 
         {/* Mixed for You - Personalized Playlists */}
         <section className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-yellow-400">Mixed for You</h2>
-            <div className="flex items-center gap-2">
-              {mixedSource === "fallback" && (
-                <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
-              )}
-            </div>
-          </div>
-
-          {mixedError ? (
-            <ErrorMessage message={mixedError} />
+          {mixedLoading ? (
+            <>
+              <SectionHeaderSkeleton />
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <PlaylistCardSkeleton key={i} />
+                ))}
+              </div>
+            </>
           ) : (
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {mixedLoading ? (
-                Array.from({ length: 3 }).map((_, i) => <PlaylistCardSkeleton key={i} />)
+            <>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-yellow-400">Mixed for You</h2>
+                <div className="flex items-center gap-2">
+                  {mixedSource === "fallback" && (
+                    <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">
+                      Using fallback data
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {mixedError ? (
+                <ErrorMessage message={mixedError} />
               ) : (
-                <>
+                <div className="flex gap-4 overflow-x-auto pb-4">
                   <div
                     className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => router.push("/library/your-mix")}
@@ -711,9 +829,9 @@ export default function VibeTunePage() {
                         : "Latest releases"}
                     </p>
                   </div>
-                </>
+                </div>
               )}
-            </div>
+            </>
           )}
         </section>
       </div>

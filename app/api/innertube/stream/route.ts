@@ -16,26 +16,31 @@ export async function POST(request: NextRequest) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          Accept: "application/json",
+          "Accept-Language": "en-US,en;q=0.9",
+          Origin: "https://www.youtube.com",
+          Referer: "https://www.youtube.com/",
         },
         body: JSON.stringify({
           context: {
             client: {
-              clientName: "ANDROID",
-              clientVersion: "19.09.37",
-              androidSdkVersion: 30,
+              clientName: "WEB",
+              clientVersion: "2.20240304.00.00",
               hl: "en",
               gl: "US",
             },
           },
           videoId: videoId,
-          params: "CgIQBg%3D%3D", // Audio-only parameter
         }),
       },
     )
 
     if (!response.ok) {
       console.error("[v0] Innertube API response error:", response.status, response.statusText)
+      const errorText = await response.text()
+      console.error("[v0] Error details:", errorText)
       throw new Error(`Innertube API error: ${response.status}`)
     }
 
@@ -44,12 +49,17 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Innertube API response received")
     console.log("[v0] Video details:", data.videoDetails?.title, "Duration:", data.videoDetails?.lengthSeconds)
     console.log("[v0] Streaming data available:", !!data.streamingData)
-    console.log("[v0] Adaptive formats count:", data.streamingData?.adaptiveFormats?.length || 0)
+    console.log("[v0] Streaming data structure:", JSON.stringify(data.streamingData, null, 2))
 
-    const formats = data.streamingData?.adaptiveFormats || []
+    const adaptiveFormats = data.streamingData?.adaptiveFormats || []
+    const regularFormats = data.streamingData?.formats || []
+    const allFormats = [...adaptiveFormats, ...regularFormats]
 
-    console.log("[v0] All available formats:")
-    formats.forEach((format: any, index: number) => {
+    console.log("[v0] Adaptive formats count:", adaptiveFormats.length)
+    console.log("[v0] Regular formats count:", regularFormats.length)
+    console.log("[v0] Total formats count:", allFormats.length)
+
+    allFormats.forEach((format: any, index: number) => {
       console.log(`[v0] Format ${index}:`, {
         mimeType: format.mimeType,
         hasUrl: !!format.url,
@@ -60,34 +70,53 @@ export async function POST(request: NextRequest) {
       })
     })
 
-    // Filter for audio-only formats and sort by quality
-    const audioFormats = formats
-      .filter((format: any) => format.mimeType?.includes("audio") && format.url && !format.mimeType?.includes("video"))
+    const audioFormats = allFormats
+      .filter((format: any) => {
+        const hasAudio = format.mimeType?.includes("audio") || format.audioChannels > 0
+        const hasUrl = format.url || format.signatureCipher || format.cipher
+        console.log("[v0] Format check:", {
+          mimeType: format.mimeType,
+          hasAudio,
+          hasUrl,
+          audioChannels: format.audioChannels,
+        })
+        return hasAudio && hasUrl
+      })
       .sort((a: any, b: any) => {
-        // Prioritize higher bitrate audio
         const aBitrate = Number.parseInt(a.averageBitrate || a.bitrate || "0")
         const bBitrate = Number.parseInt(b.averageBitrate || b.bitrate || "0")
         return bBitrate - aBitrate
       })
 
     console.log("[v0] Filtered audio formats count:", audioFormats.length)
-    audioFormats.forEach((format: any, index: number) => {
-      console.log(`[v0] Audio format ${index}:`, {
-        mimeType: format.mimeType,
-        bitrate: format.averageBitrate || format.bitrate,
-        sampleRate: format.audioSampleRate,
-        channels: format.audioChannels,
+
+    if (audioFormats.length === 0) {
+      console.error("[v0] No audio formats found. All formats:")
+      allFormats.forEach((format: any, index: number) => {
+        console.error(`[v0] Format ${index}:`, {
+          mimeType: format.mimeType,
+          hasUrl: !!(format.url || format.signatureCipher || format.cipher),
+          audioChannels: format.audioChannels,
+        })
       })
-    })
+      throw new Error("No audio formats available")
+    }
 
-    const preferredFormat =
-      audioFormats.find((format: any) => format.mimeType?.includes("mp4a") || format.mimeType?.includes("opus")) ||
-      audioFormats[0]
+    const preferredFormat = audioFormats[0]
 
-    if (!preferredFormat?.url) {
-      console.error("[v0] No audio stream found. Available formats:", formats.length)
-      console.error("[v0] Streaming data structure:", JSON.stringify(data.streamingData, null, 2))
-      throw new Error("No audio stream found")
+    let streamUrl = preferredFormat.url
+    if (!streamUrl && (preferredFormat.signatureCipher || preferredFormat.cipher)) {
+      console.log("[v0] Format requires signature decoding - using fallback")
+      const directUrlFormat = audioFormats.find((f: any) => f.url)
+      if (directUrlFormat) {
+        streamUrl = directUrlFormat.url
+      } else {
+        throw new Error("No direct stream URL available")
+      }
+    }
+
+    if (!streamUrl) {
+      throw new Error("No stream URL found")
     }
 
     console.log(
@@ -96,12 +125,10 @@ export async function POST(request: NextRequest) {
       "bitrate:",
       preferredFormat.averageBitrate || preferredFormat.bitrate,
     )
-
-    console.log("[v0] Stream URL length:", preferredFormat.url.length)
-    console.log("[v0] Stream URL starts with:", preferredFormat.url.substring(0, 50))
+    console.log("[v0] Stream URL available:", !!streamUrl)
 
     return NextResponse.json({
-      streamUrl: preferredFormat.url,
+      streamUrl: streamUrl,
       duration: data.videoDetails?.lengthSeconds,
       audioQuality: {
         mimeType: preferredFormat.mimeType,
