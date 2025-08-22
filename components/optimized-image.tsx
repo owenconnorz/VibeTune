@@ -37,20 +37,65 @@ export function OptimizedImage({
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
 
+  const getYouTubeThumbnailFallbacks = (originalSrc: string) => {
+    if (!originalSrc?.includes("youtube.com/vi/")) return []
+
+    const videoIdMatch = originalSrc.match(/\/vi\/([^/]+)\//)
+    if (!videoIdMatch) return []
+
+    const videoId = videoIdMatch[1]
+    return [
+      `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+      `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`,
+      `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+      `https://img.youtube.com/vi/${videoId}/default.jpg`,
+    ]
+  }
+
+  const getFallbackUrl = (originalSrc: string, altText: string) => {
+    // If it's already a placeholder, generate a better one
+    if (originalSrc?.includes("/placeholder.svg") || !originalSrc || originalSrc === fallbackSrc) {
+      const query = encodeURIComponent(altText || "music album cover")
+      return `/placeholder.svg?height=${height}&width=${width}&query=${query}`
+    }
+    return fallbackSrc
+  }
+
   const handleLoad = () => {
+    console.log("[v0] Image loaded successfully:", imgSrc)
     setIsLoading(false)
     onLoad?.()
   }
 
   const handleError = () => {
-    console.log("[v0] Image failed to load, using fallback:", imgSrc)
+    console.log("[v0] Image failed to load:", imgSrc)
     setHasError(true)
     setIsLoading(false)
-    if (imgSrc !== fallbackSrc) {
-      setImgSrc(fallbackSrc)
+
+    const youtubeFallbacks = getYouTubeThumbnailFallbacks(imgSrc)
+    const currentIndex = youtubeFallbacks.indexOf(imgSrc)
+
+    if (currentIndex !== -1 && currentIndex < youtubeFallbacks.length - 1) {
+      // Try next YouTube thumbnail quality
+      const nextFallback = youtubeFallbacks[currentIndex + 1]
+      console.log("[v0] Trying next YouTube thumbnail quality:", nextFallback)
+      setImgSrc(nextFallback)
+      setHasError(false)
+      setIsLoading(true)
+      return
+    }
+
+    // All YouTube options failed, use placeholder
+    const newFallback = getFallbackUrl(imgSrc, alt)
+    if (imgSrc !== newFallback) {
+      console.log("[v0] Using placeholder fallback:", newFallback)
+      setImgSrc(newFallback)
     }
     onError?.()
   }
+
+  const finalSrc =
+    !src || src.includes("/placeholder.svg") ? getFallbackUrl(src, alt) : imgSrc || getFallbackUrl(src, alt)
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
@@ -61,7 +106,7 @@ export function OptimizedImage({
       )}
 
       <Image
-        src={imgSrc || "/placeholder.svg"}
+        src={finalSrc || "/placeholder.svg"}
         alt={alt}
         width={fill ? undefined : width}
         height={fill ? undefined : height}
@@ -73,7 +118,7 @@ export function OptimizedImage({
           "transition-opacity duration-300",
           isLoading ? "opacity-0" : "opacity-100",
           fill ? "object-cover" : "",
-          className, // Apply the same className to the Image element for proper styling inheritance
+          className,
         )}
         onLoad={handleLoad}
         onError={handleError}

@@ -68,11 +68,7 @@ const MemoizedPlaylistCard = React.memo(({ playlist, onClick }: any) => (
 ))
 
 const CategoryCard = React.memo(({ category, onClick }: any) => {
-  const hasRealThumbnail =
-    category.image &&
-    !category.image.includes("/placeholder.svg") &&
-    !category.image.includes("placeholder") &&
-    category.image.startsWith("http")
+  const hasRealThumbnail = category.image && category.image.startsWith("https://img.youtube.com")
 
   return (
     <div className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={onClick}>
@@ -140,6 +136,17 @@ export default function VibeTunePage() {
     source: newReleasesSource,
   } = useNewReleases()
 
+  const convertToTrack = useCallback(
+    (song: any) => ({
+      id: song.id,
+      title: song.title,
+      artist: song.artist || song.channelTitle,
+      thumbnail: song.thumbnail,
+      duration: song.duration,
+    }),
+    [],
+  )
+
   useEffect(() => {
     console.log("[v0] Homepage API Status:", {
       trending: {
@@ -176,113 +183,6 @@ export default function VibeTunePage() {
     newReleasesError,
   ])
 
-  const musicCategories = useMemo(
-    () => [
-      {
-        title: "Hip-Hop Classics",
-        description: "The Notorious B.I.G., Tupac, Nas",
-        gradient: "from-blue-600 to-purple-700",
-        image: "/hip-hop-classics-cover.png",
-      },
-      {
-        title: "R&B Party-Starters",
-        description: "Destiny's Child, Beyoncé, Usher",
-        gradient: "from-orange-500 to-red-600",
-        image: "/rnb-party-starters-cover.png",
-      },
-      {
-        title: "Classic Pop Party",
-        description: "Blondie, Queen, ABBA",
-        gradient: "from-pink-500 to-purple-600",
-        image: "/oasis-2025-setlist-style.png",
-      },
-    ],
-    [],
-  )
-
-  const feelGoodCategories = useMemo(
-    () => [
-      {
-        title: "Feel-Good Pop & Rock",
-        description: "Ed Sheeran, Taylor Swift, Maroon 5",
-        gradient: "from-orange-400 to-red-500",
-        image: "/feel-good-pop-cover.png",
-      },
-      {
-        title: "Happy Pop Hits",
-        description: "Ed Sheeran, Bruno Mars, Dua Lipa",
-        gradient: "from-yellow-400 to-orange-500",
-        image: "/happy-pop-hits-cover.png",
-      },
-      {
-        title: "Feel-Good R&B Vibes",
-        description: "Bruno Mars, The Weeknd, SZA",
-        gradient: "from-purple-600 to-pink-600",
-        image: "/rnb-party-starters-cover.png",
-      },
-    ],
-    [],
-  )
-
-  const throwbackCategories = useMemo(
-    () => [
-      {
-        title: "80s Sing-Alongs",
-        description: "Madonna, Kiss, Bon Jovi",
-        gradient: "from-blue-400 to-cyan-500",
-        image: "/throwback-thursday-cover.png",
-      },
-      {
-        title: "Relaxing 80s Rock",
-        description: "UB40, Huey Lewis, Phil Collins",
-        gradient: "from-gray-600 to-gray-800",
-        image: "/oasis-2025-setlist-style.png",
-      },
-      {
-        title: "'90s Dance",
-        description: "The Chemical Brothers, Fatboy Slim",
-        gradient: "from-cyan-400 to-blue-600",
-        image: "/summer-hits-2025-cover.png",
-      },
-    ],
-    [],
-  )
-
-  const freshMusicCategories = useMemo(
-    () => [
-      {
-        title: "K.iNG",
-        description: "IVE, LE SSERAFIM, NewJeans",
-        gradient: "from-pink-400 to-purple-600",
-        image: "/fresh-new-music-cover.png",
-      },
-      {
-        title: "Pop Royalty",
-        description: "Jonas Brothers, Taylor Swift",
-        gradient: "from-gray-700 to-black",
-        image: "/feel-good-pop-cover.png",
-      },
-      {
-        title: "House Music",
-        description: "Chris Lake, Calvin Harris",
-        gradient: "from-blue-600 to-indigo-700",
-        image: "/summer-hits-2025-cover.png",
-      },
-    ],
-    [],
-  )
-
-  const convertToTrack = useCallback(
-    (song: any) => ({
-      id: song.id,
-      title: song.title,
-      artist: song.artist || song.channelTitle,
-      thumbnail: song.thumbnail,
-      duration: song.duration,
-    }),
-    [],
-  )
-
   const safeTrendingSongs = useMemo(() => (Array.isArray(trendingSongs) ? trendingSongs : []), [trendingSongs])
   const safeMixedForYouSongs = useMemo(
     () => (Array.isArray(mixedForYouSongs) ? mixedForYouSongs : []),
@@ -309,7 +209,7 @@ export default function VibeTunePage() {
       const firstTrack = convertToTrack(safeTrendingSongs[0])
       playTrack(firstTrack)
     }
-  }, [safeTrendingSongs, state.currentTrack, trendingLoading, convertToTrack, playTrack])
+  }, [safeTrendingSongs, state.currentTrack, trendingLoading, playTrack])
 
   useEffect(() => {
     try {
@@ -381,6 +281,102 @@ export default function VibeTunePage() {
       </section>
     )
   }, [user, syncData.playlists, syncData.likedSongs, handleLibraryClick])
+
+  const musicCategories = useMemo(
+    () => [
+      {
+        title: "Hip-Hop Classics",
+        description: "The Notorious B.I.G., Tupac, Nas",
+        gradient: "from-blue-600 to-purple-700",
+        image: "https://img.youtube.com/vi/5RDSkR8_AQ0/hqdefault.jpg", // Biggie - Juicy
+      },
+      {
+        title: "R&B Party-Starters",
+        description: "Destiny's Child, Beyoncé, Usher",
+        gradient: "from-orange-500 to-red-600",
+        image: "https://img.youtube.com/vi/VBmMU_iwe6U/hqdefault.jpg", // Destiny's Child - Say My Name
+      },
+      {
+        title: "Classic Pop Party",
+        description: "Blondie, Queen, ABBA",
+        gradient: "from-pink-500 to-purple-600",
+        image: "https://img.youtube.com/vi/fJ9rUzIMcZQ/hqdefault.jpg", // Queen - Bohemian Rhapsody
+      },
+    ],
+    [],
+  )
+
+  const feelGoodCategories = useMemo(
+    () => [
+      {
+        title: "Feel-Good Pop & Rock",
+        description: "Ed Sheeran, Taylor Swift, Maroon 5",
+        gradient: "from-orange-400 to-red-500",
+        image: "https://img.youtube.com/vi/JGwWNGJdvx8/hqdefault.jpg", // Wiz Khalifa - See You Again
+      },
+      {
+        title: "Happy Pop Hits",
+        description: "Ed Sheeran, Bruno Mars, Dua Lipa",
+        gradient: "from-yellow-400 to-orange-500",
+        image: "https://img.youtube.com/vi/hT_nvWreIhg/hqdefault.jpg", // Ed Sheeran - Shape of You
+      },
+      {
+        title: "Feel-Good R&B Vibes",
+        description: "Bruno Mars, The Weeknd, SZA",
+        gradient: "from-purple-600 to-pink-600",
+        image: "https://img.youtube.com/vi/UqyT8IEBkvY/hqdefault.jpg", // Bruno Mars - Count On Me
+      },
+    ],
+    [],
+  )
+
+  const throwbackCategories = useMemo(
+    () => [
+      {
+        title: "80s Sing-Alongs",
+        description: "Madonna, Kiss, Bon Jovi",
+        gradient: "from-blue-400 to-cyan-500",
+        image: "https://img.youtube.com/vi/LOZuxwVk7TU/hqdefault.jpg", // Madonna - Material Girl
+      },
+      {
+        title: "Relaxing 80s Rock",
+        description: "UB40, Huey Lewis, Phil Collins",
+        gradient: "from-gray-600 to-gray-800",
+        image: "https://img.youtube.com/vi/YkADj0TPrJA/hqdefault.jpg", // Phil Collins - In The Air Tonight
+      },
+      {
+        title: "'90s Dance",
+        description: "The Chemical Brothers, Fatboy Slim",
+        gradient: "from-cyan-400 to-blue-600",
+        image: "https://img.youtube.com/vi/s5FyfQDO5g0/hqdefault.jpg", // Chemical Brothers - Block Rockin' Beats
+      },
+    ],
+    [],
+  )
+
+  const freshMusicCategories = useMemo(
+    () => [
+      {
+        title: "K.iNG",
+        description: "IVE, LE SSERAFIM, NewJeans",
+        gradient: "from-pink-400 to-purple-600",
+        image: "https://img.youtube.com/vi/--FmExEAsM8/hqdefault.jpg", // NewJeans - Get Up
+      },
+      {
+        title: "Pop Royalty",
+        description: "Jonas Brothers, Taylor Swift",
+        gradient: "from-gray-700 to-black",
+        image: "https://img.youtube.com/vi/nfWlot6h_JM/hqdefault.jpg", // Taylor Swift - Shake It Off
+      },
+      {
+        title: "House Music",
+        description: "Chris Lake, Calvin Harris",
+        gradient: "from-blue-600 to-indigo-700",
+        image: "https://img.youtube.com/vi/5NV6Rdv1a3I/hqdefault.jpg", // Calvin Harris - Feel So Close
+      },
+    ],
+    [],
+  )
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
@@ -499,39 +495,8 @@ export default function VibeTunePage() {
 
         {/* Music Videos */}
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6">Music videos for you</h2>
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {safeTrendingSongs.slice(0, 3).map((song, index) => (
-              <div
-                key={song.id}
-                className="flex-shrink-0 w-64 cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => handlePlaySong(song, safeTrendingSongs)}
-              >
-                <div className="relative rounded-lg overflow-hidden mb-3">
-                  <OptimizedImage
-                    src={song.thumbnail}
-                    alt={song.title}
-                    width={256}
-                    height={144}
-                    className="w-full h-36 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                    <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                      <div className="w-0 h-0 border-l-[8px] border-l-white border-y-[6px] border-y-transparent ml-1"></div>
-                    </div>
-                  </div>
-                </div>
-                <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
-                <p className="text-gray-400 text-xs truncate">{song.artist}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* New Releases */}
-        <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-yellow-400">New releases</h2>
+            <h2 className="text-2xl font-bold text-yellow-400">Music videos for you</h2>
             {newReleasesSource === "fallback" && (
               <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
             )}
@@ -539,7 +504,7 @@ export default function VibeTunePage() {
           <div className="flex gap-4 overflow-x-auto pb-4">
             {newReleasesLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex-shrink-0 w-48">
+                <div key={i} className="flex-shrink-0 w-64">
                   <div className="w-full h-48 bg-zinc-700 rounded-lg animate-pulse mb-3"></div>
                   <div className="h-4 bg-zinc-700 rounded animate-pulse mb-2"></div>
                   <div className="h-3 bg-zinc-700 rounded animate-pulse w-3/4"></div>
@@ -675,7 +640,7 @@ export default function VibeTunePage() {
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
                       <OptimizedImage
-                        src={safeMixedForYouSongs[0]?.thumbnail}
+                        src="https://img.youtube.com/vi/hT_nvWreIhg/hqdefault.jpg"
                         alt="Your Mix"
                         width={192}
                         height={192}
@@ -705,7 +670,7 @@ export default function VibeTunePage() {
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
                       <OptimizedImage
-                        src={safeMixedForYouSongs[3]?.thumbnail}
+                        src="https://img.youtube.com/vi/kJQP7kiw5Fk/hqdefault.jpg"
                         alt="Discover Mix"
                         width={192}
                         height={192}
@@ -735,7 +700,7 @@ export default function VibeTunePage() {
                   >
                     <div className="relative rounded-lg overflow-hidden mb-3">
                       <OptimizedImage
-                        src={safeMixedForYouSongs[6]?.thumbnail}
+                        src="https://img.youtube.com/vi/09R8_2nJtjg/hqdefault.jpg"
                         alt="New Release Mix"
                         width={192}
                         height={192}
