@@ -15,6 +15,7 @@ import { RefreshProvider } from "@/contexts/refresh-context"
 import { SettingsProvider } from "@/contexts/settings-context"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { DiscordRPCIntegration } from "@/components/discord-rpc-integration"
+import { AgeVerificationModal } from "@/components/age-verification-modal"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -53,6 +54,7 @@ const CombinedProviders = ({ children }: { children: React.ReactNode }) => (
                     <UpdateProvider>
                       <SettingsProvider>
                         <DiscordRPCIntegration />
+                        <AgeVerificationModal />
                         {children}
                       </SettingsProvider>
                     </UpdateProvider>

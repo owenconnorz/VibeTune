@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { Button } from "@/components/ui/button"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink, LogIn } from "lucide-react"
 
 interface HTML5VideoPlayerProps {
   videoUrl: string
@@ -21,6 +21,14 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [bufferProgress, setBufferProgress] = useState(0)
   const [isBuffering, setIsBuffering] = useState(false)
+  const [extractedVideoUrl, setExtractedVideoUrl] = useState<string | null>(null)
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractionFailed, setExtractionFailed] = useState(false)
+  const [showAgeVerificationFallback, setShowAgeVerificationFallback] = useState(false)
+  const [isAuthenticating, setIsAuthenticating] = useState(false)
+  const [authSessionId, setAuthSessionId] = useState<string | null>(null)
+  const [showLoginForm, setShowLoginForm] = useState(false)
+  const [loginCredentials, setLoginCredentials] = useState({ username: "", password: "" })
 
   const { state, setCurrentTime, setDuration } = useAudioPlayer()
   const isVideoMode = showVideo || state.isVideoMode
@@ -31,56 +39,86 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
   const isDirectVideoFile =
     videoUrl.endsWith(".mp4") || videoUrl.endsWith(".webm") || videoUrl.endsWith(".ogg") || videoUrl.endsWith(".mov")
 
-  const updateTimeProgress = () => {
-    if (!videoRef.current || isDestroyedRef.current || isPageUrl) return
-
+  const handleEpornerAuth = async (username: string, password: string) => {
+    setIsAuthenticating(true)
     try {
-      const video = videoRef.current
-      const currentTime = video.currentTime || 0
-      const duration = video.duration || 0
+      console.log("[v0] Attempting eporner authentication")
+      const response = await fetch("/api/eporner/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      })
 
-      if (currentTime > 0 && duration > 0) {
-        setCurrentTime?.(currentTime)
-        setDuration?.(duration)
-      }
+      const data = await response.json()
 
-      if (video.buffered.length > 0) {
-        const bufferedEnd = video.buffered.end(video.buffered.length - 1)
-        const bufferPercent = duration > 0 ? (bufferedEnd / duration) * 100 : 0
-        setBufferProgress(bufferPercent)
+      if (data.success) {
+        console.log("[v0] Authentication successful, session ID:", data.sessionId)
+        setAuthSessionId(data.sessionId)
+        setShowLoginForm(false)
+        setShowAgeVerificationFallback(false)
+        // Try loading with authenticated session
+        tryAuthenticatedAccess(data.sessionId)
+      } else {
+        console.log("[v0] Authentication failed:", data.error)
+        alert("Login failed: " + data.error)
       }
     } catch (error) {
-      console.error("[v0] Error updating HTML5 video time progress:", error)
+      console.error("[v0] Authentication error:", error)
+      alert("Authentication failed. Please try again.")
+    } finally {
+      setIsAuthenticating(false)
     }
   }
 
-  const startTimeUpdates = () => {
-    if (timeUpdateIntervalRef.current) return
-    timeUpdateIntervalRef.current = setInterval(updateTimeProgress, 1000)
-  }
-
-  const stopTimeUpdates = () => {
-    if (timeUpdateIntervalRef.current) {
-      clearInterval(timeUpdateIntervalRef.current)
-      timeUpdateIntervalRef.current = null
+  const tryAuthenticatedAccess = (sessionId: string) => {
+    console.log("[v0] Trying authenticated access with session:", sessionId)
+    // Force iframe reload with authentication
+    if (iframeRef.current) {
+      const proxyUrl = `/api/eporner/proxy?url=${encodeURIComponent(videoUrl)}&sessionId=${sessionId}`
+      iframeRef.current.src = proxyUrl
     }
   }
 
   useEffect(() => {
-    if (isPageUrl) {
-      console.log("[v0] Using iframe for adult video:", videoUrl)
-      const iframeTimeout = setTimeout(() => {
-        if (!iframeLoaded) {
-          console.log("[v0] Iframe failed to load within 3 seconds, showing fallback UI")
-          setIframeError(true)
-        }
-      }, 3000) // Reduced from 5000 to 3000 for faster fallback
+    if (isEpornerPageUrl) {
+      console.log("[v0] Eporner page detected, checking for authentication")
+      setExtractionFailed(true) // Skip extraction, go straight to iframe
+    }
+  }, [videoUrl, isEpornerPageUrl])
 
-      onReady?.()
+  const checkIframeContent = () => {
+    try {
+      const iframe = iframeRef.current
+      if (!iframe || !iframe.contentDocument) return
 
-      return () => {
-        clearTimeout(iframeTimeout)
+      const iframeContent = iframe.contentDocument.body?.innerHTML || ""
+      const iframeTitle = iframe.contentDocument.title || ""
+
+      console.log("[v0] Checking iframe content, title:", iframeTitle)
+
+      if (
+        iframeTitle.includes("Age Verification") ||
+        iframeContent.includes("ageverifybox") ||
+        iframeContent.includes("Want to watch FREE porn") ||
+        iframeContent.includes("age verification")
+      ) {
+        console.log("[v0] Age verification detected, showing fallback")
+        setShowAgeVerificationFallback(true)
       }
+    } catch (error) {
+      console.log("[v0] Cannot access iframe content (CORS), assuming age verification")
+      setShowAgeVerificationFallback(true)
+    }
+  }
+
+  const effectiveVideoUrl = extractedVideoUrl || videoUrl
+  const shouldShowFallback =
+    (isPageUrl && (extractionFailed || (!extractedVideoUrl && !isExtracting))) || showAgeVerificationFallback
+
+  useEffect(() => {
+    if (shouldShowFallback) {
+      console.log("[v0] Rendering fallback UI for eporner video")
+      return
     }
 
     const video = videoRef.current
@@ -140,10 +178,10 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
       stopTimeUpdates()
       isDestroyedRef.current = true
     }
-  }, [videoUrl, isPageUrl, iframeLoaded])
+  }, [effectiveVideoUrl, shouldShowFallback, iframeLoaded])
 
   useEffect(() => {
-    if (isPageUrl) return
+    if (shouldShowFallback) return
 
     const video = videoRef.current
     if (!video) return
@@ -157,10 +195,10 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
     } catch (error) {
       console.error("[v0] Error controlling HTML5 video playback:", error)
     }
-  }, [state.isPlaying, isPageUrl])
+  }, [state.isPlaying, shouldShowFallback])
 
   useEffect(() => {
-    if (isPageUrl) return
+    if (shouldShowFallback) return
 
     const video = videoRef.current
     if (!video) return
@@ -170,10 +208,10 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
     } catch (error) {
       console.error("[v0] Error seeking HTML5 video:", error)
     }
-  }, [state.currentTime, isPageUrl])
+  }, [state.currentTime, shouldShowFallback])
 
   useEffect(() => {
-    if (isPageUrl) return
+    if (shouldShowFallback) return
 
     const video = videoRef.current
     if (!video) return
@@ -183,86 +221,174 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
     } catch (error) {
       console.error("[v0] Error setting HTML5 video volume:", error)
     }
-  }, [state.volume, isPageUrl])
+  }, [state.volume, shouldShowFallback])
 
   const openInNewTab = () => {
+    console.log("[v0] Opening eporner video in new tab:", videoUrl)
     window.open(videoUrl, "_blank", "noopener,noreferrer")
   }
 
-  if (isPageUrl) {
-    console.log("[v0] Rendering iframe for eporner video. Error:", iframeError, "Loaded:", iframeLoaded)
+  const updateTimeProgress = () => {
+    if (!videoRef.current || isDestroyedRef.current || shouldShowFallback) return
 
-    if (iframeError) {
-      return (
-        <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-lg min-h-[300px]">
-          <div className="text-center mb-4">
-            <h3 className="text-lg font-semibold text-white mb-2">Video Unavailable</h3>
-            <p className="text-zinc-400 text-sm mb-4">
-              This video cannot be embedded due to site restrictions. Click below to watch it directly.
-            </p>
-          </div>
-          <Button onClick={openInNewTab} className="bg-orange-500 hover:bg-orange-600 text-white">
-            <ExternalLink className="w-4 h-4 mr-2" />
-            Watch Video
-          </Button>
-        </div>
-      )
+    try {
+      const video = videoRef.current
+      const currentTime = video.currentTime || 0
+      const duration = video.duration || 0
+
+      if (currentTime > 0 && duration > 0) {
+        setCurrentTime?.(currentTime)
+        setDuration?.(duration)
+      }
+
+      if (video.buffered.length > 0) {
+        const bufferedEnd = video.buffered.end(video.buffered.length - 1)
+        const bufferPercent = duration > 0 ? (bufferedEnd / duration) * 100 : 0
+        setBufferProgress(bufferPercent)
+      }
+    } catch (error) {
+      console.error("[v0] Error updating HTML5 video time progress:", error)
     }
+  }
+
+  const startTimeUpdates = () => {
+    if (timeUpdateIntervalRef.current) return
+    timeUpdateIntervalRef.current = setInterval(updateTimeProgress, 1000)
+  }
+
+  const stopTimeUpdates = () => {
+    if (timeUpdateIntervalRef.current) {
+      clearInterval(timeUpdateIntervalRef.current)
+      timeUpdateIntervalRef.current = null
+    }
+  }
+
+  if (isExtracting || isAuthenticating) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-lg min-h-[300px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-zinc-400 text-sm">
+            {isAuthenticating ? "Authenticating with eporner..." : "Extracting video URL..."}
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (showLoginForm) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-lg min-h-[300px]">
+        <div className="text-center mb-6">
+          <h3 className="text-lg font-semibold text-white mb-2">Eporner Login Required</h3>
+          <p className="text-zinc-400 text-sm mb-4">Please login to your eporner account to access this content.</p>
+        </div>
+        <div className="w-full max-w-sm space-y-4">
+          <input
+            type="text"
+            placeholder="Username"
+            value={loginCredentials.username}
+            onChange={(e) => setLoginCredentials((prev) => ({ ...prev, username: e.target.value }))}
+            className="w-full px-3 py-2 bg-zinc-800 text-white rounded border border-zinc-700 focus:border-orange-500 focus:outline-none"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={loginCredentials.password}
+            onChange={(e) => setLoginCredentials((prev) => ({ ...prev, password: e.target.value }))}
+            className="w-full px-3 py-2 bg-zinc-800 text-white rounded border border-zinc-700 focus:border-orange-500 focus:outline-none"
+          />
+          <div className="flex gap-2">
+            <Button
+              onClick={() => handleEpornerAuth(loginCredentials.username, loginCredentials.password)}
+              disabled={!loginCredentials.username || !loginCredentials.password}
+              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              Login
+            </Button>
+            <Button onClick={() => setShowLoginForm(false)} variant="outline" className="flex-1">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (shouldShowFallback) {
+    console.log("[v0] Rendering fallback UI for eporner video")
 
     return (
-      <div className="relative min-h-[300px]">
-        <iframe
-          ref={iframeRef}
-          src={videoUrl}
-          style={{
-            display: isVideoMode ? "block" : "none",
-            width: "100%",
-            height: "300px", // Added explicit height
-            maxWidth: "560px",
-            aspectRatio: "16/9",
-            border: "none",
-          }}
-          className={isVideoMode ? "rounded-lg overflow-hidden shadow-lg" : ""}
-          allow="autoplay; fullscreen; encrypted-media"
-          allowFullScreen
-          sandbox="allow-scripts allow-same-origin allow-presentation"
-          onLoad={() => {
-            console.log("[v0] Iframe loaded successfully for:", videoUrl)
-            setIframeLoaded(true)
-          }}
-          onError={(e) => {
-            console.log("[v0] Iframe failed to load:", e)
-            setIframeError(true)
-          }}
-        />
-        {!iframeLoaded && !iframeError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 rounded-lg">
-            <div className="text-white">Loading video...</div>
+      <div className="relative">
+        <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-lg min-h-[300px]">
+          <div className="text-center mb-4">
+            <h3 className="text-lg font-semibold text-white mb-2">Adult Content</h3>
+            <p className="text-zinc-400 text-sm mb-4">
+              This video cannot be embedded due to site restrictions. You can try logging in or watch it on the original
+              site.
+            </p>
           </div>
-        )}
+          <div className="flex gap-2">
+            <Button onClick={() => setShowLoginForm(true)} className="bg-blue-500 hover:bg-blue-600 text-white">
+              <LogIn className="w-4 h-4 mr-2" />
+              Login to Eporner
+            </Button>
+            <Button onClick={openInNewTab} className="bg-orange-500 hover:bg-orange-600 text-white">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Watch on Eporner
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="relative">
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        style={{
-          display: isVideoMode ? "block" : "none",
-          width: "100%",
-          maxWidth: "560px",
-          aspectRatio: "16/9",
-        }}
-        className={isVideoMode ? "rounded-lg overflow-hidden shadow-lg" : ""}
-        preload="auto"
-        crossOrigin="anonymous"
-        controls={isVideoMode}
-        playsInline
-        webkit-playsinline="true"
-      />
-      {isBuffering && isVideoMode && (
+      {isEpornerPageUrl && authSessionId && (
+        <iframe
+          ref={iframeRef}
+          src={`/api/eporner/proxy?url=${encodeURIComponent(videoUrl)}&sessionId=${authSessionId}`}
+          style={{
+            width: "100%",
+            height: "400px",
+            border: "none",
+            borderRadius: "8px",
+          }}
+          allow="autoplay; fullscreen"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          onLoad={() => {
+            console.log("[v0] Authenticated iframe loaded")
+            setIframeLoaded(true)
+            checkIframeContent()
+          }}
+          onError={() => {
+            console.log("[v0] Authenticated iframe error")
+            setIframeError(true)
+          }}
+        />
+      )}
+
+      {!shouldShowFallback && isDirectVideoFile && (
+        <video
+          ref={videoRef}
+          src={effectiveVideoUrl}
+          style={{
+            display: isVideoMode ? "block" : "none",
+            width: "100%",
+            maxWidth: "560px",
+            aspectRatio: "16/9",
+          }}
+          className={isVideoMode ? "rounded-lg overflow-hidden shadow-lg" : ""}
+          preload="auto"
+          crossOrigin="anonymous"
+          controls={isVideoMode}
+          playsInline
+          webkit-playsinline="true"
+        />
+      )}
+      {isBuffering && isVideoMode && !shouldShowFallback && (
         <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
           <div className="text-white text-sm">Buffering... {Math.round(bufferProgress)}%</div>
         </div>
