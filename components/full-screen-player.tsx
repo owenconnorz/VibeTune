@@ -187,21 +187,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
     state.currentTrack?.isVideo &&
     (state.currentTrack?.videoUrl ||
       state.currentTrack?.source === "eporner" ||
-      state.currentTrack?.source === "xnxx" ||
-      state.currentTrack?.id?.startsWith("eporner_") ||
-      state.currentTrack?.id?.startsWith("xnxx_"))
-
-  useEffect(() => {
-    if (state.currentTrack) {
-      console.log("[v0] Current track:", {
-        id: state.currentTrack.id,
-        isVideo: state.currentTrack.isVideo,
-        videoUrl: state.currentTrack.videoUrl,
-        source: state.currentTrack.source,
-        isVideoContent,
-      })
-    }
-  }, [state.currentTrack, isVideoContent])
+      state.currentTrack?.id?.startsWith("eporner_"))
 
   if (!isOpen || !state.currentTrack || !colors) return null
 
@@ -290,9 +276,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                         showVideo={true}
                         onError={(error) => console.error("[v0] HTML5 video error:", error)}
                       />
-                    ) : state.currentTrack.id &&
-                      !state.currentTrack.id.startsWith("eporner_") &&
-                      !state.currentTrack.id.startsWith("xnxx_") ? (
+                    ) : state.currentTrack.id && !state.currentTrack.id.startsWith("eporner_") ? (
                       <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
                     ) : (
                       <div className="w-full h-full bg-black flex items-center justify-center text-white">

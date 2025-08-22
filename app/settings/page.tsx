@@ -3,12 +3,15 @@ import { useEffect, useState, useCallback, useMemo } from "react"
 import { ArrowLeft, User, Globe, Play, HardDrive, Shield, RefreshCw, Info, Palette, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
+import { useSettings } from "@/contexts/settings-context"
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { user } = useAuth() // Removed loading dependency to prevent blocking
+  const { user } = useAuth()
+  const { adultContentEnabled, setAdultContentEnabled } = useSettings()
 
   const [profileSettings, setProfileSettings] = useState({
     useCustomPicture: false,
@@ -121,6 +124,25 @@ export default function SettingsPage() {
           </div>
           <h2 className="text-xl font-semibold text-white mb-1">{user?.name || "Guest User"}</h2>
           {user?.email && <p className="text-gray-400 text-sm">{user.email}</p>}
+        </div>
+
+        <div className="mb-8">
+          <div className="flex items-center justify-between p-4 hover:bg-zinc-800/50 rounded-lg transition-colors">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 flex items-center justify-center">
+                <Shield className="w-6 h-6 text-gray-400" />
+              </div>
+              <div className="text-left">
+                <p className="text-white font-medium text-lg">18+ Content</p>
+                <p className="text-gray-400 text-sm">Show adult content in videos section</p>
+              </div>
+            </div>
+            <Switch
+              checked={adultContentEnabled}
+              onCheckedChange={setAdultContentEnabled}
+              className="data-[state=checked]:bg-yellow-600"
+            />
+          </div>
         </div>
 
         <div className="space-y-1">

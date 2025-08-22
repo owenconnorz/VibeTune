@@ -10,6 +10,7 @@ import { AudioPlayer } from "@/components/audio-player"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
+import { useSettings } from "@/contexts/settings-context"
 import { SongMenu } from "@/components/song-menu"
 import { DownloadedIcon } from "@/components/downloaded-icon"
 import { useTrendingMusic, useMoodPlaylist, useNewReleases } from "@/hooks/use-music-data"
@@ -126,6 +127,7 @@ export default function VibeTunePage() {
   const router = useRouter()
   const { user } = useAuth()
   const { syncData } = useSync()
+  const { adultContentEnabled } = useSettings()
   const { playTrack, playQueue, state } = useAudioPlayer()
   const {
     songs: trendingSongs,
@@ -160,42 +162,6 @@ export default function VibeTunePage() {
     [],
   )
 
-  useEffect(() => {
-    console.log("[v0] Homepage API Status:", {
-      trending: {
-        source: trendingSource,
-        songsCount: trendingSongs?.length || 0,
-        loading: trendingLoading,
-        error: trendingError,
-      },
-      mixedForYou: {
-        source: mixedSource,
-        songsCount: mixedForYouSongs?.length || 0,
-        loading: mixedLoading,
-        error: mixedError,
-      },
-      newReleases: {
-        source: newReleasesSource,
-        songsCount: newReleasesSongs?.length || 0,
-        loading: newReleasesLoading,
-        error: newReleasesError,
-      },
-    })
-  }, [
-    trendingSource,
-    trendingSongs,
-    trendingLoading,
-    trendingError,
-    mixedSource,
-    mixedForYouSongs,
-    mixedLoading,
-    mixedError,
-    newReleasesSource,
-    newReleasesSongs,
-    newReleasesLoading,
-    newReleasesError,
-  ])
-
   const safeTrendingSongs = useMemo(() => (Array.isArray(trendingSongs) ? trendingSongs : []), [trendingSongs])
   const safeMixedForYouSongs = useMemo(
     () => (Array.isArray(mixedForYouSongs) ? mixedForYouSongs : []),
@@ -205,17 +171,6 @@ export default function VibeTunePage() {
     () => (Array.isArray(newReleasesSongs) ? newReleasesSongs : []),
     [newReleasesSongs],
   )
-
-  useEffect(() => {
-    console.log("[v0] Homepage processed songs:", {
-      safeTrendingSongs: safeTrendingSongs.length,
-      safeMixedForYouSongs: safeMixedForYouSongs.length,
-      safeNewReleasesSongs: safeNewReleasesSongs.length,
-      firstTrendingSong: safeTrendingSongs[0]?.title || "None",
-      firstMixedSong: safeMixedForYouSongs[0]?.title || "None",
-      firstNewRelease: safeNewReleasesSongs[0]?.title || "None",
-    })
-  }, [safeTrendingSongs, safeMixedForYouSongs, safeNewReleasesSongs])
 
   useEffect(() => {
     if (safeTrendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
@@ -787,14 +742,16 @@ export default function VibeTunePage() {
             <Compass className="w-5 h-5 text-gray-400 mb-0.5" />
             <span className="text-[10px] text-gray-400">Explore</span>
           </div>
-          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleVideosClick}>
-            <div className="w-5 h-5 text-gray-400 mb-0.5 flex items-center justify-center">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V2zM5 8a1 1 0 000 2h8a1 1 0 100-2H5z" />
-              </svg>
+          {adultContentEnabled && (
+            <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleVideosClick}>
+              <div className="w-5 h-5 text-gray-400 mb-0.5 flex items-center justify-center">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V2zM5 8a1 1 0 000 2h8a1 1 0 100-2H5z" />
+                </svg>
+              </div>
+              <span className="text-[10px] text-gray-400">Videos</span>
             </div>
-            <span className="text-[10px] text-gray-400">Porn</span>
-          </div>
+          )}
           <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleLibraryClick}>
             <div className="relative">
               <Library className="w-5 h-5 text-gray-400 mb-0.5" />

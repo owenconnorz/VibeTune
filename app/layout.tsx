@@ -12,6 +12,7 @@ import { ListeningHistoryProvider } from "@/contexts/listening-history-context"
 import { UpdateProvider } from "@/contexts/update-context"
 import { LikedSongsProvider } from "@/contexts/liked-songs-context"
 import { RefreshProvider } from "@/contexts/refresh-context"
+import { SettingsProvider } from "@/contexts/settings-context"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import "./globals.css"
 
@@ -48,7 +49,9 @@ const CombinedProviders = ({ children }: { children: React.ReactNode }) => (
               <LikedSongsProvider>
                 <ThemeProvider>
                   <RefreshProvider>
-                    <UpdateProvider>{children}</UpdateProvider>
+                    <UpdateProvider>
+                      <SettingsProvider>{children}</SettingsProvider>
+                    </UpdateProvider>
                   </RefreshProvider>
                 </ThemeProvider>
               </LikedSongsProvider>

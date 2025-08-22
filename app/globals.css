@@ -119,14 +119,12 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Added performance optimizations */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 }
 
-/* Added performance optimizations for smooth scrolling and animations */
 @layer utilities {
   .scroll-smooth {
     scroll-behavior: smooth;

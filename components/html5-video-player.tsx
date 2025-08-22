@@ -19,25 +19,35 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
   const isDestroyedRef = useRef(false)
   const [iframeError, setIframeError] = useState(false)
   const [iframeLoaded, setIframeLoaded] = useState(false)
+  const [bufferProgress, setBufferProgress] = useState(0)
+  const [isBuffering, setIsBuffering] = useState(false)
 
   const { state, setCurrentTime, setDuration } = useAudioPlayer()
   const isVideoMode = showVideo || state.isVideoMode
 
-  const isEpornerPageUrl =
-    (videoUrl.includes("eporner.com/video-") || videoUrl.includes("xnxx.com/video-")) && !videoUrl.endsWith(".mp4")
+  const isEpornerPageUrl = videoUrl.includes("eporner.com/video-") && !videoUrl.endsWith(".mp4")
+  const isPageUrl = isEpornerPageUrl
+
   const isDirectVideoFile =
     videoUrl.endsWith(".mp4") || videoUrl.endsWith(".webm") || videoUrl.endsWith(".ogg") || videoUrl.endsWith(".mov")
 
   const updateTimeProgress = () => {
-    if (!videoRef.current || isDestroyedRef.current || isEpornerPageUrl) return
+    if (!videoRef.current || isDestroyedRef.current || isPageUrl) return
 
     try {
-      const currentTime = videoRef.current.currentTime || 0
-      const duration = videoRef.current.duration || 0
+      const video = videoRef.current
+      const currentTime = video.currentTime || 0
+      const duration = video.duration || 0
 
       if (currentTime > 0 && duration > 0) {
         setCurrentTime?.(currentTime)
         setDuration?.(duration)
+      }
+
+      if (video.buffered.length > 0) {
+        const bufferedEnd = video.buffered.end(video.buffered.length - 1)
+        const bufferPercent = duration > 0 ? (bufferedEnd / duration) * 100 : 0
+        setBufferProgress(bufferPercent)
       }
     } catch (error) {
       console.error("[v0] Error updating HTML5 video time progress:", error)
@@ -57,14 +67,14 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
   }
 
   useEffect(() => {
-    if (isEpornerPageUrl) {
+    if (isPageUrl) {
       console.log("[v0] Using iframe for adult video:", videoUrl)
       const iframeTimeout = setTimeout(() => {
         if (!iframeLoaded) {
           console.log("[v0] Iframe failed to load within timeout, showing fallback")
           setIframeError(true)
         }
-      }, 8000) // Reduced timeout to 8 seconds for faster fallback
+      }, 5000)
 
       onReady?.()
 
@@ -90,29 +100,50 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
 
     const handlePlay = () => {
       startTimeUpdates()
+      setIsBuffering(false)
     }
 
     const handlePause = () => {
       stopTimeUpdates()
     }
 
+    const handleWaiting = () => {
+      console.log("[v0] Video buffering...")
+      setIsBuffering(true)
+    }
+
+    const handleCanPlay = () => {
+      console.log("[v0] Video can play")
+      setIsBuffering(false)
+    }
+
+    const handleProgress = () => {
+      updateTimeProgress()
+    }
+
     video.addEventListener("loadedmetadata", handleLoadedMetadata)
     video.addEventListener("error", handleError)
     video.addEventListener("play", handlePlay)
     video.addEventListener("pause", handlePause)
+    video.addEventListener("waiting", handleWaiting)
+    video.addEventListener("canplay", handleCanPlay)
+    video.addEventListener("progress", handleProgress)
 
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata)
       video.removeEventListener("error", handleError)
       video.removeEventListener("play", handlePlay)
       video.removeEventListener("pause", handlePause)
+      video.removeEventListener("waiting", handleWaiting)
+      video.removeEventListener("canplay", handleCanPlay)
+      video.removeEventListener("progress", handleProgress)
       stopTimeUpdates()
       isDestroyedRef.current = true
     }
-  }, [videoUrl, isEpornerPageUrl, iframeLoaded])
+  }, [videoUrl, isPageUrl, iframeLoaded])
 
   useEffect(() => {
-    if (isEpornerPageUrl) return
+    if (isPageUrl) return
 
     const video = videoRef.current
     if (!video) return
@@ -126,10 +157,10 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
     } catch (error) {
       console.error("[v0] Error controlling HTML5 video playback:", error)
     }
-  }, [state.isPlaying, isEpornerPageUrl])
+  }, [state.isPlaying, isPageUrl])
 
   useEffect(() => {
-    if (isEpornerPageUrl) return
+    if (isPageUrl) return
 
     const video = videoRef.current
     if (!video) return
@@ -139,10 +170,10 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
     } catch (error) {
       console.error("[v0] Error seeking HTML5 video:", error)
     }
-  }, [state.currentTime, isEpornerPageUrl])
+  }, [state.currentTime, isPageUrl])
 
   useEffect(() => {
-    if (isEpornerPageUrl) return
+    if (isPageUrl) return
 
     const video = videoRef.current
     if (!video) return
@@ -152,13 +183,13 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
     } catch (error) {
       console.error("[v0] Error setting HTML5 video volume:", error)
     }
-  }, [state.volume, isEpornerPageUrl])
+  }, [state.volume, isPageUrl])
 
   const openInNewTab = () => {
     window.open(videoUrl, "_blank", "noopener,noreferrer")
   }
 
-  if (isEpornerPageUrl) {
+  if (isPageUrl) {
     if (iframeError) {
       return (
         <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-lg">
@@ -211,21 +242,28 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
   }
 
   return (
-    <video
-      ref={videoRef}
-      src={videoUrl}
-      style={{
-        display: isVideoMode ? "block" : "none",
-        width: "100%",
-        maxWidth: "560px",
-        aspectRatio: "16/9",
-      }}
-      className={isVideoMode ? "rounded-lg overflow-hidden shadow-lg" : ""}
-      preload="metadata"
-      crossOrigin="anonymous"
-      controls={isVideoMode}
-      playsInline
-      webkit-playsinline="true"
-    />
+    <div className="relative">
+      <video
+        ref={videoRef}
+        src={videoUrl}
+        style={{
+          display: isVideoMode ? "block" : "none",
+          width: "100%",
+          maxWidth: "560px",
+          aspectRatio: "16/9",
+        }}
+        className={isVideoMode ? "rounded-lg overflow-hidden shadow-lg" : ""}
+        preload="auto"
+        crossOrigin="anonymous"
+        controls={isVideoMode}
+        playsInline
+        webkit-playsinline="true"
+      />
+      {isBuffering && isVideoMode && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
+          <div className="text-white text-sm">Buffering... {Math.round(bufferProgress)}%</div>
+        </div>
+      )}
+    </div>
   )
 }
