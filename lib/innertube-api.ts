@@ -298,8 +298,19 @@ export class InnertubeAPI {
     }
 
     const thumbnails = thumbnailData.thumbnails
-    const highRes = thumbnails.find((t: any) => t.width >= 480) || thumbnails[thumbnails.length - 1]
-    return highRes?.url || "/placeholder.svg?height=300&width=300"
+    // Sort by width descending to get the highest quality first
+    const sortedThumbnails = thumbnails.sort((a: any, b: any) => (b.width || 0) - (a.width || 0))
+
+    // Prefer thumbnails with width >= 720px for better quality, fallback to >= 480px
+    const highRes =
+      sortedThumbnails.find((t: any) => t.width >= 720) ||
+      sortedThumbnails.find((t: any) => t.width >= 480) ||
+      sortedThumbnails[0]
+
+    const thumbnailUrl = highRes?.url || "/placeholder.svg?height=300&width=300"
+
+    // Ensure HTTPS for better compatibility
+    return thumbnailUrl.startsWith("//") ? `https:${thumbnailUrl}` : thumbnailUrl
   }
 
   private formatDuration(durationText: string): string {

@@ -1,4 +1,4 @@
-import { searchMusic as apiSearchMusic, fetchTrending } from "./youtube-api"
+import { searchMusic as apiSearchMusic, fetchTrending } from "./innertube-api"
 
 // Song interface for type safety
 export interface Song {

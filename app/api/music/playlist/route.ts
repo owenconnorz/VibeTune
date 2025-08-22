@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createYouTubeAPI } from "@/lib/youtube-api"
+import { createInnertubeAPI } from "@/lib/innertube-api"
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,15 +11,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Playlist ID is required" }, { status: 400 })
     }
 
-    const apiKey = process.env.YOUTUBE_API_KEY
-    if (!apiKey) {
-      return NextResponse.json({ error: "YouTube API key not configured" }, { status: 500 })
-    }
+    const innertube = createInnertubeAPI()
+    const result = await innertube.getPlaylistDetails(playlistId)
 
-    const youtube = createYouTubeAPI(apiKey)
-    const videos = await youtube.getPlaylistVideos(playlistId, maxResults)
-
-    return NextResponse.json({ videos })
+    return NextResponse.json({ videos: result.videos })
   } catch (error) {
     console.error("Playlist API error:", error)
     return NextResponse.json({ error: "Failed to fetch playlist videos" }, { status: 500 })

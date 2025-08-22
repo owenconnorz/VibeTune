@@ -5,7 +5,7 @@ import { ArrowLeft, Play, MoreVertical, User, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
-import { searchArtistSongs } from "@/lib/youtube-api"
+import { createInnertubeAPI } from "@/lib/innertube-api"
 
 interface Song {
   id: string
@@ -42,9 +42,9 @@ export default function ArtistPage({ params }: ArtistPageProps) {
       try {
         console.log("[v0] Loading songs for artist:", artistName, "pageToken:", pageToken)
 
-        const results = await searchArtistSongs(artistName, 20, pageToken)
+        const innertube = createInnertubeAPI()
+        const results = await innertube.searchMusic(artistName, 20)
 
-        // Convert YouTube API results to Song format
         const artistSongs = results.videos.map((video) => ({
           id: video.id,
           title: video.title || "Unknown Title",

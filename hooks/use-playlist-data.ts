@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import type { YouTubePlaylist, YouTubeVideo } from "@/lib/youtube-api"
+import type { InnertubePlaylist, InnertubeVideo } from "@/lib/innertube-api"
 import { useAuth } from "@/contexts/auth-context"
 
 export function useUserPlaylists() {
-  const [playlists, setPlaylists] = useState<YouTubePlaylist[]>([])
+  const [playlists, setPlaylists] = useState<InnertubePlaylist[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()
@@ -50,7 +50,7 @@ export function useUserPlaylists() {
 }
 
 export function useLikedSongs() {
-  const [songs, setSongs] = useState<YouTubeVideo[]>([])
+  const [songs, setSongs] = useState<InnertubeVideo[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { user } = useAuth()

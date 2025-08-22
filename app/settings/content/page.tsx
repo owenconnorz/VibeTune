@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { usePlaylist } from "@/contexts/playlist-context"
-import { createYouTubeAPI } from "@/lib/youtube-api"
+import { createInnertubeAPI } from "@/lib/innertube-api"
 
 export default function ContentSettingsPage() {
   const router = useRouter()
@@ -35,14 +35,14 @@ export default function ContentSettingsPage() {
     setImportStatus("Importing playlist...")
 
     try {
-      const youtubeAPI = createYouTubeAPI()
+      const innertube = createInnertubeAPI()
       const playlistId = extractPlaylistId(playlistUrl)
 
       if (!playlistId) {
         throw new Error("Invalid YouTube playlist URL")
       }
 
-      const result = await youtubeAPI.getPlaylistDetails(playlistId)
+      const result = await innertube.getPlaylistDetails(playlistId)
 
       if (result && result.playlist && result.videos) {
         const songs = result.videos.map((video: any) => ({

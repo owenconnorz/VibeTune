@@ -2,11 +2,11 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import { useAuth } from "./auth-context"
-import type { YouTubePlaylist, YouTubeVideo } from "@/lib/youtube-api"
+import type { InnertubePlaylist, InnertubeVideo } from "@/lib/innertube-api"
 
 export interface SyncData {
-  playlists: YouTubePlaylist[]
-  likedSongs: YouTubeVideo[]
+  playlists: InnertubePlaylist[]
+  likedSongs: InnertubeVideo[]
   lastSyncTime: string | null
 }
 

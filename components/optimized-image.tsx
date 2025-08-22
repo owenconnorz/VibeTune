@@ -52,6 +52,23 @@ export function OptimizedImage({
     ]
   }
 
+  const getInnertubeYouTubeThumbnailFallbacks = (originalSrc: string) => {
+    if (!originalSrc?.includes("youtube.com/vi/") && !originalSrc?.includes("ytimg.com")) return []
+
+    const videoIdMatch = originalSrc.match(/\/vi\/([^/]+)\//) || originalSrc.match(/\/([a-zA-Z0-9_-]{11})\//)
+    if (!videoIdMatch) return []
+
+    const videoId = videoIdMatch[1]
+    // Prioritize higher quality thumbnails from Innertube
+    return [
+      `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+      `https://i.ytimg.com/vi/${videoId}/sddefault.jpg`,
+      `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+      `https://i.ytimg.com/vi/${videoId}/default.jpg`,
+    ]
+  }
+
   const getFallbackUrl = (originalSrc: string, altText: string) => {
     // If it's already a placeholder, generate a better one
     if (originalSrc?.includes("/placeholder.svg") || !originalSrc || originalSrc === fallbackSrc) {
@@ -72,13 +89,13 @@ export function OptimizedImage({
     setHasError(true)
     setIsLoading(false)
 
-    const youtubeFallbacks = getYouTubeThumbnailFallbacks(imgSrc)
+    const youtubeFallbacks = getInnertubeYouTubeThumbnailFallbacks(imgSrc)
     const currentIndex = youtubeFallbacks.indexOf(imgSrc)
 
     if (currentIndex !== -1 && currentIndex < youtubeFallbacks.length - 1) {
       // Try next YouTube thumbnail quality
       const nextFallback = youtubeFallbacks[currentIndex + 1]
-      console.log("[v0] Trying next YouTube thumbnail quality:", nextFallback)
+      console.log("[v0] Trying next Innertube thumbnail quality:", nextFallback)
       setImgSrc(nextFallback)
       setHasError(false)
       setIsLoading(true)
