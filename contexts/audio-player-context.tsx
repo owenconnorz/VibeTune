@@ -27,6 +27,18 @@ interface AudioPlayerState {
   isLoading: boolean
   error: string | null
   isVideoMode: boolean
+  // Enhanced audio features
+  bufferProgress: number
+  playbackRate: number
+  crossfadeEnabled: boolean
+  crossfadeDuration: number
+  audioQuality: "low" | "medium" | "high" | "auto"
+  isBuffering: boolean
+  networkState: "idle" | "loading" | "loaded" | "error"
+  repeatMode: "none" | "one" | "all"
+  shuffleEnabled: boolean
+  originalQueue: Track[]
+  gaplessPlayback: boolean
 }
 
 type AudioPlayerAction =
@@ -43,6 +55,16 @@ type AudioPlayerAction =
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null }
   | { type: "SET_VIDEO_MODE"; payload: boolean }
+  // Enhanced audio actions
+  | { type: "SET_BUFFER_PROGRESS"; payload: number }
+  | { type: "SET_PLAYBACK_RATE"; payload: number }
+  | { type: "SET_CROSSFADE"; payload: { enabled: boolean; duration?: number } }
+  | { type: "SET_AUDIO_QUALITY"; payload: "low" | "medium" | "high" | "auto" }
+  | { type: "SET_BUFFERING"; payload: boolean }
+  | { type: "SET_NETWORK_STATE"; payload: "idle" | "loading" | "loaded" | "error" }
+  | { type: "SET_REPEAT_MODE"; payload: "none" | "one" | "all" }
+  | { type: "TOGGLE_SHUFFLE" }
+  | { type: "SET_GAPLESS_PLAYBACK"; payload: boolean }
 
 const initialState: AudioPlayerState = {
   currentTrack: null,
@@ -55,6 +77,18 @@ const initialState: AudioPlayerState = {
   isLoading: false,
   error: null,
   isVideoMode: typeof window !== "undefined" ? localStorage.getItem("vibetuneVideoMode") === "true" : false,
+  // Enhanced audio features
+  bufferProgress: 0,
+  playbackRate: 1,
+  crossfadeEnabled: true,
+  crossfadeDuration: 3,
+  audioQuality: "auto",
+  isBuffering: false,
+  networkState: "idle",
+  repeatMode: "none",
+  shuffleEnabled: false,
+  originalQueue: [],
+  gaplessPlayback: true,
 }
 
 function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction): AudioPlayerState {
@@ -65,16 +99,20 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
         currentTrack: action.payload,
         currentTime: 0,
         error: null,
+        bufferProgress: 0,
+        networkState: "loading",
       }
     case "SET_QUEUE":
       const startIndex = action.payload.startIndex ?? 0
       return {
         ...state,
         queue: action.payload.tracks,
+        originalQueue: state.shuffleEnabled ? state.originalQueue : action.payload.tracks,
         currentIndex: startIndex,
         currentTrack: action.payload.tracks[startIndex] || null,
         currentTime: 0,
         error: null,
+        bufferProgress: 0,
       }
     case "PLAY":
       return { ...state, isPlaying: true }
@@ -83,6 +121,9 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
     case "TOGGLE_PLAY":
       return { ...state, isPlaying: !state.isPlaying }
     case "NEXT_TRACK":
+      if (state.repeatMode === "one") {
+        return { ...state, currentTime: 0 }
+      }
       if (state.currentIndex < state.queue.length - 1) {
         const nextIndex = state.currentIndex + 1
         return {
@@ -90,6 +131,15 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
           currentIndex: nextIndex,
           currentTrack: state.queue[nextIndex],
           currentTime: 0,
+          bufferProgress: 0,
+        }
+      } else if (state.repeatMode === "all") {
+        return {
+          ...state,
+          currentIndex: 0,
+          currentTrack: state.queue[0],
+          currentTime: 0,
+          bufferProgress: 0,
         }
       }
       return state
@@ -101,6 +151,16 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
           currentIndex: prevIndex,
           currentTrack: state.queue[prevIndex],
           currentTime: 0,
+          bufferProgress: 0,
+        }
+      } else if (state.repeatMode === "all") {
+        const lastIndex = state.queue.length - 1
+        return {
+          ...state,
+          currentIndex: lastIndex,
+          currentTrack: state.queue[lastIndex],
+          currentTime: 0,
+          bufferProgress: 0,
         }
       }
       return state
@@ -113,12 +173,59 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
     case "SET_LOADING":
       return { ...state, isLoading: action.payload }
     case "SET_ERROR":
-      return { ...state, error: action.payload, isLoading: false }
+      return { ...state, error: action.payload, isLoading: false, networkState: "error" }
     case "SET_VIDEO_MODE":
       if (typeof window !== "undefined") {
         localStorage.setItem("vibetuneVideoMode", action.payload.toString())
       }
       return { ...state, isVideoMode: action.payload }
+    // Enhanced audio cases
+    case "SET_BUFFER_PROGRESS":
+      return { ...state, bufferProgress: action.payload }
+    case "SET_PLAYBACK_RATE":
+      return { ...state, playbackRate: Math.max(0.25, Math.min(2, action.payload)) }
+    case "SET_CROSSFADE":
+      return {
+        ...state,
+        crossfadeEnabled: action.payload.enabled,
+        crossfadeDuration: action.payload.duration ?? state.crossfadeDuration,
+      }
+    case "SET_AUDIO_QUALITY":
+      return { ...state, audioQuality: action.payload }
+    case "SET_BUFFERING":
+      return { ...state, isBuffering: action.payload }
+    case "SET_NETWORK_STATE":
+      return { ...state, networkState: action.payload }
+    case "SET_REPEAT_MODE":
+      return { ...state, repeatMode: action.payload }
+    case "TOGGLE_SHUFFLE":
+      const newShuffleEnabled = !state.shuffleEnabled
+      if (newShuffleEnabled) {
+        // Shuffle the queue
+        const currentTrack = state.currentTrack
+        const otherTracks = state.queue.filter((_, index) => index !== state.currentIndex)
+        const shuffledOthers = [...otherTracks].sort(() => Math.random() - 0.5)
+        const newQueue = currentTrack ? [currentTrack, ...shuffledOthers] : shuffledOthers
+        return {
+          ...state,
+          shuffleEnabled: true,
+          originalQueue: state.queue,
+          queue: newQueue,
+          currentIndex: currentTrack ? 0 : -1,
+        }
+      } else {
+        // Restore original queue
+        const currentTrack = state.currentTrack
+        const originalIndex = currentTrack ? state.originalQueue.findIndex((t) => t.id === currentTrack.id) : -1
+        return {
+          ...state,
+          shuffleEnabled: false,
+          queue: state.originalQueue,
+          currentIndex: originalIndex,
+        }
+      }
+    case "SET_GAPLESS_PLAYBACK":
+      return { ...state, gaplessPlayback: action.payload }
     default:
       return state
   }
@@ -136,6 +243,16 @@ interface AudioPlayerContextType {
   setVideoMode: (enabled: boolean) => void
   setCurrentTime: (time: number) => void
   setDuration: (duration: number) => void
+  // Enhanced audio methods
+  setBufferProgress: (progress: number) => void
+  setPlaybackRate: (rate: number) => void
+  setCrossfade: (enabled: boolean, duration?: number) => void
+  setAudioQuality: (quality: "low" | "medium" | "high" | "auto") => void
+  setBuffering: (buffering: boolean) => void
+  setNetworkState: (state: "idle" | "loading" | "loaded" | "error") => void
+  setRepeatMode: (mode: "none" | "one" | "all") => void
+  toggleShuffle: () => void
+  setGaplessPlayback: (enabled: boolean) => void
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined)
@@ -145,6 +262,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const videoModeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastAddedTrackRef = useRef<string | null>(null)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  const preloadAudioRef = useRef<HTMLAudioElement | null>(null)
+  const crossfadeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { addToHistory } = useListeningHistory()
 
   useEffect(() => {
@@ -213,6 +332,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         artwork,
       })
 
+      // Enhanced action handlers with better queue management
       navigator.mediaSession.setActionHandler("play", () => {
         console.log("[v0] Media Session: Play action triggered")
         dispatch({ type: "PLAY" })
@@ -230,47 +350,28 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       })
 
       navigator.mediaSession.setActionHandler("previoustrack", () => {
-        console.log("[v0] Media Session: Previous track action triggered", {
-          currentIndex: state.currentIndex,
-          queueLength: state.queue.length,
-          canGoPrevious: state.currentIndex > 0,
-        })
-        if (state.queue.length > 1 && state.currentIndex > 0) {
-          dispatch({ type: "PREVIOUS_TRACK" })
-        } else {
-          dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
-        }
+        console.log("[v0] Media Session: Previous track action triggered")
+        dispatch({ type: "PREVIOUS_TRACK" })
       })
 
       navigator.mediaSession.setActionHandler("nexttrack", () => {
-        console.log("[v0] Media Session: Next track action triggered", {
-          currentIndex: state.currentIndex,
-          queueLength: state.queue.length,
-          canGoNext: state.currentIndex < state.queue.length - 1,
-        })
-        if (state.queue.length > 1 && state.currentIndex < state.queue.length - 1) {
-          dispatch({ type: "NEXT_TRACK" })
-        } else {
-          dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
-        }
+        console.log("[v0] Media Session: Next track action triggered")
+        dispatch({ type: "NEXT_TRACK" })
       })
 
       navigator.mediaSession.setActionHandler("seekto", (details) => {
-        console.log("[v0] Media Session: Seek action triggered", details.seekTime)
         if (details.seekTime !== undefined && details.seekTime >= 0) {
           dispatch({ type: "SET_CURRENT_TIME", payload: details.seekTime })
         }
       })
 
       navigator.mediaSession.setActionHandler("seekbackward", (details) => {
-        console.log("[v0] Media Session: Seek backward action triggered")
         const seekOffset = details.seekOffset || 10
         const newTime = Math.max(0, state.currentTime - seekOffset)
         dispatch({ type: "SET_CURRENT_TIME", payload: newTime })
       })
 
       navigator.mediaSession.setActionHandler("seekforward", (details) => {
-        console.log("[v0] Media Session: Seek forward action triggered")
         const seekOffset = details.seekOffset || 10
         const newTime = Math.min(state.duration, state.currentTime + seekOffset)
         dispatch({ type: "SET_CURRENT_TIME", payload: newTime })
@@ -278,11 +379,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
       navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused"
 
-      console.log("[v0] Media Session setup completed for:", state.currentTrack.title, {
-        queueLength: state.queue.length,
-        currentIndex: state.currentIndex,
-        hasQueue: state.queue.length > 0,
-      })
+      console.log("[v0] Enhanced Media Session setup completed")
     } catch (error) {
       console.warn("[v0] Media Session setup failed:", error)
     }
@@ -303,7 +400,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
       navigator.mediaSession.setPositionState({
         duration: state.duration,
-        playbackRate: 1,
+        playbackRate: state.playbackRate,
         position: position,
       })
 
@@ -313,7 +410,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     } catch (error) {
       console.warn("[v0] Media Session position update failed:", error)
     }
-  }, [state.duration, state.currentTime, state.currentTrack, state.isPlaying])
+  }, [state.duration, state.currentTime, state.currentTrack, state.isPlaying, state.playbackRate])
 
   const playTrack = (track: Track) => {
     dispatch({ type: "SET_QUEUE", payload: { tracks: [track], startIndex: 0 } })
@@ -353,6 +450,42 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_DURATION", payload: duration })
   }
 
+  const setBufferProgress = (progress: number) => {
+    dispatch({ type: "SET_BUFFER_PROGRESS", payload: progress })
+  }
+
+  const setPlaybackRate = (rate: number) => {
+    dispatch({ type: "SET_PLAYBACK_RATE", payload: rate })
+  }
+
+  const setCrossfade = (enabled: boolean, duration?: number) => {
+    dispatch({ type: "SET_CROSSFADE", payload: { enabled, duration } })
+  }
+
+  const setAudioQuality = (quality: "low" | "medium" | "high" | "auto") => {
+    dispatch({ type: "SET_AUDIO_QUALITY", payload: quality })
+  }
+
+  const setBuffering = (buffering: boolean) => {
+    dispatch({ type: "SET_BUFFERING", payload: buffering })
+  }
+
+  const setNetworkState = (networkState: "idle" | "loading" | "loaded" | "error") => {
+    dispatch({ type: "SET_NETWORK_STATE", payload: networkState })
+  }
+
+  const setRepeatMode = (mode: "none" | "one" | "all") => {
+    dispatch({ type: "SET_REPEAT_MODE", payload: mode })
+  }
+
+  const toggleShuffle = () => {
+    dispatch({ type: "TOGGLE_SHUFFLE" })
+  }
+
+  const setGaplessPlayback = (enabled: boolean) => {
+    dispatch({ type: "SET_GAPLESS_PLAYBACK", payload: enabled })
+  }
+
   useEffect(() => {
     setupMediaSession()
   }, [setupMediaSession])
@@ -379,6 +512,16 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         setVideoMode,
         setCurrentTime,
         setDuration,
+        // Enhanced audio methods
+        setBufferProgress,
+        setPlaybackRate,
+        setCrossfade,
+        setAudioQuality,
+        setBuffering,
+        setNetworkState,
+        setRepeatMode,
+        toggleShuffle,
+        setGaplessPlayback,
       }}
     >
       {children}
