@@ -40,13 +40,16 @@ export default function VideosPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [playlists, setPlaylists] = useState<Array<{ id: string; name: string; videos: Video[] }>>([])
+  const [hasInitialLoad, setHasInitialLoad] = useState(false)
 
   useEffect(() => {
-    fetchVideos("popular")
     const savedPlaylists = localStorage.getItem("videoPlaylists")
     if (savedPlaylists) {
       setPlaylists(JSON.parse(savedPlaylists))
     }
+
+    setHasInitialLoad(true)
+    fetchVideos("popular")
   }, [])
 
   const fetchVideos = async (query: string, page = 1) => {
@@ -55,9 +58,9 @@ export default function VideosPage() {
 
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-      const response = await fetch(`/api/eporner/search?query=${encodeURIComponent(query)}&page=${page}&per_page=20`, {
+      const response = await fetch(`/api/eporner/search?query=${encodeURIComponent(query)}&page=${page}&per_page=12`, {
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
@@ -176,7 +179,7 @@ export default function VideosPage() {
       </div>
 
       <div className="p-4 pb-20">
-        {isLoading && videos.length === 0 ? (
+        {isLoading && !hasInitialLoad ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-2"></div>
@@ -191,7 +194,7 @@ export default function VideosPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {videos.map((video) => (
                 <div
                   key={video.id}
@@ -261,7 +264,7 @@ export default function VideosPage() {
               </div>
             )}
 
-            {videos.length === 0 && !isLoading && (
+            {videos.length === 0 && hasInitialLoad && !isLoading && (
               <div className="text-center py-12">
                 <p className="text-gray-400">No videos found. Try a different search term.</p>
               </div>
