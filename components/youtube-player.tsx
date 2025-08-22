@@ -183,15 +183,34 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
                   case 5:
                     errorMessage = "HTML5 player error"
                     console.error("[v0] HTML5 player error for video:", videoId)
+                    console.log("[v0] Attempting to skip to next track due to playback restriction")
+                    setTimeout(() => {
+                      if (state?.currentTrack && typeof state.skipToNext === "function") {
+                        console.log("[v0] Skipping to next track due to YouTube error 5")
+                        state.skipToNext()
+                      }
+                    }, 1000)
                     break
                   case 100:
                     errorMessage = "Video not found or private"
                     console.error("[v0] Video not found or private:", videoId)
+                    setTimeout(() => {
+                      if (state?.currentTrack && typeof state.skipToNext === "function") {
+                        console.log("[v0] Skipping to next track - video not found")
+                        state.skipToNext()
+                      }
+                    }, 1000)
                     break
                   case 101:
                   case 150:
                     errorMessage = "Video not allowed to be played in embedded players"
                     console.error("[v0] Video embedding not allowed:", videoId)
+                    setTimeout(() => {
+                      if (state?.currentTrack && typeof state.skipToNext === "function") {
+                        console.log("[v0] Skipping to next track - embedding not allowed")
+                        state.skipToNext()
+                      }
+                    }, 1000)
                     break
                   default:
                     console.error("[v0] Unknown YouTube error code:", errorCode)
