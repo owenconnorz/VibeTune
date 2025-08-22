@@ -57,31 +57,31 @@ export interface YouTubeSearchResult {
 
 const FALLBACK_TRENDING_SONGS: YouTubeVideo[] = [
   {
-    id: "fallback1",
-    title: "Beautiful",
-    channelTitle: "Eminem",
+    id: "3tmd-ClpJxA",
+    title: "Shape of You",
+    channelTitle: "Ed Sheeran",
     thumbnail: "/placeholder.svg?height=300&width=300",
-    duration: "6:17",
-    viewCount: "1000000",
-    publishedAt: new Date().toISOString(),
+    duration: "3:53",
+    viewCount: "5800000000",
+    publishedAt: "2017-01-06T00:00:00Z",
   },
   {
-    id: "fallback2",
-    title: "The Look",
-    channelTitle: "Roxette",
+    id: "YQHsXMglC9A",
+    title: "Hello",
+    channelTitle: "Adele",
     thumbnail: "/placeholder.svg?height=300&width=300",
-    duration: "3:58",
-    viewCount: "500000",
-    publishedAt: new Date().toISOString(),
+    duration: "4:55",
+    viewCount: "3200000000",
+    publishedAt: "2015-10-23T00:00:00Z",
   },
   {
-    id: "fallback3",
-    title: "Sucker for Pain",
-    channelTitle: "Lil Wayne, Wiz Khalifa, Imagine Dragons",
+    id: "CevxZvSJLk8",
+    title: "Roar",
+    channelTitle: "Katy Perry",
     thumbnail: "/placeholder.svg?height=300&width=300",
-    duration: "4:03",
-    viewCount: "2000000",
-    publishedAt: new Date().toISOString(),
+    duration: "3:43",
+    viewCount: "3700000000",
+    publishedAt: "2013-09-05T00:00:00Z",
   },
 ]
 
@@ -178,6 +178,527 @@ const FALLBACK_SEARCH_SONGS: YouTubeVideo[] = [
   },
 ]
 
+const CATEGORY_SPECIFIC_FALLBACK: Record<string, YouTubeVideo[]> = {
+  "happy-pop-hits": [
+    {
+      id: "CevxZvSJLk8",
+      title: "Roar",
+      channelTitle: "Katy Perry",
+      thumbnail: "/generic-pop-album-cover.png",
+      duration: "3:43",
+      viewCount: "3700000000",
+      publishedAt: "2013-09-05T00:00:00Z",
+    },
+    {
+      id: "hT_nvWreIhg",
+      title: "Shape of You",
+      channelTitle: "Ed Sheeran",
+      thumbnail: "/generic-mathematical-symbols-album-cover.png",
+      duration: "3:53",
+      viewCount: "5800000000",
+      publishedAt: "2017-01-06T00:00:00Z",
+    },
+    {
+      id: "YQHsXMglC9A",
+      title: "Hello",
+      channelTitle: "Adele",
+      thumbnail: "/generic-female-portrait-album-cover.png",
+      duration: "4:55",
+      viewCount: "3200000000",
+      publishedAt: "2015-10-23T00:00:00Z",
+    },
+    {
+      id: "JGwWNGJdvx8",
+      title: "See You Again",
+      channelTitle: "Wiz Khalifa ft. Charlie Puth",
+      thumbnail: "/wiz-khalifa-tribute-cover.png",
+      duration: "3:57",
+      viewCount: "5500000000",
+      publishedAt: "2015-04-06T00:00:00Z",
+    },
+    {
+      id: "9bZkp7q19f0",
+      title: "Gangnam Style",
+      channelTitle: "PSY",
+      thumbnail: "/generic-korean-pop-dance.png",
+      duration: "4:13",
+      viewCount: "4600000000",
+      publishedAt: "2012-07-15T00:00:00Z",
+    },
+    {
+      id: "kffacxfA7G4",
+      title: "Baby One More Time",
+      channelTitle: "Britney Spears",
+      thumbnail: "/baby-one-more-time-inspired-cover.png",
+      duration: "3:30",
+      viewCount: "800000000",
+      publishedAt: "1998-10-23T00:00:00Z",
+    },
+    {
+      id: "pRpeEdMmmQ0",
+      title: "Shake It Off",
+      channelTitle: "Taylor Swift",
+      thumbnail: "/stylized-album-cover.png",
+      duration: "3:39",
+      viewCount: "3200000000",
+      publishedAt: "2014-08-18T00:00:00Z",
+    },
+    {
+      id: "nfWlot6h_JM",
+      title: "Shake It Off",
+      channelTitle: "Taylor Swift",
+      thumbnail: "/generic-pop-song-cover.png",
+      duration: "3:39",
+      viewCount: "3200000000",
+      publishedAt: "2014-08-18T00:00:00Z",
+    },
+  ],
+  "hip-hop-classics": [
+    {
+      id: "_Yhyp-_hX2s",
+      title: "Lose Yourself",
+      channelTitle: "Eminem",
+      thumbnail: "/eminem-8-mile-soundtrack-cover.png",
+      duration: "5:26",
+      viewCount: "1200000000",
+      publishedAt: "2002-10-28T00:00:00Z",
+    },
+    {
+      id: "_JZom_gVfuw",
+      title: "Juicy",
+      channelTitle: "The Notorious B.I.G.",
+      thumbnail: "/notorious-big-ready-to-die-inspired.png",
+      duration: "5:02",
+      viewCount: "800000000",
+      publishedAt: "1994-08-04T00:00:00Z",
+    },
+    {
+      id: "41qC3w3UUkU",
+      title: "California Love",
+      channelTitle: "2Pac ft. Dr. Dre",
+      thumbnail: "/california-love-single.png",
+      duration: "4:17",
+      viewCount: "600000000",
+      publishedAt: "1995-12-28T00:00:00Z",
+    },
+    {
+      id: "GrsJDy8VjZk",
+      title: "N.Y. State of Mind",
+      channelTitle: "Nas",
+      thumbnail: "/nas-illmatic-album-cover.png",
+      duration: "4:54",
+      viewCount: "400000000",
+      publishedAt: "1994-04-19T00:00:00Z",
+    },
+    {
+      id: "hRVOOwFNp5U",
+      title: "C.R.E.A.M.",
+      channelTitle: "Wu-Tang Clan",
+      thumbnail: "/wu-tang-chambers-inspired.png",
+      duration: "4:12",
+      viewCount: "300000000",
+      publishedAt: "1993-11-09T00:00:00Z",
+    },
+    {
+      id: "SW-BU6keEUw",
+      title: "The Real Slim Shady",
+      channelTitle: "Eminem",
+      thumbnail: "/mmlp-album-cover.png",
+      duration: "4:44",
+      viewCount: "900000000",
+      publishedAt: "2000-05-23T00:00:00Z",
+    },
+    {
+      id: "UePtoxDhJSw",
+      title: "Dear Mama",
+      channelTitle: "2Pac",
+      thumbnail: "/generic-rap-album-cover.png",
+      duration: "4:40",
+      viewCount: "500000000",
+      publishedAt: "1995-02-14T00:00:00Z",
+    },
+    {
+      id: "iKi2XJkJYC4",
+      title: "Hypnotize",
+      channelTitle: "The Notorious B.I.G.",
+      thumbnail: "/biggie-smalls-album-cover.png",
+      duration: "3:50",
+      viewCount: "700000000",
+      publishedAt: "1997-03-25T00:00:00Z",
+    },
+  ],
+  "r-b-party-starters": [
+    {
+      id: "ViwtNLUqkMY",
+      title: "Crazy in Love",
+      channelTitle: "Beyoncé ft. Jay-Z",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:56",
+      viewCount: "900000000",
+      publishedAt: "2003-05-18T00:00:00Z",
+    },
+    {
+      id: "sQgd6MccwZc",
+      title: "Say My Name",
+      channelTitle: "Destiny's Child",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:31",
+      viewCount: "700000000",
+      publishedAt: "1999-10-14T00:00:00Z",
+    },
+    {
+      id: "OPf0YbXqDm0",
+      title: "Uptown Funk",
+      channelTitle: "Mark Ronson ft. Bruno Mars",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:30",
+      viewCount: "4800000000",
+      publishedAt: "2014-11-10T00:00:00Z",
+    },
+    {
+      id: "4m1EFMoRFvY",
+      title: "Single Ladies",
+      channelTitle: "Beyoncé",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:13",
+      viewCount: "1200000000",
+      publishedAt: "2008-10-13T00:00:00Z",
+    },
+    {
+      id: "7PCkvCPvDXk",
+      title: "Yeah!",
+      channelTitle: "Usher ft. Lil Jon & Ludacris",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:10",
+      viewCount: "800000000",
+      publishedAt: "2004-01-27T00:00:00Z",
+    },
+    {
+      id: "kdemFfbS5H0",
+      title: "Goodies",
+      channelTitle: "Ciara ft. Petey Pablo",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:58",
+      viewCount: "400000000",
+      publishedAt: "2004-06-08T00:00:00Z",
+    },
+    {
+      id: "VBmMU_iwe6U",
+      title: "Hips Don't Lie",
+      channelTitle: "Shakira ft. Wyclef Jean",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:38",
+      viewCount: "1100000000",
+      publishedAt: "2006-02-28T00:00:00Z",
+    },
+    {
+      id: "lp-EO5I60KA",
+      title: "Toxic",
+      channelTitle: "Britney Spears",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:19",
+      viewCount: "600000000",
+      publishedAt: "2003-12-12T00:00:00Z",
+    },
+  ],
+  "classic-pop-party": [
+    {
+      id: "fJ9rUzIMcZQ",
+      title: "Bohemian Rhapsody",
+      channelTitle: "Queen",
+      thumbnail: "/queen-bohemian-rhapsody.png",
+      duration: "5:55",
+      viewCount: "1800000000",
+      publishedAt: "1975-10-31T00:00:00Z",
+    },
+    {
+      id: "HgzGwKwLmgM",
+      title: "Don't Stop Me Now",
+      channelTitle: "Queen",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:29",
+      viewCount: "800000000",
+      publishedAt: "1978-10-26T00:00:00Z",
+    },
+    {
+      id: "WGU_4-5RaxU",
+      title: "Heart of Glass",
+      channelTitle: "Blondie",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:15",
+      viewCount: "400000000",
+      publishedAt: "1978-12-01T00:00:00Z",
+    },
+    {
+      id: "fUis9yny_lI",
+      title: "Dancing Queen",
+      channelTitle: "ABBA",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:51",
+      viewCount: "900000000",
+      publishedAt: "1976-08-15T00:00:00Z",
+    },
+    {
+      id: "djV11Xbc914",
+      title: "We Will Rock You",
+      channelTitle: "Queen",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "2:02",
+      viewCount: "1200000000",
+      publishedAt: "1977-10-07T00:00:00Z",
+    },
+    {
+      id: "04854XqcfCY",
+      title: "I Want It That Way",
+      channelTitle: "Backstreet Boys",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:33",
+      viewCount: "1500000000",
+      publishedAt: "1999-04-12T00:00:00Z",
+    },
+    {
+      id: "4fndeDfaWCg",
+      title: "Everybody (Backstreet's Back)",
+      channelTitle: "Backstreet Boys",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:44",
+      viewCount: "800000000",
+      publishedAt: "1997-06-11T00:00:00Z",
+    },
+    {
+      id: "btPJPFnesV4",
+      title: "Eye of the Tiger",
+      channelTitle: "Survivor",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:05",
+      viewCount: "700000000",
+      publishedAt: "1982-05-29T00:00:00Z",
+    },
+  ],
+  "80s-sing-alongs": [
+    {
+      id: "dQw4w9WgXcQ",
+      title: "Never Gonna Give You Up",
+      channelTitle: "Rick Astley",
+      thumbnail: "/rick-astley-dance.png",
+      duration: "3:33",
+      viewCount: "1400000000",
+      publishedAt: "1987-07-27T00:00:00Z",
+    },
+    {
+      id: "djV11Xbc914",
+      title: "Take On Me",
+      channelTitle: "a-ha",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:47",
+      viewCount: "1200000000",
+      publishedAt: "1985-10-19T00:00:00Z",
+    },
+    {
+      id: "1w7OgIMMRc4",
+      title: "Sweet Child O' Mine",
+      channelTitle: "Guns N' Roses",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "5:03",
+      viewCount: "1500000000",
+      publishedAt: "1987-06-01T00:00:00Z",
+    },
+    {
+      id: "ZyhrYis509A",
+      title: "Billie Jean",
+      channelTitle: "Michael Jackson",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:54",
+      viewCount: "2000000000",
+      publishedAt: "1983-01-02T00:00:00Z",
+    },
+    {
+      id: "Zi_XLOBDo_Y",
+      title: "Beat It",
+      channelTitle: "Michael Jackson",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:18",
+      viewCount: "1800000000",
+      publishedAt: "1983-02-14T00:00:00Z",
+    },
+    {
+      id: "eH3giaIzONA",
+      title: "Girls Just Want to Have Fun",
+      channelTitle: "Cyndi Lauper",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:58",
+      viewCount: "600000000",
+      publishedAt: "1983-09-06T00:00:00Z",
+    },
+    {
+      id: "VdQY7BusJNU",
+      title: "Footloose",
+      channelTitle: "Kenny Loggins",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:46",
+      viewCount: "500000000",
+      publishedAt: "1984-01-31T00:00:00Z",
+    },
+    {
+      id: "StlMdNcvCJo",
+      title: "Every Breath You Take",
+      channelTitle: "The Police",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:13",
+      viewCount: "900000000",
+      publishedAt: "1983-05-20T00:00:00Z",
+    },
+  ],
+  "feel-good-pop-rock": [
+    {
+      id: "hT_nvWreIhg",
+      title: "Shape of You",
+      channelTitle: "Ed Sheeran",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:53",
+      viewCount: "5800000000",
+      publishedAt: "2017-01-06T00:00:00Z",
+    },
+    {
+      id: "pRpeEdMmmQ0",
+      title: "Shake It Off",
+      channelTitle: "Taylor Swift",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:39",
+      viewCount: "3200000000",
+      publishedAt: "2014-08-18T00:00:00Z",
+    },
+    {
+      id: "iEPTlhBmwRg",
+      title: "Sugar",
+      channelTitle: "Maroon 5",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:55",
+      viewCount: "3600000000",
+      publishedAt: "2015-01-14T00:00:00Z",
+    },
+    {
+      id: "ru0K8uYEZWw",
+      title: "Can't Stop the Feeling!",
+      channelTitle: "Justin Timberlake",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:56",
+      viewCount: "2800000000",
+      publishedAt: "2016-05-06T00:00:00Z",
+    },
+    {
+      id: "YQHsXMglC9A",
+      title: "Happy",
+      channelTitle: "Pharrell Williams",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:53",
+      viewCount: "1400000000",
+      publishedAt: "2013-11-21T00:00:00Z",
+    },
+    {
+      id: "nfWlot6h_JM",
+      title: "Perfect",
+      channelTitle: "Ed Sheeran",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:23",
+      viewCount: "3500000000",
+      publishedAt: "2017-03-03T00:00:00Z",
+    },
+    {
+      id: "CevxZvSJLk8",
+      title: "Count on Me",
+      channelTitle: "Bruno Mars",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:17",
+      viewCount: "800000000",
+      publishedAt: "2010-10-04T00:00:00Z",
+    },
+    {
+      id: "JGwWNGJdvx8",
+      title: "What Makes You Beautiful",
+      channelTitle: "One Direction",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:23",
+      viewCount: "1300000000",
+      publishedAt: "2011-09-11T00:00:00Z",
+    },
+  ],
+  "feel-good-r-b-vibes": [
+    {
+      id: "OPf0YbXqDm0",
+      title: "Uptown Funk",
+      channelTitle: "Mark Ronson ft. Bruno Mars",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:30",
+      viewCount: "4800000000",
+      publishedAt: "2014-11-10T00:00:00Z",
+    },
+    {
+      id: "4NRXx6U8ABQ",
+      title: "Blinding Lights",
+      channelTitle: "The Weeknd",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:20",
+      viewCount: "2800000000",
+      publishedAt: "2019-11-29T00:00:00Z",
+    },
+    {
+      id: "SmbmeOgWsqE",
+      title: "Good as Hell",
+      channelTitle: "Lizzo",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "2:39",
+      viewCount: "800000000",
+      publishedAt: "2019-08-30T00:00:00Z",
+    },
+    {
+      id: "UqyT8IEBkvY",
+      title: "24K Magic",
+      channelTitle: "Bruno Mars",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "3:46",
+      viewCount: "1200000000",
+      publishedAt: "2016-10-07T00:00:00Z",
+    },
+    {
+      id: "09R8_2nJtjg",
+      title: "Superstition",
+      channelTitle: "Stevie Wonder",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:26",
+      viewCount: "400000000",
+      publishedAt: "1972-10-24T00:00:00Z",
+    },
+    {
+      id: "L_jWHffIx5E",
+      title: "I Want You Back",
+      channelTitle: "The Jackson 5",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "2:59",
+      viewCount: "300000000",
+      publishedAt: "1969-10-07T00:00:00Z",
+    },
+    {
+      id: "RgKAFK5djSk",
+      title: "Isn't She Lovely",
+      channelTitle: "Stevie Wonder",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "6:34",
+      viewCount: "200000000",
+      publishedAt: "1976-09-28T00:00:00Z",
+    },
+    {
+      id: "fJ9rUzIMcZQ",
+      title: "Lovely Day",
+      channelTitle: "Bill Withers",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      duration: "4:15",
+      viewCount: "150000000",
+      publishedAt: "1977-12-01T00:00:00Z",
+    },
+  ],
+}
+
 export class YouTubeAPI {
   private baseUrl = "https://www.googleapis.com/youtube/v3"
   private apiKey: string
@@ -207,90 +728,52 @@ export class YouTubeAPI {
     this.lastQuotaCheck = Date.now()
   }
 
-  async searchMusic(query: string, maxResults = 20): Promise<YouTubeSearchResult> {
-    console.log("[v0] Starting searchMusic for query:", query)
-    console.log("[v0] API Key available:", !!this.apiKey)
-    console.log("[v0] Quota exceeded status:", this.isQuotaExceeded())
+  async searchMusic(query: string, maxResults = 10): Promise<YouTubeSearchResult> {
+    console.log("[v0] YouTube API searchMusic called with query:", query, "maxResults:", maxResults)
 
-    if (this.isQuotaExceeded()) {
-      console.log("[v0] Quota exceeded, using enhanced fallback data")
-      return this.getFallbackResults(query, maxResults)
+    if (!query.trim()) {
+      console.log("[v0] Empty query provided, returning empty results")
+      return { videos: [], nextPageToken: undefined }
     }
 
     try {
-      const url = new URL(`${this.baseUrl}/search`)
-      url.searchParams.set("part", "snippet")
-      const musicQuery = `${query} official music video song`
-      url.searchParams.set("q", musicQuery)
-      url.searchParams.set("type", "video")
-      url.searchParams.set("maxResults", Math.min(maxResults * 2, 50).toString())
-      url.searchParams.set("order", "relevance")
-      url.searchParams.set("videoDuration", "medium")
-      url.searchParams.set("videoDefinition", "any")
-      url.searchParams.set("videoCategoryId", "10") // Music category
-      url.searchParams.set("key", this.apiKey)
-
-      console.log("[v0] Making YouTube API request to:", url.toString().replace(this.apiKey, "***API_KEY***"))
-
-      const response = await fetch(url.toString(), {
-        headers: {
-          Accept: "application/json",
-          "User-Agent": "VibeTune/1.0",
-          Referer: "https://vibetune-music.vercel.app",
-        },
-      })
-
-      console.log("[v0] YouTube API response status:", response.status)
-      console.log("[v0] YouTube API response ok:", response.ok)
+      console.log("[v0] Attempting YouTube API call for query:", query)
+      const response = await fetch(
+        `https://www.googleapis.com/youtube/v3/search?` +
+          `part=snippet&type=video&videoCategoryId=10&maxResults=${maxResults}&q=${encodeURIComponent(query)}&key=${this.apiKey}`,
+      )
 
       if (!response.ok) {
-        const errorText = await response.text()
-        console.log("[v0] YouTube API error response:", errorText)
+        const errorData = await response.json()
+        console.log("[v0] YouTube API error response:", JSON.stringify(errorData, null, 2))
 
-        if (response.status === 403) {
-          console.log("[v0] 403 error - quota exceeded, switching to fallback mode")
-          this.markQuotaExceeded()
+        if (response.status === 403 && errorData.error?.errors?.[0]?.reason === "quotaExceeded") {
+          console.log("[v0] Quota exceeded - switching to fallback mode for query:", query)
           return this.getFallbackResults(query, maxResults)
         }
 
-        if (response.status === 400) {
-          console.log("[v0] 400 error - bad request, returning fallback results")
-          return this.getFallbackResults(query, maxResults)
-        }
-
-        console.log("[v0] API error, returning fallback results")
-        return this.getFallbackResults(query, maxResults)
+        throw new Error(`YouTube API error: ${response.status} ${response.statusText}`)
       }
 
       const data = await response.json()
-      console.log("[v0] YouTube API returned", data.items?.length || 0, "items")
+      console.log("[v0] YouTube API success - got", data.items?.length || 0, "results for query:", query)
 
       if (!data.items || data.items.length === 0) {
-        console.log("[v0] No items returned from YouTube API, using fallback")
+        console.log("[v0] No results from YouTube API, using fallback for query:", query)
         return this.getFallbackResults(query, maxResults)
       }
 
       const videoIds = data.items.map((item: any) => item.id.videoId).filter(Boolean)
-      const videosWithDetails = await this.getVideoDetails(videoIds)
+      const detailedVideos = await this.getVideoDetails(videoIds)
 
-      const filteredVideos = this.filterMusicContent(videosWithDetails).slice(0, maxResults)
-
-      console.log("[v0] Filtered to", filteredVideos.length, "music videos")
-
-      if (filteredVideos.length === 0) {
-        console.log("[v0] No music videos found after filtering, using fallback")
-        return this.getFallbackResults(query, maxResults)
-      }
-
+      console.log("[v0] Successfully processed", detailedVideos.length, "videos for query:", query)
       return {
-        videos: filteredVideos,
+        videos: detailedVideos,
         nextPageToken: data.nextPageToken,
       }
     } catch (error) {
-      console.log("[v0] YouTube API searchMusic error:", error)
-
-      console.log("[v0] Caught error, returning fallback results")
-      this.markQuotaExceeded() // Mark quota as exceeded to prevent further API calls
+      console.log("[v0] YouTube API error for query:", query, "Error:", error)
+      console.log("[v0] Falling back to category-specific results")
       return this.getFallbackResults(query, maxResults)
     }
   }
@@ -1008,8 +1491,6 @@ export class YouTubeAPI {
       "unboxing",
       "behind the scenes",
       "making of",
-      "breakdown",
-      "analysis",
       "explained",
       "theory",
       "lesson",
@@ -1188,27 +1669,98 @@ export class YouTubeAPI {
 
   private getFallbackResults(query: string, maxResults: number): YouTubeSearchResult {
     const queryLower = query.toLowerCase()
-    const filteredFallback = FALLBACK_SEARCH_SONGS.filter(
-      (song) =>
-        song.title.toLowerCase().includes(queryLower) ||
-        song.channelTitle.toLowerCase().includes(queryLower) ||
-        queryLower
-          .split(" ")
-          .some((word) => song.title.toLowerCase().includes(word) || song.channelTitle.toLowerCase().includes(word)),
-    )
+    console.log("[v0] Getting fallback results for query:", query)
+    console.log("[v0] Query lowercase:", queryLower)
+
+    let fallbackSongs: YouTubeVideo[] | undefined
+
+    // Direct category key matching
+    const categoryKey = queryLower.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+    console.log("[v0] Generated category key:", categoryKey)
+    fallbackSongs = CATEGORY_SPECIFIC_FALLBACK[categoryKey]
+
+    if (fallbackSongs) {
+      console.log("[v0] Found direct category match:", categoryKey, "with", fallbackSongs.length, "songs")
+    }
+
+    // Enhanced keyword-based matching for better category detection
+    if (!fallbackSongs) {
+      console.log("[v0] No direct category match, trying keyword matching")
+      const categoryMappings: Record<string, string[]> = {
+        "hip-hop-classics": [
+          "notorious",
+          "biggie",
+          "tupac",
+          "2pac",
+          "nas",
+          "eminem",
+          "hip hop",
+          "rap classic",
+          "90s hip hop",
+          "hip-hop legend",
+        ],
+        "r-b-party-starters": ["destiny", "beyonce", "usher", "r&b", "rnb", "party r&b", "dance r&b", "r&b hits"],
+        "classic-pop-party": ["queen", "abba", "blondie", "80s pop", "classic pop", "pop party", "retro pop"],
+        "happy-pop-hits": ["happy", "upbeat", "feel good", "pop hits", "cheerful", "positive", "energetic pop"],
+        "80s-sing-alongs": ["80s", "eighties", "sing along", "karaoke", "80s hits", "retro"],
+        "feel-good-pop-rock": ["feel good", "uplifting", "positive", "pop rock", "happy rock", "ed sheeran"],
+        "feel-good-r-b-vibes": ["feel good r&b", "smooth r&b", "chill r&b", "bruno mars", "weeknd", "lizzo"],
+      }
+
+      for (const [category, keywords] of Object.entries(categoryMappings)) {
+        const matchedKeywords = keywords.filter((keyword) => queryLower.includes(keyword))
+        if (matchedKeywords.length > 0) {
+          fallbackSongs = CATEGORY_SPECIFIC_FALLBACK[category]
+          console.log("[v0] Matched query to category:", category, "via keywords:", matchedKeywords)
+          break
+        }
+      }
+    }
+
+    // Fallback to partial matching if no keyword match found
+    if (!fallbackSongs) {
+      console.log("[v0] No keyword match, trying partial matching")
+      const categoryKeys = Object.keys(CATEGORY_SPECIFIC_FALLBACK)
+      const matchingCategory = categoryKeys.find(
+        (key) =>
+          key.includes(categoryKey) ||
+          categoryKey.includes(key) ||
+          queryLower.split(" ").some((word) => key.includes(word) && word.length > 2),
+      )
+
+      if (matchingCategory) {
+        fallbackSongs = CATEGORY_SPECIFIC_FALLBACK[matchingCategory]
+        console.log("[v0] Matched query to category:", matchingCategory, "via partial matching")
+      }
+    }
+
+    // If no category-specific songs found, use general fallback with filtering
+    if (!fallbackSongs) {
+      console.log("[v0] No category-specific match found, using general fallback")
+      const filteredFallback = FALLBACK_SEARCH_SONGS.filter(
+        (song) =>
+          song.title.toLowerCase().includes(queryLower) ||
+          song.channelTitle.toLowerCase().includes(queryLower) ||
+          queryLower
+            .split(" ")
+            .some((word) => song.title.toLowerCase().includes(word) || song.channelTitle.toLowerCase().includes(word)),
+      )
+
+      fallbackSongs = filteredFallback.length > 0 ? filteredFallback : FALLBACK_SEARCH_SONGS
+      console.log("[v0] Using general fallback songs with filtering, found", fallbackSongs.length, "songs")
+    }
 
     console.log(
-      "[v0] Quota exceeded - returning",
-      filteredFallback.length,
-      "enhanced fallback results for query:",
+      "[v0] Returning",
+      Math.min(fallbackSongs.length, maxResults),
+      "fallback results for query:",
       query,
+      "Category-specific:",
+      fallbackSongs !== FALLBACK_SEARCH_SONGS,
     )
 
     return {
-      videos:
-        filteredFallback.length > 0
-          ? filteredFallback.slice(0, maxResults)
-          : FALLBACK_SEARCH_SONGS.slice(0, maxResults),
+      videos: fallbackSongs.slice(0, maxResults),
       nextPageToken: undefined,
     }
   }

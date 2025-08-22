@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { searchMusic } from "@/lib/music-data"
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 
 const moodAndGenres = [
   // Mood categories
@@ -51,8 +52,29 @@ export default function ExplorePage() {
   const { playTrack } = useAudioPlayer()
   const [profileSettings, setProfileSettings] = useState<any>(null)
   const [selectedCategory, setSelectedCategory] = useState<{ name: string; query: string } | null>(null)
-  const [categoryMusic, setCategoryMusic] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
+
+  const {
+    items: categoryMusic,
+    loading,
+    hasMore,
+    reset: resetCategoryMusic,
+  } = useInfiniteScroll({
+    fetchMore: async (page: number) => {
+      if (!selectedCategory) {
+        return { items: [], hasMore: false }
+      }
+
+      console.log("[v0] Fetching category music page:", page, "for:", selectedCategory.name)
+      const results = await searchMusic(selectedCategory.query)
+
+      return {
+        items: results,
+        hasMore: results.length >= 10 && page < 4, // Limit to 4 pages max
+      }
+    },
+    enabled: !!selectedCategory,
+    threshold: 600,
+  })
 
   useEffect(() => {
     const settings = localStorage.getItem("vibetuneProfileSettings")
@@ -63,23 +85,12 @@ export default function ExplorePage() {
 
   const handleCategoryClick = async (category: { name: string; query: string }) => {
     setSelectedCategory(category)
-    setLoading(true)
-    setCategoryMusic([])
-
-    try {
-      const results = await searchMusic(category.query)
-      setCategoryMusic(results)
-    } catch (error) {
-      console.error("Error fetching category music:", error)
-      setCategoryMusic([])
-    } finally {
-      setLoading(false)
-    }
+    resetCategoryMusic() // Reset infinite scroll when selecting new category
   }
 
   const handleBackToCategories = () => {
     setSelectedCategory(null)
-    setCategoryMusic([])
+    resetCategoryMusic() // Reset infinite scroll when going back to categories
   }
 
   const getProfileImage = () => {
@@ -172,15 +183,16 @@ export default function ExplorePage() {
               <h2 className="text-2xl font-bold text-yellow-400">{selectedCategory.name}</h2>
             </div>
 
-            {loading ? (
+            {loading && categoryMusic.length === 0 ? (
               <div className="flex items-center justify-center py-12">
-                <div className="text-gray-400">Loading {selectedCategory.name} music...</div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
+                <span className="ml-3 text-gray-400">Loading {selectedCategory.name} music...</span>
               </div>
             ) : categoryMusic.length > 0 ? (
               <div className="space-y-4">
                 {categoryMusic.map((song, index) => (
                   <div
-                    key={song.id || index}
+                    key={`${song.id}-${index}`}
                     className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-800 transition-colors"
                   >
                     <div className="relative">
@@ -209,6 +221,19 @@ export default function ExplorePage() {
                     </div>
                   </div>
                 ))}
+
+                {loading && categoryMusic.length > 0 && (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400"></div>
+                    <span className="ml-3 text-gray-400">Loading more {selectedCategory.name} music...</span>
+                  </div>
+                )}
+
+                {!hasMore && categoryMusic.length > 0 && !loading && (
+                  <div className="text-center py-6">
+                    <p className="text-gray-400">You've reached the end • {categoryMusic.length} songs total</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center justify-center py-12">

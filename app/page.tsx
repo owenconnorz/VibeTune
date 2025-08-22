@@ -12,7 +12,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
 import { SongMenu } from "@/components/song-menu"
 import { DownloadedIcon } from "@/components/downloaded-icon"
-import { useTrendingMusic, useMoodPlaylist } from "@/hooks/use-music-data"
+import { useTrendingMusic, useMoodPlaylist, useNewReleases } from "@/hooks/use-music-data"
 import { SongSkeleton, PlaylistCardSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { useRouter } from "next/navigation"
 import { OptimizedImage } from "@/components/optimized-image"
@@ -67,24 +67,47 @@ const MemoizedPlaylistCard = React.memo(({ playlist, onClick }: any) => (
   </div>
 ))
 
-const CategoryCard = React.memo(({ category, onClick }: any) => (
-  <div className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={onClick}>
-    <div className={`relative rounded-lg overflow-hidden mb-3 bg-gradient-to-br ${category.gradient} h-48`}>
-      <OptimizedImage
-        src={category.image}
-        alt={category.title}
-        width={192}
-        height={192}
-        className="w-full h-full object-cover mix-blend-overlay opacity-60"
-      />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-      <div className="absolute bottom-4 left-4 right-4">
-        <h3 className="text-white font-bold text-lg leading-tight mb-1">{category.title}</h3>
-        <p className="text-white/80 text-sm leading-tight">{category.description}</p>
+const CategoryCard = React.memo(({ category, onClick }: any) => {
+  const hasRealThumbnail =
+    category.image &&
+    !category.image.includes("/placeholder.svg") &&
+    !category.image.includes("placeholder") &&
+    category.image.startsWith("http")
+
+  return (
+    <div className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity" onClick={onClick}>
+      <div
+        className={`relative rounded-lg overflow-hidden mb-3 h-48 ${
+          hasRealThumbnail ? "bg-zinc-800" : `bg-gradient-to-br ${category.gradient}`
+        }`}
+      >
+        {hasRealThumbnail ? (
+          <OptimizedImage
+            src={category.image}
+            alt={category.title}
+            width={192}
+            height={192}
+            className="w-full h-full object-cover"
+            fallback={`/placeholder.svg?height=192&width=192&text=${encodeURIComponent(category.title)}&bg=4b5563&color=white`}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
+                <span className="text-white font-bold text-lg">♪</span>
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        <div className="absolute bottom-4 left-4 right-4">
+          <h3 className="text-white font-bold text-lg leading-tight mb-1">{category.title}</h3>
+          <p className="text-white/80 text-sm leading-tight">{category.description}</p>
+        </div>
       </div>
     </div>
-  </div>
-))
+  )
+})
 
 export default function VibeTunePage() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -101,13 +124,57 @@ export default function VibeTunePage() {
     songs: trendingSongs,
     loading: trendingLoading,
     error: trendingError,
+    source: trendingSource,
     refetch: refetchTrending,
   } = useTrendingMusic()
   const {
     songs: mixedForYouSongs,
     loading: mixedLoading,
     error: mixedError,
+    source: mixedSource,
   } = useMoodPlaylist(moodPlaylists["mixed-for-you"].queries)
+  const {
+    songs: newReleasesSongs,
+    loading: newReleasesLoading,
+    error: newReleasesError,
+    source: newReleasesSource,
+  } = useNewReleases()
+
+  useEffect(() => {
+    console.log("[v0] Homepage API Status:", {
+      trending: {
+        source: trendingSource,
+        songsCount: trendingSongs?.length || 0,
+        loading: trendingLoading,
+        error: trendingError,
+      },
+      mixedForYou: {
+        source: mixedSource,
+        songsCount: mixedForYouSongs?.length || 0,
+        loading: mixedLoading,
+        error: mixedError,
+      },
+      newReleases: {
+        source: newReleasesSource,
+        songsCount: newReleasesSongs?.length || 0,
+        loading: newReleasesLoading,
+        error: newReleasesError,
+      },
+    })
+  }, [
+    trendingSource,
+    trendingSongs,
+    trendingLoading,
+    trendingError,
+    mixedSource,
+    mixedForYouSongs,
+    mixedLoading,
+    mixedError,
+    newReleasesSource,
+    newReleasesSongs,
+    newReleasesLoading,
+    newReleasesError,
+  ])
 
   const musicCategories = useMemo(
     () => [
@@ -115,19 +182,19 @@ export default function VibeTunePage() {
         title: "Hip-Hop Classics",
         description: "The Notorious B.I.G., Tupac, Nas",
         gradient: "from-blue-600 to-purple-700",
-        image: "/placeholder.svg?height=200&width=200&text=Hip-Hop&bg=1e40af&color=white",
+        image: "/hip-hop-classics-cover.png",
       },
       {
         title: "R&B Party-Starters",
         description: "Destiny's Child, Beyoncé, Usher",
         gradient: "from-orange-500 to-red-600",
-        image: "/placeholder.svg?height=200&width=200&text=R%26B&bg=ea580c&color=white",
+        image: "/rnb-party-starters-cover.png",
       },
       {
         title: "Classic Pop Party",
         description: "Blondie, Queen, ABBA",
         gradient: "from-pink-500 to-purple-600",
-        image: "/placeholder.svg?height=200&width=200&text=Pop&bg=ec4899&color=white",
+        image: "/oasis-2025-setlist-style.png",
       },
     ],
     [],
@@ -139,19 +206,19 @@ export default function VibeTunePage() {
         title: "Feel-Good Pop & Rock",
         description: "Ed Sheeran, Taylor Swift, Maroon 5",
         gradient: "from-orange-400 to-red-500",
-        image: "/placeholder.svg?height=200&width=200&text=Pop%20Rock&bg=fb923c&color=white",
+        image: "/feel-good-pop-cover.png",
       },
       {
         title: "Happy Pop Hits",
         description: "Ed Sheeran, Bruno Mars, Dua Lipa",
         gradient: "from-yellow-400 to-orange-500",
-        image: "/placeholder.svg?height=200&width=200&text=Happy&bg=facc15&color=black",
+        image: "/happy-pop-hits-cover.png",
       },
       {
         title: "Feel-Good R&B Vibes",
         description: "Bruno Mars, The Weeknd, SZA",
         gradient: "from-purple-600 to-pink-600",
-        image: "/placeholder.svg?height=200&width=200&text=R%26B&bg=9333ea&color=white",
+        image: "/rnb-party-starters-cover.png",
       },
     ],
     [],
@@ -163,19 +230,19 @@ export default function VibeTunePage() {
         title: "80s Sing-Alongs",
         description: "Madonna, Kiss, Bon Jovi",
         gradient: "from-blue-400 to-cyan-500",
-        image: "/placeholder.svg?height=200&width=200&text=80s&bg=60a5fa&color=white",
+        image: "/throwback-thursday-cover.png",
       },
       {
         title: "Relaxing 80s Rock",
         description: "UB40, Huey Lewis, Phil Collins",
         gradient: "from-gray-600 to-gray-800",
-        image: "/placeholder.svg?height=200&width=200&text=80s%20Rock&bg=4b5563&color=white",
+        image: "/oasis-2025-setlist-style.png",
       },
       {
         title: "'90s Dance",
         description: "The Chemical Brothers, Fatboy Slim",
         gradient: "from-cyan-400 to-blue-600",
-        image: "/placeholder.svg?height=200&width=200&text=90s&bg=22d3ee&color=black",
+        image: "/summer-hits-2025-cover.png",
       },
     ],
     [],
@@ -187,19 +254,19 @@ export default function VibeTunePage() {
         title: "K.iNG",
         description: "IVE, LE SSERAFIM, NewJeans",
         gradient: "from-pink-400 to-purple-600",
-        image: "/placeholder.svg?height=200&width=200&text=K-Pop&bg=f472b6&color=white",
+        image: "/fresh-new-music-cover.png",
       },
       {
         title: "Pop Royalty",
         description: "Jonas Brothers, Taylor Swift",
         gradient: "from-gray-700 to-black",
-        image: "/placeholder.svg?height=200&width=200&text=Pop&bg=374151&color=white",
+        image: "/feel-good-pop-cover.png",
       },
       {
         title: "House Music",
         description: "Chris Lake, Calvin Harris",
         gradient: "from-blue-600 to-indigo-700",
-        image: "/placeholder.svg?height=200&width=200&text=House&bg=2563eb&color=white",
+        image: "/summer-hits-2025-cover.png",
       },
     ],
     [],
@@ -221,6 +288,21 @@ export default function VibeTunePage() {
     () => (Array.isArray(mixedForYouSongs) ? mixedForYouSongs : []),
     [mixedForYouSongs],
   )
+  const safeNewReleasesSongs = useMemo(
+    () => (Array.isArray(newReleasesSongs) ? newReleasesSongs : []),
+    [newReleasesSongs],
+  )
+
+  useEffect(() => {
+    console.log("[v0] Homepage processed songs:", {
+      safeTrendingSongs: safeTrendingSongs.length,
+      safeMixedForYouSongs: safeMixedForYouSongs.length,
+      safeNewReleasesSongs: safeNewReleasesSongs.length,
+      firstTrendingSong: safeTrendingSongs[0]?.title || "None",
+      firstMixedSong: safeMixedForYouSongs[0]?.title || "None",
+      firstNewRelease: safeNewReleasesSongs[0]?.title || "None",
+    })
+  }, [safeTrendingSongs, safeMixedForYouSongs, safeNewReleasesSongs])
 
   useEffect(() => {
     if (safeTrendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
@@ -291,6 +373,8 @@ export default function VibeTunePage() {
                   </div>
                 </div>
               </div>
+              <h3 className="text-white font-semibold truncate">Liked Songs</h3>
+              <p className="text-gray-400 text-sm truncate">{syncData.likedSongs.length} songs</p>
             </div>
           )}
         </div>
@@ -361,6 +445,9 @@ export default function VibeTunePage() {
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-yellow-400">Quick Picks</h2>
+            {trendingSource === "fallback" && (
+              <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
+            )}
           </div>
 
           {trendingError ? (
@@ -389,10 +476,7 @@ export default function VibeTunePage() {
             {musicCategories.map((category, index) => (
               <CategoryCard
                 key={index}
-                category={{
-                  ...category,
-                  image: safeTrendingSongs[index]?.thumbnail || category.image,
-                }}
+                category={category}
                 onClick={() => router.push(`/genre/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
               />
             ))}
@@ -406,10 +490,7 @@ export default function VibeTunePage() {
             {feelGoodCategories.map((category, index) => (
               <CategoryCard
                 key={index}
-                category={{
-                  ...category,
-                  image: safeTrendingSongs[index + 3]?.thumbnail || category.image,
-                }}
+                category={category}
                 onClick={() => router.push(`/mood/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
               />
             ))}
@@ -449,32 +530,44 @@ export default function VibeTunePage() {
 
         {/* New Releases */}
         <section className="mb-8">
-          <h2 className="text-2xl font-bold text-yellow-400 mb-6">New releases</h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-yellow-400">New releases</h2>
+            {newReleasesSource === "fallback" && (
+              <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
+            )}
+          </div>
           <div className="flex gap-4 overflow-x-auto pb-4">
-            {safeMixedForYouSongs.slice(0, 3).map((song, index) => (
-              <div
-                key={song.id}
-                className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
-                onClick={() => handlePlaySong(song, safeMixedForYouSongs)}
-              >
-                <div className="relative rounded-lg overflow-hidden mb-3">
-                  <OptimizedImage
-                    src={song.thumbnail}
-                    alt={song.title}
-                    width={192}
-                    height={192}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="absolute bottom-2 right-2">
-                    <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                      <div className="w-0 h-0 border-l-[6px] border-l-white border-y-[4px] border-y-transparent ml-0.5"></div>
-                    </div>
-                  </div>
+            {newReleasesLoading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="flex-shrink-0 w-48">
+                  <div className="w-full h-48 bg-zinc-700 rounded-lg animate-pulse mb-3"></div>
+                  <div className="h-4 bg-zinc-700 rounded animate-pulse mb-2"></div>
+                  <div className="h-3 bg-zinc-700 rounded animate-pulse w-3/4"></div>
                 </div>
-                <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
-                <p className="text-gray-400 text-xs truncate">{song.artist}</p>
-              </div>
-            ))}
+              ))
+            ) : newReleasesError ? (
+              <div className="text-red-400 text-sm">Failed to load new releases</div>
+            ) : (
+              safeNewReleasesSongs.slice(0, 6).map((song, index) => (
+                <div
+                  key={song.id}
+                  className="flex-shrink-0 w-48 cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => handlePlaySong(song, safeNewReleasesSongs)}
+                >
+                  <div className="relative rounded-lg overflow-hidden mb-3">
+                    <OptimizedImage
+                      src={song.thumbnail}
+                      alt={song.title}
+                      width={192}
+                      height={192}
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                  <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
+                  <p className="text-gray-400 text-sm truncate">{song.artist}</p>
+                </div>
+              ))
+            )}
           </div>
         </section>
 
@@ -485,10 +578,7 @@ export default function VibeTunePage() {
             {throwbackCategories.map((category, index) => (
               <CategoryCard
                 key={index}
-                category={{
-                  ...category,
-                  image: safeTrendingSongs[index + 6]?.thumbnail || category.image,
-                }}
+                category={category}
                 onClick={() => router.push(`/throwback/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
               />
             ))}
@@ -502,10 +592,7 @@ export default function VibeTunePage() {
             {freshMusicCategories.map((category, index) => (
               <CategoryCard
                 key={index}
-                category={{
-                  ...category,
-                  image: safeMixedForYouSongs[index + 3]?.thumbnail || category.image,
-                }}
+                category={category}
                 onClick={() => router.push(`/fresh/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
               />
             ))}
@@ -532,7 +619,7 @@ export default function VibeTunePage() {
                   />
                 </div>
                 <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
-                <p className="text-gray-400 text-xs truncate">{song.artist}</p>
+                <p className="text-gray-400 text-sm truncate">{song.artist}</p>
               </div>
             ))}
           </div>
@@ -559,7 +646,7 @@ export default function VibeTunePage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 </div>
                 <h3 className="text-white font-semibold text-sm truncate">{song.title}</h3>
-                <p className="text-gray-400 text-xs truncate">{song.artist}</p>
+                <p className="text-gray-400 text-sm truncate">{song.artist}</p>
               </div>
             ))}
           </div>
@@ -569,6 +656,9 @@ export default function VibeTunePage() {
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-yellow-400">Mixed for You</h2>
+            {mixedSource === "fallback" && (
+              <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
+            )}
           </div>
 
           {mixedError ? (

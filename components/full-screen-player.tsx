@@ -210,38 +210,40 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
               </Button>
             </div>
 
-            {state.isVideoMode ? (
-              <div className="relative w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-black">
-                <ErrorBoundaryComponent
-                  fallback={
-                    <div className="w-full h-full bg-black flex items-center justify-center text-white">
-                      Video unavailable
+            <div className="relative">
+              {state.isVideoMode ? (
+                <div className="relative w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-black">
+                  <ErrorBoundaryComponent
+                    fallback={
+                      <div className="w-full h-full bg-black flex items-center justify-center text-white">
+                        Video unavailable
+                      </div>
+                    }
+                  >
+                    <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
+                  </ErrorBoundaryComponent>
+                </div>
+              ) : (
+                <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl mx-auto">
+                  <ErrorBoundaryComponent fallback={null}>
+                    <CanvasBackground isEnabled={canvasSettings.enableCanvas} className="rounded-2xl sm:rounded-3xl" />
+                  </ErrorBoundaryComponent>
+                  <img
+                    src={state.currentTrack.thumbnail || "/placeholder.svg"}
+                    alt={`${state.currentTrack.title} album cover`}
+                    className="w-full h-full object-cover relative z-10"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.svg"
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center z-20">
+                    <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
+                      {state.currentTrack.artist?.toUpperCase() || "UNKNOWN"}
                     </div>
-                  }
-                >
-                  <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
-                </ErrorBoundaryComponent>
-              </div>
-            ) : (
-              <div className="relative w-72 h-72 sm:w-80 sm:h-80 max-w-[90vw] max-h-[40vh] rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl mx-auto">
-                <ErrorBoundaryComponent fallback={null}>
-                  <CanvasBackground isEnabled={canvasSettings.enableCanvas} className="rounded-2xl sm:rounded-3xl" />
-                </ErrorBoundaryComponent>
-                <img
-                  src={state.currentTrack.thumbnail || "/placeholder.svg"}
-                  alt={`${state.currentTrack.title} album cover`}
-                  className="w-full h-full object-cover relative z-10"
-                  onError={(e) => {
-                    e.currentTarget.src = "/placeholder.svg"
-                  }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center z-20">
-                  <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
-                    {state.currentTrack.artist?.toUpperCase() || "UNKNOWN"}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 

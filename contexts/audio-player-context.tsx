@@ -132,6 +132,8 @@ interface AudioPlayerContextType {
   seekTo: (time: number) => void
   setVolume: (volume: number) => void
   setVideoMode: (enabled: boolean) => void
+  setCurrentTime: (time: number) => void
+  setDuration: (duration: number) => void
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined)
@@ -277,6 +279,14 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_VOLUME", payload: volume })
   }
 
+  const setCurrentTime = (time: number) => {
+    dispatch({ type: "SET_CURRENT_TIME", payload: time })
+  }
+
+  const setDuration = (duration: number) => {
+    dispatch({ type: "SET_DURATION", payload: duration })
+  }
+
   return (
     <AudioPlayerContext.Provider
       value={{
@@ -289,6 +299,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         seekTo,
         setVolume,
         setVideoMode,
+        setCurrentTime,
+        setDuration,
       }}
     >
       {children}

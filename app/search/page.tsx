@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Search, ArrowLeft, MoreVertical, User, Disc, Music } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
+import { Search, ArrowLeft, MoreVertical, User, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { searchMusicEnhanced } from "@/lib/music-data"
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 
 interface SearchResult {
   id: string
@@ -35,58 +36,61 @@ export default function SearchPage() {
   const { playQueue } = useAudioPlayer()
   const [query, setQuery] = useState("")
   const [showInput, setShowInput] = useState(true)
-  const [categorizedResults, setCategorizedResults] = useState<CategorizedResults>({
-    songs: [],
-    artists: [],
-    albums: [],
-    playlists: [],
-  })
   const [activeCategory, setActiveCategory] = useState<string>("all")
-  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
-      setCategorizedResults({ songs: [], artists: [], albums: [], playlists: [] })
-      setShowInput(true)
-      return
-    }
+  const {
+    items: searchResults,
+    loading,
+    hasMore,
+    reset: resetSearch,
+  } = useInfiniteScroll<SearchResult>({
+    fetchMore: async (page: number) => {
+      if (!query.trim()) {
+        return { items: [], hasMore: false }
+      }
 
-    setShowInput(false)
-    setLoading(true)
-    setError(null)
-
-    try {
-      console.log("[v0] Starting search for:", searchQuery)
-      const results = await searchMusicEnhanced(searchQuery)
-      console.log("[v0] Search results received:", results)
+      console.log("[v0] Fetching search results page:", page, "for query:", query)
+      const results = await searchMusicEnhanced(query, page)
 
       const allResults = [...results.songs, ...results.artists, ...results.albums, ...results.playlists]
 
-      setCategorizedResults({
-        topResult: allResults[0] || undefined,
-        songs: results.songs,
-        artists: results.artists,
-        albums: results.albums,
-        playlists: results.playlists,
-      })
+      return {
+        items: allResults,
+        hasMore: allResults.length >= 20, // Assume more results if we got a full page
+      }
+    },
+    enabled: !!query.trim(),
+    threshold: 800,
+  })
 
-      console.log("[v0] Total results found:", allResults.length)
-    } catch (err) {
-      setError("Failed to search music")
-      console.error("[v0] Search error:", err)
-    } finally {
-      setLoading(false)
+  const categorizedResults = useMemo(() => {
+    const songs = searchResults.filter((item) => item.type === "song")
+    const artists = searchResults.filter((item) => item.type === "artist")
+    const albums = searchResults.filter((item) => item.type === "album")
+    const playlists = searchResults.filter((item) => item.type === "playlist")
+
+    return {
+      topResult: searchResults[0],
+      songs,
+      artists,
+      albums,
+      playlists,
     }
-  }
+  }, [searchResults])
 
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      handleSearch(query)
+      if (query.trim()) {
+        setShowInput(false)
+        resetSearch()
+      } else {
+        setShowInput(true)
+      }
     }, 500)
 
     return () => clearTimeout(debounceTimer)
-  }, [query])
+  }, [query, resetSearch])
 
   const handlePlaySong = (song: SearchResult, songList: SearchResult[]) => {
     const tracks = songList
@@ -132,22 +136,12 @@ export default function SearchPage() {
       case "playlists":
         return categorizedResults.playlists
       default:
-        return [
-          ...categorizedResults.songs,
-          ...categorizedResults.artists,
-          ...categorizedResults.albums,
-          ...categorizedResults.playlists,
-        ]
+        return searchResults
     }
   }
 
   const getTotalResults = () => {
-    return (
-      categorizedResults.songs.length +
-      categorizedResults.artists.length +
-      categorizedResults.albums.length +
-      categorizedResults.playlists.length
-    )
+    return searchResults.length
   }
 
   const categories = [
@@ -157,6 +151,11 @@ export default function SearchPage() {
     { id: "albums", label: "Albums", count: categorizedResults.albums.length },
     { id: "artists", label: "Artists", count: categorizedResults.artists.length },
   ]
+
+  const handleSearch = (query: string) => {
+    // Implement the search logic here
+    console.log("Searching for:", query)
+  }
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
@@ -243,152 +242,63 @@ export default function SearchPage() {
               </div>
             )}
 
-            {/* Songs Section */}
-            {(activeCategory === "all" || activeCategory === "songs" || activeCategory === "videos") &&
-              categorizedResults.songs.length > 0 && (
-                <div>
-                  {activeCategory === "all" && <h2 className="text-2xl font-bold text-yellow-400 mb-4">Songs</h2>}
-                  <div className="space-y-2">
-                    {categorizedResults.songs.slice(0, activeCategory === "all" ? 4 : undefined).map((song, index) => (
-                      <div
-                        key={`${song.id}-${index}`}
-                        className="flex items-center gap-4 p-2 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
-                        onClick={() => handleItemClick(song)}
-                      >
-                        <div className="w-12 h-12 bg-zinc-700 rounded overflow-hidden flex-shrink-0">
-                          {song.thumbnail ? (
-                            <img
-                              src={song.thumbnail || "/placeholder.svg"}
-                              alt={song.title || song.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                              <Music className="w-6 h-6 text-white" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-white font-medium truncate">{song.title || song.name}</h3>
-                          <div className="flex items-center gap-2 text-gray-400 text-sm">
-                            <User className="w-4 h-4" />
-                            <span>{song.artist || song.channelTitle || "Unknown Artist"}</span>
-                            {song.duration && (
-                              <>
-                                <span>•</span>
-                                <span>{song.duration}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white"
-                        >
-                          <MoreVertical className="w-5 h-5" />
-                        </Button>
+            {/* Current Results */}
+            <div className="space-y-2">
+              {getCurrentResults().map((item, index) => (
+                <div
+                  key={`${item.id}-${index}`}
+                  className="flex items-center gap-4 p-2 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
+                  onClick={() => handleItemClick(item)}
+                >
+                  <div className="w-12 h-12 bg-zinc-700 rounded overflow-hidden flex-shrink-0">
+                    {item.thumbnail ? (
+                      <img
+                        src={item.thumbnail || "/placeholder.svg"}
+                        alt={item.title || item.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                        <Music className="w-6 h-6 text-white" />
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              )}
-
-            {/* Albums Section */}
-            {(activeCategory === "all" || activeCategory === "albums") && categorizedResults.albums.length > 0 && (
-              <div>
-                {activeCategory === "all" && <h2 className="text-2xl font-bold text-yellow-400 mb-4">Albums</h2>}
-                <div className="space-y-2">
-                  {categorizedResults.albums.slice(0, activeCategory === "all" ? 3 : undefined).map((album, index) => (
-                    <div
-                      key={`${album.id}-${index}`}
-                      className="flex items-center gap-4 p-2 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
-                      onClick={() => handleItemClick(album)}
-                    >
-                      <div className="w-12 h-12 bg-zinc-700 rounded overflow-hidden flex-shrink-0">
-                        {album.thumbnail ? (
-                          <img
-                            src={album.thumbnail || "/placeholder.svg"}
-                            alt={album.title || album.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center">
-                            <Disc className="w-6 h-6 text-white" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-white font-medium truncate">{album.title || album.name}</h3>
-                        <div className="flex items-center gap-2 text-gray-400 text-sm">
-                          <Disc className="w-4 h-4" />
-                          <span>{album.artist || album.channelTitle || "Unknown Artist"}</span>
-                          {album.publishedAt && (
-                            <>
-                              <span>•</span>
-                              <span>{new Date(album.publishedAt).getFullYear()}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white"
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </Button>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-medium truncate">{item.title || item.name}</h3>
+                    <div className="flex items-center gap-2 text-gray-400 text-sm">
+                      <User className="w-4 h-4" />
+                      <span>{item.artist || item.channelTitle || "Unknown Artist"}</span>
+                      {item.duration && (
+                        <>
+                          <span>•</span>
+                          <span>{item.duration}</span>
+                        </>
+                      )}
                     </div>
-                  ))}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white"
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </Button>
                 </div>
-              </div>
-            )}
+              ))}
+            </div>
+          </div>
+        )}
 
-            {/* Artists Section */}
-            {(activeCategory === "all" || activeCategory === "artists") && categorizedResults.artists.length > 0 && (
-              <div>
-                {activeCategory === "all" && <h2 className="text-2xl font-bold text-yellow-400 mb-4">Artists</h2>}
-                <div className="space-y-2">
-                  {categorizedResults.artists
-                    .slice(0, activeCategory === "all" ? 3 : undefined)
-                    .map((artist, index) => (
-                      <div
-                        key={`${artist.id}-${index}`}
-                        className="flex items-center gap-4 p-2 hover:bg-zinc-800/50 rounded-lg cursor-pointer group"
-                        onClick={() => handleItemClick(artist)}
-                      >
-                        <div className="w-12 h-12 bg-zinc-700 rounded-full overflow-hidden flex-shrink-0">
-                          {artist.thumbnail ? (
-                            <img
-                              src={artist.thumbnail || "/placeholder.svg"}
-                              alt={artist.title || artist.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                              <User className="w-6 h-6 text-white" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-white font-medium truncate">{artist.title || artist.name}</h3>
-                          <div className="flex items-center gap-2 text-gray-400 text-sm">
-                            <User className="w-4 h-4" />
-                            <span>Artist</span>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-white"
-                        >
-                          <MoreVertical className="w-5 h-5" />
-                        </Button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
+        {loading && searchResults.length > 0 && (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400"></div>
+            <span className="ml-3 text-gray-400">Loading more results...</span>
+          </div>
+        )}
+
+        {!hasMore && searchResults.length > 0 && !loading && (
+          <div className="text-center py-8">
+            <p className="text-gray-400">You've reached the end • {searchResults.length} results total</p>
           </div>
         )}
 

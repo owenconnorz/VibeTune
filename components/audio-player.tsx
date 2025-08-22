@@ -9,6 +9,8 @@ import { useTheme } from "@/contexts/theme-context"
 import { useState, useCallback } from "react"
 import { FullScreenPlayer } from "./full-screen-player"
 import { ThumbnailImage } from "./optimized-image"
+import { YouTubePlayer } from "@/components/youtube-player"
+import { ErrorBoundaryComponent } from "./error-boundary"
 
 export function AudioPlayer() {
   const { state, togglePlay, nextTrack, previousTrack, seekTo, setVolume } = useAudioPlayer()
@@ -117,6 +119,14 @@ export function AudioPlayer() {
 
   return (
     <>
+      {state.currentTrack && (
+        <div className="fixed -top-[9999px] -left-[9999px] w-1 h-1 overflow-hidden opacity-0 pointer-events-none">
+          <ErrorBoundaryComponent fallback={null}>
+            <YouTubePlayer videoId={state.currentTrack.id} showVideo={false} />
+          </ErrorBoundaryComponent>
+        </div>
+      )}
+
       <div className="fixed bottom-20 left-4 right-4 z-50">
         <div
           className="bg-zinc-900/95 backdrop-blur-md rounded-full border border-zinc-700/50 shadow-2xl overflow-hidden transition-transform duration-200 ease-out"
