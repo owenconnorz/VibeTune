@@ -25,9 +25,9 @@ import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useTheme } from "@/contexts/theme-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { YouTubePlayer } from "@/components/youtube-player"
-import { HTML5VideoPlayer } from "@/components/html5-video-player"
 import { CanvasBackground } from "@/components/canvas-background"
 import { ErrorBoundaryComponent } from "./error-boundary"
+import { HTML5VideoPlayer } from "@/components/html5-video-player"
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -183,11 +183,13 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
   }, [])
 
-  const isEpornerVideo =
+  const isVideoContent =
     state.currentTrack?.isVideo &&
     (state.currentTrack?.videoUrl ||
       state.currentTrack?.source === "eporner" ||
-      state.currentTrack?.id?.startsWith("eporner_"))
+      state.currentTrack?.source === "xnxx" ||
+      state.currentTrack?.id?.startsWith("eporner_") ||
+      state.currentTrack?.id?.startsWith("xnxx_"))
 
   useEffect(() => {
     if (state.currentTrack) {
@@ -196,10 +198,10 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
         isVideo: state.currentTrack.isVideo,
         videoUrl: state.currentTrack.videoUrl,
         source: state.currentTrack.source,
-        isEpornerVideo,
+        isVideoContent,
       })
     }
-  }, [state.currentTrack, isEpornerVideo])
+  }, [state.currentTrack, isVideoContent])
 
   if (!isOpen || !state.currentTrack || !colors) return null
 
@@ -282,13 +284,15 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                       </div>
                     }
                   >
-                    {isEpornerVideo && state.currentTrack.videoUrl ? (
+                    {isVideoContent && state.currentTrack.videoUrl ? (
                       <HTML5VideoPlayer
                         videoUrl={state.currentTrack.videoUrl}
                         showVideo={true}
                         onError={(error) => console.error("[v0] HTML5 video error:", error)}
                       />
-                    ) : state.currentTrack.id && !state.currentTrack.id.startsWith("eporner_") ? (
+                    ) : state.currentTrack.id &&
+                      !state.currentTrack.id.startsWith("eporner_") &&
+                      !state.currentTrack.id.startsWith("xnxx_") ? (
                       <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
                     ) : (
                       <div className="w-full h-full bg-black flex items-center justify-center text-white">

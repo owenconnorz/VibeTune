@@ -23,8 +23,10 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
   const { state, setCurrentTime, setDuration } = useAudioPlayer()
   const isVideoMode = showVideo || state.isVideoMode
 
-  const isEpornerPageUrl = videoUrl.includes("eporner.com/video-") && !videoUrl.endsWith(".mp4")
-  const isDirectVideoFile = videoUrl.endsWith(".mp4") || videoUrl.endsWith(".webm") || videoUrl.endsWith(".ogg")
+  const isEpornerPageUrl =
+    (videoUrl.includes("eporner.com/video-") || videoUrl.includes("xnxx.com/video-")) && !videoUrl.endsWith(".mp4")
+  const isDirectVideoFile =
+    videoUrl.endsWith(".mp4") || videoUrl.endsWith(".webm") || videoUrl.endsWith(".ogg") || videoUrl.endsWith(".mov")
 
   const updateTimeProgress = () => {
     if (!videoRef.current || isDestroyedRef.current || isEpornerPageUrl) return
@@ -56,13 +58,13 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
 
   useEffect(() => {
     if (isEpornerPageUrl) {
-      console.log("[v0] Using iframe for eporner video:", videoUrl)
+      console.log("[v0] Using iframe for adult video:", videoUrl)
       const iframeTimeout = setTimeout(() => {
         if (!iframeLoaded) {
           console.log("[v0] Iframe failed to load within timeout, showing fallback")
           setIframeError(true)
         }
-      }, 10000) // 10 second timeout
+      }, 8000) // Reduced timeout to 8 seconds for faster fallback
 
       onReady?.()
 
@@ -221,6 +223,9 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
       className={isVideoMode ? "rounded-lg overflow-hidden shadow-lg" : ""}
       preload="metadata"
       crossOrigin="anonymous"
+      controls={isVideoMode}
+      playsInline
+      webkit-playsinline="true"
     />
   )
 }

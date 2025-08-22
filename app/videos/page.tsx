@@ -60,7 +60,7 @@ export default function VideosPage() {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-      const response = await fetch(`/api/eporner/search?query=${encodeURIComponent(query)}&page=${page}&per_page=12`, {
+      const response = await fetch(`/api/xnxx/search?query=${encodeURIComponent(query)}&page=${page}&per_page=12`, {
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
@@ -120,7 +120,7 @@ export default function VideosPage() {
 
   const handleVideoClick = (video: Video) => {
     const videoTrack = {
-      id: `eporner_${video.id}`, // Prefix to distinguish from YouTube IDs
+      id: `xnxx_${video.id}`, // Prefix to distinguish from YouTube IDs
       title: video.title,
       artist: "Video",
       album: "Porn Videos",
@@ -129,7 +129,7 @@ export default function VideosPage() {
       videoUrl: video.url, // Use the video URL for HTML5 player
       thumbnail: video.default_thumb?.src || video.thumb || "/placeholder.svg",
       isVideo: true, // Flag to indicate this is video content
-      source: "eporner", // Add source identifier
+      source: "xnxx", // Add source identifier
       // Explicitly do NOT set videoId to prevent YouTube player usage
     }
 
@@ -173,7 +173,7 @@ export default function VideosPage() {
 
   const handleDownload = async (video: Video) => {
     try {
-      const response = await fetch(`/api/eporner/download?videoId=${video.id}&title=${encodeURIComponent(video.title)}`)
+      const response = await fetch(`/api/xnxx/download?videoId=${video.id}&title=${encodeURIComponent(video.title)}`)
 
       if (!response.ok) {
         throw new Error("Download failed")
@@ -266,6 +266,7 @@ export default function VideosPage() {
                         video.default_thumb?.src ||
                         video.thumb ||
                         "/placeholder.svg?height=200&width=300&query=video thumbnail" ||
+                        "/placeholder.svg" ||
                         "/placeholder.svg" ||
                         "/placeholder.svg" ||
                         "/placeholder.svg"
