@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Play, Clock, Eye, Plus } from "lucide-react"
+import { Search, Play, Clock, Eye, Plus, ThumbsUp, ThumbsDown, Heart, Share, Flag, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { AudioPlayer } from "@/components/audio-player"
@@ -158,8 +158,25 @@ export default function VideosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-900 text-white">
-      <div className="bg-zinc-800 border-b border-zinc-700 p-4">
+    <div className="min-h-screen bg-black text-white">
+      <div className="bg-black border-b border-gray-800 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center"></div>
+          <div className="flex items-center gap-4">
+            <Search className="w-6 h-6 text-gray-400 cursor-pointer hover:text-white" />
+            <User className="w-6 h-6 text-gray-400 cursor-pointer hover:text-white" />
+          </div>
+        </div>
+
+        <div className="flex gap-6 mb-4 overflow-x-auto">
+          <button className="text-orange-500 font-semibold whitespace-nowrap border-b-2 border-orange-500 pb-2">
+            VIDEOS
+          </button>
+          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">LIVE CAMS</button>
+          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">CATEGORIES</button>
+          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">MODELS</button>
+        </div>
+
         <div className="flex gap-2 items-center">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -168,11 +185,11 @@ export default function VideosPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-              className="w-full bg-zinc-700 text-white rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-yellow-600"
+              className="w-full bg-gray-900 text-white rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 border border-gray-700"
               placeholder="Search videos..."
             />
           </div>
-          <Button onClick={handleSearch} className="bg-yellow-600 text-black hover:bg-yellow-700 px-6">
+          <Button onClick={handleSearch} className="bg-orange-500 text-white hover:bg-orange-600 px-6 py-3">
             Search
           </Button>
         </div>
@@ -182,23 +199,23 @@ export default function VideosPage() {
         {isLoading && !hasInitialLoad ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-600 mx-auto mb-2"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
               <p className="text-gray-400">Loading videos...</p>
             </div>
           </div>
         ) : (
           <>
             {totalCount > 0 && (
-              <div className="mb-4">
+              <div className="mb-6">
                 <p className="text-gray-400 text-sm">Found {totalCount.toLocaleString()} videos</p>
               </div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {videos.map((video) => (
                 <div
                   key={video.id}
-                  className="bg-zinc-800 rounded-lg overflow-hidden hover:bg-zinc-700 transition-colors"
+                  className="bg-gray-900 rounded-lg overflow-hidden hover:bg-gray-800 transition-colors group"
                 >
                   <div className="relative aspect-video">
                     <img
@@ -208,43 +225,72 @@ export default function VideosPage() {
                       loading="lazy"
                     />
                     <div
-                      className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                      className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                       onClick={() => handleVideoClick(video)}
                     >
-                      <Play className="w-12 h-12 text-white" />
+                      <div className="bg-white bg-opacity-20 rounded-full p-4">
+                        <Play className="w-8 h-8 text-white" />
+                      </div>
                     </div>
                     <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
                       {formatDuration(video.length_min)}
                     </div>
+                    <div className="absolute top-2 left-2 bg-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
+                      HD
+                    </div>
                   </div>
 
-                  <div className="p-3">
-                    <h3 className="font-medium text-sm line-clamp-2 mb-2" title={video.title}>
+                  <div className="p-4">
+                    <h3
+                      className="font-medium text-base line-clamp-2 mb-3 hover:text-orange-500 cursor-pointer"
+                      title={video.title}
+                    >
                       {video.title}
                     </h3>
 
-                    <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-between text-sm text-gray-400 mb-3">
+                      <div className="flex items-center gap-4">
                         <div className="flex items-center gap-1">
-                          <Eye className="w-3 h-3" />
+                          <Eye className="w-4 h-4" />
                           <span>{formatViews(video.views)}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
+                          <Clock className="w-4 h-4" />
                           <span>{video.added}</span>
                         </div>
                       </div>
-                      <div className="text-yellow-500">
+                      <div className="text-orange-500 font-medium">
                         ★ {typeof video.rate === "number" ? video.rate.toFixed(1) : "N/A"}
                       </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <button className="flex items-center gap-1 text-gray-400 hover:text-white text-sm">
+                          <ThumbsUp className="w-4 h-4" />
+                          <span>46</span>
+                        </button>
+                        <button className="flex items-center gap-1 text-gray-400 hover:text-white text-sm">
+                          <ThumbsDown className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-400 hover:text-orange-500">
+                          <Heart className="w-4 h-4" />
+                        </button>
+                        <button className="text-gray-400 hover:text-white">
+                          <Share className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <button className="text-gray-400 hover:text-white">
+                        <Flag className="w-4 h-4" />
+                      </button>
                     </div>
 
                     <Button
                       onClick={() => handleAddToPlaylist(video)}
                       size="sm"
-                      className="w-full bg-yellow-600 hover:bg-yellow-700 text-black text-xs"
+                      className="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium"
                     >
-                      <Plus className="w-3 h-3 mr-1" />
+                      <Plus className="w-4 h-4 mr-2" />
                       Add to Playlist
                     </Button>
                   </div>
@@ -257,7 +303,7 @@ export default function VideosPage() {
                 <Button
                   onClick={loadMore}
                   disabled={isLoading}
-                  className="bg-yellow-600 text-black hover:bg-yellow-700"
+                  className="bg-orange-500 text-white hover:bg-orange-600 px-8 py-3"
                 >
                   {isLoading ? "Loading..." : "Load More"}
                 </Button>
@@ -277,7 +323,7 @@ export default function VideosPage() {
 
       <AudioPlayer />
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-zinc-800 border-t border-zinc-700">
+      <nav className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-800">
         <div className="flex items-center justify-around py-1">
           <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={() => router.push("/")}>
             <div className="w-5 h-5 text-gray-400 mb-0.5 flex items-center justify-center">
@@ -300,8 +346,8 @@ export default function VideosPage() {
             <span className="text-[10px] text-gray-400">Explore</span>
           </div>
           <div className="flex flex-col items-center py-1 px-3">
-            <div className="bg-yellow-600 rounded-full p-1.5 mb-0.5">
-              <div className="w-4 h-4 text-black flex items-center justify-center">
+            <div className="bg-orange-500 rounded-full p-1.5 mb-0.5">
+              <div className="w-4 h-4 text-white flex items-center justify-center">
                 <Play className="w-3 h-3" />
               </div>
             </div>

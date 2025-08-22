@@ -104,63 +104,30 @@ export function VideoPlayer({ video, onClose, onAddToPlaylist }: VideoPlayerProp
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
-      <div className="relative w-full max-w-4xl mx-4 bg-gray-900 rounded-lg overflow-hidden">
-        <div className="absolute top-4 right-4 z-10">
-          <Button onClick={onClose} size="sm" variant="ghost" className="text-white hover:bg-white/20">
-            <X className="w-4 h-4" />
-          </Button>
+    <div className="fixed inset-0 bg-black z-50 flex items-end justify-center">
+      <div className="absolute top-4 right-4 z-10">
+        <Button onClick={onClose} size="sm" variant="ghost" className="text-white hover:bg-white/20">
+          <X className="w-6 h-6" />
+        </Button>
+      </div>
+
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-white text-xl">Loading video...</div>
         </div>
+      )}
 
-        <div className="relative">
-          {!hasError ? (
-            <div className="relative">
-              <video
-                ref={videoRef}
-                className="w-full h-96 bg-black"
-                controls
-                poster={video.thumb}
-                preload="metadata"
-                crossOrigin="anonymous"
-                playsInline // Added playsInline for better mobile support
-              >
-                {/* Sources are added dynamically in useEffect */}
-                Your browser does not support the video tag.
-              </video>
-
-              {isLoading && (
-                <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                  <div className="text-white">Loading video...</div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="relative">
-              <img src={video.thumb || "/placeholder.svg"} alt={video.title} className="w-full h-96 object-cover" />
-              <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
-                <div className="text-center text-white">
-                  <p className="mb-4">Video cannot be played directly</p>
-                  <Button
-                    onClick={handlePlayVideo}
-                    size="lg"
-                    className="bg-yellow-600 hover:bg-yellow-700 text-black font-semibold"
-                  >
-                    <ExternalLink className="w-6 h-6 mr-2" />
-                    Open in External Player
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="p-6">
-          <h3 className="text-white font-medium text-xl mb-4">{video.title}</h3>
+      {!isLoading && (
+        <div className="w-full max-w-md mx-4 mb-8 bg-gray-800 rounded-lg p-6">
+          <h3 className="text-white font-medium text-lg mb-6 leading-tight">{video.title}</h3>
 
           <div className="flex flex-col gap-3">
             {!hasError && (
-              <Button onClick={handlePlayVideo} className="bg-yellow-600 hover:bg-yellow-700 text-black font-semibold">
-                <Play className="w-4 h-4 mr-2" />
+              <Button
+                onClick={handlePlayVideo}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3"
+              >
+                <Play className="w-5 h-5 mr-2" />
                 {isPlaying ? "Pause Video" : "Play Video"}
               </Button>
             )}
@@ -168,23 +135,22 @@ export function VideoPlayer({ video, onClose, onAddToPlaylist }: VideoPlayerProp
             <Button
               onClick={handleWatchInBrowser}
               variant="outline"
-              className="border-gray-600 text-white hover:bg-gray-800 bg-transparent"
+              className="w-full border-gray-600 text-white hover:bg-gray-700 bg-transparent py-3"
             >
-              <ExternalLink className="w-4 h-4 mr-2" />
+              <ExternalLink className="w-5 h-5 mr-2" />
               Watch in Browser
             </Button>
 
             <Button
               onClick={() => onAddToPlaylist(video)}
-              variant="outline"
-              className="border-yellow-600 text-yellow-600 hover:bg-yellow-600 hover:text-black"
+              className="w-full bg-gray-700 hover:bg-gray-600 text-orange-500 py-3"
             >
-              <Plus className="w-4 h-4 mr-2" />
+              <Plus className="w-5 h-5 mr-2" />
               Add to Playlist
             </Button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
