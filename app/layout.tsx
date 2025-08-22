@@ -14,6 +14,7 @@ import { LikedSongsProvider } from "@/contexts/liked-songs-context"
 import { RefreshProvider } from "@/contexts/refresh-context"
 import { SettingsProvider } from "@/contexts/settings-context"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
+import { DiscordRPCIntegration } from "@/components/discord-rpc-integration"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -50,7 +51,10 @@ const CombinedProviders = ({ children }: { children: React.ReactNode }) => (
                 <ThemeProvider>
                   <RefreshProvider>
                     <UpdateProvider>
-                      <SettingsProvider>{children}</SettingsProvider>
+                      <SettingsProvider>
+                        <DiscordRPCIntegration />
+                        {children}
+                      </SettingsProvider>
                     </UpdateProvider>
                   </RefreshProvider>
                 </ThemeProvider>

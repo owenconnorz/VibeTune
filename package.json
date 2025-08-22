@@ -1,11 +1,27 @@
 {
-  "name": "my-v0-project",
+  "name": "vibetune-music-app",
   "version": "0.1.0",
   "private": true,
+  "description": "A modern music and video streaming app with YouTube integration and Discord Rich Presence",
+  "keywords": [
+    "music",
+    "streaming",
+    "youtube",
+    "discord",
+    "nextjs",
+    "react"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/vibetune-music-app.git"
+  },
+  "license": "MIT",
+  "author": "VibeTune Team",
   "scripts": {
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
+    "release": "npm version patch && git push --follow-tags",
     "start": "next start"
   },
   "dependencies": {
