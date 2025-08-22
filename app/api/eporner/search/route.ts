@@ -103,14 +103,19 @@ export async function GET(request: NextRequest) {
         return {
           id: video.id,
           title: video.title || "Untitled Video",
-          url: directVideoUrl,
-          videoUrl: videoFileUrl,
-          thumbnail: video.default_thumb?.src || video.thumb || "/video-production-setup.png",
-          duration: video.length_sec || 0,
+          url: directVideoUrl, // Keep original URL for page navigation
+          videoUrl: videoFileUrl, // Direct video file URL for player
+          thumb: video.default_thumb?.src || video.thumb || "/video-thumbnail.png",
+          default_thumb: {
+            src: video.default_thumb?.src || video.thumb || "/video-thumbnail.png",
+            width: video.default_thumb?.width || 640,
+            height: video.default_thumb?.height || 360,
+          },
+          length_min: Math.floor((video.length_sec || 0) / 60).toString(), // Convert seconds to minutes string
           views: video.views || 0,
-          rating: typeof video.rate === "number" ? video.rate : 0,
+          rate: typeof video.rate === "number" ? video.rate : 0,
           added: video.added || new Date().toISOString(),
-          sources: video.src || {},
+          keywords: video.keywords || "",
         }
       })
 
@@ -129,57 +134,49 @@ export async function GET(request: NextRequest) {
         id: "sample1",
         title: "Big Buck Bunny - Sample Video",
         url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-        thumbnail: "/video-production-setup.png",
-        duration: 596,
-        views: 125000,
-        rating: 4.2,
-        added: new Date().toISOString(),
-        sources: {
-          "720": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        thumb: "/video-thumbnail.png",
+        default_thumb: {
+          src: "/video-thumbnail.png",
+          width: 640,
+          height: 360,
         },
+        length_min: "9", // 596 seconds = ~9 minutes
+        views: 125000,
+        rate: 4.2,
+        added: new Date().toISOString(),
+        keywords: "sample video",
       },
       {
         id: "sample2",
         title: "Elephants Dream - Sample Video",
         url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-        thumbnail: "/video-production-setup.png",
-        duration: 653,
-        views: 89000,
-        rating: 3.8,
-        added: new Date().toISOString(),
-        sources: {
-          "720": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+        thumb: "/video-thumbnail.png",
+        default_thumb: {
+          src: "/video-thumbnail.png",
+          width: 640,
+          height: 360,
         },
+        length_min: "10", // 653 seconds = ~10 minutes
+        views: 89000,
+        rate: 3.8,
+        added: new Date().toISOString(),
+        keywords: "sample video",
       },
       {
         id: "sample3",
         title: "For Bigger Blazes - Sample Video",
         url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        thumbnail: "/video-production-setup.png",
-        duration: 15,
+        thumb: "/video-thumbnail.png",
+        default_thumb: {
+          src: "/video-thumbnail.png",
+          width: 640,
+          height: 360,
+        },
+        length_min: "0", // 15 seconds = 0 minutes
         views: 67000,
-        rating: 4.5,
+        rate: 4.5,
         added: new Date().toISOString(),
-        sources: {
-          "720": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        },
-      },
-      {
-        id: "sample4",
-        title: "Sintel - Sample Video",
-        url: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-        thumbnail: "/video-production-setup.png",
-        duration: 888,
-        views: 156000,
-        rating: 4.7,
-        added: new Date().toISOString(),
-        sources: {
-          "720": "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-        },
+        keywords: "sample video",
       },
     ]
 

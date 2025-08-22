@@ -12,31 +12,49 @@ interface ErrorBoundaryProps {
   fallback?: React.ReactNode
 }
 
-export class ErrorBoundaryComponent extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props)
-    this.state = { hasError: false }
-  }
+export function ErrorBoundaryComponent({ children, fallback }: ErrorBoundaryProps) {
+  const [hasError, setHasError] = React.useState(false)
+  const [error, setError] = React.useState<Error | undefined>(undefined)
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
-    return { hasError: true, error }
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Error caught by boundary:", error, errorInfo)
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        this.props.fallback || (
-          <div className="flex items-center justify-center p-4 text-white/60">
-            <p>Something went wrong</p>
-          </div>
-        )
-      )
+  React.useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error("Error caught by boundary:", event.error)
+      setHasError(true)
+      setError(event.error)
     }
 
-    return this.props.children
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error("Unhandled promise rejection caught by boundary:", event.reason)
+      setHasError(true)
+      setError(new Error(event.reason))
+    }
+
+    window.addEventListener("error", handleError)
+    window.addEventListener("unhandledrejection", handleUnhandledRejection)
+
+    return () => {
+      window.removeEventListener("error", handleError)
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection)
+    }
+  }, [])
+
+  // Reset error state when children change
+  React.useEffect(() => {
+    if (hasError) {
+      setHasError(false)
+      setError(undefined)
+    }
+  }, [children])
+
+  if (hasError) {
+    return (
+      fallback || (
+        <div className="flex items-center justify-center p-4 text-white/60">
+          <p>Something went wrong</p>
+        </div>
+      )
+    )
   }
+
+  return <>{children}</>
 }

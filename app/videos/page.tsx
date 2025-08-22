@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Play, Clock, Eye, Plus, ThumbsUp, ThumbsDown, Heart, Share, Flag, User, Download } from "lucide-react"
+import { Search, Play, Eye, Plus, ThumbsUp, Heart, Share, Download, Filter, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { AudioPlayer } from "@/components/audio-player"
@@ -198,83 +198,80 @@ export default function VideosPage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="bg-black border-b border-gray-800 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center"></div>
-          <div className="flex items-center gap-4">
-            <Search className="w-6 h-6 text-gray-400 cursor-pointer hover:text-white" />
-            <User className="w-6 h-6 text-gray-400 cursor-pointer hover:text-white" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">
+                PORN<span className="text-purple-400 italic">Total</span>
+              </h1>
+            </div>
+          </div>
+          <div className="bg-gray-800 rounded-full p-2">
+            <Search className="w-6 h-6 text-white" />
           </div>
         </div>
 
-        <div className="flex gap-6 mb-4 overflow-x-auto">
-          <button className="text-orange-500 font-semibold whitespace-nowrap border-b-2 border-orange-500 pb-2">
-            VIDEOS
-          </button>
-          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">LIVE CAMS</button>
-          <button
-            className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2"
-            onClick={() => router.push("/categories")}
-          >
+        <div className="flex gap-8 mb-6 overflow-x-auto">
+          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">HOME</button>
+          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">CONTENT</button>
+          <button className="text-purple-400 font-semibold whitespace-nowrap border-b-2 border-purple-400 pb-2">
             CATEGORIES
           </button>
-          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">MODELS</button>
+          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">APP</button>
+          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">AFFILIATE</button>
         </div>
 
-        <div className="flex gap-2 items-center">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-              className="w-full bg-gray-900 text-white rounded-lg pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 border border-gray-700"
-              placeholder="Search videos..."
-            />
+        <div className="flex gap-4 mb-6">
+          <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-4 py-2 cursor-pointer">
+            <Filter className="w-4 h-4 text-gray-400" />
+            <span className="text-gray-300">Random</span>
+            <ChevronDown className="w-4 h-4 text-gray-400" />
           </div>
-          <Button onClick={handleSearch} className="bg-orange-500 text-white hover:bg-orange-600 px-6 py-3">
-            Search
-          </Button>
+          <div className="flex items-center gap-2 bg-gray-800 rounded-lg px-4 py-2 cursor-pointer">
+            <span className="text-gray-300">All Time</span>
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          </div>
         </div>
+
+        <h2 className="text-4xl font-bold text-white mb-8 leading-tight">
+          Find Your Next
+          <br />
+          Obsession
+        </h2>
       </div>
 
       <div className="p-4 pb-20">
         {isLoading && !hasInitialLoad ? (
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500 mx-auto mb-2"></div>
               <p className="text-gray-400">Loading videos...</p>
             </div>
           </div>
         ) : (
           <>
-            {totalCount > 0 && (
-              <div className="mb-6">
-                <p className="text-gray-400 text-sm">Found {totalCount.toLocaleString()} videos</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="space-y-6">
               {videos.map((video) => (
                 <div
                   key={video.id}
-                  className="bg-gray-900 rounded-lg overflow-hidden hover:bg-gray-800 transition-colors group"
+                  className="bg-black rounded-2xl overflow-hidden hover:bg-gray-900 transition-colors group"
                 >
                   <div className="relative aspect-video">
                     <img
                       src={
                         video.default_thumb?.src ||
                         video.thumb ||
-                        "/placeholder.svg?height=200&width=300&query=video thumbnail" ||
-                        "/placeholder.svg" ||
-                        "/placeholder.svg" ||
-                        "/placeholder.svg" ||
-                        "/placeholder.svg" ||
+                        "/placeholder.svg?height=400&width=600&query=video thumbnail" ||
                         "/placeholder.svg" ||
                         "/placeholder.svg"
                       }
                       alt={video.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover rounded-2xl"
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
@@ -284,81 +281,63 @@ export default function VideosPage() {
                       }}
                     />
                     <div
-                      className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                      className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-2xl"
                       onClick={() => handleVideoClick(video)}
                     >
-                      <div className="bg-white bg-opacity-20 rounded-full p-4">
-                        <Play className="w-8 h-8 text-white" />
+                      <div className="bg-white bg-opacity-20 rounded-full p-6">
+                        <Play className="w-12 h-12 text-white" />
                       </div>
                     </div>
-                    <div className="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded">
+                    <div className="absolute bottom-4 right-4 bg-black bg-opacity-75 text-white text-sm px-3 py-1 rounded-lg font-medium">
                       {formatDuration(video.length_min)}
-                    </div>
-                    <div className="absolute top-2 left-2 bg-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
-                      HD
                     </div>
                   </div>
 
                   <div className="p-4">
                     <h3
-                      className="font-medium text-base line-clamp-2 mb-3 hover:text-orange-500 cursor-pointer"
+                      className="font-bold text-xl text-white mb-3 hover:text-purple-400 cursor-pointer leading-tight"
                       title={video.title}
+                      onClick={() => handleVideoClick(video)}
                     >
                       {video.title}
                     </h3>
 
-                    <div className="flex items-center justify-between text-sm text-gray-400 mb-3">
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-1">
-                          <Eye className="w-4 h-4" />
-                          <span>{formatViews(video.views)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          <span>{video.added}</span>
-                        </div>
+                    <div className="flex items-center gap-6 text-gray-400 mb-4">
+                      <div className="flex items-center gap-2">
+                        <Eye className="w-5 h-5" />
+                        <span className="text-lg font-medium">{formatViews(video.views)} Views</span>
                       </div>
-                      <div className="text-orange-500 font-medium">
-                        ★ {typeof video.rate === "number" ? video.rate.toFixed(1) : "N/A"}
+                      <div className="flex items-center gap-2">
+                        <ThumbsUp className="w-5 h-5" />
+                        <span className="text-lg font-medium">92% Up</span>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <button className="flex items-center gap-1 text-gray-400 hover:text-white text-sm">
-                          <ThumbsUp className="w-4 h-4" />
-                          <span>46</span>
-                        </button>
-                        <button className="flex items-center gap-1 text-gray-400 hover:text-white text-sm">
-                          <ThumbsDown className="w-4 h-4" />
-                        </button>
-                        <button className="text-gray-400 hover:text-orange-500">
-                          <Heart className="w-4 h-4" />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <button className="text-gray-400 hover:text-purple-400">
+                          <Heart className="w-6 h-6" />
                         </button>
                         <button className="text-gray-400 hover:text-white">
-                          <Share className="w-4 h-4" />
+                          <Share className="w-6 h-6" />
                         </button>
                         <button
                           onClick={() => handleDownload(video)}
                           className="text-gray-400 hover:text-green-500"
                           title="Download video"
                         >
-                          <Download className="w-4 h-4" />
+                          <Download className="w-6 h-6" />
                         </button>
                       </div>
-                      <button className="text-gray-400 hover:text-white">
-                        <Flag className="w-4 h-4" />
-                      </button>
+                      <Button
+                        onClick={() => handleAddToPlaylist(video)}
+                        size="sm"
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add to Playlist
+                      </Button>
                     </div>
-
-                    <Button
-                      onClick={() => handleAddToPlaylist(video)}
-                      size="sm"
-                      className="w-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add to Playlist
-                    </Button>
                   </div>
                 </div>
               ))}
@@ -369,7 +348,7 @@ export default function VideosPage() {
                 <Button
                   onClick={loadMore}
                   disabled={isLoading}
-                  className="bg-orange-500 text-white hover:bg-orange-600 px-8 py-3"
+                  className="bg-purple-600 text-white hover:bg-purple-700 px-8 py-3 rounded-lg font-medium"
                 >
                   {isLoading ? "Loading..." : "Load More"}
                 </Button>
@@ -384,7 +363,7 @@ export default function VideosPage() {
                   </p>
                   <Button
                     onClick={() => fetchVideos("popular")}
-                    className="bg-orange-500 text-white hover:bg-orange-600"
+                    className="bg-purple-600 text-white hover:bg-purple-700 rounded-lg"
                   >
                     Try Again
                   </Button>
@@ -420,12 +399,12 @@ export default function VideosPage() {
             <span className="text-[10px] text-gray-400">Explore</span>
           </div>
           <div className="flex flex-col items-center py-1 px-3">
-            <div className="bg-orange-500 rounded-full p-1.5 mb-0.5">
+            <div className="bg-purple-600 rounded-full p-1.5 mb-0.5">
               <div className="w-4 h-4 text-white flex items-center justify-center">
                 <Play className="w-3 h-3" />
               </div>
             </div>
-            <span className="text-[10px] text-white font-medium">Porn</span>
+            <span className="text-[10px] text-white font-medium">Videos</span>
           </div>
           <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={() => router.push("/library")}>
             <div className="w-5 h-5 text-gray-400 mb-0.5 flex items-center justify-center">

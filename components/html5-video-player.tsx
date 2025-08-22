@@ -71,10 +71,10 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
       console.log("[v0] Using iframe for adult video:", videoUrl)
       const iframeTimeout = setTimeout(() => {
         if (!iframeLoaded) {
-          console.log("[v0] Iframe failed to load within timeout, showing fallback")
+          console.log("[v0] Iframe failed to load within 3 seconds, showing fallback UI")
           setIframeError(true)
         }
-      }, 5000)
+      }, 3000) // Reduced from 5000 to 3000 for faster fallback
 
       onReady?.()
 
@@ -190,13 +190,15 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
   }
 
   if (isPageUrl) {
+    console.log("[v0] Rendering iframe for eporner video. Error:", iframeError, "Loaded:", iframeLoaded)
+
     if (iframeError) {
       return (
-        <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-lg">
+        <div className="flex flex-col items-center justify-center p-8 bg-zinc-900 rounded-lg min-h-[300px]">
           <div className="text-center mb-4">
             <h3 className="text-lg font-semibold text-white mb-2">Video Unavailable</h3>
             <p className="text-zinc-400 text-sm mb-4">
-              This video cannot be embedded. Click below to watch it directly.
+              This video cannot be embedded due to site restrictions. Click below to watch it directly.
             </p>
           </div>
           <Button onClick={openInNewTab} className="bg-orange-500 hover:bg-orange-600 text-white">
@@ -208,13 +210,14 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
     }
 
     return (
-      <div className="relative">
+      <div className="relative min-h-[300px]">
         <iframe
           ref={iframeRef}
           src={videoUrl}
           style={{
             display: isVideoMode ? "block" : "none",
             width: "100%",
+            height: "300px", // Added explicit height
             maxWidth: "560px",
             aspectRatio: "16/9",
             border: "none",
@@ -224,11 +227,11 @@ export function HTML5VideoPlayer({ videoUrl, onReady, onError, showVideo = false
           allowFullScreen
           sandbox="allow-scripts allow-same-origin allow-presentation"
           onLoad={() => {
-            console.log("[v0] Iframe loaded successfully")
+            console.log("[v0] Iframe loaded successfully for:", videoUrl)
             setIframeLoaded(true)
           }}
-          onError={() => {
-            console.log("[v0] Iframe failed to load")
+          onError={(e) => {
+            console.log("[v0] Iframe failed to load:", e)
             setIframeError(true)
           }}
         />
