@@ -24,7 +24,6 @@ import { Slider } from "@/components/ui/slider"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useTheme } from "@/contexts/theme-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
-import { YouTubePlayer } from "@/components/youtube-player"
 import { CanvasBackground } from "@/components/canvas-background"
 import { ErrorBoundaryComponent } from "./error-boundary"
 import { HTML5VideoPlayer } from "@/components/html5-video-player"
@@ -276,8 +275,6 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                         showVideo={true}
                         onError={(error) => console.error("[v0] HTML5 video error:", error)}
                       />
-                    ) : state.currentTrack.id && !state.currentTrack.id.startsWith("eporner_") ? (
-                      <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
                     ) : (
                       <div className="w-full h-full bg-black flex items-center justify-center text-white">
                         <p>Video format not supported</p>

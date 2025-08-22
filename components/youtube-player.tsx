@@ -32,7 +32,7 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
 
   const { state, setCurrentTime, setDuration } = useAudioPlayer()
 
-  const isVideoMode = showVideo || state.isVideoMode
+  const isVideoMode = false // Always false for YouTube - only audio playback
 
   const updateTimeProgress = () => {
     if (!playerRef.current || isDestroyedRef.current) return
@@ -72,7 +72,7 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
 
   useEffect(() => {
     console.log("[v0] YouTubePlayer component mounted with videoId:", videoId)
-    console.log("[v0] isVideoMode:", isVideoMode, "showVideo:", showVideo, "state.isVideoMode:", state.isVideoMode)
+    console.log("[v0] YouTube player forced to audio-only mode")
     console.log("[v0] Audio player context on mount:", {
       hasState: !!state,
       hasSetCurrentTime: !!setCurrentTime,
@@ -115,8 +115,8 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
           }
 
           playerRef.current = new window.YT.Player(containerRef.current, {
-            height: isVideoMode ? "315" : "0",
-            width: isVideoMode ? "560" : "0",
+            height: "0",
+            width: "0",
             videoId: videoId,
             playerVars: {
               autoplay: 0,
@@ -354,20 +354,20 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
 
   useEffect(() => {
     if (playerRef.current && typeof playerRef.current.setSize === "function" && !isDestroyedRef.current) {
-      playerRef.current.setSize(isVideoMode ? 560 : 0, isVideoMode ? 315 : 0)
+      playerRef.current.setSize(0, 0)
     }
-  }, [isVideoMode])
+  }, []) // Remove isVideoMode dependency since it's always false
 
   return (
     <div
       ref={containerRef}
       style={{
-        display: isVideoMode ? "block" : "none",
+        display: "none",
         maxWidth: "100%",
-        aspectRatio: isVideoMode ? "16/9" : "auto",
+        aspectRatio: "auto",
         pointerEvents: "none",
       }}
-      className={isVideoMode ? "rounded-lg overflow-hidden shadow-lg" : ""}
+      className=""
     />
   )
 }
