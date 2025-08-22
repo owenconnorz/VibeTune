@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Play, Clock, Eye, Plus, ThumbsUp, ThumbsDown, Heart, Share, Flag, User } from "lucide-react"
+import { Search, Play, Clock, Eye, Plus, ThumbsUp, ThumbsDown, Heart, Share, Flag, User, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { AudioPlayer } from "@/components/audio-player"
-import { VideoPlayer } from "@/components/video-player"
+import { useAudioPlayer } from "@/contexts/audio-player-context"
 
 interface Video {
   id: string
@@ -33,12 +33,12 @@ interface ApiResponse {
 
 export default function VideosPage() {
   const router = useRouter()
+  const { playTrack, setVideoMode } = useAudioPlayer()
   const [videos, setVideos] = useState<Video[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [playlists, setPlaylists] = useState<Array<{ id: string; name: string; videos: Video[] }>>([])
   const [hasInitialLoad, setHasInitialLoad] = useState(false)
 
@@ -67,15 +67,15 @@ export default function VideosPage() {
 
       const data: ApiResponse = await response.json()
 
-      if (data.error) {
-        console.error("[v0] API error:", data.error)
+      if (data.videos && Array.isArray(data.videos) && data.videos.length > 0) {
+        setVideos(page === 1 ? data.videos : [...videos, ...data.videos])
+        setTotalCount(data.total_count || data.videos.length)
+        setCurrentPage(page)
+        console.log("[v0] Videos loaded:", data.videos.length, data.error ? "(fallback data)" : "(live data)")
+      } else {
+        console.error("[v0] No videos in API response:", data)
         setVideos([])
         setTotalCount(0)
-      } else {
-        setVideos(page === 1 ? data.videos : [...videos, ...data.videos])
-        setTotalCount(data.total_count)
-        setCurrentPage(page)
-        console.log("[v0] Videos loaded:", data.videos.length)
       }
     } catch (error) {
       console.error("[v0] Fetch error:", error)
@@ -101,6 +101,9 @@ export default function VideosPage() {
 
   const formatDuration = (minutes: string) => {
     const mins = Number.parseInt(minutes)
+    if (isNaN(mins) || mins < 0) {
+      return "0:00"
+    }
     const hours = Math.floor(mins / 60)
     const remainingMins = mins % 60
     return hours > 0 ? `${hours}:${remainingMins.toString().padStart(2, "0")}` : `${mins}:00`
@@ -116,11 +119,22 @@ export default function VideosPage() {
   }
 
   const handleVideoClick = (video: Video) => {
-    setSelectedVideo(video)
-  }
+    const videoTrack = {
+      id: `eporner_${video.id}`, // Prefix to distinguish from YouTube IDs
+      title: video.title,
+      artist: "Video",
+      album: "Porn Videos",
+      duration: Number.parseInt(video.length_min) * 60, // Convert minutes to seconds
+      audioUrl: "", // No audio URL for videos
+      videoUrl: video.url, // Use the video URL for HTML5 player
+      thumbnail: video.default_thumb?.src || video.thumb || "/placeholder.svg",
+      isVideo: true, // Flag to indicate this is video content
+      source: "eporner", // Add source identifier
+      // Explicitly do NOT set videoId to prevent YouTube player usage
+    }
 
-  const handleClosePlayer = () => {
-    setSelectedVideo(null)
+    setVideoMode(true) // Enable video mode
+    playTrack(videoTrack) // Play the video in the media player
   }
 
   const handleAddToPlaylist = (video: Video) => {
@@ -157,6 +171,30 @@ export default function VideosPage() {
     })
   }
 
+  const handleDownload = async (video: Video) => {
+    try {
+      const response = await fetch(`/api/eporner/download?videoId=${video.id}&title=${encodeURIComponent(video.title)}`)
+
+      if (!response.ok) {
+        throw new Error("Download failed")
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.style.display = "none"
+      a.href = url
+      a.download = `${video.title.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.mp4`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error("[v0] Download error:", error)
+      alert("Download failed. Please try again.")
+    }
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="bg-black border-b border-gray-800 p-4">
@@ -173,7 +211,12 @@ export default function VideosPage() {
             VIDEOS
           </button>
           <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">LIVE CAMS</button>
-          <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">CATEGORIES</button>
+          <button
+            className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2"
+            onClick={() => router.push("/categories")}
+          >
+            CATEGORIES
+          </button>
           <button className="text-gray-400 hover:text-white font-semibold whitespace-nowrap pb-2">MODELS</button>
         </div>
 
@@ -219,10 +262,23 @@ export default function VideosPage() {
                 >
                   <div className="relative aspect-video">
                     <img
-                      src={video.default_thumb.src || "/placeholder.svg"}
+                      src={
+                        video.default_thumb?.src ||
+                        video.thumb ||
+                        "/placeholder.svg?height=200&width=300&query=video thumbnail" ||
+                        "/placeholder.svg" ||
+                        "/placeholder.svg" ||
+                        "/placeholder.svg"
+                      }
                       alt={video.title}
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        if (!target.src.includes("placeholder.svg")) {
+                          target.src = "/video-thumbnail.png"
+                        }
+                      }}
                     />
                     <div
                       className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -279,6 +335,13 @@ export default function VideosPage() {
                         <button className="text-gray-400 hover:text-white">
                           <Share className="w-4 h-4" />
                         </button>
+                        <button
+                          onClick={() => handleDownload(video)}
+                          className="text-gray-400 hover:text-green-500"
+                          title="Download video"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
                       </div>
                       <button className="text-gray-400 hover:text-white">
                         <Flag className="w-4 h-4" />
@@ -312,14 +375,22 @@ export default function VideosPage() {
 
             {videos.length === 0 && hasInitialLoad && !isLoading && (
               <div className="text-center py-12">
-                <p className="text-gray-400">No videos found. Try a different search term.</p>
+                <div className="text-center">
+                  <p className="text-gray-400 mb-4">
+                    Unable to load videos. The service may be temporarily unavailable.
+                  </p>
+                  <Button
+                    onClick={() => fetchVideos("popular")}
+                    className="bg-orange-500 text-white hover:bg-orange-600"
+                  >
+                    Try Again
+                  </Button>
+                </div>
               </div>
             )}
           </>
         )}
       </div>
-
-      <VideoPlayer video={selectedVideo} onClose={handleClosePlayer} onAddToPlaylist={handleAddToPlaylist} />
 
       <AudioPlayer />
 
@@ -338,7 +409,7 @@ export default function VideosPage() {
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
-                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                  d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.816a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
                   clipRule="evenodd"
                 />
               </svg>

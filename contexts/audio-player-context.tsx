@@ -13,6 +13,8 @@ export interface Track {
   thumbnail: string
   duration: string
   audioUrl?: string
+  videoUrl?: string // Add video URL support
+  isVideo?: boolean // Flag to indicate video content
 }
 
 interface AudioPlayerState {

@@ -17,6 +17,7 @@ import {
   Repeat,
   Video,
   Music,
+  Maximize,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -24,6 +25,7 @@ import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useTheme } from "@/contexts/theme-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { YouTubePlayer } from "@/components/youtube-player"
+import { HTML5VideoPlayer } from "@/components/html5-video-player"
 import { CanvasBackground } from "@/components/canvas-background"
 import { ErrorBoundaryComponent } from "./error-boundary"
 
@@ -38,6 +40,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
   const { isLiked, toggleLike } = useLikedSongs()
   const [dragY, setDragY] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const startY = useRef(0)
   const lastY = useRef(0)
@@ -150,6 +153,54 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
     }
   }, [state.isVideoMode, setVideoMode])
 
+  const handleToggleFullscreen = useCallback(() => {
+    if (!state.isVideoMode) return // Only allow fullscreen for videos
+
+    try {
+      if (!isFullscreen) {
+        // Enter fullscreen
+        if (containerRef.current?.requestFullscreen) {
+          containerRef.current.requestFullscreen()
+        }
+      } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+          document.exitFullscreen()
+        }
+      }
+      setIsFullscreen(!isFullscreen)
+    } catch (error) {
+      console.error("Failed to toggle fullscreen:", error)
+    }
+  }, [isFullscreen, state.isVideoMode])
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
+  }, [])
+
+  const isEpornerVideo =
+    state.currentTrack?.isVideo &&
+    (state.currentTrack?.videoUrl ||
+      state.currentTrack?.source === "eporner" ||
+      state.currentTrack?.id?.startsWith("eporner_"))
+
+  useEffect(() => {
+    if (state.currentTrack) {
+      console.log("[v0] Current track:", {
+        id: state.currentTrack.id,
+        isVideo: state.currentTrack.isVideo,
+        videoUrl: state.currentTrack.videoUrl,
+        source: state.currentTrack.source,
+        isEpornerVideo,
+      })
+    }
+  }, [state.currentTrack, isEpornerVideo])
+
   if (!isOpen || !state.currentTrack || !colors) return null
 
   const progressPercentage = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0
@@ -186,7 +237,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
 
         <div className="flex justify-center px-4 sm:px-8 mb-6 sm:mb-8">
           <div className="w-full max-w-md">
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-4 gap-2">
               <Button
                 variant="ghost"
                 className={`${
@@ -208,6 +259,17 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                   </>
                 )}
               </Button>
+
+              {state.isVideoMode && (
+                <Button
+                  variant="ghost"
+                  className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full px-4 py-2 border border-white/20 transition-all duration-200 flex items-center gap-2"
+                  onClick={handleToggleFullscreen}
+                >
+                  <Maximize className="w-4 h-4" />
+                  <span className="text-sm font-medium">{isFullscreen ? "Exit" : "Fullscreen"}</span>
+                </Button>
+              )}
             </div>
 
             <div className="relative">
@@ -220,7 +282,19 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                       </div>
                     }
                   >
-                    <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
+                    {isEpornerVideo && state.currentTrack.videoUrl ? (
+                      <HTML5VideoPlayer
+                        videoUrl={state.currentTrack.videoUrl}
+                        showVideo={true}
+                        onError={(error) => console.error("[v0] HTML5 video error:", error)}
+                      />
+                    ) : state.currentTrack.id && !state.currentTrack.id.startsWith("eporner_") ? (
+                      <YouTubePlayer videoId={state.currentTrack.id} showVideo={true} />
+                    ) : (
+                      <div className="w-full h-full bg-black flex items-center justify-center text-white">
+                        <p>Video format not supported</p>
+                      </div>
+                    )}
                   </ErrorBoundaryComponent>
                 </div>
               ) : (

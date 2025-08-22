@@ -117,9 +117,15 @@ export function AudioPlayer() {
 
   const progressPercentage = state.duration > 0 ? (state.currentTime / state.duration) * 100 : 0
 
+  const isEpornerVideo =
+    state.currentTrack?.isVideo &&
+    (state.currentTrack?.videoUrl ||
+      state.currentTrack?.source === "eporner" ||
+      state.currentTrack?.id?.startsWith("eporner_"))
+
   return (
     <>
-      {state.currentTrack && (
+      {state.currentTrack && !isEpornerVideo && (
         <div className="fixed -top-[9999px] -left-[9999px] w-1 h-1 overflow-hidden opacity-0 pointer-events-none">
           <ErrorBoundaryComponent fallback={null}>
             <YouTubePlayer videoId={state.currentTrack.id} showVideo={false} />
