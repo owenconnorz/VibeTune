@@ -82,8 +82,8 @@ export default function LibraryPage() {
   })
 
   const allLikedSongs = [
-    ...syncData.likedSongs,
-    ...localLikedSongs.map((song) => ({
+    ...(syncData?.likedSongs || []),
+    ...(localLikedSongs || []).map((song) => ({
       id: song.id,
       title: song.title,
       channelTitle: song.artist,
@@ -97,7 +97,7 @@ export default function LibraryPage() {
       id: "liked",
       title: "Liked Songs",
       icon: Heart,
-      count: allLikedSongs.length,
+      count: allLikedSongs?.length || 0,
       color: "text-red-500",
       type: "system" as const,
       songs: allLikedSongs,
@@ -106,39 +106,39 @@ export default function LibraryPage() {
       id: "downloaded",
       title: "Downloaded",
       icon: CheckCircle,
-      count: downloadedSongs.length,
+      count: downloadedSongs?.length || 0,
       color: "text-green-500",
       type: "system" as const,
-      songs: downloadedSongs,
+      songs: downloadedSongs || [],
     },
   ]
 
   const allPlaylists = [
     ...systemPlaylists,
-    ...syncData.playlists.map((p) => ({ ...p, type: "synced" as const })),
-    ...localPlaylists.map((p) => ({ ...p, type: "local" as const })),
+    ...(syncData?.playlists || []).map((p) => ({ ...p, type: "synced" as const })),
+    ...(localPlaylists || []).map((p) => ({ ...p, type: "local" as const })),
     ...importedPlaylists.map((p) => ({ ...p, type: "imported" as const })),
     ...videoPlaylists.map((p) => ({
       ...p,
       type: "video" as const,
       title: p.name,
-      count: p.videos.length,
-      thumbnail: p.videos[0]?.thumb || p.videos[0]?.default_thumb?.src,
+      count: p.videos?.length || 0,
+      thumbnail: p.videos?.[0]?.thumb || p.videos?.[0]?.default_thumb?.src,
     })),
   ]
 
   const allSongs = [
     ...allLikedSongs,
-    ...syncData.playlists.flatMap((p) => p.videos || []),
-    ...localPlaylists.flatMap((p) => p.songs),
+    ...(syncData?.playlists || []).flatMap((p) => p.videos || []),
+    ...(localPlaylists || []).flatMap((p) => p.songs || []),
   ].filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
 
   const filteredPlaylists = allPlaylists
-    .filter((playlist) => playlist.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter((playlist) => playlist.title?.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
       switch (sortBy) {
         case "name":
-          return a.title.localeCompare(b.title)
+          return (a.title || "").localeCompare(b.title || "")
         case "count":
           return (b.count || b.songs?.length || 0) - (a.count || a.songs?.length || 0)
         case "date":
@@ -153,14 +153,14 @@ export default function LibraryPage() {
 
   const filteredSongs = allSongs.filter(
     (song) =>
-      song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      song.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (song.channelTitle || song.artist || "").toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const filteredDownloadedSongs = downloadedSongs.filter(
+  const filteredDownloadedSongs = (downloadedSongs || []).filter(
     (song) =>
-      song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      song.artist.toLowerCase().includes(searchQuery.toLowerCase()),
+      song.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      song.artist?.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const handlePlayPlaylist = (playlist: any) => {
@@ -298,9 +298,9 @@ export default function LibraryPage() {
         <button className="text-gray-300 hover:text-white font-medium text-sm">Stats</button>
         <button className="text-gray-300 hover:text-white font-medium text-sm relative">
           Liked
-          {user && allLikedSongs.length > 0 && (
+          {user && (allLikedSongs?.length || 0) > 0 && (
             <span className="absolute -top-1 -right-2 bg-yellow-600 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
-              {allLikedSongs.length > 99 ? "99+" : allLikedSongs.length}
+              {(allLikedSongs?.length || 0) > 99 ? "99+" : allLikedSongs?.length || 0}
             </span>
           )}
         </button>
@@ -457,7 +457,7 @@ export default function LibraryPage() {
           <div className="space-y-6">
             <DownloadManager />
 
-            {downloadedSongs.length > 0 && (
+            {(downloadedSongs?.length || 0) > 0 && (
               <div>
                 <h3 className="text-xl font-bold text-white mb-4">Downloaded Songs</h3>
                 <div className="space-y-1">
