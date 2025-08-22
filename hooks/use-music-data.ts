@@ -10,19 +10,21 @@ export function useTrendingMusic() {
   const [error, setError] = useState<string | null>(null)
   const [source, setSource] = useState<"cache" | "api" | "fallback">("api")
 
-  const loadTrendingMusic = useCallback(async () => {
+  const loadTrendingMusic = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true)
       setError(null)
 
       const cacheKey = getCacheKey.trending()
-      const cachedSongs = musicCache.get(cacheKey)
 
-      if (cachedSongs) {
-        setSongs(cachedSongs)
-        setSource("cache")
-        setLoading(false)
-        return
+      if (!forceRefresh) {
+        const cachedSongs = musicCache.get(cacheKey)
+        if (cachedSongs) {
+          setSongs(cachedSongs)
+          setSource("cache")
+          setLoading(false)
+          return
+        }
       }
 
       const trendingSongs = await fetchTrendingMusic()
@@ -42,7 +44,7 @@ export function useTrendingMusic() {
   }, [])
 
   useEffect(() => {
-    loadTrendingMusic()
+    loadTrendingMusic(true)
   }, [loadTrendingMusic])
 
   return { songs, loading, error, source, refetch: loadTrendingMusic }
@@ -104,20 +106,22 @@ export function useMoodPlaylist(queries: string[]) {
   const [error, setError] = useState<string | null>(null)
   const [source, setSource] = useState<"cache" | "api" | "fallback">("api")
 
-  useEffect(() => {
-    async function loadMoodPlaylist() {
+  const loadMoodPlaylist = useCallback(
+    async (forceRefresh = false) => {
       try {
         setLoading(true)
         setError(null)
 
         const cacheKey = `mood_playlist_${queries.join("_").toLowerCase().replace(/\s+/g, "_")}`
-        const cachedPlaylist = musicCache.get(cacheKey)
 
-        if (cachedPlaylist) {
-          setSongs(cachedPlaylist)
-          setSource("cache")
-          setLoading(false)
-          return
+        if (!forceRefresh) {
+          const cachedPlaylist = musicCache.get(cacheKey)
+          if (cachedPlaylist) {
+            setSongs(cachedPlaylist)
+            setSource("cache")
+            setLoading(false)
+            return
+          }
         }
 
         const allSongs: Song[] = []
@@ -147,14 +151,17 @@ export function useMoodPlaylist(queries: string[]) {
       } finally {
         setLoading(false)
       }
-    }
+    },
+    [queries],
+  )
 
+  useEffect(() => {
     if (queries.length > 0) {
-      loadMoodPlaylist()
+      loadMoodPlaylist(true)
     }
-  }, [queries])
+  }, [loadMoodPlaylist])
 
-  return { songs, loading, error, source }
+  return { songs, loading, error, source, refetch: loadMoodPlaylist }
 }
 
 export function useNewReleases() {
@@ -163,65 +170,67 @@ export function useNewReleases() {
   const [error, setError] = useState<string | null>(null)
   const [source, setSource] = useState<"cache" | "api" | "fallback">("api")
 
-  useEffect(() => {
-    async function loadNewReleases() {
-      try {
-        setLoading(true)
-        setError(null)
+  const loadNewReleases = useCallback(async (forceRefresh = false) => {
+    try {
+      setLoading(true)
+      setError(null)
 
-        const cacheKey = getCacheKey.search("new_releases_2024")
+      const cacheKey = getCacheKey.search("new_releases_2024")
+
+      if (!forceRefresh) {
         const cachedReleases = musicCache.get(cacheKey)
-
         if (cachedReleases) {
           setSongs(cachedReleases)
           setSource("cache")
           setLoading(false)
           return
         }
-
-        // Search for actual new releases with current year and recent terms
-        const newReleaseQueries = [
-          "new songs 2024",
-          "latest releases 2024",
-          "new music this week",
-          "trending new songs",
-          "fresh hits 2024",
-          "new album releases",
-        ]
-
-        const allSongs: Song[] = []
-        for (const query of newReleaseQueries) {
-          try {
-            const results = await searchMusic(query)
-            allSongs.push(...results.slice(0, 4))
-          } catch (err) {
-            console.warn(`Failed to search for new releases "${query}":`, err)
-          }
-        }
-
-        const uniqueSongs = allSongs
-          .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
-          .slice(0, 12)
-
-        setSongs(uniqueSongs)
-        setSource("api")
-
-        if (uniqueSongs.length > 0) {
-          musicCache.set(cacheKey, uniqueSongs, 10 * 60 * 1000) // Cache for 10 minutes
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load new releases")
-        setSource("fallback")
-        console.error("Error loading new releases:", err)
-      } finally {
-        setLoading(false)
       }
-    }
 
-    loadNewReleases()
+      // Search for actual new releases with current year and recent terms
+      const newReleaseQueries = [
+        "new songs 2024",
+        "latest releases 2024",
+        "new music this week",
+        "trending new songs",
+        "fresh hits 2024",
+        "new album releases",
+      ]
+
+      const allSongs: Song[] = []
+      for (const query of newReleaseQueries) {
+        try {
+          const results = await searchMusic(query)
+          allSongs.push(...results.slice(0, 4))
+        } catch (err) {
+          console.warn(`Failed to search for new releases "${query}":`, err)
+        }
+      }
+
+      const uniqueSongs = allSongs
+        .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
+        .slice(0, 12)
+
+      setSongs(uniqueSongs)
+      setSource("api")
+
+      if (uniqueSongs.length > 0) {
+        musicCache.set(cacheKey, uniqueSongs, 10 * 60 * 1000) // Cache for 10 minutes
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load new releases")
+      setSource("fallback")
+      console.error("Error loading new releases:", err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  return { songs, loading, error, source }
+  useEffect(() => {
+    loadNewReleases(true)
+  }, [loadNewReleases])
+
+  return { songs, loading, error, source, refetch: loadNewReleases }
 }
 
 export function useCacheStats() {

@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import type React from "react"
+
+import { useState, useMemo } from "react"
 import { Search, ArrowLeft, MoreVertical, User, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,7 +37,7 @@ export default function SearchPage() {
   const router = useRouter()
   const { playQueue } = useAudioPlayer()
   const [query, setQuery] = useState("")
-  const [showInput, setShowInput] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState<string>("all")
   const [error, setError] = useState<string | null>(null)
 
@@ -46,21 +48,21 @@ export default function SearchPage() {
     reset: resetSearch,
   } = useInfiniteScroll<SearchResult>({
     fetchMore: async (page: number) => {
-      if (!query.trim()) {
+      if (!searchQuery.trim()) {
         return { items: [], hasMore: false }
       }
 
-      console.log("[v0] Fetching search results page:", page, "for query:", query)
-      const results = await searchMusicEnhanced(query, page)
+      console.log("[v0] Fetching search results page:", page, "for query:", searchQuery)
+      const results = await searchMusicEnhanced(searchQuery, page)
 
       const allResults = [...results.songs, ...results.artists, ...results.albums, ...results.playlists]
 
       return {
         items: allResults,
-        hasMore: allResults.length >= 20, // Assume more results if we got a full page
+        hasMore: allResults.length >= 20,
       }
     },
-    enabled: !!query.trim(),
+    enabled: !!searchQuery.trim(),
     threshold: 800,
   })
 
@@ -79,19 +81,6 @@ export default function SearchPage() {
     }
   }, [searchResults])
 
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      if (query.trim()) {
-        setShowInput(false)
-        resetSearch()
-      } else {
-        setShowInput(true)
-      }
-    }, 500)
-
-    return () => clearTimeout(debounceTimer)
-  }, [query, resetSearch])
-
   const handlePlaySong = (song: SearchResult, songList: SearchResult[]) => {
     const tracks = songList
       .filter((s) => s.type === "song")
@@ -109,7 +98,6 @@ export default function SearchPage() {
   const handleItemClick = (item: SearchResult) => {
     switch (item.type) {
       case "song":
-        // Navigate to artist page to show more songs from this artist
         const artistName = item.artist || item.channelTitle || "Unknown Artist"
         router.push(`/artist/${encodeURIComponent(artistName)}`)
         break
@@ -152,9 +140,23 @@ export default function SearchPage() {
     { id: "artists", label: "Artists", count: categorizedResults.artists.length },
   ]
 
-  const handleSearch = (query: string) => {
-    // Implement the search logic here
-    console.log("Searching for:", query)
+  const handleSearch = () => {
+    if (query.trim()) {
+      setSearchQuery(query.trim())
+      resetSearch()
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch()
+    }
+  }
+
+  const handleClearSearch = () => {
+    setQuery("")
+    setSearchQuery("")
+    resetSearch()
   }
 
   return (
@@ -164,26 +166,49 @@ export default function SearchPage() {
         <Button variant="ghost" size="icon" onClick={() => router.back()} className="text-gray-300 hover:text-white">
           <ArrowLeft className="w-6 h-6" />
         </Button>
-        {showInput ? (
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search for songs, artists, albums..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="pl-10 bg-zinc-800 border-zinc-700 text-white placeholder-gray-400 rounded-full"
-              autoFocus
-            />
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Input
+            placeholder="Search for songs, artists, albums..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyPress={handleKeyPress}
+            className="pl-10 pr-20 bg-zinc-800 border-zinc-700 text-white placeholder-gray-400 rounded-full"
+            autoFocus
+          />
+          <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex gap-1">
+            {query && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearSearch}
+                className="h-7 px-2 text-gray-400 hover:text-white"
+              >
+                Clear
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSearch}
+              disabled={!query.trim()}
+              className="h-7 px-2 text-gray-400 hover:text-white disabled:opacity-50"
+            >
+              Search
+            </Button>
           </div>
-        ) : (
-          <div className="flex-1">
-            <h1 className="text-xl font-normal text-white">{query}</h1>
-          </div>
-        )}
+        </div>
       </header>
 
-      {/* Category Tabs */}
-      {query && getTotalResults() > 0 && !showInput && (
+      {searchQuery && getTotalResults() > 0 && (
+        <div className="px-4 py-2 bg-zinc-800/50">
+          <p className="text-sm text-gray-400">
+            Results for: <span className="text-white font-medium">"{searchQuery}"</span>
+          </p>
+        </div>
+      )}
+
+      {searchQuery && getTotalResults() > 0 && (
         <div className="px-4 py-3 bg-zinc-900">
           <div className="flex gap-1 overflow-x-auto">
             {categories.map((category) => (
@@ -207,9 +232,8 @@ export default function SearchPage() {
       )}
 
       <div className="px-4 pb-24">
-        {getTotalResults() > 0 && !loading && !showInput && (
+        {getTotalResults() > 0 && !loading && (
           <div className="space-y-8">
-            {/* Top Result */}
             {activeCategory === "all" && categorizedResults.topResult && (
               <div>
                 <h2 className="text-2xl font-bold text-yellow-400 mb-4">Top result</h2>
@@ -242,7 +266,6 @@ export default function SearchPage() {
               </div>
             )}
 
-            {/* Current Results */}
             <div className="space-y-2">
               {getCurrentResults().map((item, index) => (
                 <div
@@ -302,34 +325,30 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
           </div>
         )}
 
-        {/* Error State */}
         {error && (
           <div className="text-center py-12">
             <p className="text-red-400 mb-4">{error}</p>
-            <Button onClick={() => handleSearch(query)} variant="outline">
+            <Button onClick={handleSearch} variant="outline">
               Try Again
             </Button>
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && !error && query && getTotalResults() === 0 && !showInput && (
+        {!loading && !error && searchQuery && getTotalResults() === 0 && (
           <div className="text-center py-12">
             <Search className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-            <p className="text-gray-400 mb-2">No results found for "{query}"</p>
+            <p className="text-gray-400 mb-2">No results found for "{searchQuery}"</p>
             <p className="text-gray-500 text-sm">Try searching with different keywords</p>
           </div>
         )}
 
-        {/* Initial State */}
-        {showInput && (
+        {!searchQuery && (
           <div className="text-center py-12">
             <Search className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400 mb-2">Search for music</p>

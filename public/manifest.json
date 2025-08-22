@@ -10,6 +10,22 @@
   "categories": ["music", "entertainment"],
   "lang": "en",
   "dir": "ltr",
+  "permissions": ["storage", "persistent-storage", "audio-capture", "notifications", "background-sync", "wake-lock"],
+  "features": ["media-session", "background-fetch", "web-share", "fullscreen"],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "audio/*": [".mp3", ".wav", ".ogg", ".m4a", ".aac"]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+music",
+      "url": "/?track=%s"
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

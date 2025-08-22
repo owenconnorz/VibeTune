@@ -139,12 +139,14 @@ export default function VibeTunePage() {
     loading: mixedLoading,
     error: mixedError,
     source: mixedSource,
+    refetch: refetchMixed,
   } = useMoodPlaylist(moodPlaylists["mixed-for-you"].queries)
   const {
     songs: newReleasesSongs,
     loading: newReleasesLoading,
     error: newReleasesError,
     source: newReleasesSource,
+    refetch: refetchNewReleases,
   } = useNewReleases()
 
   const convertToTrack = useCallback(
@@ -234,10 +236,9 @@ export default function VibeTunePage() {
   }, [])
 
   useEffect(() => {
-    // Prefetch popular genres in the background after a short delay
     const timer = setTimeout(() => {
       prefetchPopularGenres()
-    }, 3000) // Wait 3 seconds after page load
+    }, 3000)
 
     return () => clearTimeout(timer)
   }, [])
@@ -404,6 +405,14 @@ export default function VibeTunePage() {
     [],
   )
 
+  const quickPicksSongs = useMemo(() => {
+    if (safeTrendingSongs.length === 0) return []
+
+    // Create a shuffled version of trending songs for variety on each reload
+    const shuffled = [...safeTrendingSongs].sort(() => Math.random() - 0.5)
+    return shuffled.slice(0, 6)
+  }, [safeTrendingSongs])
+
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
       {/* Header */}
@@ -467,9 +476,11 @@ export default function VibeTunePage() {
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-yellow-400">Quick Picks</h2>
-            {trendingSource === "fallback" && (
-              <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
-            )}
+            <div className="flex items-center gap-2">
+              {trendingSource === "fallback" && (
+                <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
+              )}
+            </div>
           </div>
 
           {trendingError ? (
@@ -478,16 +489,14 @@ export default function VibeTunePage() {
             <div className="space-y-4">
               {trendingLoading
                 ? Array.from({ length: 4 }).map((_, i) => <SongSkeleton key={i} />)
-                : safeTrendingSongs
-                    .slice(0, 6)
-                    .map((song) => (
-                      <MemoizedSongItem
-                        key={song.id}
-                        song={song}
-                        onPlay={handlePlaySong}
-                        trendingSongs={safeTrendingSongs}
-                      />
-                    ))}
+                : quickPicksSongs.map((song) => (
+                    <MemoizedSongItem
+                      key={song.id}
+                      song={song}
+                      onPlay={handlePlaySong}
+                      trendingSongs={safeTrendingSongs}
+                    />
+                  ))}
             </div>
           )}
         </section>
@@ -525,9 +534,11 @@ export default function VibeTunePage() {
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-yellow-400">Music videos for you</h2>
-            {newReleasesSource === "fallback" && (
-              <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
-            )}
+            <div className="flex items-center gap-2">
+              {newReleasesSource === "fallback" && (
+                <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
+              )}
+            </div>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4">
             {newReleasesLoading ? (
@@ -649,9 +660,11 @@ export default function VibeTunePage() {
         <section className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-yellow-400">Mixed for You</h2>
-            {mixedSource === "fallback" && (
-              <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
-            )}
+            <div className="flex items-center gap-2">
+              {mixedSource === "fallback" && (
+                <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Using fallback data</span>
+              )}
+            </div>
           </div>
 
           {mixedError ? (

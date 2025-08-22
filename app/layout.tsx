@@ -11,6 +11,8 @@ import { DownloadProvider } from "@/contexts/download-context"
 import { ListeningHistoryProvider } from "@/contexts/listening-history-context"
 import { UpdateProvider } from "@/contexts/update-context"
 import { LikedSongsProvider } from "@/contexts/liked-songs-context"
+import { RefreshProvider } from "@/contexts/refresh-context"
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -45,7 +47,9 @@ const CombinedProviders = ({ children }: { children: React.ReactNode }) => (
             <PlaylistProvider>
               <LikedSongsProvider>
                 <ThemeProvider>
-                  <UpdateProvider>{children}</UpdateProvider>
+                  <RefreshProvider>
+                    <UpdateProvider>{children}</UpdateProvider>
+                  </RefreshProvider>
                 </ThemeProvider>
               </LikedSongsProvider>
             </PlaylistProvider>
@@ -69,6 +73,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="VibeTune" />
+        <meta
+          name="permissions-policy"
+          content="microphone=(), camera=(), geolocation=(), notifications=(self), persistent-storage=(self), background-sync=(self)"
+        />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
@@ -85,6 +93,7 @@ html {
         `}</style>
       </head>
       <body>
+        <ServiceWorkerRegistration />
         <CombinedProviders>{children}</CombinedProviders>
       </body>
     </html>

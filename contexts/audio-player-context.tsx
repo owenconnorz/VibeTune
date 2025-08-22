@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useReducer, useRef, useEffect, useCallback } from "react"
 import { useListeningHistory } from "./listening-history-context"
 import { useDownload } from "./download-context"
+import { PermissionsManager } from "@/lib/permissions"
 
 export interface Track {
   id: string
@@ -142,8 +143,34 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const [state, dispatch] = useReducer(audioPlayerReducer, initialState)
   const videoModeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastAddedTrackRef = useRef<string | null>(null)
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null)
   const { addToHistory } = useListeningHistory()
   const { isDownloaded, getOfflineAudio } = useDownload()
+
+  useEffect(() => {
+    const manageWakeLock = async () => {
+      if (state.isPlaying && state.currentTrack) {
+        if (!wakeLockRef.current) {
+          wakeLockRef.current = await PermissionsManager.requestWakeLock()
+        }
+      } else {
+        if (wakeLockRef.current) {
+          await PermissionsManager.releaseWakeLock()
+          wakeLockRef.current = null
+        }
+      }
+    }
+
+    manageWakeLock()
+  }, [state.isPlaying, state.currentTrack])
+
+  useEffect(() => {
+    return () => {
+      if (wakeLockRef.current) {
+        PermissionsManager.releaseWakeLock()
+      }
+    }
+  }, [])
 
   const setVideoMode = useCallback((enabled: boolean) => {
     if (videoModeTimeoutRef.current) {
@@ -157,14 +184,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }, [])
 
   useEffect(() => {
-    return () => {
-      if (videoModeTimeoutRef.current) {
-        clearTimeout(videoModeTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
     if (state.currentTrack && lastAddedTrackRef.current !== state.currentTrack.id) {
       dispatch({ type: "SET_LOADING", payload: true })
       dispatch({ type: "SET_ERROR", payload: null })
@@ -173,84 +192,131 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [state.currentTrack, addToHistory])
 
-  useEffect(() => {
-    if ("mediaSession" in navigator && state.currentTrack) {
+  const setupMediaSession = useCallback(() => {
+    if (!("mediaSession" in navigator) || !state.currentTrack) return
+
+    try {
+      const artwork = [
+        { src: state.currentTrack.thumbnail, sizes: "96x96", type: "image/jpeg" },
+        { src: state.currentTrack.thumbnail, sizes: "128x128", type: "image/jpeg" },
+        { src: state.currentTrack.thumbnail, sizes: "192x192", type: "image/jpeg" },
+        { src: state.currentTrack.thumbnail, sizes: "256x256", type: "image/jpeg" },
+        { src: state.currentTrack.thumbnail, sizes: "384x384", type: "image/jpeg" },
+        { src: state.currentTrack.thumbnail, sizes: "512x512", type: "image/jpeg" },
+        { src: state.currentTrack.thumbnail, sizes: "1024x1024", type: "image/jpeg" },
+      ]
+
       navigator.mediaSession.metadata = new MediaMetadata({
         title: state.currentTrack.title,
         artist: state.currentTrack.artist,
         album: "VibeTune",
-        artwork: [
-          {
-            src: state.currentTrack.thumbnail,
-            sizes: "96x96",
-            type: "image/jpeg",
-          },
-          {
-            src: state.currentTrack.thumbnail,
-            sizes: "128x128",
-            type: "image/jpeg",
-          },
-          {
-            src: state.currentTrack.thumbnail,
-            sizes: "192x192",
-            type: "image/jpeg",
-          },
-          {
-            src: state.currentTrack.thumbnail,
-            sizes: "256x256",
-            type: "image/jpeg",
-          },
-          {
-            src: state.currentTrack.thumbnail,
-            sizes: "384x384",
-            type: "image/jpeg",
-          },
-          {
-            src: state.currentTrack.thumbnail,
-            sizes: "512x512",
-            type: "image/jpeg",
-          },
-        ],
+        artwork,
       })
 
       navigator.mediaSession.setActionHandler("play", () => {
+        console.log("[v0] Media Session: Play action triggered")
         dispatch({ type: "PLAY" })
       })
 
       navigator.mediaSession.setActionHandler("pause", () => {
+        console.log("[v0] Media Session: Pause action triggered")
         dispatch({ type: "PAUSE" })
       })
 
+      navigator.mediaSession.setActionHandler("stop", () => {
+        console.log("[v0] Media Session: Stop action triggered")
+        dispatch({ type: "PAUSE" })
+        dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
+      })
+
       navigator.mediaSession.setActionHandler("previoustrack", () => {
-        dispatch({ type: "PREVIOUS_TRACK" })
+        console.log("[v0] Media Session: Previous track action triggered", {
+          currentIndex: state.currentIndex,
+          queueLength: state.queue.length,
+          canGoPrevious: state.currentIndex > 0,
+        })
+        if (state.queue.length > 1 && state.currentIndex > 0) {
+          dispatch({ type: "PREVIOUS_TRACK" })
+        } else {
+          dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
+        }
       })
 
       navigator.mediaSession.setActionHandler("nexttrack", () => {
-        dispatch({ type: "NEXT_TRACK" })
+        console.log("[v0] Media Session: Next track action triggered", {
+          currentIndex: state.currentIndex,
+          queueLength: state.queue.length,
+          canGoNext: state.currentIndex < state.queue.length - 1,
+        })
+        if (state.queue.length > 1 && state.currentIndex < state.queue.length - 1) {
+          dispatch({ type: "NEXT_TRACK" })
+        } else {
+          dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
+        }
       })
 
       navigator.mediaSession.setActionHandler("seekto", (details) => {
-        if (details.seekTime) {
+        console.log("[v0] Media Session: Seek action triggered", details.seekTime)
+        if (details.seekTime !== undefined && details.seekTime >= 0) {
           dispatch({ type: "SET_CURRENT_TIME", payload: details.seekTime })
         }
       })
 
-      navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused"
-    }
-  }, [state.currentTrack, state.currentIndex, state.queue.length, state.isPlaying])
+      navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+        console.log("[v0] Media Session: Seek backward action triggered")
+        const seekOffset = details.seekOffset || 10
+        const newTime = Math.max(0, state.currentTime - seekOffset)
+        dispatch({ type: "SET_CURRENT_TIME", payload: newTime })
+      })
 
-  useEffect(() => {
-    if ("mediaSession" in navigator && state.duration > 0 && state.currentTrack) {
+      navigator.mediaSession.setActionHandler("seekforward", (details) => {
+        console.log("[v0] Media Session: Seek forward action triggered")
+        const seekOffset = details.seekOffset || 10
+        const newTime = Math.min(state.duration, state.currentTime + seekOffset)
+        dispatch({ type: "SET_CURRENT_TIME", payload: newTime })
+      })
+
+      navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused"
+
+      console.log("[v0] Media Session setup completed for:", state.currentTrack.title, {
+        queueLength: state.queue.length,
+        currentIndex: state.currentIndex,
+        hasQueue: state.queue.length > 0,
+      })
+    } catch (error) {
+      console.warn("[v0] Media Session setup failed:", error)
+    }
+  }, [state.currentTrack, state.currentIndex, state.queue.length, state.isPlaying, state.currentTime, state.duration])
+
+  const updatePositionState = useCallback(() => {
+    if (!("mediaSession" in navigator) || !state.currentTrack || state.duration <= 0) return
+
+    try {
+      const position = Math.max(0, Math.min(state.currentTime, state.duration))
+
+      console.log("[v0] Updating Media Session position state:", {
+        duration: state.duration.toFixed(2),
+        currentTime: state.currentTime.toFixed(2),
+        position: position.toFixed(2),
+        isPlaying: state.isPlaying,
+      })
+
       navigator.mediaSession.setPositionState({
         duration: state.duration,
         playbackRate: 1,
-        position: Math.max(0, Math.min(state.currentTime, state.duration)),
+        position: position,
       })
+
+      navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused"
+
+      console.log("[v0] Media Session position state updated successfully")
+    } catch (error) {
+      console.warn("[v0] Media Session position update failed:", error)
     }
-  }, [state.duration, state.currentTime, state.currentTrack])
+  }, [state.duration, state.currentTime, state.currentTrack, state.isPlaying])
 
   const playTrack = (track: Track) => {
-    dispatch({ type: "SET_TRACK", payload: track })
+    dispatch({ type: "SET_QUEUE", payload: { tracks: [track], startIndex: 0 } })
     dispatch({ type: "PLAY" })
   }
 
@@ -286,6 +352,18 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const setDuration = (duration: number) => {
     dispatch({ type: "SET_DURATION", payload: duration })
   }
+
+  useEffect(() => {
+    setupMediaSession()
+  }, [setupMediaSession])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      updatePositionState()
+    }, 100)
+
+    return () => clearTimeout(timeoutId)
+  }, [state.currentTime, state.duration, state.isPlaying])
 
   return (
     <AudioPlayerContext.Provider
