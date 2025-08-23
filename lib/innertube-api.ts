@@ -89,8 +89,9 @@ export class InnertubeAPI {
   private baseUrl = "https://www.youtube.com/youtubei/v1"
   private context = {
     client: {
-      clientName: "WEB",
-      clientVersion: "2.20240304.00.00",
+      clientName: "ANDROID",
+      clientVersion: "19.09.37",
+      androidSdkVersion: 30,
       hl: "en",
       gl: "US",
       utcOffsetMinutes: 0,
@@ -101,21 +102,21 @@ export class InnertubeAPI {
   }
 
   constructor() {
-    console.log("[v0] Innertube API initialized with WEB client")
+    console.log("[v0] Innertube API initialized with ANDROID client")
   }
 
   private async makeRequest(endpoint: string, data: any): Promise<any> {
     try {
-      const response = await fetch(`${this.baseUrl}/${endpoint}?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8`, {
+      const response = await fetch(`${this.baseUrl}/${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-          Accept: "application/json",
+          "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 11) gzip",
+          "X-YouTube-Client-Name": "3",
+          "X-YouTube-Client-Version": "19.09.37",
+          Accept: "*/*",
           "Accept-Language": "en-US,en;q=0.9",
           Origin: "https://www.youtube.com",
-          Referer: "https://www.youtube.com/",
         },
         body: JSON.stringify({
           context: this.context,
@@ -124,6 +125,7 @@ export class InnertubeAPI {
       })
 
       console.log("[v0] Innertube API response status:", response.status)
+      console.log("[v0] Innertube API response headers:", Object.fromEntries(response.headers.entries()))
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -132,7 +134,11 @@ export class InnertubeAPI {
       }
 
       const result = await response.json()
-      console.log("[v0] Innertube API response received successfully")
+      console.log("[v0] Innertube API response structure:", {
+        hasContents: !!result.contents,
+        hasMetadata: !!result.metadata,
+        keys: Object.keys(result),
+      })
       return result
     } catch (error) {
       console.error("[v0] Innertube API request failed:", error)
@@ -153,15 +159,21 @@ export class InnertubeAPI {
 
       const data = await this.makeRequest("search", {
         query: query,
-        params: "EgIQAQ%3D%3D", // Music filter for better audio content
+        params: "EgWKAQIIAWoKEAoQAxAEEAkQBQ%3D%3D", // Music search filter
       })
 
       console.log("[v0] Innertube API success - processing results for query:", query)
+      console.log("[v0] Raw API response structure:", JSON.stringify(data, null, 2).substring(0, 1000))
 
-      const videos = this.parseSearchResults(
-        data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]
-          ?.itemSectionRenderer?.contents || [],
-      )
+      const searchResults =
+        data?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents ||
+        data?.contents?.sectionListRenderer?.contents ||
+        data?.contents?.richGridRenderer?.contents ||
+        []
+
+      console.log("[v0] Found search sections:", searchResults.length)
+
+      const videos = this.parseSearchResults(searchResults)
 
       console.log("[v0] Successfully processed", videos.length, "videos for query:", query)
       return {
@@ -179,20 +191,35 @@ export class InnertubeAPI {
     console.log("[v0] Starting getTrendingMusic with Innertube")
 
     try {
-      const data = await this.makeRequest("browse", {
-        browseId: "FEtrending",
-        params: "4gINGgt5dG1hX2NoYXJ0cw%3D%3D", // Music trending with audio priority
-      })
+      const endpoints = [
+        { browseId: "FEmusic_trending", params: "" },
+        { browseId: "FEtrending", params: "4gINGgt5dG1hX2NoYXJ0cw%3D%3D" },
+        { browseId: "FEmusic_home", params: "" },
+      ]
 
-      console.log("[v0] Innertube trending API success")
+      for (const endpoint of endpoints) {
+        try {
+          console.log("[v0] Trying trending endpoint:", endpoint.browseId)
 
-      const videos = this.parseTrendingResults(
-        data?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
-          ?.contents || [],
-      )
+          const data = await this.makeRequest("browse", endpoint)
+          console.log("[v0] Trending API response structure:", {
+            hasContents: !!data.contents,
+            keys: Object.keys(data),
+          })
 
-      console.log("[v0] Successfully processed", videos.length, "trending videos")
-      return videos.slice(0, maxResults)
+          const videos = this.parseTrendingResults(data)
+
+          if (videos.length > 0) {
+            console.log("[v0] Successfully got", videos.length, "trending videos from", endpoint.browseId)
+            return videos.slice(0, maxResults)
+          }
+        } catch (endpointError) {
+          console.log("[v0] Endpoint", endpoint.browseId, "failed:", endpointError.message)
+          continue
+        }
+      }
+
+      throw new Error("All trending endpoints failed")
     } catch (error) {
       console.error("[v0] Innertube trending API error:", error)
       console.log("[v0] Returning fallback trending data")
@@ -244,29 +271,20 @@ export class InnertubeAPI {
     }
   }
 
-  private parseSearchResults(items: any[]): InnertubeVideo[] {
-    return items
-      .filter((item) => item.videoRenderer)
-      .map((item) => {
-        const video = item.videoRenderer
-        return {
-          id: video.videoId || "",
-          title: video.title?.runs?.[0]?.text || video.title?.simpleText || "Unknown Title",
-          channelTitle: video.ownerText?.runs?.[0]?.text || "Unknown Channel",
-          thumbnail: this.extractThumbnail(video.thumbnail),
-          duration: this.formatDuration(video.lengthText?.simpleText || video.lengthText?.runs?.[0]?.text),
-          viewCount: video.viewCountText?.simpleText || "0",
-          publishedAt: new Date().toISOString(),
-        }
-      })
-  }
-
-  private parseTrendingResults(sections: any[]): InnertubeVideo[] {
+  private parseSearchResults(sections: any[]): InnertubeVideo[] {
     const videos: InnertubeVideo[] = []
 
+    console.log("[v0] Parsing search results from", sections.length, "sections")
+
     for (const section of sections) {
-      const contents = section?.itemSectionRenderer?.contents || []
-      for (const item of contents) {
+      const items =
+        section?.itemSectionRenderer?.contents || section?.musicShelfRenderer?.contents || section?.videoRenderer
+          ? [section]
+          : []
+
+      console.log("[v0] Processing section with", items.length, "items")
+
+      for (const item of items) {
         if (item.videoRenderer) {
           const video = item.videoRenderer
           videos.push({
@@ -282,6 +300,52 @@ export class InnertubeAPI {
       }
     }
 
+    console.log("[v0] Parsed", videos.length, "search result videos")
+    return videos
+  }
+
+  private parseTrendingResults(data: any): InnertubeVideo[] {
+    const videos: InnertubeVideo[] = []
+
+    const contentPaths = [
+      data?.contents?.twoColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents,
+      data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents,
+      data?.contents?.sectionListRenderer?.contents,
+      data?.contents?.richGridRenderer?.contents,
+    ]
+
+    for (const contents of contentPaths) {
+      if (!contents) continue
+
+      console.log("[v0] Processing content path with", contents.length, "sections")
+
+      for (const section of contents) {
+        const items =
+          section?.itemSectionRenderer?.contents ||
+          section?.musicCarouselShelfRenderer?.contents ||
+          section?.richItemRenderer?.content ||
+          []
+
+        for (const item of items) {
+          if (item.videoRenderer) {
+            const video = item.videoRenderer
+            videos.push({
+              id: video.videoId || "",
+              title: video.title?.runs?.[0]?.text || video.title?.simpleText || "Unknown Title",
+              channelTitle: video.ownerText?.runs?.[0]?.text || "Unknown Channel",
+              thumbnail: this.extractThumbnail(video.thumbnail),
+              duration: this.formatDuration(video.lengthText?.simpleText || video.lengthText?.runs?.[0]?.text),
+              viewCount: video.viewCountText?.simpleText || "0",
+              publishedAt: new Date().toISOString(),
+            })
+          }
+        }
+      }
+
+      if (videos.length > 0) break
+    }
+
+    console.log("[v0] Parsed", videos.length, "trending videos")
     return videos
   }
 
@@ -313,7 +377,6 @@ export class InnertubeAPI {
     const thumbnails = thumbnailData.thumbnails
     console.log("[v0] Available thumbnails:", thumbnails.length)
 
-    // Sort by width descending to get the highest quality first
     const sortedThumbnails = thumbnails.sort((a: any, b: any) => (b.width || 0) - (a.width || 0))
 
     const highRes =
@@ -336,7 +399,6 @@ export class InnertubeAPI {
   private formatDuration(durationText: string): string {
     if (!durationText) return "3:30"
 
-    // Duration is already in MM:SS or HH:MM:SS format from Innertube
     return durationText
   }
 
