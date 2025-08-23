@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createPipedAPI } from "@/lib/piped-api"
+import { createAdvancedYouTubeAPI } from "@/lib/youtube-api-advanced"
+import { networkStrategyManager } from "@/lib/network-strategy"
 import { fallbackSearchResults } from "@/lib/fallback-data"
 import { musicCache, getCacheKey } from "@/lib/music-cache"
 
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     const maxResults = Number.parseInt(searchParams.get("maxResults") || "20")
 
     console.log("[v0] Search API called with query:", query)
-    console.log("[v0] Using Piped API")
+    console.log("[v0] Using Advanced YouTube API")
 
     if (!query) {
       return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
@@ -28,25 +29,54 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log("[v0] Creating Piped API instance...")
-    const piped = createPipedAPI()
-
-    console.log("[v0] Calling Piped API search...")
-    const results = await piped.search(query, maxResults)
-
-    console.log("[v0] Piped API results:", {
-      hasVideos: !!results.videos,
-      videoCount: results.videos?.length || 0,
-      firstVideoTitle: results.videos?.[0]?.title || "none",
-    })
-
-    if (results.videos && results.videos.length > 0) {
-      musicCache.set(cacheKey, results.videos, 20 * 60 * 1000)
-      console.log("[v0] Returning Piped results for:", query)
-      return NextResponse.json({ ...results, source: "piped", query })
+    const apiKey = process.env.YOUTUBE_API_KEY
+    if (!apiKey) {
+      throw new Error("YouTube API key not configured")
     }
 
-    console.log("[v0] No Piped results, using fallback data for:", query)
+    const networkConditions = networkStrategyManager.getCurrentNetworkConditions()
+    console.log("[v0] Network conditions:", networkConditions)
+
+    const youtubeAPI = createAdvancedYouTubeAPI(apiKey, {
+      highQuality: false,
+      preferVideos: false,
+      showVideos: false,
+      highQualityAudio: networkConditions.type === "wifi",
+      preferOpus: true,
+      adaptiveAudio: true,
+    })
+
+    console.log("[v0] Calling Advanced YouTube API search...")
+    const results = await youtubeAPI.search(query, "music")
+
+    console.log("[v0] YouTube API results:", {
+      hasResults: !!results,
+      resultCount: results?.length || 0,
+      firstResultTitle: results?.[0]?.title || "none",
+    })
+
+    if (results && results.length > 0) {
+      const videos = results.map((item) => ({
+        id: item.id,
+        title: item.title,
+        channelTitle: item.artist,
+        thumbnail: item.thumbnail,
+        duration: item.duration,
+        publishedAt: item.publishedAt,
+        viewCount: 0,
+      }))
+
+      musicCache.set(cacheKey, videos, 20 * 60 * 1000)
+      console.log("[v0] Returning YouTube API results for:", query)
+      return NextResponse.json({
+        videos: videos.slice(0, maxResults),
+        source: "youtube_advanced",
+        query,
+        networkType: networkConditions.type,
+      })
+    }
+
+    console.log("[v0] No YouTube results, using fallback data for:", query)
     const queryLower = query.toLowerCase()
     const fallbackResults = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Music, Search, Settings, ChevronRight, Home, Compass, Library, Play, ArrowLeft } from "lucide-react"
+import { Search, Settings, ChevronRight, Home, Compass, Library, Play, ArrowLeft } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { AudioPlayer } from "@/components/audio-player"
@@ -11,6 +11,8 @@ import { SongMenu } from "@/components/song-menu"
 import { useAuth } from "@/contexts/auth-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
+import { useSync } from "@/contexts/sync-context"
+import { useSettings } from "@/contexts/settings-context"
 import { searchMusic } from "@/lib/music-data"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 
@@ -48,6 +50,8 @@ export default function ExplorePage() {
   const router = useRouter()
   const { user } = useAuth()
   const { likedSongs } = useLikedSongs()
+  const { syncData } = useSync()
+  const { adultContentEnabled } = useSettings()
   const { playTrack } = useAudioPlayer()
   const [profileSettings, setProfileSettings] = useState<any>(null)
   const [selectedCategory, setSelectedCategory] = useState<{ name: string; query: string } | null>(null)
@@ -99,53 +103,75 @@ export default function ExplorePage() {
     return user?.picture || "/diverse-user-avatars.png"
   }
 
-  return (
-    <div className="min-h-screen bg-black text-white pb-32">
-      {/* Header */}
-      <header className="flex items-center justify-between p-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-            <Music className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold">VibeTune</h1>
-        </div>
+  const handleSearchClick = () => router.push("/search")
+  const handleSettingsClick = () => router.push("/settings")
+  const handleLibraryClick = () => router.push("/library")
+  const handleHomeClick = () => router.push("/")
+  const handleVideosClick = () => router.push("/videos")
 
-        <div className="flex items-center gap-4">
+  return (
+    <div className="min-h-screen bg-zinc-900 text-white">
+      <header className="flex items-center justify-between px-4 py-2 bg-zinc-800">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-gradient-to-r from-pink-500 to-purple-500 rounded-md flex items-center justify-center">
+            <span className="text-white font-bold text-xs">♪</span>
+          </div>
+          <h1 className="text-lg font-semibold text-white">VibeTune</h1>
+        </div>
+        <div className="flex items-center gap-2">
           <UpdateNotificationButton />
-          <Button variant="ghost" size="icon" onClick={() => router.push("/search")}>
-            <Search className="w-5 h-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-300 hover:text-white w-8 h-8"
+            onClick={handleSearchClick}
+          >
+            <Search className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => router.push("/settings")}>
-            <Settings className="w-5 h-5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-gray-300 hover:text-white w-8 h-8"
+            onClick={handleSettingsClick}
+          >
+            <Settings className="w-4 h-4" />
           </Button>
-          <Avatar className="w-10 h-10">
-            <AvatarImage src={getProfileImage() || "/placeholder.svg"} alt="Profile" />
-            <AvatarFallback>{user?.name?.[0] || "U"}</AvatarFallback>
+          <Avatar className="w-7 h-7">
+            <AvatarImage
+              src={
+                profileSettings?.useCustomPicture && profileSettings?.customPictureUrl
+                  ? profileSettings.customPictureUrl
+                  : user?.picture || "/diverse-group-making-music.png"
+              }
+            />
+            <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
           </Avatar>
         </div>
       </header>
 
-      {/* Navigation Tabs */}
-      <nav className="flex gap-8 px-4 py-4">
-        <button onClick={() => router.push("/")} className="text-gray-400 hover:text-white transition-colors">
+      <nav className="flex gap-6 px-4 py-2 bg-zinc-800 border-b border-zinc-700">
+        <button onClick={() => router.push("/")} className="text-gray-300 hover:text-white font-medium text-sm">
           History
         </button>
-        <button onClick={() => router.push("/")} className="text-gray-400 hover:text-white transition-colors">
+        <button onClick={() => router.push("/")} className="text-gray-300 hover:text-white font-medium text-sm">
           Stats
         </button>
         <button
           onClick={() => router.push("/library/liked")}
-          className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+          className="text-gray-300 hover:text-white font-medium text-sm relative"
         >
           Liked
-          {likedSongs.length > 0 && (
-            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">{likedSongs.length}</span>
+          {user && syncData.likedSongs.length > 0 && (
+            <span className="absolute -top-1 -right-2 bg-yellow-600 text-black text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
+              {syncData.likedSongs.length > 99 ? "99+" : syncData.likedSongs.length}
+            </span>
           )}
         </button>
+        <button className="text-gray-300 hover:text-white font-medium text-sm">Downloaded</button>
       </nav>
 
       {/* Main Content */}
-      <main className="p-4">
+      <main className="p-4 pb-20">
         {!selectedCategory ? (
           /* Mood and Genres Section */
           <div className="mb-8">
@@ -236,22 +262,37 @@ export default function ExplorePage() {
         )}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 z-40">
-        <div className="flex justify-around py-2">
-          <button onClick={() => router.push("/")} className="flex flex-col items-center gap-1 p-2">
-            <Home className="w-6 h-6 text-gray-400" />
-            <span className="text-xs text-gray-400">Home</span>
-          </button>
-
-          <button onClick={() => router.push("/explore")} className="flex flex-col items-center gap-1 p-2">
-            <Compass className="w-6 h-6 text-yellow-500" />
-            <span className="text-xs text-yellow-500 font-medium">Explore</span>
-          </button>
-
-          <button onClick={() => router.push("/library")} className="flex flex-col items-center gap-1 p-2">
-            <Library className="w-6 h-6 text-gray-400" />
-            <span className="text-xs text-gray-400">Library</span>
-          </button>
+      <nav className="fixed bottom-0 left-0 right-0 bg-zinc-800 border-t border-zinc-700">
+        <div className="flex items-center justify-around py-1">
+          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleHomeClick}>
+            <Home className="w-5 h-5 text-gray-400 mb-0.5" />
+            <span className="text-[10px] text-gray-400">Home</span>
+          </div>
+          <div className="flex flex-col items-center py-1 px-3">
+            <div className="bg-yellow-600 rounded-full p-1.5 mb-0.5">
+              <Compass className="w-4 h-4 text-black" />
+            </div>
+            <span className="text-[10px] text-white font-medium">Explore</span>
+          </div>
+          {adultContentEnabled && (
+            <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleVideosClick}>
+              <div className="w-5 h-5 text-gray-400 mb-0.5 flex items-center justify-center">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V2zM5 8a1 1 0 000 2h8a1 1 0 100-2H5z" />
+                </svg>
+              </div>
+              <span className="text-[10px] text-gray-400">Videos</span>
+            </div>
+          )}
+          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleLibraryClick}>
+            <div className="relative">
+              <Library className="w-5 h-5 text-gray-400 mb-0.5" />
+              {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
+                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
+              )}
+            </div>
+            <span className="text-[10px] text-gray-400">Library</span>
+          </div>
         </div>
       </nav>
 
