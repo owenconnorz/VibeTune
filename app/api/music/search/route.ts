@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createAdvancedYouTubeAPI } from "@/lib/youtube-api-advanced"
-import { networkStrategyManager } from "@/lib/network-strategy"
 import { fallbackSearchResults } from "@/lib/fallback-data"
 import { musicCache, getCacheKey } from "@/lib/music-cache"
 
@@ -10,18 +9,18 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get("q")
     const maxResults = Number.parseInt(searchParams.get("maxResults") || "20")
 
-    console.log("[v0] Search API called with query:", query)
-    console.log("[v0] Using Advanced YouTube API")
+    console.log("[v0] Music search API called with query:", query)
 
     if (!query) {
       return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
     }
 
+    // Check cache first
     const cacheKey = getCacheKey.search(query)
     const cachedData = musicCache.get(cacheKey)
 
     if (cachedData) {
-      console.log("[v0] Returning cached data for:", query)
+      console.log("[v0] Returning cached search results for:", query)
       return NextResponse.json({
         songs: cachedData.slice(0, maxResults),
         videos: cachedData.slice(0, maxResults),
@@ -30,27 +29,27 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Get API key
     const apiKey = process.env.YOUTUBE_API_KEY
     if (!apiKey) {
+      console.error("[v0] YouTube API key not configured")
       throw new Error("YouTube API key not configured")
     }
 
-    const networkConditions = networkStrategyManager.getCurrentNetworkConditions()
-    console.log("[v0] Network conditions:", networkConditions)
-
+    // Create YouTube API client
     const youtubeAPI = createAdvancedYouTubeAPI(apiKey, {
       highQuality: false,
       preferVideos: false,
       showVideos: false,
-      highQualityAudio: networkConditions.type === "wifi",
+      highQualityAudio: true,
       preferOpus: true,
       adaptiveAudio: true,
     })
 
-    console.log("[v0] Calling Advanced YouTube API search...")
+    console.log("[v0] Calling YouTube API search...")
     const results = await youtubeAPI.search(query, "music")
 
-    console.log("[v0] YouTube API results:", {
+    console.log("[v0] YouTube API search results:", {
       hasResults: !!results,
       resultCount: results?.length || 0,
       firstResultTitle: results?.[0]?.title || "none",
@@ -65,20 +64,22 @@ export async function GET(request: NextRequest) {
         duration: item.duration,
         channelTitle: item.artist, // Keep for backward compatibility
         publishedAt: item.publishedAt,
-        viewCount: 0,
+        viewCount: item.viewCount || 0,
       }))
 
-      musicCache.set(cacheKey, songs, 20 * 60 * 1000)
-      console.log("[v0] Returning YouTube API results for:", query)
+      // Cache the results
+      musicCache.set(cacheKey, songs, 20 * 60 * 1000) // 20 minutes
+
+      console.log("[v0] Returning YouTube API search results for:", query)
       return NextResponse.json({
         songs: songs.slice(0, maxResults),
         videos: songs.slice(0, maxResults),
-        source: "youtube_advanced",
+        source: "youtube_api",
         query,
-        networkType: networkConditions.type,
       })
     }
 
+    // Fallback to static data
     console.log("[v0] No YouTube results, using fallback data for:", query)
     const queryLower = query.toLowerCase()
     const fallbackResults = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
@@ -90,12 +91,12 @@ export async function GET(request: NextRequest) {
       query,
     })
   } catch (error) {
-    console.error("[v0] Search API error details:", {
+    console.error("[v0] Music search API error:", {
       message: error.message,
       stack: error.stack,
-      name: error.name,
     })
 
+    // Return fallback data on error
     const query = new URL(request.url).searchParams.get("q") || ""
     const maxResults = Number.parseInt(new URL(request.url).searchParams.get("maxResults") || "20")
     const queryLower = query.toLowerCase()

@@ -1,278 +1,31 @@
-import type { YouTubeAPISettings } from "./settings"
-import type { AudioFormat, VideoFormat, StreamData } from "./stream-data"
-import { AudioQualityLevel, NetworkType } from "./enums"
-import { AUDIO_FORMAT_PRIORITY } from "./constants"
-
-export interface YouTubeApiClient {
-  makeRequest(endpoint: string, data: any): Promise<any>
-  getContext(): any
+export interface YouTubeAPISettings {
+  highQuality: boolean
+  preferVideos: boolean
+  showVideos: boolean
+  highQualityAudio: boolean
+  preferOpus: boolean
+  adaptiveAudio: boolean
 }
 
-export class AdvancedYouTubeAPI implements YouTubeApiClient {
-  private settings: YouTubeAPISettings
-  private visitorId: string | null = null
+export interface YouTubeSearchResult {
+  id: string
+  title: string
+  artist: string
+  thumbnail: string
+  duration: number
+  publishedAt: string
+  viewCount: number
+  description: string
+}
+
+export class AdvancedYouTubeAPI {
   private apiKey: string
+  private settings: YouTubeAPISettings
 
   constructor(apiKey: string, settings: YouTubeAPISettings) {
     this.apiKey = apiKey
     this.settings = settings
-  }
-
-  private getRandomUserAgent(isMobile = true): string {
-    const agents = isMobile ? ["Mobile User Agent"] : ["Desktop User Agent"]
-    return agents[Math.floor(Math.random() * agents.length)]
-  }
-
-  private detectNetworkType(): NetworkType {
-    // Simple network detection - in a real app this could be more sophisticated
-    if (navigator.connection) {
-      const connection = navigator.connection as any
-      if (connection.effectiveType === "4g" || connection.effectiveType === "3g") {
-        return NetworkType.MOBILE_DATA
-      }
-      if (connection.effectiveType === "slow-2g" || connection.effectiveType === "2g") {
-        return NetworkType.RESTRICTED_WIFI
-      }
-    }
-    return NetworkType.WIFI
-  }
-
-  private getTargetAudioQuality(networkType: NetworkType): AudioQualityLevel {
-    if (!this.settings.adaptiveAudio) {
-      return this.settings.highQualityAudio ? AudioQualityLevel.HIGH : AudioQualityLevel.MEDIUM
-    }
-
-    switch (networkType) {
-      case NetworkType.RESTRICTED_WIFI:
-      case NetworkType.MOBILE_DATA:
-        return AudioQualityLevel.MEDIUM
-      case NetworkType.WIFI:
-        return this.settings.highQualityAudio ? AudioQualityLevel.VERY_HIGH : AudioQualityLevel.HIGH
-      default:
-        return AudioQualityLevel.MEDIUM
-    }
-  }
-
-  private getQualityRange(level: AudioQualityLevel): { min: number; max: number } {
-    switch (level) {
-      case AudioQualityLevel.LOW:
-        return { min: 0, max: 64000 }
-      case AudioQualityLevel.MEDIUM:
-        return { min: 64001, max: 128000 }
-      case AudioQualityLevel.HIGH:
-        return { min: 128001, max: 256000 }
-      case AudioQualityLevel.VERY_HIGH:
-        return { min: 256001, max: Number.MAX_SAFE_INTEGER }
-    }
-  }
-
-  private getBestAudioFormat(formats: AudioFormat[], networkType: NetworkType): AudioFormat | null {
-    if (formats.length === 0) return null
-
-    console.log(`[v0] Selecting best audio from ${formats.length} formats`)
-
-    const targetQuality = this.getTargetAudioQuality(networkType)
-    const qualityRange = this.getQualityRange(targetQuality)
-
-    // Filter by format preference (Opus vs AAC)
-    const opusFormats = formats.filter((f) => f.mimeType.includes("opus") || f.mimeType.includes("webm"))
-    const aacFormats = formats.filter((f) => f.mimeType.includes("aac") || f.mimeType.includes("mp4"))
-
-    const preferredFormats =
-      this.settings.preferOpus && opusFormats.length > 0 ? opusFormats : aacFormats.length > 0 ? aacFormats : formats
-
-    // Filter by quality range
-    const qualityFiltered = preferredFormats.filter(
-      (f) => f.bitrate >= qualityRange.min && f.bitrate <= qualityRange.max,
-    )
-
-    const finalFormats = qualityFiltered.length > 0 ? qualityFiltered : preferredFormats
-
-    // Sort by priority and select best
-    const sorted = finalFormats.sort((a, b) => {
-      const aPriority = AUDIO_FORMAT_PRIORITY.indexOf(a.itag)
-      const bPriority = AUDIO_FORMAT_PRIORITY.indexOf(b.itag)
-
-      if (aPriority !== -1 && bPriority !== -1) {
-        return aPriority - bPriority
-      }
-      if (aPriority !== -1) return -1
-      if (bPriority !== -1) return 1
-
-      return b.bitrate - a.bitrate
-    })
-
-    const selected = sorted[0]
-    console.log(`[v0] Selected audio format: itag ${selected?.itag}, bitrate ${selected?.bitrate}`)
-
-    return selected
-  }
-
-  private getBestVideoFormat(formats: VideoFormat[], targetQuality?: number): VideoFormat | null {
-    if (formats.length === 0 || !this.settings.showVideos) return null
-
-    console.log(`[v0] Selecting best video from ${formats.length} formats, target: ${targetQuality || "any"}`)
-
-    if (!targetQuality) {
-      return formats.reduce((best, current) => (current.bitrate > best.bitrate ? current : best))
-    }
-
-    // Filter by target quality
-    const filtered = formats.filter((f) => {
-      if (!f.height) return true
-
-      switch (targetQuality) {
-        case 144:
-          return f.height <= 144
-        case 480:
-          return f.height <= 480 && f.height > 144
-        case 720:
-          return f.height <= 720 && f.height > 480
-        default:
-          return true
-      }
-    })
-
-    const finalFormats = filtered.length > 0 ? filtered : formats
-    const selected = finalFormats.reduce((best, current) => (current.bitrate > best.bitrate ? current : best))
-
-    console.log(`[v0] Selected video format: ${selected?.height}p, bitrate ${selected?.bitrate}`)
-    return selected
-  }
-
-  async makeRequest(endpoint: string, data: any = {}): Promise<any> {
-    try {
-      const networkType = this.detectNetworkType()
-      const isMobile = networkType === NetworkType.MOBILE_DATA
-
-      const url = endpoint.startsWith("http") ? endpoint : `https://music.youtube.com/youtubei/v1${endpoint}`
-
-      const headers = {
-        "User-Agent": this.getRandomUserAgent(isMobile),
-        "Content-Type": "application/json",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        Origin: "https://music.youtube.com",
-        Referer: "https://music.youtube.com/",
-        "X-Goog-Api-Format-Version": "1",
-        "X-YouTube-Client-Name": "67",
-        "X-YouTube-Client-Version": "1.20241211.01.00",
-      }
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error(`[v0] API request failed for ${endpoint}:`, error)
-      throw error
-    }
-  }
-
-  getContext(): any {
-    return {
-      client: {
-        clientName: "WEB_REMIX",
-        clientVersion: "1.20241211.01.00",
-        userAgent: this.getRandomUserAgent(true),
-        gl: "US",
-        hl: "en",
-      },
-      user: {
-        lockedSafetyMode: false,
-      },
-      request: {
-        useSsl: true,
-        internalExperimentFlags: [],
-      },
-    }
-  }
-
-  async ensureVisitorId(): Promise<void> {
-    if (this.visitorId) return
-
-    try {
-      const response = await this.makeRequest("/visitor_id", {
-        context: this.getContext(),
-      })
-      this.visitorId = response.responseContext?.visitorData
-      console.log(`[v0] Visitor ID obtained: ${this.visitorId}`)
-    } catch (error) {
-      console.error("[v0] Failed to get visitor ID:", error)
-    }
-  }
-
-  async searchMusic(
-    query: string,
-    type: "all" | "songs" | "videos" | "albums" | "playlists" | "artists" = "all",
-  ): Promise<any[]> {
-    try {
-      console.log(`[v0] Searching music for: ${query} (type: ${type})`)
-      await this.ensureVisitorId()
-
-      const results = await this.search(query, "music")
-      console.log(`[v0] Found ${results.length} search results`)
-
-      return results
-    } catch (error) {
-      console.error("[v0] Music search error:", error)
-      throw error
-    }
-  }
-
-  async getTrendingMusic(regionCode = "US"): Promise<any[]> {
-    try {
-      console.log(`[v0] Getting trending music for region: ${regionCode}`)
-      await this.ensureVisitorId()
-
-      const results = await this.getTrending(regionCode)
-      console.log(`[v0] Found ${results.length} trending tracks`)
-
-      return results
-    } catch (error) {
-      console.error("[v0] Trending music error:", error)
-      throw error
-    }
-  }
-
-  async getStreamData(videoId: string): Promise<StreamData> {
-    try {
-      console.log(`[v0] Getting stream data for video: ${videoId}`)
-      await this.ensureVisitorId()
-
-      const videoUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet,contentDetails&id=${videoId}&key=${this.apiKey}`
-      const response = await fetch(videoUrl)
-      const data = await response.json()
-
-      if (data.error || !data.items?.length) {
-        throw new Error(`Video not found: ${videoId}`)
-      }
-
-      const video = data.items[0]
-      const networkType = this.detectNetworkType()
-
-      // Return basic stream data structure
-      return {
-        audioFormats: [],
-        videoFormats: [],
-        title: video.snippet.title,
-        duration: this.parseDuration(video.contentDetails.duration),
-        thumbnail: video.snippet.thumbnails?.high?.url || video.snippet.thumbnails?.default?.url || "",
-        author: video.snippet.channelTitle,
-        viewCount: 0,
-      }
-    } catch (error) {
-      console.error("[v0] Stream data error:", error)
-      throw error
-    }
+    console.log("[v0] Advanced YouTube API initialized with settings:", settings)
   }
 
   private parseDuration(duration: string): number {
@@ -286,109 +39,158 @@ export class AdvancedYouTubeAPI implements YouTubeApiClient {
     return hours * 3600 + minutes * 60 + seconds
   }
 
-  async getSearchSuggestions(query: string): Promise<string[]> {
-    try {
-      await this.ensureVisitorId()
-      return []
-    } catch (error) {
-      console.error("[v0] Search suggestions error:", error)
-      return []
+  private formatDuration(seconds: number): string {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = seconds % 60
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
     }
+    return `${minutes}:${secs.toString().padStart(2, "0")}`
   }
 
-  async getArtist(artistId: string): Promise<any> {
+  async search(query: string, type: "video" | "music" = "music"): Promise<YouTubeSearchResult[]> {
     try {
-      await this.ensureVisitorId()
-      return null
-    } catch (error) {
-      console.error("[v0] Get artist error:", error)
-      throw error
-    }
-  }
+      console.log(`[v0] Searching YouTube for: "${query}"`)
 
-  async getPlaylist(playlistId: string): Promise<any> {
-    try {
-      await this.ensureVisitorId()
-      return null
-    } catch (error) {
-      console.error("[v0] Get playlist error:", error)
-      throw error
-    }
-  }
+      // Use YouTube Data API v3 search endpoint
+      const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search")
+      searchUrl.searchParams.set("part", "snippet")
+      searchUrl.searchParams.set("type", "video")
+      searchUrl.searchParams.set("q", query)
+      searchUrl.searchParams.set("maxResults", "25")
+      searchUrl.searchParams.set("key", this.apiKey)
+      searchUrl.searchParams.set("videoCategoryId", "10") // Music category
+      searchUrl.searchParams.set("order", "relevance")
 
-  async getLyrics(videoId: string, trackTitle: string): Promise<any> {
-    try {
-      await this.ensureVisitorId()
-      return null
-    } catch (error) {
-      console.error("[v0] Get lyrics error:", error)
-      return null
-    }
-  }
+      console.log("[v0] Making search request to YouTube Data API")
+      const response = await fetch(searchUrl.toString())
 
-  async search(query: string, type: "video" | "music" = "music"): Promise<any[]> {
-    try {
-      console.log(`[v0] Searching YouTube for: ${query}`)
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("[v0] YouTube search API error:", response.status, errorText)
+        throw new Error(`YouTube API Error: ${response.status} ${response.statusText}`)
+      }
 
-      const searchUrl =
-        `https://www.googleapis.com/youtube/v3/search?` +
-        `part=snippet&type=video&q=${encodeURIComponent(query)}&` +
-        `maxResults=25&key=${this.apiKey}`
-
-      const response = await fetch(searchUrl)
       const data = await response.json()
+      console.log("[v0] Search response received, items:", data.items?.length || 0)
 
       if (data.error) {
+        console.error("[v0] YouTube API returned error:", data.error)
         throw new Error(`YouTube API Error: ${data.error.message}`)
       }
 
-      return (
-        data.items?.map((item: any) => ({
-          id: item.id.videoId,
-          title: item.snippet.title,
-          artist: item.snippet.channelTitle,
-          thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url,
-          duration: 0, // Would need additional API call to get duration
-          publishedAt: item.snippet.publishedAt,
-        })) || []
-      )
+      if (!data.items || data.items.length === 0) {
+        console.log("[v0] No search results found")
+        return []
+      }
+
+      // Get video IDs for detailed info
+      const videoIds = data.items.map((item: any) => item.id.videoId).join(",")
+
+      // Get detailed video information
+      const detailsUrl = new URL("https://www.googleapis.com/youtube/v3/videos")
+      detailsUrl.searchParams.set("part", "snippet,contentDetails,statistics")
+      detailsUrl.searchParams.set("id", videoIds)
+      detailsUrl.searchParams.set("key", this.apiKey)
+
+      console.log("[v0] Getting detailed video information")
+      const detailsResponse = await fetch(detailsUrl.toString())
+
+      if (!detailsResponse.ok) {
+        console.error("[v0] Video details API error:", detailsResponse.status)
+        // Fallback to basic search results
+        return this.mapBasicSearchResults(data.items)
+      }
+
+      const detailsData = await detailsResponse.json()
+      console.log("[v0] Video details received, items:", detailsData.items?.length || 0)
+
+      if (detailsData.error) {
+        console.error("[v0] Video details API error:", detailsData.error)
+        return this.mapBasicSearchResults(data.items)
+      }
+
+      return this.mapDetailedResults(detailsData.items || [])
     } catch (error) {
       console.error("[v0] YouTube search error:", error)
       throw error
     }
   }
 
-  async getTrending(regionCode = "US"): Promise<any[]> {
+  async getTrending(regionCode = "US"): Promise<YouTubeSearchResult[]> {
     try {
       console.log(`[v0] Getting trending videos for region: ${regionCode}`)
 
-      const trendingUrl =
-        `https://www.googleapis.com/youtube/v3/videos?` +
-        `part=snippet,statistics&chart=mostPopular&regionCode=${regionCode}&` +
-        `videoCategoryId=10&maxResults=25&key=${this.apiKey}`
+      const trendingUrl = new URL("https://www.googleapis.com/youtube/v3/videos")
+      trendingUrl.searchParams.set("part", "snippet,statistics,contentDetails")
+      trendingUrl.searchParams.set("chart", "mostPopular")
+      trendingUrl.searchParams.set("regionCode", regionCode)
+      trendingUrl.searchParams.set("videoCategoryId", "10") // Music category
+      trendingUrl.searchParams.set("maxResults", "25")
+      trendingUrl.searchParams.set("key", this.apiKey)
 
-      const response = await fetch(trendingUrl)
+      console.log("[v0] Making trending request to YouTube Data API")
+      const response = await fetch(trendingUrl.toString())
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("[v0] YouTube trending API error:", response.status, errorText)
+        throw new Error(`YouTube API Error: ${response.status} ${response.statusText}`)
+      }
+
       const data = await response.json()
+      console.log("[v0] Trending response received, items:", data.items?.length || 0)
 
       if (data.error) {
+        console.error("[v0] YouTube API returned error:", data.error)
         throw new Error(`YouTube API Error: ${data.error.message}`)
       }
 
-      return (
-        data.items?.map((item: any) => ({
-          id: item.id,
-          title: item.snippet.title,
-          artist: item.snippet.channelTitle,
-          thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.default?.url,
-          duration: 0,
-          viewCount: Number.parseInt(item.statistics?.viewCount || "0"),
-          publishedAt: item.snippet.publishedAt,
-        })) || []
-      )
+      return this.mapDetailedResults(data.items || [])
     } catch (error) {
       console.error("[v0] YouTube trending error:", error)
       throw error
     }
+  }
+
+  private mapBasicSearchResults(items: any[]): YouTubeSearchResult[] {
+    return items.map((item: any) => ({
+      id: item.id.videoId || item.id,
+      title: item.snippet.title,
+      artist: item.snippet.channelTitle,
+      thumbnail:
+        item.snippet.thumbnails?.high?.url ||
+        item.snippet.thumbnails?.medium?.url ||
+        item.snippet.thumbnails?.default?.url ||
+        "",
+      duration: 0, // Duration not available in basic search
+      publishedAt: item.snippet.publishedAt,
+      viewCount: 0, // View count not available in basic search
+      description: item.snippet.description || "",
+    }))
+  }
+
+  private mapDetailedResults(items: any[]): YouTubeSearchResult[] {
+    return items.map((item: any) => {
+      const durationSeconds = this.parseDuration(item.contentDetails?.duration || "PT0S")
+
+      return {
+        id: item.id,
+        title: item.snippet.title,
+        artist: item.snippet.channelTitle,
+        thumbnail:
+          item.snippet.thumbnails?.high?.url ||
+          item.snippet.thumbnails?.medium?.url ||
+          item.snippet.thumbnails?.default?.url ||
+          "",
+        duration: this.formatDuration(durationSeconds),
+        publishedAt: item.snippet.publishedAt,
+        viewCount: Number.parseInt(item.statistics?.viewCount || "0"),
+        description: item.snippet.description || "",
+      }
+    })
   }
 
   updateSettings(newSettings: Partial<YouTubeAPISettings>): void {
