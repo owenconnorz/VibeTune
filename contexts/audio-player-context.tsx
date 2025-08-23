@@ -253,6 +253,8 @@ interface AudioPlayerContextType {
   setRepeatMode: (mode: "none" | "one" | "all") => void
   toggleShuffle: () => void
   setGaplessPlayback: (enabled: boolean) => void
+  seekForward: (seconds?: number) => void
+  seekBackward: (seconds?: number) => void
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined)
@@ -264,6 +266,10 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null)
   const crossfadeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const audioElementRef = useRef<HTMLAudioElement | null>(null)
+  const playButtonRef = useRef<HTMLButtonElement | null>(null)
+  const progressRef = useRef<HTMLInputElement | null>(null)
   const { addToHistory } = useListeningHistory()
 
   useEffect(() => {
@@ -311,6 +317,187 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [state.currentTrack, addToHistory])
 
+  const setupAudioEventHandlers = useCallback(() => {
+    if (!audioElementRef.current) return
+
+    const audio = audioElementRef.current
+
+    // Play event handler with visual feedback
+    audio.onplaying = () => {
+      console.log("[v0] Audio playing event triggered")
+      dispatch({ type: "PLAY" })
+      dispatch({ type: "SET_BUFFERING", payload: false })
+      dispatch({ type: "SET_NETWORK_STATE", payload: "loaded" })
+
+      // Add to history after 10 seconds of playback
+      if (state.currentTrack) {
+        historyTimeoutRef.current = setTimeout(() => {
+          addToHistory(state.currentTrack!)
+        }, 10000)
+      }
+    }
+
+    // Pause event handler
+    audio.onpause = () => {
+      console.log("[v0] Audio pause event triggered")
+      dispatch({ type: "PAUSE" })
+      if (historyTimeoutRef.current) {
+        clearTimeout(historyTimeoutRef.current)
+      }
+    }
+
+    // Loading start handler
+    audio.onloadstart = () => {
+      console.log("[v0] Audio load start")
+      dispatch({ type: "SET_LOADING", payload: true })
+      dispatch({ type: "SET_NETWORK_STATE", payload: "loading" })
+
+      // Persist playback speed
+      if (state.playbackRate !== 1) {
+        audio.playbackRate = state.playbackRate
+      }
+    }
+
+    // Waiting/buffering handler
+    audio.onwaiting = () => {
+      console.log("[v0] Audio waiting/buffering")
+      dispatch({ type: "SET_BUFFERING", payload: true })
+    }
+
+    // Time update handler with progress synchronization
+    audio.ontimeupdate = () => {
+      const currentTime = audio.currentTime
+      const duration = audio.duration || 0
+
+      dispatch({ type: "SET_CURRENT_TIME", payload: currentTime })
+
+      // Update buffer progress
+      if (audio.buffered.length > 0) {
+        const bufferedEnd = audio.buffered.end(audio.buffered.length - 1)
+        const bufferProgress = duration > 0 ? (bufferedEnd / duration) * 100 : 0
+        dispatch({ type: "SET_BUFFER_PROGRESS", payload: bufferProgress })
+      }
+    }
+
+    // Metadata loaded handler
+    audio.onloadedmetadata = () => {
+      console.log("[v0] Audio metadata loaded")
+      const duration = audio.duration || 0
+      dispatch({ type: "SET_DURATION", payload: duration })
+      dispatch({ type: "SET_LOADING", payload: false })
+    }
+
+    // Can play through handler with prefetching
+    audio.oncanplaythrough = async () => {
+      console.log("[v0] Audio can play through")
+      dispatch({ type: "SET_NETWORK_STATE", payload: "loaded" })
+      dispatch({ type: "SET_BUFFERING", payload: false })
+
+      // Prefetch next track for gapless playback
+      if (state.gaplessPlayback && state.currentIndex < state.queue.length - 1) {
+        const nextTrack = state.queue[state.currentIndex + 1]
+        if (nextTrack && nextTrack.audioUrl) {
+          console.log("[v0] Prefetching next track:", nextTrack.title)
+          if (!preloadAudioRef.current) {
+            preloadAudioRef.current = new Audio()
+          }
+          preloadAudioRef.current.src = nextTrack.audioUrl
+          preloadAudioRef.current.preload = "auto"
+        }
+      }
+    }
+
+    // Error handler
+    audio.onerror = () => {
+      console.error("[v0] Audio error occurred")
+      dispatch({ type: "SET_ERROR", payload: "Failed to load audio" })
+      dispatch({ type: "SET_LOADING", payload: false })
+      dispatch({ type: "SET_NETWORK_STATE", payload: "error" })
+    }
+
+    // Ended handler with auto-advance
+    audio.onended = () => {
+      console.log("[v0] Audio ended")
+      dispatch({ type: "PAUSE" })
+
+      // Auto-advance to next track
+      if (state.repeatMode === "one") {
+        audio.currentTime = 0
+        audio.play()
+      } else if (state.currentIndex < state.queue.length - 1 || state.repeatMode === "all") {
+        dispatch({ type: "NEXT_TRACK" })
+      }
+    }
+
+    // Volume change handler
+    audio.onvolumechange = () => {
+      dispatch({ type: "SET_VOLUME", payload: audio.volume })
+    }
+
+    // Rate change handler
+    audio.onratechange = () => {
+      dispatch({ type: "SET_PLAYBACK_RATE", payload: audio.playbackRate })
+    }
+  }, [
+    state.currentTrack,
+    state.playbackRate,
+    state.gaplessPlayback,
+    state.currentIndex,
+    state.queue,
+    state.repeatMode,
+    addToHistory,
+  ])
+
+  const seekTo = useCallback(
+    (time: number) => {
+      if (audioElementRef.current) {
+        const clampedTime = Math.max(0, Math.min(time, state.duration))
+        audioElementRef.current.currentTime = clampedTime
+        dispatch({ type: "SET_CURRENT_TIME", payload: clampedTime })
+        updatePositionState()
+      }
+    },
+    [state.duration],
+  )
+
+  const setVolume = useCallback((volume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, volume))
+    if (audioElementRef.current) {
+      audioElementRef.current.volume = clampedVolume
+    }
+    dispatch({ type: "SET_VOLUME", payload: clampedVolume })
+
+    // Store volume preference
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vibetuneVolume", clampedVolume.toString())
+    }
+  }, [])
+
+  const setPlaybackRate = useCallback((rate: number) => {
+    const clampedRate = Math.max(0.25, Math.min(2, rate))
+    if (audioElementRef.current) {
+      audioElementRef.current.playbackRate = clampedRate
+    }
+    dispatch({ type: "SET_PLAYBACK_RATE", payload: clampedRate })
+    updatePositionState()
+  }, [])
+
+  const seekForward = useCallback(
+    (seconds = 15) => {
+      const newTime = Math.min(state.duration, state.currentTime + seconds)
+      seekTo(newTime)
+    },
+    [state.currentTime, state.duration, seekTo],
+  )
+
+  const seekBackward = useCallback(
+    (seconds = 15) => {
+      const newTime = Math.max(0, state.currentTime - seconds)
+      seekTo(newTime)
+    },
+    [state.currentTime, seekTo],
+  )
+
   const setupMediaSession = useCallback(() => {
     if (!("mediaSession" in navigator) || !state.currentTrack) return
 
@@ -332,7 +519,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         artwork,
       })
 
-      // Enhanced action handlers with better queue management
       navigator.mediaSession.setActionHandler("play", () => {
         console.log("[v0] Media Session: Play action triggered")
         dispatch({ type: "PLAY" })
@@ -361,20 +547,18 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
       navigator.mediaSession.setActionHandler("seekto", (details) => {
         if (details.seekTime !== undefined && details.seekTime >= 0) {
-          dispatch({ type: "SET_CURRENT_TIME", payload: details.seekTime })
+          seekTo(details.seekTime)
         }
       })
 
       navigator.mediaSession.setActionHandler("seekbackward", (details) => {
-        const seekOffset = details.seekOffset || 10
-        const newTime = Math.max(0, state.currentTime - seekOffset)
-        dispatch({ type: "SET_CURRENT_TIME", payload: newTime })
+        const seekOffset = details.seekOffset || 15
+        seekBackward(seekOffset)
       })
 
       navigator.mediaSession.setActionHandler("seekforward", (details) => {
-        const seekOffset = details.seekOffset || 10
-        const newTime = Math.min(state.duration, state.currentTime + seekOffset)
-        dispatch({ type: "SET_CURRENT_TIME", payload: newTime })
+        const seekOffset = details.seekOffset || 15
+        seekForward(seekOffset)
       })
 
       navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused"
@@ -383,7 +567,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     } catch (error) {
       console.warn("[v0] Media Session setup failed:", error)
     }
-  }, [state.currentTrack, state.currentIndex, state.queue.length, state.isPlaying, state.currentTime, state.duration])
+  }, [state.currentTrack, state.isPlaying, seekTo, seekForward, seekBackward])
 
   const updatePositionState = useCallback(() => {
     if (!("mediaSession" in navigator) || !state.currentTrack || state.duration <= 0) return
@@ -434,14 +618,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "PREVIOUS_TRACK" })
   }
 
-  const seekTo = (time: number) => {
-    dispatch({ type: "SET_CURRENT_TIME", payload: time })
-  }
-
-  const setVolume = (volume: number) => {
-    dispatch({ type: "SET_VOLUME", payload: volume })
-  }
-
   const setCurrentTime = (time: number) => {
     dispatch({ type: "SET_CURRENT_TIME", payload: time })
   }
@@ -452,10 +628,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
   const setBufferProgress = (progress: number) => {
     dispatch({ type: "SET_BUFFER_PROGRESS", payload: progress })
-  }
-
-  const setPlaybackRate = (rate: number) => {
-    dispatch({ type: "SET_PLAYBACK_RATE", payload: rate })
   }
 
   const setCrossfade = (enabled: boolean, duration?: number) => {
@@ -487,16 +659,34 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }
 
   useEffect(() => {
-    setupMediaSession()
-  }, [setupMediaSession])
+    setupAudioEventHandlers()
+  }, [setupAudioEventHandlers])
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      updatePositionState()
-    }, 100)
+    if (typeof window !== "undefined") {
+      const savedVolume = localStorage.getItem("vibetuneVolume")
+      if (savedVolume) {
+        const volume = Number.parseFloat(savedVolume)
+        if (!isNaN(volume)) {
+          setVolume(volume)
+        }
+      }
+    }
+  }, [setVolume])
 
-    return () => clearTimeout(timeoutId)
-  }, [state.currentTime, state.duration, state.isPlaying])
+  useEffect(() => {
+    return () => {
+      if (historyTimeoutRef.current) {
+        clearTimeout(historyTimeoutRef.current)
+      }
+      if (crossfadeTimeoutRef.current) {
+        clearTimeout(crossfadeTimeoutRef.current)
+      }
+      if (wakeLockRef.current) {
+        PermissionsManager.releaseWakeLock()
+      }
+    }
+  }, [])
 
   return (
     <AudioPlayerContext.Provider
@@ -512,7 +702,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         setVideoMode,
         setCurrentTime,
         setDuration,
-        // Enhanced audio methods
         setBufferProgress,
         setPlaybackRate,
         setCrossfade,
@@ -522,6 +711,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         setRepeatMode,
         toggleShuffle,
         setGaplessPlayback,
+        seekForward,
+        seekBackward,
       }}
     >
       {children}

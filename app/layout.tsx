@@ -16,6 +16,8 @@ import { DownloadProvider } from "@/contexts/download-context"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { DiscordRPCIntegration } from "@/components/discord-rpc-integration"
 import { AgeVerificationModal } from "@/components/age-verification-modal"
+import { PageRouter } from "@/components/page-router"
+import { NavigationRouter } from "@/components/navigation-router"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -103,7 +105,12 @@ html {
       </head>
       <body>
         <ServiceWorkerRegistration />
-        <CombinedProviders>{children}</CombinedProviders>
+        <CombinedProviders>
+          <PageRouter>
+            {children}
+            <NavigationRouter />
+          </PageRouter>
+        </CombinedProviders>
       </body>
     </html>
   )
