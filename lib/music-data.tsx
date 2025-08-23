@@ -1,5 +1,3 @@
-import { searchMusic as apiSearchMusic, fetchTrending } from "./innertube-api"
-
 // Song interface for type safety
 export interface Song {
   id: string
@@ -56,20 +54,16 @@ export function generateAlbumArtwork(artist: string, title?: string): string {
 // Basic search function
 export async function searchMusic(query: string): Promise<Song[]> {
   try {
-    console.log("[v0] Searching music for:", query)
-    const results = await apiSearchMusic(query)
-    const videos = results.videos || []
-    console.log("[v0] Search results:", videos.length, "songs")
-    return videos.map((video) => ({
-      id: video.id,
-      title: video.title,
-      artist: video.channelTitle,
-      thumbnail: video.thumbnail,
-      duration: video.duration,
-      type: "song" as const,
-    }))
+    console.log("[v0] Searching music with Piped API for:", query)
+    const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`)
+    if (!response.ok) {
+      throw new Error(`Search failed: ${response.status}`)
+    }
+    const data = await response.json()
+    console.log("[v0] Piped search results:", data.songs?.length || 0, "songs")
+    return data.songs || []
   } catch (error) {
-    console.error("[v0] Search error:", error)
+    console.error("[v0] Piped search error:", error)
     return []
   }
 }
@@ -77,11 +71,14 @@ export async function searchMusic(query: string): Promise<Song[]> {
 // Enhanced search with categories
 export async function searchMusicEnhanced(query: string): Promise<EnhancedSearchResults> {
   try {
-    console.log("[v0] Enhanced search for:", query)
-    const searchResults = await apiSearchMusic(query)
-
-    const allResults = searchResults.videos || []
-    console.log("[v0] Enhanced search got results:", allResults.length, "items")
+    console.log("[v0] Enhanced search with Piped API for:", query)
+    const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`)
+    if (!response.ok) {
+      throw new Error(`Enhanced search failed: ${response.status}`)
+    }
+    const data = await response.json()
+    const allResults = data.songs || []
+    console.log("[v0] Piped enhanced search got results:", allResults.length, "items")
 
     // Categorize results based on content analysis
     const songs: Song[] = []
@@ -129,7 +126,7 @@ export async function searchMusicEnhanced(query: string): Promise<EnhancedSearch
       playlists,
     }
   } catch (error) {
-    console.error("[v0] Enhanced search error:", error)
+    console.error("[v0] Piped enhanced search error:", error)
     return {
       all: [],
       songs: [],
@@ -143,19 +140,16 @@ export async function searchMusicEnhanced(query: string): Promise<EnhancedSearch
 // Fetch trending music
 export async function fetchTrendingMusic(): Promise<Song[]> {
   try {
-    console.log("[v0] Fetching trending music")
-    const results = await fetchTrending()
-    console.log("[v0] Trending results:", results.length, "songs")
-    return results.map((video) => ({
-      id: video.id,
-      title: video.title,
-      artist: video.channelTitle,
-      thumbnail: video.thumbnail,
-      duration: video.duration,
-      type: "song" as const,
-    }))
+    console.log("[v0] Fetching trending music with Piped API")
+    const response = await fetch("/api/music/trending")
+    if (!response.ok) {
+      throw new Error(`Trending fetch failed: ${response.status}`)
+    }
+    const data = await response.json()
+    console.log("[v0] Piped trending results:", data.songs?.length || 0, "songs")
+    return data.songs || []
   } catch (error) {
-    console.error("[v0] Trending fetch error:", error)
+    console.error("[v0] Piped trending fetch error:", error)
     return []
   }
 }
