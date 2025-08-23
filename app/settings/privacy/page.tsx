@@ -59,7 +59,7 @@ export default function PrivacySettingsPage() {
   }
 
   const handleClearAllData = () => {
-    if (confirm("Are you sure you want to clear all your data? This action cannot be undone.")) {
+    if (window.confirm("Are you sure you want to clear all your data? This action cannot be undone.")) {
       // Clear all app-related localStorage
       const keysToRemove = []
       for (let i = 0; i < localStorage.length; i++) {
@@ -88,7 +88,8 @@ export default function PrivacySettingsPage() {
         localStorageOnly: false,
       })
 
-      alert("All data has been cleared successfully.")
+      // TODO: Replace with proper toast notification
+      window.alert("All data has been cleared successfully.")
     }
   }
 

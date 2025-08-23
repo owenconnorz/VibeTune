@@ -80,18 +80,12 @@ function analyzeImageColors(data: Uint8ClampedArray): ExtractedColors {
     .map(([, colorData]) => [colorData.r, colorData.g, colorData.b])
 
   if (sortedColors.length === 0) {
-    console.log("[v0] No vibrant colors found, using default colors")
     return getDefaultColors()
   }
 
   // Find the most vibrant color as primary
   const primaryColor = sortedColors[0]
   const [r, g, b] = primaryColor
-
-  console.log(`[v0] Extracted primary color: rgb(${r}, ${g}, ${b})`)
-
-  // Create more distinct color variations
-  const primary = `rgb(${r}, ${g}, ${b})`
 
   // Secondary: darker version
   const secondary = `rgb(${Math.max(20, r - 60)}, ${Math.max(20, g - 60)}, ${Math.max(20, b - 60)})`
@@ -113,14 +107,13 @@ function analyzeImageColors(data: Uint8ClampedArray): ExtractedColors {
   const foreground = brightness > 140 ? "#000000" : "#ffffff"
 
   const colors = {
-    primary,
+    primary: `rgb(${r}, ${g}, ${b})`,
     secondary,
     accent,
     background,
     foreground,
   }
 
-  console.log("[v0] Final extracted colors:", colors)
   return colors
 }
 

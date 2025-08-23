@@ -663,10 +663,6 @@ export class YouTubeAPI {
 
   constructor(apiKey?: string) {
     this.apiKey = apiKey || process.env.YOUTUBE_API_KEY || "AIzaSyBIQVGnXO2T7smsxf6q_MWxMD1sQzek1Nc"
-    console.log("[v0] YouTube API initialized")
-    console.log("[v0] API key exists:", !!this.apiKey)
-    console.log("[v0] API key source:", apiKey ? "parameter" : process.env.YOUTUBE_API_KEY ? "environment" : "fallback")
-    console.log("[v0] Environment YOUTUBE_API_KEY exists:", !!process.env.YOUTUBE_API_KEY)
   }
 
   private isQuotaExceeded(): boolean {

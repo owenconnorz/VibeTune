@@ -38,7 +38,6 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
     if (!playerRef.current || isDestroyedRef.current) return
 
     if (!setCurrentTime || !setDuration) {
-      console.error("[v0] Time update functions not available, skipping time update")
       return
     }
 
@@ -49,40 +48,28 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
       if (currentTime > 0 && duration > 0) {
         setCurrentTime(currentTime)
         setDuration(duration)
-        console.log("[v0] Time update:", { currentTime: currentTime.toFixed(2), duration: duration.toFixed(2) })
       }
     } catch (error) {
-      console.error("[v0] Error updating time progress:", error)
+      console.error("Error updating time progress:", error)
     }
   }
 
   const startTimeUpdates = () => {
     if (timeUpdateIntervalRef.current) return
-    console.log("[v0] Starting time progress updates")
     timeUpdateIntervalRef.current = setInterval(updateTimeProgress, 1000)
   }
 
   const stopTimeUpdates = () => {
     if (timeUpdateIntervalRef.current) {
-      console.log("[v0] Stopping time progress updates")
       clearInterval(timeUpdateIntervalRef.current)
       timeUpdateIntervalRef.current = null
     }
   }
 
-  useEffect(() => {
-    console.log("[v0] YouTubePlayer component mounted with videoId:", videoId)
-    console.log("[v0] YouTube player forced to audio-only mode")
-    console.log("[v0] Audio player context on mount:", {
-      hasState: !!state,
-      hasSetCurrentTime: !!setCurrentTime,
-      hasSetDuration: !!setDuration,
-    })
-  }, [])
+  useEffect(() => {}, [])
 
   useEffect(() => {
     if (!window.YT) {
-      console.log("[v0] Loading YouTube iframe API")
       const tag = document.createElement("script")
       tag.src = "https://www.youtube.com/iframe_api"
       const firstScriptTag = document.getElementsByTagName("script")[0]
@@ -95,20 +82,13 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
   useEffect(() => {
     function initializePlayer() {
       if (isInitializingRef.current || isDestroyedRef.current) {
-        console.log("[v0] Skipping initialization - already in progress or destroyed")
         return
       }
 
-      console.log("[v0] Attempting to initialize YouTube player")
-      console.log("[v0] Container exists:", !!containerRef.current)
-      console.log("[v0] Player already exists:", !!playerRef.current)
-      console.log("[v0] Is destroyed:", isDestroyedRef.current)
-
       if (containerRef.current && !playerRef.current && !isDestroyedRef.current) {
         try {
-          isInitializingRef.current = true // Set initialization lock
-          isReadyRef.current = false // Reset ready state when creating new player
-          console.log("[v0] Creating YouTube player with videoId:", videoId)
+          isInitializingRef.current = true
+          isReadyRef.current = false
 
           if (containerRef.current) {
             containerRef.current.innerHTML = ""
@@ -131,72 +111,51 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
             },
             events: {
               onReady: (event: any) => {
-                console.log("[v0] YouTube player ready")
-                isInitializingRef.current = false // Clear initialization lock
-                isReadyRef.current = true // Set ready state
+                isInitializingRef.current = false
+                isReadyRef.current = true
 
-                // Load pending video if there is one
                 if (pendingVideoIdRef.current) {
-                  console.log("[v0] Loading pending video:", pendingVideoIdRef.current)
                   try {
                     playerRef.current.loadVideoById(pendingVideoIdRef.current)
                     pendingVideoIdRef.current = null
                   } catch (error) {
-                    console.error("[v0] Error loading pending video:", error)
+                    console.error("Error loading pending video:", error)
                   }
                 }
 
-                setTimeout(() => {
-                  console.log("[v0] Player methods available:", {
-                    loadVideoById: typeof playerRef.current?.loadVideoById === "function",
-                    playVideo: typeof playerRef.current?.playVideo === "function",
-                    pauseVideo: typeof playerRef.current?.pauseVideo === "function",
-                  })
-                }, 100)
                 onReady?.()
               },
               onStateChange: (event: any) => {
-                console.log("[v0] YouTube player state changed:", event.data)
-
                 if (event.data === 1) {
-                  // Playing
                   startTimeUpdates()
                 } else {
-                  // Paused, ended, etc.
                   stopTimeUpdates()
                 }
 
                 onStateChange?.(event.data)
               },
               onError: (event: any) => {
-                console.error("[v0] YouTube player error:", event.data)
-                isInitializingRef.current = false // Clear initialization lock on error
-                isReadyRef.current = false // Reset ready state on error
+                isInitializingRef.current = false
+                isReadyRef.current = false
                 const errorCode = event.data
                 let errorMessage = "Unknown error"
 
                 switch (errorCode) {
                   case 2:
                     errorMessage = "Invalid video ID"
-                    console.error("[v0] Invalid video ID:", videoId)
                     break
                   case 5:
                     errorMessage = "HTML5 player error"
-                    console.error("[v0] HTML5 player error for video:", videoId)
-                    console.log("[v0] Attempting to skip to next track due to playback restriction")
                     setTimeout(() => {
                       if (state?.currentTrack && typeof state.skipToNext === "function") {
-                        console.log("[v0] Skipping to next track due to YouTube error 5")
                         state.skipToNext()
                       }
                     }, 1000)
                     break
                   case 100:
                     errorMessage = "Video not found or private"
-                    console.error("[v0] Video not found or private:", videoId)
                     setTimeout(() => {
                       if (state?.currentTrack && typeof state.skipToNext === "function") {
-                        console.log("[v0] Skipping to next track - video not found")
                         state.skipToNext()
                       }
                     }, 1000)
@@ -204,44 +163,30 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
                   case 101:
                   case 150:
                     errorMessage = "Video not allowed to be played in embedded players"
-                    console.error("[v0] Video embedding not allowed:", videoId)
                     setTimeout(() => {
                       if (state?.currentTrack && typeof state.skipToNext === "function") {
-                        console.log("[v0] Skipping to next track - embedding not allowed")
                         state.skipToNext()
                       }
                     }, 1000)
                     break
-                  default:
-                    console.error("[v0] Unknown YouTube error code:", errorCode)
                 }
-
-                console.error("[v0] YouTube error details:", {
-                  videoId,
-                  errorCode,
-                  errorMessage,
-                  timestamp: new Date().toISOString(),
-                })
 
                 stopTimeUpdates()
                 onError?.(event)
               },
             },
           })
-          console.log("[v0] YouTube player created successfully")
         } catch (error) {
-          console.error("[v0] Error initializing YouTube player:", error)
-          isInitializingRef.current = false // Clear initialization lock on error
-          isReadyRef.current = false // Reset ready state on error
+          console.error("Error initializing YouTube player:", error)
+          isInitializingRef.current = false
+          isReadyRef.current = false
         }
       }
     }
 
     if (window.YT && window.YT.Player) {
-      console.log("[v0] YouTube API ready, initializing player")
       initializePlayer()
     } else {
-      console.log("[v0] YouTube API not ready, setting callback")
       window.onYouTubeIframeAPIReady = initializePlayer
     }
 
@@ -252,17 +197,14 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
         try {
           isDestroyedRef.current = true
           isInitializingRef.current = false
-          isReadyRef.current = false // Reset ready state on cleanup
+          isReadyRef.current = false
 
           const container = containerRef.current
           const iframe = container?.querySelector("iframe")
 
           if (container && iframe && document.contains(container) && document.contains(iframe)) {
-            console.log("[v0] Destroying YouTube player with valid DOM")
             playerRef.current.destroy()
-            console.log("[v0] YouTube player destroyed successfully")
           } else {
-            console.log("[v0] Container or iframe not in DOM, skipping destroy")
             if (container && document.contains(container)) {
               container.innerHTML = ""
             }
@@ -280,68 +222,58 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
         }
       }
     }
-  }, []) // Remove dependencies to prevent recreation
+  }, [])
 
   useEffect(() => {
     if (!videoId || videoId.trim() === "") {
-      console.error("[v0] Cannot load video - invalid video ID:", videoId)
+      console.error("Cannot load video - invalid video ID:", videoId)
       return
     }
 
     if (!playerRef.current || isDestroyedRef.current || isInitializingRef.current) {
-      console.log("[v0] Player not ready, storing video ID for later:", videoId)
       pendingVideoIdRef.current = videoId
       return
     }
 
     if (!isReadyRef.current) {
-      console.log("[v0] Player not ready yet, storing video ID for later:", videoId)
       pendingVideoIdRef.current = videoId
       return
     }
 
-    console.log("[v0] Loading video:", videoId)
     try {
       playerRef.current.loadVideoById(videoId)
-      console.log("[v0] Video loaded successfully")
       pendingVideoIdRef.current = null
     } catch (error) {
-      console.error("[v0] Error loading video:", error)
+      console.error("Error loading video:", error)
     }
   }, [videoId])
 
   useEffect(() => {
     if (!playerRef.current || isDestroyedRef.current) return
 
-    // Only update if the playing state actually changed
     if (prevIsPlayingRef.current === state.isPlaying) return
     prevIsPlayingRef.current = state.isPlaying
-
-    console.log("[v0] Playback state changed to:", state.isPlaying)
 
     try {
       if (state.isPlaying) {
         if (typeof playerRef.current.playVideo === "function") {
-          console.log("[v0] Calling playVideo()")
           playerRef.current.playVideo()
           startTimeUpdates()
         }
       } else {
         if (typeof playerRef.current.pauseVideo === "function") {
-          console.log("[v0] Calling pauseVideo()")
           playerRef.current.pauseVideo()
           stopTimeUpdates()
         }
       }
     } catch (error) {
-      console.error("[v0] Error controlling video playback:", error)
+      console.error("Error controlling video playback:", error)
     }
   }, [state.isPlaying])
 
   useEffect(() => {
     if (!playerRef.current || isDestroyedRef.current) return
 
-    // Only seek if the time difference is significant (more than 1 second)
     const timeDiff = Math.abs((prevCurrentTimeRef.current || 0) - state.currentTime)
     if (timeDiff < 1) return
     prevCurrentTimeRef.current = state.currentTime
@@ -351,14 +283,13 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
         playerRef.current.seekTo(state.currentTime, true)
       }
     } catch (error) {
-      console.error("[v0] Error seeking video:", error)
+      console.error("Error seeking video:", error)
     }
   }, [state.currentTime])
 
   useEffect(() => {
     if (!playerRef.current || isDestroyedRef.current) return
 
-    // Only update if volume actually changed
     if (prevVolumeRef.current === state.volume) return
     prevVolumeRef.current = state.volume
 
@@ -367,7 +298,7 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
         playerRef.current.setVolume(state.volume * 100)
       }
     } catch (error) {
-      console.error("[v0] Error setting video volume:", error)
+      console.error("Error setting video volume:", error)
     }
   }, [state.volume])
 
@@ -375,7 +306,7 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
     if (playerRef.current && typeof playerRef.current.setSize === "function" && !isDestroyedRef.current) {
       playerRef.current.setSize(0, 0)
     }
-  }, []) // Remove isVideoMode dependency since it's always false
+  }, [])
 
   return (
     <div
@@ -391,7 +322,6 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
   )
 }
 
-// Player control methods
 export const useYouTubePlayer = (playerRef: any) => {
   const play = () => {
     if (playerRef.current && typeof playerRef.current.playVideo === "function") {
