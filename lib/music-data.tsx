@@ -54,16 +54,16 @@ export function generateAlbumArtwork(artist: string, title?: string): string {
 // Basic search function
 export async function searchMusic(query: string): Promise<Song[]> {
   try {
-    console.log("[v0] Searching music with Piped API for:", query)
+    console.log("[v0] Searching music with advanced YouTube API for:", query)
     const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`)
     if (!response.ok) {
       throw new Error(`Search failed: ${response.status}`)
     }
     const data = await response.json()
-    console.log("[v0] Piped search results:", data.songs?.length || 0, "songs")
+    console.log("[v0] YouTube API search results:", data.songs?.length || 0, "songs")
     return data.songs || []
   } catch (error) {
-    console.error("[v0] Piped search error:", error)
+    console.error("[v0] YouTube API search error:", error)
     return []
   }
 }
@@ -71,14 +71,14 @@ export async function searchMusic(query: string): Promise<Song[]> {
 // Enhanced search with categories
 export async function searchMusicEnhanced(query: string): Promise<EnhancedSearchResults> {
   try {
-    console.log("[v0] Enhanced search with Piped API for:", query)
+    console.log("[v0] Enhanced search with advanced YouTube API for:", query)
     const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`)
     if (!response.ok) {
       throw new Error(`Enhanced search failed: ${response.status}`)
     }
     const data = await response.json()
     const allResults = data.songs || []
-    console.log("[v0] Piped enhanced search got results:", allResults.length, "items")
+    console.log("[v0] YouTube API enhanced search got results:", allResults.length, "items")
 
     // Categorize results based on content analysis
     const songs: Song[] = []
@@ -126,7 +126,7 @@ export async function searchMusicEnhanced(query: string): Promise<EnhancedSearch
       playlists,
     }
   } catch (error) {
-    console.error("[v0] Piped enhanced search error:", error)
+    console.error("[v0] YouTube API enhanced search error:", error)
     return {
       all: [],
       songs: [],
@@ -140,16 +140,16 @@ export async function searchMusicEnhanced(query: string): Promise<EnhancedSearch
 // Fetch trending music
 export async function fetchTrendingMusic(): Promise<Song[]> {
   try {
-    console.log("[v0] Fetching trending music with Piped API")
+    console.log("[v0] Fetching trending music with advanced YouTube API")
     const response = await fetch("/api/music/trending")
     if (!response.ok) {
       throw new Error(`Trending fetch failed: ${response.status}`)
     }
     const data = await response.json()
-    console.log("[v0] Piped trending results:", data.songs?.length || 0, "songs")
+    console.log("[v0] YouTube API trending results:", data.songs?.length || 0, "songs")
     return data.songs || []
   } catch (error) {
-    console.error("[v0] Piped trending fetch error:", error)
+    console.error("[v0] YouTube API trending fetch error:", error)
     return []
   }
 }

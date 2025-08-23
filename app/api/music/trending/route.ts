@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     if (cachedData) {
       console.log("[v0] Returning cached data, length:", cachedData.length)
       return NextResponse.json({
+        songs: cachedData.slice(0, maxResults),
         videos: cachedData.slice(0, maxResults),
         source: "cache",
       })
@@ -56,20 +57,22 @@ export async function GET(request: NextRequest) {
     }
 
     if (results && results.length > 0) {
-      const videos = results.map((item) => ({
+      const songs = results.map((item) => ({
         id: item.id,
         title: item.title,
-        channelTitle: item.artist,
+        artist: item.artist,
         thumbnail: item.thumbnail,
         duration: item.duration,
+        channelTitle: item.artist, // Keep for backward compatibility
         publishedAt: item.publishedAt,
         viewCount: item.viewCount || 0,
       }))
 
-      musicCache.set(cacheKey, videos, 30 * 60 * 1000)
+      musicCache.set(cacheKey, songs, 30 * 60 * 1000)
       console.log("[v0] Returning YouTube API data, source: youtube_advanced")
       return NextResponse.json({
-        videos: videos.slice(0, maxResults),
+        songs: songs.slice(0, maxResults),
+        videos: songs.slice(0, maxResults),
         source: "youtube_advanced",
         networkType: networkConditions.type,
       })
@@ -78,6 +81,7 @@ export async function GET(request: NextRequest) {
     console.log("[v0] No YouTube data received, using fallback data")
     const fallbackData = fallbackTrendingMusic.slice(0, maxResults)
     return NextResponse.json({
+      songs: fallbackData,
       videos: fallbackData,
       source: "fallback",
     })
@@ -93,6 +97,7 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Returning error fallback data")
     return NextResponse.json({
+      songs: fallbackData,
       videos: fallbackData,
       source: "error_fallback",
     })

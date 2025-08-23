@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
     if (cachedData) {
       console.log("[v0] Returning cached data for:", query)
       return NextResponse.json({
+        songs: cachedData.slice(0, maxResults),
         videos: cachedData.slice(0, maxResults),
         source: "cache",
         query,
@@ -56,20 +57,22 @@ export async function GET(request: NextRequest) {
     })
 
     if (results && results.length > 0) {
-      const videos = results.map((item) => ({
+      const songs = results.map((item) => ({
         id: item.id,
         title: item.title,
-        channelTitle: item.artist,
+        artist: item.artist,
         thumbnail: item.thumbnail,
         duration: item.duration,
+        channelTitle: item.artist, // Keep for backward compatibility
         publishedAt: item.publishedAt,
         viewCount: 0,
       }))
 
-      musicCache.set(cacheKey, videos, 20 * 60 * 1000)
+      musicCache.set(cacheKey, songs, 20 * 60 * 1000)
       console.log("[v0] Returning YouTube API results for:", query)
       return NextResponse.json({
-        videos: videos.slice(0, maxResults),
+        songs: songs.slice(0, maxResults),
+        videos: songs.slice(0, maxResults),
         source: "youtube_advanced",
         query,
         networkType: networkConditions.type,
@@ -81,6 +84,7 @@ export async function GET(request: NextRequest) {
     const fallbackResults = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
 
     return NextResponse.json({
+      songs: fallbackResults.slice(0, maxResults),
       videos: fallbackResults.slice(0, maxResults),
       source: "fallback",
       query,
@@ -99,6 +103,7 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Returning error fallback data for:", query)
     return NextResponse.json({
+      songs: fallbackResults.slice(0, maxResults),
       videos: fallbackResults.slice(0, maxResults),
       source: "error_fallback",
       query,

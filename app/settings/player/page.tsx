@@ -1,6 +1,18 @@
 "use client"
 import { useState, useEffect } from "react"
-import { ArrowLeft, Play, Volume2, Repeat, Shuffle, SkipForward, Music, Video, Headphones } from "lucide-react"
+import {
+  ArrowLeft,
+  Play,
+  Volume2,
+  Repeat,
+  Shuffle,
+  SkipForward,
+  Music,
+  Video,
+  Headphones,
+  Wifi,
+  Settings,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
@@ -8,10 +20,12 @@ import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
+import { useSettings } from "@/contexts/settings-context"
 
 export default function PlayerAudioSettingsPage() {
   const router = useRouter()
   const { state, setVolume, setVideoMode } = useAudioPlayer()
+  const { youtubeSettings, setYoutubeSettings } = useSettings()
 
   const [audioSettings, setAudioSettings] = useState({
     autoplay: true,
@@ -75,6 +89,108 @@ export default function PlayerAudioSettingsPage() {
       </header>
 
       <div className="px-4 pb-6 space-y-6">
+        {/* YouTube API Quality Settings */}
+        <Card className="bg-zinc-800 border-zinc-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              YouTube API Settings
+            </CardTitle>
+            <CardDescription className="text-gray-400">
+              Configure YouTube streaming quality and preferences
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
+                  <Headphones className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">High Quality Audio</p>
+                  <p className="text-gray-400 text-sm">Prefer higher bitrate audio formats</p>
+                </div>
+              </div>
+              <Switch
+                checked={youtubeSettings.highQualityAudio}
+                onCheckedChange={(checked) => setYoutubeSettings({ highQualityAudio: checked })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
+                  <Music className="w-5 h-5 text-green-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Prefer Opus Audio</p>
+                  <p className="text-gray-400 text-sm">Use Opus format over AAC for better efficiency</p>
+                </div>
+              </div>
+              <Switch
+                checked={youtubeSettings.preferOpus}
+                onCheckedChange={(checked) => setYoutubeSettings({ preferOpus: checked })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
+                  <Wifi className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Adaptive Audio Quality</p>
+                  <p className="text-gray-400 text-sm">Automatically adjust quality based on network</p>
+                </div>
+              </div>
+              <Switch
+                checked={youtubeSettings.adaptiveAudio}
+                onCheckedChange={(checked) => setYoutubeSettings({ adaptiveAudio: checked })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
+                  <Video className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Show Videos</p>
+                  <p className="text-gray-400 text-sm">Allow video content when available</p>
+                </div>
+              </div>
+              <Switch
+                checked={youtubeSettings.showVideos}
+                onCheckedChange={(checked) => setYoutubeSettings({ showVideos: checked })}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
+                  <Play className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Prefer Videos</p>
+                  <p className="text-gray-400 text-sm">Prioritize video streams over audio-only</p>
+                </div>
+              </div>
+              <Switch
+                checked={youtubeSettings.preferVideos}
+                onCheckedChange={(checked) => setYoutubeSettings({ preferVideos: checked })}
+                disabled={!youtubeSettings.showVideos}
+              />
+            </div>
+
+            <div className="text-xs text-gray-400 space-y-1 pt-2 border-t border-zinc-700">
+              <p>• High quality audio uses more bandwidth but provides better sound</p>
+              <p>• Opus format is more efficient than AAC at the same bitrate</p>
+              <p>• Adaptive quality automatically adjusts based on your connection</p>
+              <p>• Video options require "Show Videos" to be enabled</p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Playback Settings */}
         <Card className="bg-zinc-800 border-zinc-700">
           <CardHeader>
