@@ -1,22 +1,8 @@
 "use client"
 import { useEffect, useState, useCallback, useMemo } from "react"
-import {
-  ArrowLeft,
-  User,
-  Globe,
-  Play,
-  HardDrive,
-  Shield,
-  RefreshCw,
-  Info,
-  Palette,
-  ChevronRight,
-  MessageSquare,
-  LogOut,
-} from "lucide-react"
+import { ArrowLeft, User, Globe, Play, HardDrive, Shield, RefreshCw, Info, Palette, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { useSettings } from "@/contexts/settings-context"
@@ -25,8 +11,6 @@ export default function SettingsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const {
-    adultContentEnabled,
-    setAdultContentEnabled,
     discordRpcEnabled,
     setDiscordRpcEnabled,
     discordUser,
@@ -146,89 +130,6 @@ export default function SettingsPage() {
           </div>
           <h2 className="text-xl font-semibold text-white mb-1">{user?.name || "Guest User"}</h2>
           {user?.email && <p className="text-gray-400 text-sm">{user.email}</p>}
-        </div>
-
-        <div className="mb-8">
-          <div className="flex items-center justify-between p-4 hover:bg-zinc-800/50 rounded-lg transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 flex items-center justify-center">
-                <Shield className="w-6 h-6 text-gray-400" />
-              </div>
-              <div className="text-left">
-                <p className="text-white font-medium text-lg">18+ Content</p>
-                <p className="text-gray-400 text-sm">Show adult content in videos section</p>
-              </div>
-            </div>
-            <Switch
-              checked={adultContentEnabled}
-              onCheckedChange={setAdultContentEnabled}
-              className="data-[state=checked]:bg-yellow-600"
-            />
-          </div>
-
-          <div className="p-4 hover:bg-zinc-800/50 rounded-lg transition-colors">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 flex items-center justify-center">
-                  <MessageSquare className="w-6 h-6 text-gray-400" />
-                </div>
-                <div className="text-left">
-                  <p className="text-white font-medium text-lg">Discord Rich Presence</p>
-                  <p className="text-gray-400 text-sm">Show what you're listening to on Discord</p>
-                </div>
-              </div>
-              <Switch
-                checked={discordRpcEnabled}
-                onCheckedChange={setDiscordRpcEnabled}
-                disabled={!isDiscordConnected}
-                className="data-[state=checked]:bg-yellow-600"
-              />
-            </div>
-
-            {isDiscordConnected ? (
-              <div className="flex items-center justify-between mt-3 p-3 bg-zinc-800/30 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage
-                      src={
-                        discordUser?.avatar
-                          ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
-                          : undefined
-                      }
-                    />
-                    <AvatarFallback className="text-xs bg-indigo-600">
-                      {discordUser?.username?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-white text-sm font-medium">
-                      {discordUser?.username}#{discordUser?.discriminator}
-                    </p>
-                    <p className="text-green-400 text-xs">Connected</p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={logoutFromDiscord}
-                  className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
-                >
-                  <LogOut className="w-4 h-4 mr-1" />
-                  Disconnect
-                </Button>
-              </div>
-            ) : (
-              <div className="mt-3">
-                <Button onClick={loginToDiscord} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Connect to Discord
-                </Button>
-                <p className="text-gray-500 text-xs mt-2 text-center">
-                  Connect your Discord account to enable Rich Presence
-                </p>
-              </div>
-            )}
-          </div>
         </div>
 
         <div className="space-y-1">

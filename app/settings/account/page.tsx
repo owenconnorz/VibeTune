@@ -1,15 +1,25 @@
 "use client"
 import { useState } from "react"
-import { ArrowLeft, User, LogOut, LogIn, Shield, Mail, Calendar } from "lucide-react"
+import { ArrowLeft, User, LogOut, LogIn, Shield, Mail, Calendar, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
+import { useSettings } from "@/contexts/settings-context"
 
 export default function AccountSettingsPage() {
   const router = useRouter()
   const { user, signInWithGoogle, signOut, loading } = useAuth()
+  const {
+    discordRpcEnabled,
+    setDiscordRpcEnabled,
+    discordUser,
+    loginToDiscord,
+    logoutFromDiscord,
+    isDiscordConnected,
+  } = useSettings()
   const [isSigningOut, setIsSigningOut] = useState(false)
 
   const handleSignOut = async () => {
@@ -93,6 +103,77 @@ export default function AccountSettingsPage() {
                     </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Discord Integration */}
+            <Card className="bg-zinc-800 border-zinc-700">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Discord Integration
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Connect your Discord account for Rich Presence
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <p className="text-white font-medium">Discord Rich Presence</p>
+                    <p className="text-gray-400 text-sm">Show what you're listening to on Discord</p>
+                  </div>
+                  <Switch
+                    checked={discordRpcEnabled}
+                    onCheckedChange={setDiscordRpcEnabled}
+                    disabled={!isDiscordConnected}
+                    className="data-[state=checked]:bg-yellow-600"
+                  />
+                </div>
+
+                {isDiscordConnected ? (
+                  <div className="flex items-center justify-between p-3 bg-zinc-700/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage
+                          src={
+                            discordUser?.avatar
+                              ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+                              : undefined
+                          }
+                        />
+                        <AvatarFallback className="text-xs bg-indigo-600">
+                          {discordUser?.username?.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-white text-sm font-medium">
+                          {discordUser?.username}#{discordUser?.discriminator}
+                        </p>
+                        <p className="text-green-400 text-xs">Connected</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={logoutFromDiscord}
+                      className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                    >
+                      <LogOut className="w-4 h-4 mr-1" />
+                      Disconnect
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <Button onClick={loginToDiscord} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      Connect to Discord
+                    </Button>
+                    <p className="text-gray-500 text-xs mt-2 text-center">
+                      Connect your Discord account to enable Rich Presence
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
