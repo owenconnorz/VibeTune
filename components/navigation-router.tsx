@@ -94,7 +94,7 @@ export function NavigationRouter() {
     if (activeRoute === item.path) return
 
     // Check adult content settings for videos
-    if (item.requiresAdultContent && !settings.showAdultContent) {
+    if (item.requiresAdultContent && (!settings || !settings.showAdultContent)) {
       return
     }
 
@@ -108,7 +108,7 @@ export function NavigationRouter() {
   }
 
   const visibleItems = navigationItems.filter((item) => {
-    if (item.requiresAdultContent && !settings.showAdultContent) {
+    if (item.requiresAdultContent && (!settings || !settings.showAdultContent)) {
       return false
     }
     return true
