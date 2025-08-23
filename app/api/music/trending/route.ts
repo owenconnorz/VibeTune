@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createInnertubeAPI } from "@/lib/innertube-api"
+import { createPipedAPI } from "@/lib/piped-api"
 import { fallbackTrendingMusic } from "@/lib/fallback-data"
 import { musicCache, getCacheKey } from "@/lib/music-cache"
 
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const maxResults = Number.parseInt(searchParams.get("maxResults") || "20")
 
     console.log("[v0] Trending API called with maxResults:", maxResults)
-    console.log("[v0] Using Innertube API")
+    console.log("[v0] Using Piped API")
 
     const cacheKey = getCacheKey.trending()
     const cachedData = musicCache.get(cacheKey)
@@ -22,13 +22,13 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log("[v0] Creating Innertube API instance...")
-    const innertube = createInnertubeAPI()
-    console.log("[v0] Calling getTrendingMusic...")
+    console.log("[v0] Creating Piped API instance...")
+    const piped = createPipedAPI()
+    console.log("[v0] Calling getTrending...")
 
-    const videos = await innertube.getTrendingMusic(maxResults)
+    const videos = await piped.getTrending(maxResults)
 
-    console.log("[v0] Innertube API response received")
+    console.log("[v0] Piped API response received")
     console.log("[v0] Videos returned:", videos?.length || 0)
     if (videos && videos.length > 0) {
       console.log("[v0] First video sample:", {
@@ -41,11 +41,11 @@ export async function GET(request: NextRequest) {
 
     if (videos && videos.length > 0) {
       musicCache.set(cacheKey, videos, 30 * 60 * 1000)
-      console.log("[v0] Returning Innertube data, source: innertube")
-      return NextResponse.json({ videos, source: "innertube" })
+      console.log("[v0] Returning Piped data, source: piped")
+      return NextResponse.json({ videos, source: "piped" })
     }
 
-    console.log("[v0] No Innertube data received, using fallback data")
+    console.log("[v0] No Piped data received, using fallback data")
     const fallbackData = fallbackTrendingMusic.slice(0, maxResults)
     return NextResponse.json({
       videos: fallbackData,
