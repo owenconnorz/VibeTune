@@ -55,6 +55,25 @@ export interface InnertubeSearchResult {
   nextPageToken?: string
 }
 
+export interface SearchSuggestion {
+  text: string
+  boldText?: string[]
+}
+
+export interface MediaInfo {
+  videoId: string
+  title?: string
+  author?: string
+  authorId?: string
+  authorThumbnail?: string
+  description?: string
+  subscribers?: string
+  uploadDate?: string
+  viewCount?: number
+  like?: number
+  dislike?: number
+}
+
 const FALLBACK_TRENDING_SONGS: InnertubeVideo[] = [
   {
     id: "3tmd-ClpJxA",
@@ -89,20 +108,278 @@ export class InnertubeAPI {
   private baseUrl = "https://www.youtube.com/youtubei/v1"
   private context = {
     client: {
-      clientName: "ANDROID",
-      clientVersion: "19.09.37",
-      androidSdkVersion: 30,
+      clientName: "WEB_REMIX",
+      clientVersion: "1.20240918.01.00",
       hl: "en",
       gl: "US",
       utcOffsetMinutes: 0,
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+      originalUrl: "https://music.youtube.com/",
     },
     user: {
       lockedSafetyMode: false,
     },
   }
 
+  private visitorData?: string
+  private dataSyncId?: string
+  private cookie?: string
+  private cookieMap: Record<string, string> = {}
+
   constructor() {
-    console.log("[v0] Innertube API initialized with ANDROID client")
+    console.log("[v0] Enhanced Innertube API initialized with WEB_REMIX client")
+  }
+
+  setCookie(cookie: string) {
+    this.cookie = cookie
+    this.cookieMap = this.parseCookieString(cookie)
+    console.log("[v0] Cookie set for authentication")
+  }
+
+  private parseCookieString(cookie: string): Record<string, string> {
+    const cookies: Record<string, string> = {}
+    cookie.split(";").forEach((c) => {
+      const [key, value] = c.trim().split("=")
+      if (key && value) cookies[key] = value
+    })
+    return cookies
+  }
+
+  private async makeRequest(endpoint: string, data: any, useAuth = false): Promise<any> {
+    try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "User-Agent": this.context.client.userAgent,
+        "X-Goog-Api-Format-Version": "1",
+        "X-YouTube-Client-Name": "67",
+        "X-YouTube-Client-Version": this.context.client.clientVersion,
+        "X-Origin": "https://music.youtube.com",
+        Referer: "https://music.youtube.com/",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        Origin: "https://music.youtube.com",
+      }
+
+      if (useAuth && this.cookie && this.cookieMap.SAPISID) {
+        headers["Cookie"] = this.cookie
+        const currentTime = Math.floor(Date.now() / 1000)
+        const sapisidHash = await this.generateSapisidHash(currentTime, this.cookieMap.SAPISID)
+        headers["Authorization"] = `SAPISIDHASH ${currentTime}_${sapisidHash}`
+      }
+
+      const response = await fetch(`${this.baseUrl}/${endpoint}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          context: {
+            ...this.context,
+            user: {
+              ...this.context.user,
+              ...(this.visitorData && { visitorData: this.visitorData }),
+              ...(useAuth && this.dataSyncId && { dataSyncId: this.dataSyncId }),
+            },
+          },
+          ...data,
+        }),
+      })
+
+      console.log("[v0] Innertube API response status:", response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("[v0] Innertube API error response:", errorText)
+        throw new Error(`Innertube API error: ${response.status} - ${errorText}`)
+      }
+
+      const result = await response.json()
+      console.log("[v0] Innertube API response structure:", {
+        hasContents: !!result.contents,
+        hasMetadata: !!result.metadata,
+        keys: Object.keys(result),
+      })
+      return result
+    } catch (error) {
+      console.error("[v0] Innertube API request failed:", error)
+      throw error
+    }
+  }
+
+  private async generateSapisidHash(timestamp: number, sapisid: string): Promise<string> {
+    const message = `${timestamp} ${sapisid} https://music.youtube.com`
+    const encoder = new TextEncoder()
+    const data = encoder.encode(message)
+    const hashBuffer = await crypto.subtle.digest("SHA-1", data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+  }
+
+  async getSearchSuggestions(input: string): Promise<SearchSuggestion[]> {
+    console.log("[v0] Getting search suggestions for:", input)
+
+    try {
+      const data = await this.makeRequest("music/get_search_suggestions", {
+        input: input,
+      })
+
+      const suggestions = data?.contents?.[0]?.searchSuggestionsSectionRenderer?.contents || []
+
+      return suggestions
+        .map((item: any) => ({
+          text: item.searchSuggestionRenderer?.suggestion?.runs?.[0]?.text || "",
+          boldText:
+            item.searchSuggestionRenderer?.suggestion?.runs
+              ?.filter((run: any) => run.bold)
+              ?.map((run: any) => run.text) || [],
+        }))
+        .filter((s: SearchSuggestion) => s.text)
+    } catch (error) {
+      console.error("[v0] Search suggestions error:", error)
+      return []
+    }
+  }
+
+  async getQueue(videoIds?: string[], playlistId?: string): Promise<InnertubeVideo[]> {
+    console.log("[v0] Getting queue for videoIds:", videoIds, "playlistId:", playlistId)
+
+    try {
+      const data = await this.makeRequest("music/get_queue", {
+        videoIds: videoIds,
+        playlistId: playlistId,
+      })
+
+      const queueItems = data?.queueDatas || []
+      return queueItems.map((item: any) => this.parseVideoFromQueueItem(item)).filter(Boolean)
+    } catch (error) {
+      console.error("[v0] Queue error:", error)
+      return []
+    }
+  }
+
+  async likeVideo(videoId: string): Promise<boolean> {
+    try {
+      await this.makeRequest(
+        "like/like",
+        {
+          target: { videoId: videoId },
+        },
+        true,
+      )
+      console.log("[v0] Successfully liked video:", videoId)
+      return true
+    } catch (error) {
+      console.error("[v0] Like video error:", error)
+      return false
+    }
+  }
+
+  async unlikeVideo(videoId: string): Promise<boolean> {
+    try {
+      await this.makeRequest(
+        "like/removelike",
+        {
+          target: { videoId: videoId },
+        },
+        true,
+      )
+      console.log("[v0] Successfully unliked video:", videoId)
+      return true
+    } catch (error) {
+      console.error("[v0] Unlike video error:", error)
+      return false
+    }
+  }
+
+  async createPlaylist(title: string): Promise<string | null> {
+    try {
+      const data = await this.makeRequest(
+        "playlist/create",
+        {
+          title: title,
+        },
+        true,
+      )
+
+      const playlistId = data?.playlistId
+      console.log("[v0] Successfully created playlist:", playlistId)
+      return playlistId
+    } catch (error) {
+      console.error("[v0] Create playlist error:", error)
+      return null
+    }
+  }
+
+  async addToPlaylist(playlistId: string, videoId: string): Promise<boolean> {
+    try {
+      await this.makeRequest(
+        "browse/edit_playlist",
+        {
+          playlistId: playlistId.replace("VL", ""),
+          actions: [
+            {
+              action: "ACTION_ADD_VIDEO",
+              addedVideoId: videoId,
+            },
+          ],
+        },
+        true,
+      )
+      console.log("[v0] Successfully added video to playlist")
+      return true
+    } catch (error) {
+      console.error("[v0] Add to playlist error:", error)
+      return false
+    }
+  }
+
+  async getMediaInfo(videoId: string): Promise<MediaInfo | null> {
+    try {
+      const data = await this.makeRequest("next", {
+        videoId: videoId,
+      })
+
+      const primaryInfo = data?.contents?.twoColumnWatchNextResults?.results?.results?.content?.find(
+        (item: any) => item?.videoPrimaryInfoRenderer,
+      )?.videoPrimaryInfoRenderer
+
+      const secondaryInfo = data?.contents?.twoColumnWatchNextResults?.results?.results?.content?.find(
+        (item: any) => item?.videoSecondaryInfoRenderer,
+      )?.videoSecondaryInfoRenderer
+
+      return {
+        videoId,
+        title: primaryInfo?.title?.runs?.[0]?.text,
+        author: secondaryInfo?.owner?.videoOwnerRenderer?.title?.runs?.[0]?.text,
+        authorId: secondaryInfo?.owner?.videoOwnerRenderer?.navigationEndpoint?.browseEndpoint?.browseId,
+        authorThumbnail: secondaryInfo?.owner?.videoOwnerRenderer?.thumbnail?.thumbnails
+          ?.find((t: any) => t.height === 48)
+          ?.url?.replace("s48", "s960"),
+        description: secondaryInfo?.attributedDescription?.content,
+        subscribers: secondaryInfo?.owner?.videoOwnerRenderer?.subscriberCountText?.simpleText?.split(" ")?.[0],
+        uploadDate: primaryInfo?.dateText?.simpleText,
+        viewCount: 0, // Would need Return YouTube Dislike API integration
+        like: 0,
+        dislike: 0,
+      }
+    } catch (error) {
+      console.error("[v0] Media info error:", error)
+      return null
+    }
+  }
+
+  private parseVideoFromQueueItem(item: any): InnertubeVideo | null {
+    const content = item?.content
+    if (!content) return null
+
+    return {
+      id: content.videoId || "",
+      title: content.title?.runs?.[0]?.text || "Unknown Title",
+      channelTitle: content.shortBylineText?.runs?.[0]?.text || "Unknown Channel",
+      thumbnail: this.extractThumbnail(content.thumbnail),
+      duration: this.formatDuration(content.lengthText?.simpleText),
+      viewCount: "0",
+      publishedAt: new Date().toISOString(),
+    }
   }
 
   private async makeRequest(endpoint: string, data: any): Promise<any> {
