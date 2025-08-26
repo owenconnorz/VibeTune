@@ -7,7 +7,6 @@ const STATIC_FILES = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"]
 
 // Install event - cache static files
 self.addEventListener("install", (event) => {
-  console.log("[SW] Installing service worker")
   event.waitUntil(
     caches
       .open(STATIC_CACHE)
@@ -18,7 +17,6 @@ self.addEventListener("install", (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener("activate", (event) => {
-  console.log("[SW] Activating service worker")
   event.waitUntil(
     caches
       .keys()
@@ -26,7 +24,6 @@ self.addEventListener("activate", (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME && cacheName !== STATIC_CACHE && cacheName !== MUSIC_CACHE) {
-              console.log("[SW] Deleting old cache:", cacheName)
               return caches.delete(cacheName)
             }
           }),
@@ -69,7 +66,6 @@ self.addEventListener("fetch", (event) => {
 
 // Background sync for offline downloads
 self.addEventListener("sync", (event) => {
-  console.log("[SW] Background sync:", event.tag)
   if (event.tag === "music-download") {
     event.waitUntil(syncMusicDownloads())
   }
@@ -77,7 +73,6 @@ self.addEventListener("sync", (event) => {
 
 // Push notifications for music updates
 self.addEventListener("push", (event) => {
-  console.log("[SW] Push notification received")
   const options = {
     body: event.data ? event.data.text() : "New music available!",
     icon: "/icon-192.png",
@@ -101,7 +96,6 @@ self.addEventListener("push", (event) => {
 
 // Handle notification clicks
 self.addEventListener("notificationclick", (event) => {
-  console.log("[SW] Notification clicked:", event.action)
   event.notification.close()
 
   if (event.action === "play") {
@@ -136,10 +130,8 @@ async function getPendingDownloads() {
 
 async function downloadMusic(download) {
   // Implementation would download music file
-  console.log("[SW] Downloading:", download.title)
 }
 
 async function markDownloadComplete(id) {
   // Implementation would update IndexedDB
-  console.log("[SW] Download complete:", id)
 }
