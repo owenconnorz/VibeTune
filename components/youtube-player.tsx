@@ -22,17 +22,15 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
   const playerRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDestroyedRef = useRef(false)
-  const isInitializingRef = useRef(false) // Add initialization lock
-  const isReadyRef = useRef(false) // Add ready state tracking
+  const isInitializingRef = useRef(false)
+  const isReadyRef = useRef(false)
   const pendingVideoIdRef = useRef<string | null>(null)
   const prevIsPlayingRef = useRef<boolean | null>(null)
   const prevCurrentTimeRef = useRef<number | null>(null)
   const prevVolumeRef = useRef<number | null>(null)
   const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const { state, setCurrentTime, setDuration } = useAudioPlayer()
-
-  const isVideoMode = false // Always false for YouTube - only audio playback
+  const { state, setCurrentTime, setDuration, nextTrack } = useAudioPlayer()
 
   const updateTimeProgress = () => {
     if (!playerRef.current || isDestroyedRef.current) return
@@ -66,16 +64,12 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
     }
   }
 
-  useEffect(() => {}, [])
-
   useEffect(() => {
     if (!window.YT) {
       const tag = document.createElement("script")
       tag.src = "https://www.youtube.com/iframe_api"
       const firstScriptTag = document.getElementsByTagName("script")[0]
       firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
-    } else {
-      console.log("[v0] YouTube API already loaded")
     }
   }, [])
 
@@ -128,6 +122,9 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
               onStateChange: (event: any) => {
                 if (event.data === 1) {
                   startTimeUpdates()
+                } else if (event.data === 0) {
+                  stopTimeUpdates()
+                  nextTrack()
                 } else {
                   stopTimeUpdates()
                 }
@@ -146,28 +143,16 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
                     break
                   case 5:
                     errorMessage = "HTML5 player error"
-                    setTimeout(() => {
-                      if (state?.currentTrack && typeof state.skipToNext === "function") {
-                        state.skipToNext()
-                      }
-                    }, 1000)
+                    setTimeout(() => nextTrack(), 1000)
                     break
                   case 100:
                     errorMessage = "Video not found or private"
-                    setTimeout(() => {
-                      if (state?.currentTrack && typeof state.skipToNext === "function") {
-                        state.skipToNext()
-                      }
-                    }, 1000)
+                    setTimeout(() => nextTrack(), 1000)
                     break
                   case 101:
                   case 150:
                     errorMessage = "Video not allowed to be played in embedded players"
-                    setTimeout(() => {
-                      if (state?.currentTrack && typeof state.skipToNext === "function") {
-                        state.skipToNext()
-                      }
-                    }, 1000)
+                    setTimeout(() => nextTrack(), 1000)
                     break
                 }
 
@@ -211,9 +196,9 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
           }
         } catch (error) {
           if (error.message && (error.message.includes("removeChild") || error.message.includes("Node"))) {
-            console.log("[v0] DOM element already removed, cleanup complete")
+            // DOM cleanup already handled
           } else {
-            console.warn("[v0] Error during player cleanup:", error)
+            console.warn("Error during player cleanup:", error)
           }
         } finally {
           playerRef.current = null
@@ -222,7 +207,7 @@ export function YouTubePlayer({ videoId, onReady, onStateChange, onError, showVi
         }
       }
     }
-  }, [])
+  }, [nextTrack])
 
   useEffect(() => {
     if (!videoId || videoId.trim() === "") {

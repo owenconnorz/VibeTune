@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { usePlaylist } from "@/contexts/playlist-context"
-import { createInnertubeAPI } from "@/lib/innertube-api"
+import { createYouTubeMusicAPI } from "@/lib/youtube-music-api"
 
 export default function ContentSettingsPage() {
   const router = useRouter()
@@ -35,27 +35,27 @@ export default function ContentSettingsPage() {
     setImportStatus("Importing playlist...")
 
     try {
-      const innertube = createInnertubeAPI()
+      const youtubeAPI = createYouTubeMusicAPI()
       const playlistId = extractPlaylistId(playlistUrl)
 
       if (!playlistId) {
         throw new Error("Invalid YouTube playlist URL")
       }
 
-      const result = await innertube.getPlaylistDetails(playlistId)
+      const result = await youtubeAPI.getPlaylist(playlistId)
 
-      if (result && result.playlist && result.videos) {
-        const songs = result.videos.map((video: any) => ({
-          id: video.id,
-          title: video.title,
-          artist: video.channelTitle || "Unknown Artist",
-          thumbnail: video.thumbnail,
-          duration: video.duration || "0:00",
+      if (result && result.title && result.songs) {
+        const songs = result.songs.map((song: any) => ({
+          id: song.id,
+          title: song.title,
+          artist: song.artist || "Unknown Artist",
+          thumbnail: song.thumbnail,
+          duration: song.duration || "0:00",
         }))
 
-        await createPlaylist(result.playlist.title, songs, result.playlist.thumbnail)
+        await createPlaylist(result.title, songs, result.thumbnail)
 
-        setImportStatus(`Successfully imported "${result.playlist.title}" with ${songs.length} songs`)
+        setImportStatus(`Successfully imported "${result.title}" with ${songs.length} songs`)
         setPlaylistUrl("")
       } else {
         throw new Error("Failed to fetch playlist data")

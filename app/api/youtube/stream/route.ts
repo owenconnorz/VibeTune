@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createAdvancedYouTubeAPI, type YouTubeAPISettings } from "@/lib/youtube-api-advanced"
-import { createStreamSelector } from "@/lib/stream-selector"
-import { networkStrategyManager } from "@/lib/network-strategy"
+import { createYouTubeMusicAPI } from "@/lib/youtube-music-api"
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,40 +19,12 @@ export async function GET(request: NextRequest) {
       throw new Error("YouTube API key not configured")
     }
 
-    const networkConditions = networkStrategyManager.getCurrentNetworkConditions()
-    console.log("[v0] Network conditions for streaming:", networkConditions)
+    const youtubeAPI = createYouTubeMusicAPI()
+    const streamData = await youtubeAPI.getStreamUrl(videoId)
 
-    const settings: YouTubeAPISettings = {
-      highQuality: quality === "high",
-      preferVideos: format === "video",
-      showVideos: format === "video",
-      highQualityAudio: quality === "high" && networkConditions.type === "wifi",
-      preferOpus: true,
-      adaptiveAudio: true,
+    if (!streamData.url) {
+      throw new Error("No stream URL available")
     }
-
-    const youtubeAPI = createAdvancedYouTubeAPI(apiKey, settings)
-    const streamSelector = createStreamSelector(settings)
-
-    const streamData = await youtubeAPI.getStreamData(videoId)
-
-    if (!streamData.audioFormats.length && !streamData.videoFormats.length) {
-      throw new Error("No stream formats available")
-    }
-
-    const selectedStreams = streamSelector.selectOptimalStreams(streamData.audioFormats, streamData.videoFormats, {
-      targetVideoQuality: quality === "high" ? 720 : quality === "medium" ? 480 : 144,
-      networkType: networkConditions.type,
-      settings,
-    })
-
-    console.log("[v0] Stream selection completed:", {
-      hasAudio: !!selectedStreams.audio,
-      hasVideo: !!selectedStreams.video,
-      merged: selectedStreams.merged,
-      audioQuality: selectedStreams.quality.audio,
-      videoQuality: selectedStreams.quality.video,
-    })
 
     const response = {
       videoId,
@@ -64,27 +34,16 @@ export async function GET(request: NextRequest) {
       author: streamData.author,
       viewCount: streamData.viewCount,
       streams: {
-        audio: selectedStreams.audio
-          ? {
-              url: selectedStreams.audio.url,
-              mimeType: selectedStreams.audio.mimeType,
-              bitrate: selectedStreams.audio.bitrate,
-              quality: selectedStreams.quality.audio,
-            }
-          : null,
-        video: selectedStreams.video
-          ? {
-              url: selectedStreams.video.url,
-              mimeType: selectedStreams.video.mimeType,
-              bitrate: selectedStreams.video.bitrate,
-              width: selectedStreams.video.width,
-              height: selectedStreams.video.height,
-            }
-          : null,
-        merged: selectedStreams.merged,
+        audio: {
+          url: streamData.url,
+          mimeType: "audio/mp4",
+          bitrate: quality === "high" ? 256000 : 128000,
+          quality: quality,
+        },
+        video: null,
+        merged: false,
       },
-      networkType: networkConditions.type,
-      source: "youtube_advanced",
+      source: "youtube_simple",
     }
 
     return NextResponse.json(response)
@@ -94,7 +53,7 @@ export async function GET(request: NextRequest) {
       {
         error: error.message,
         videoId: new URL(request.url).searchParams.get("videoId"),
-        source: "youtube_advanced",
+        source: "youtube_simple",
       },
       { status: 500 },
     )
