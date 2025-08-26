@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { AudioPlayer } from "@/components/audio-player"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
+import { VideoPlayer } from "@/components/video-player" // Added VideoPlayer import
 
 interface Video {
   id: string
@@ -42,6 +43,7 @@ export default function VideosPage() {
   const [playlists, setPlaylists] = useState<Array<{ id: string; name: string; videos: Video[] }>>([])
   const [hasInitialLoad, setHasInitialLoad] = useState(false)
   const [activeFilter, setActiveFilter] = useState("Hot")
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null) // Added selected video state
 
   useEffect(() => {
     const savedPlaylists = localStorage.getItem("videoPlaylists")
@@ -120,21 +122,14 @@ export default function VideosPage() {
   }
 
   const handleVideoClick = (video: Video) => {
-    const videoTrack = {
-      id: `eporner_${video.id}`,
-      title: video.title,
-      artist: "Video",
-      album: "Adult Videos",
-      duration: 0,
-      audioUrl: "",
-      videoUrl: video.url,
-      thumbnail: video.default_thumb?.src || video.thumb || "/placeholder.svg",
-      isVideo: true,
-      source: "eporner",
-    }
+    setSelectedVideo({
+      ...video,
+      embed: `https://www.eporner.com/embed/${video.id}`, // Add embed URL for iframe playback
+    })
+  }
 
-    setVideoMode(true)
-    playTrack(videoTrack)
+  const handleCloseVideo = () => {
+    setSelectedVideo(null)
   }
 
   const handleAddToPlaylist = (video: Video) => {
@@ -250,6 +245,10 @@ export default function VideosPage() {
           <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
         </div>
       </div>
+
+      {selectedVideo && (
+        <VideoPlayer video={selectedVideo} onClose={handleCloseVideo} onAddToPlaylist={handleAddToPlaylist} />
+      )}
 
       <div className="p-4 pb-20">
         {isLoading && !hasInitialLoad ? (
