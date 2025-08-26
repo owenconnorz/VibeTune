@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
-import { useDownloads } from "@/contexts/downloads-context"
 import { usePlaylist } from "@/contexts/playlist-context"
+
+const { useDownloads: useDownloadsHook } = require("@/contexts/download-context")
+const useDownloads = typeof window !== "undefined" ? useDownloadsHook : () => ({ addToDownloads: () => {} })
 
 interface Video {
   id: string
@@ -58,7 +60,8 @@ export default function VideosPage() {
 
   const { playTrack } = useAudioPlayer()
   const { isLiked, toggleLike } = useLikedSongs()
-  const { addToDownloads } = useDownloads()
+  const downloadsContext = useDownloads()
+  const addToDownloads = downloadsContext.addToDownloads || (() => {})
   const { addToPlaylist } = usePlaylist()
 
   const searchTypes = [
@@ -147,6 +150,8 @@ export default function VideosPage() {
   }
 
   const handleDownload = (video: Video) => {
+    if (!addToDownloads) return
+
     const track = {
       id: `eporner_${video.id}`,
       title: video.title,

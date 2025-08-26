@@ -3,6 +3,17 @@
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect } from "react"
 
+interface Track {
+  id: string
+  title: string
+  artist: string
+  thumbnail: string
+  duration?: string
+  audioUrl?: string
+  videoUrl?: string
+  isVideo?: boolean
+}
+
 interface DownloadContextType {
   isDownloaded: (trackId: string) => boolean
   downloadTrack: (track: any) => Promise<void>
@@ -10,6 +21,10 @@ interface DownloadContextType {
   downloadedTracks: string[]
   downloadProgress: Record<string, number>
   isDownloading: (trackId: string) => boolean
+  addToDownloads: (track: Track) => void
+  removeFromDownloads: (trackId: string) => void
+  downloads: Track[]
+  clearDownloads: () => void
 }
 
 const DownloadContext = createContext<DownloadContextType | undefined>(undefined)
@@ -17,6 +32,7 @@ const DownloadContext = createContext<DownloadContextType | undefined>(undefined
 export function DownloadProvider({ children }: { children: React.ReactNode }) {
   const [downloadedTracks, setDownloadedTracks] = useState<string[]>([])
   const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({})
+  const [downloads, setDownloads] = useState<Track[]>([])
 
   useEffect(() => {
     // Load downloaded tracks from localStorage
@@ -24,7 +40,24 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
     if (saved) {
       setDownloadedTracks(JSON.parse(saved))
     }
+
+    try {
+      const savedDownloads = localStorage.getItem("vibetuneDownloads")
+      if (savedDownloads) {
+        setDownloads(JSON.parse(savedDownloads))
+      }
+    } catch (error) {
+      console.error("Failed to load downloads from localStorage:", error)
+    }
   }, [])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("vibetuneDownloads", JSON.stringify(downloads))
+    } catch (error) {
+      console.error("Failed to save downloads to localStorage:", error)
+    }
+  }, [downloads])
 
   const isDownloaded = useCallback(
     (trackId: string) => {
@@ -91,6 +124,24 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
     [isDownloaded],
   )
 
+  const addToDownloads = useCallback((track: Track) => {
+    setDownloads((prev) => {
+      // Check if track is already downloaded
+      if (prev.some((t) => t.id === track.id)) {
+        return prev
+      }
+      return [...prev, track]
+    })
+  }, [])
+
+  const removeFromDownloads = useCallback((trackId: string) => {
+    setDownloads((prev) => prev.filter((track) => track.id !== trackId))
+  }, [])
+
+  const clearDownloads = useCallback(() => {
+    setDownloads([])
+  }, [])
+
   return (
     <DownloadContext.Provider
       value={{
@@ -100,6 +151,10 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
         downloadedTracks,
         downloadProgress,
         isDownloading,
+        addToDownloads,
+        removeFromDownloads,
+        downloads,
+        clearDownloads,
       }}
     >
       {children}
@@ -113,4 +168,8 @@ export function useDownload() {
     throw new Error("useDownload must be used within a DownloadProvider")
   }
   return context
+}
+
+export function useDownloads() {
+  return useDownload()
 }
