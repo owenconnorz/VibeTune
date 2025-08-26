@@ -26,7 +26,6 @@ import { useTheme } from "@/contexts/theme-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { CanvasBackground } from "@/components/canvas-background"
 import { ErrorBoundaryComponent } from "./error-boundary"
-import { HTML5VideoPlayer } from "@/components/html5-video-player"
 
 interface FullScreenPlayerProps {
   isOpen: boolean
@@ -182,11 +181,36 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
   }, [])
 
-  const isVideoContent =
+  const isEpornerVideo =
     state.currentTrack?.isVideo &&
     (state.currentTrack?.videoUrl ||
       state.currentTrack?.source === "eporner" ||
       state.currentTrack?.id?.startsWith("eporner_"))
+
+  const getEpornerEmbedUrl = useCallback(() => {
+    if (!state.currentTrack || !isEpornerVideo) return null
+
+    // If we have a direct embed URL, use it
+    if (state.currentTrack.videoUrl && state.currentTrack.videoUrl.includes("embed")) {
+      return state.currentTrack.videoUrl
+    }
+
+    // Extract video ID from various URL formats
+    let videoId = null
+    if (state.currentTrack.videoUrl) {
+      const urlMatch = state.currentTrack.videoUrl.match(/\/video-(\w+)\//)
+      if (urlMatch) {
+        videoId = urlMatch[1]
+      }
+    }
+
+    // Fallback to using the track ID if it's an eporner video
+    if (!videoId && state.currentTrack.id?.startsWith("eporner_")) {
+      videoId = state.currentTrack.id.replace("eporner_", "")
+    }
+
+    return videoId ? `https://www.eporner.com/embed/${videoId}` : null
+  }, [state.currentTrack, isEpornerVideo])
 
   if (!isOpen || !state.currentTrack || !colors) return null
 
@@ -214,7 +238,9 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
         <div className="flex items-center justify-center pt-8 sm:pt-12 pb-4 sm:pb-8 px-4">
           <div className="text-center">
             <h1 className="text-white text-lg sm:text-xl font-semibold">Now Playing</h1>
-            <p className="text-white/80 text-xs sm:text-sm mt-1">{state.isVideoMode ? "VIDEO MODE" : "AUDIO MODE"}</p>
+            <p className="text-white/80 text-xs sm:text-sm mt-1">
+              {isEpornerVideo ? "VIDEO MODE" : state.isVideoMode ? "VIDEO MODE" : "AUDIO MODE"}
+            </p>
           </div>
         </div>
 
@@ -224,43 +250,79 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
 
         <div className="flex justify-center px-4 sm:px-8 mb-6 sm:mb-8">
           <div className="w-full max-w-md">
-            <div className="flex justify-center mb-4 gap-2">
-              <Button
-                variant="ghost"
-                className={`${
-                  state.isVideoMode
-                    ? "text-white bg-white/20 border-white/30"
-                    : "text-white/80 bg-white/10 border-white/20"
-                } hover:text-white hover:bg-white/25 rounded-full px-6 py-2 border transition-all duration-200 flex items-center gap-2`}
-                onClick={handleToggleVideoMode}
-              >
-                {state.isVideoMode ? (
-                  <>
-                    <Video className="w-4 h-4" />
-                    <span className="text-sm font-medium">Video</span>
-                  </>
-                ) : (
-                  <>
-                    <Music className="w-4 h-4" />
-                    <span className="text-sm font-medium">Audio</span>
-                  </>
-                )}
-              </Button>
-
-              {state.isVideoMode && (
+            {!isEpornerVideo && (
+              <div className="flex justify-center mb-4 gap-2">
                 <Button
                   variant="ghost"
-                  className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full px-4 py-2 border border-white/20 transition-all duration-200 flex items-center gap-2"
-                  onClick={handleToggleFullscreen}
+                  className={`${
+                    state.isVideoMode
+                      ? "text-white bg-white/20 border-white/30"
+                      : "text-white/80 bg-white/10 border-white/20"
+                  } hover:text-white hover:bg-white/25 rounded-full px-6 py-2 border transition-all duration-200 flex items-center gap-2`}
+                  onClick={handleToggleVideoMode}
                 >
-                  <Maximize className="w-4 h-4" />
-                  <span className="text-sm font-medium">{isFullscreen ? "Exit" : "Fullscreen"}</span>
+                  {state.isVideoMode ? (
+                    <>
+                      <Video className="w-4 h-4" />
+                      <span className="text-sm font-medium">Video</span>
+                    </>
+                  ) : (
+                    <>
+                      <Music className="w-4 h-4" />
+                      <span className="text-sm font-medium">Audio</span>
+                    </>
+                  )}
                 </Button>
-              )}
-            </div>
+
+                {state.isVideoMode && (
+                  <Button
+                    variant="ghost"
+                    className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full px-4 py-2 border border-white/20 transition-all duration-200 flex items-center gap-2"
+                    onClick={handleToggleFullscreen}
+                  >
+                    <Maximize className="w-4 h-4" />
+                    <span className="text-sm font-medium">{isFullscreen ? "Exit" : "Fullscreen"}</span>
+                  </Button>
+                )}
+              </div>
+            )}
 
             <div className="relative">
-              {state.isVideoMode ? (
+              {isEpornerVideo ? (
+                <div className="relative w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-black">
+                  <ErrorBoundaryComponent
+                    fallback={
+                      <div className="w-full h-full bg-black flex items-center justify-center text-white">
+                        <div className="text-center">
+                          <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>Video unavailable</p>
+                          <p className="text-sm text-white/60 mt-2">Unable to load eporner content</p>
+                        </div>
+                      </div>
+                    }
+                  >
+                    {getEpornerEmbedUrl() ? (
+                      <iframe
+                        src={getEpornerEmbedUrl()!}
+                        className="w-full h-full border-0"
+                        allowFullScreen
+                        allow="autoplay; encrypted-media; picture-in-picture"
+                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        loading="lazy"
+                        title={state.currentTrack.title}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-black flex items-center justify-center text-white">
+                        <div className="text-center">
+                          <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>Video format not supported</p>
+                          <p className="text-sm text-white/60 mt-2">Unable to create embed URL</p>
+                        </div>
+                      </div>
+                    )}
+                  </ErrorBoundaryComponent>
+                </div>
+              ) : state.isVideoMode ? (
                 <div className="relative w-full aspect-video rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl bg-black">
                   <ErrorBoundaryComponent
                     fallback={
@@ -269,17 +331,9 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                       </div>
                     }
                   >
-                    {isVideoContent && state.currentTrack.videoUrl ? (
-                      <HTML5VideoPlayer
-                        videoUrl={state.currentTrack.videoUrl}
-                        showVideo={true}
-                        onError={(error) => console.error("[v0] HTML5 video error:", error)}
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-black flex items-center justify-center text-white">
-                        <p>Video format not supported</p>
-                      </div>
-                    )}
+                    <div className="w-full h-full bg-black flex items-center justify-center text-white">
+                      <p>Video format not supported</p>
+                    </div>
                   </ErrorBoundaryComponent>
                 </div>
               ) : (
@@ -313,6 +367,12 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                 {state.currentTrack.title}
               </h2>
               <p className="text-white/80 text-base sm:text-lg truncate">{state.currentTrack.artist}</p>
+              {isEpornerVideo && (
+                <p className="text-yellow-400 text-sm mt-1 flex items-center gap-1">
+                  <Video className="w-4 h-4" />
+                  Adult Video Content
+                </p>
+              )}
             </div>
             <div className="flex gap-2 sm:gap-3 flex-shrink-0">
               <Button
@@ -338,24 +398,26 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
           </div>
         </div>
 
-        <div className="px-4 sm:px-8 mb-6 sm:mb-6">
-          <div className="relative">
-            <Slider
-              value={[progressPercentage]}
-              onValueChange={(value) => {
-                const newTime = (value[0] / 100) * state.duration
-                seekTo(newTime)
-              }}
-              max={100}
-              step={0.1}
-              className="w-full [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 sm:[&_[role=slider]]:h-5 sm:[&_[role=slider]]:w-5"
-            />
+        {!isEpornerVideo && (
+          <div className="px-4 sm:px-8 mb-6 sm:mb-6">
+            <div className="relative">
+              <Slider
+                value={[progressPercentage]}
+                onValueChange={(value) => {
+                  const newTime = (value[0] / 100) * state.duration
+                  seekTo(newTime)
+                }}
+                max={100}
+                step={0.1}
+                className="w-full [&_[role=slider]]:h-4 [&_[role=slider]]:w-4 sm:[&_[role=slider]]:h-5 sm:[&_[role=slider]]:w-5"
+              />
+            </div>
+            <div className="flex justify-between mt-2">
+              <span className="text-white/60 text-sm">{formatTime(state.currentTime)}</span>
+              <span className="text-white/60 text-sm">{formatTime(state.duration)}</span>
+            </div>
           </div>
-          <div className="flex justify-between mt-2">
-            <span className="text-white/60 text-sm">{formatTime(state.currentTime)}</span>
-            <span className="text-white/60 text-sm">{formatTime(state.duration)}</span>
-          </div>
-        </div>
+        )}
 
         <div className="flex items-center justify-center gap-4 sm:gap-6 px-4 sm:px-8 mb-6 sm:mb-8">
           <Button
@@ -368,21 +430,23 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
             <SkipBack className="w-5 h-5 sm:w-6 sm:h-6" />
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-white hover:text-white bg-white/20 hover:bg-white/30 rounded-full w-16 h-16 sm:w-20 sm:h-20"
-            onClick={togglePlay}
-            disabled={state.isLoading}
-          >
-            {state.isLoading ? (
-              <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : state.isPlaying ? (
-              <Pause className="w-6 h-6 sm:w-8 sm:h-8" />
-            ) : (
-              <Play className="w-6 h-6 sm:w-8 sm:h-8" />
-            )}
-          </Button>
+          {!isEpornerVideo && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-white hover:text-white bg-white/20 hover:bg-white/30 rounded-full w-16 h-16 sm:w-20 sm:h-20"
+              onClick={togglePlay}
+              disabled={state.isLoading}
+            >
+              {state.isLoading ? (
+                <div className="w-6 h-6 sm:w-8 sm:h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : state.isPlaying ? (
+                <Pause className="w-6 h-6 sm:w-8 sm:h-8" />
+              ) : (
+                <Play className="w-6 h-6 sm:w-8 sm:h-8" />
+              )}
+            </Button>
+          )}
 
           <Button
             variant="ghost"

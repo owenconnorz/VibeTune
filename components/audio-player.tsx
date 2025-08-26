@@ -9,7 +9,6 @@ import { useTheme } from "@/contexts/theme-context"
 import { useState, useCallback } from "react"
 import { FullScreenPlayer } from "./full-screen-player"
 import { ThumbnailImage } from "./optimized-image"
-import { ErrorBoundaryComponent } from "./error-boundary"
 
 export function AudioPlayer() {
   const { state, togglePlay, nextTrack, previousTrack, seekTo, setVolume } = useAudioPlayer()
@@ -124,12 +123,6 @@ export function AudioPlayer() {
 
   return (
     <>
-      {state.currentTrack && !isEpornerVideo && (
-        <div className="fixed -top-[9999px] -left-[9999px] w-1 h-1 overflow-hidden opacity-0 pointer-events-none">
-          <ErrorBoundaryComponent fallback={null}></ErrorBoundaryComponent>
-        </div>
-      )}
-
       <div className="fixed bottom-20 left-4 right-4 z-50">
         <div
           className="bg-zinc-900/95 backdrop-blur-md rounded-full border border-zinc-700/50 shadow-2xl overflow-hidden transition-transform duration-200 ease-out"
@@ -138,15 +131,17 @@ export function AudioPlayer() {
             opacity: isAnimating && Math.abs(swipeOffset) > 100 ? 0.7 : 1,
           }}
         >
-          <div className="w-full bg-black/20 h-0.5">
-            <div
-              className="h-full transition-all duration-300"
-              style={{
-                width: `${progressPercentage}%`,
-                backgroundColor: colors.accent || "#facc15",
-              }}
-            />
-          </div>
+          {!isEpornerVideo && (
+            <div className="w-full bg-black/20 h-0.5">
+              <div
+                className="h-full transition-all duration-300"
+                style={{
+                  width: `${progressPercentage}%`,
+                  backgroundColor: colors.accent || "#facc15",
+                }}
+              />
+            </div>
+          )}
 
           <div
             className="flex items-center gap-3 px-4 py-3"
@@ -159,7 +154,7 @@ export function AudioPlayer() {
               <ThumbnailImage
                 key={state.currentTrack.id}
                 src={getAlbumArtwork(state.currentTrack) || "/placeholder.svg"}
-                alt={`${state.currentTrack.title} album cover`}
+                alt={`${state.currentTrack.title} ${isEpornerVideo ? "video" : "album cover"}`}
                 size={48}
                 className="rounded-full shadow-lg border-2 border-white/10 object-cover"
                 priority={true}
@@ -169,24 +164,36 @@ export function AudioPlayer() {
             <div className="flex-1 min-w-0 cursor-pointer text-center" onClick={() => setIsFullScreenOpen(true)}>
               <h3 className="text-white font-semibold truncate text-sm">{state.currentTrack.title}</h3>
               <p className="text-white/70 text-xs truncate">{state.currentTrack.artist}</p>
+              {isEpornerVideo && <p className="text-yellow-400 text-xs">📹 Video</p>}
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:text-white/80 hover:bg-white/10 w-10 h-10 rounded-full"
-                onClick={togglePlay}
-                disabled={state.isLoading}
-              >
-                {state.isLoading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : state.isPlaying ? (
-                  <Pause className="w-4 h-4" />
-                ) : (
+              {!isEpornerVideo ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:text-white/80 hover:bg-white/10 w-10 h-10 rounded-full"
+                  onClick={togglePlay}
+                  disabled={state.isLoading}
+                >
+                  {state.isLoading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : state.isPlaying ? (
+                    <Pause className="w-4 h-4" />
+                  ) : (
+                    <Play className="w-4 h-4" />
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:text-white/80 hover:bg-white/10 w-10 h-10 rounded-full"
+                  onClick={() => setIsFullScreenOpen(true)}
+                >
                   <Play className="w-4 h-4" />
-                )}
-              </Button>
+                </Button>
+              )}
 
               <Button
                 variant="ghost"
