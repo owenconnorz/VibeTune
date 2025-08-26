@@ -208,12 +208,6 @@ export function MP4Player({ videoUrl, onReady, onError, showVideo = false }: MP4
         playsInline
       />
 
-      {isLoading && isVideoMode && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
-          <div className="text-white">Loading video...</div>
-        </div>
-      )}
-
       {isVideoMode && showControls && !isLoading && !hasError && (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4 rounded-b-lg">
           <div className="flex items-center justify-between text-white">

@@ -329,37 +329,22 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                     }
                   >
                     {getEpornerEmbedUrl() ? (
-                      <>
-                        <div className="absolute inset-0 bg-black flex items-center justify-center text-white z-10">
-                          <div className="text-center">
-                            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                            <p className="text-sm">Loading video...</p>
-                          </div>
-                        </div>
-                        <iframe
-                          src={getEpornerEmbedUrl()!}
-                          className="w-full h-full border-0 relative z-20"
-                          allowFullScreen
-                          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                          sandbox="allow-scripts allow-same-origin allow-presentation allow-forms allow-popups"
-                          loading="eager"
-                          title={state.currentTrack.title}
-                          referrerPolicy="no-referrer"
-                          onLoad={() => {
-                            console.log("[v0] Eporner iframe loaded successfully")
-                            // Hide loading indicator
-                            const loadingDiv = document.querySelector(
-                              ".absolute.inset-0.bg-black.flex.items-center.justify-center.text-white.z-10",
-                            ) as HTMLElement
-                            if (loadingDiv) {
-                              loadingDiv.style.display = "none"
-                            }
-                          }}
-                          onError={(e) => {
-                            console.error("[v0] Eporner iframe failed to load:", e)
-                          }}
-                        />
-                      </>
+                      <iframe
+                        src={getEpornerEmbedUrl()!}
+                        className="w-full h-full border-0 relative z-20"
+                        allowFullScreen
+                        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                        sandbox="allow-scripts allow-same-origin allow-presentation allow-forms allow-popups"
+                        loading="eager"
+                        title={state.currentTrack.title}
+                        referrerPolicy="no-referrer"
+                        onLoad={() => {
+                          console.log("[v0] Eporner iframe loaded successfully")
+                        }}
+                        onError={(e) => {
+                          console.error("[v0] Eporner iframe failed to load:", e)
+                        }}
+                      />
                     ) : (
                       <div className="w-full h-full bg-black flex items-center justify-center text-white">
                         <div className="text-center">

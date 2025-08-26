@@ -125,13 +125,6 @@ export function VideoPlayer({ video, onClose, onAddToPlaylist }: VideoPlayerProp
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        {isLoading && (
-          <div className="text-white text-xl flex items-center gap-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-            Loading video...
-          </div>
-        )}
-
         {!isLoading && useIframe && video.embed && (
           <div className="w-full max-w-4xl aspect-video">
             <iframe
