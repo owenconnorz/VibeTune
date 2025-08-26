@@ -315,7 +315,7 @@ export default function LibraryPage() {
           )}
         </button>
         <button className="text-gray-300 hover:text-white font-medium text-sm">Downloaded</button>
-        {settings.showAdultContent && (
+        {settings?.showAdultContent && (
           <button
             className="text-gray-300 hover:text-white font-medium text-sm relative"
             onClick={() => router.push("/library/videos")}
