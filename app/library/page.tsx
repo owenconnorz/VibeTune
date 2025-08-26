@@ -2,20 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import {
-  User,
-  Heart,
-  CheckCircle,
-  Play,
-  Plus,
-  Search,
-  Trash2,
-  Music,
-  Settings,
-  Home,
-  Compass,
-  Library,
-} from "lucide-react"
+import { User, Heart, CheckCircle, Play, Plus, Search, Trash2, Music, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -538,25 +525,6 @@ export default function LibraryPage() {
       </div>
 
       <AudioPlayer />
-
-      <nav className="fixed bottom-0 left-0 right-0 bg-zinc-800 border-t border-zinc-700">
-        <div className="flex items-center justify-around py-1">
-          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={() => router.push("/")}>
-            <Home className="w-5 h-5 text-gray-400 mb-0.5" />
-            <span className="text-[10px] text-gray-400">Home</span>
-          </div>
-          <div className="flex flex-col items-center py-1 px-3">
-            <Compass className="w-5 h-5 text-gray-400 mb-0.5" />
-            <span className="text-[10px] text-gray-400">Explore</span>
-          </div>
-          <div className="flex flex-col items-center py-1 px-3">
-            <div className="bg-yellow-600 rounded-full p-1.5 mb-0.5">
-              <Library className="w-4 h-4 text-black" />
-            </div>
-            <span className="text-[10px] text-white font-medium">Library</span>
-          </div>
-        </div>
-      </nav>
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Search, Home, Compass, Library, Settings } from "lucide-react"
+import { Search, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AudioPlayer } from "@/components/audio-player"
@@ -17,6 +17,7 @@ import { SongSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { useRouter } from "next/navigation"
 import { OptimizedImage } from "@/components/optimized-image"
 import { prefetchGenreData, prefetchPopularGenres } from "@/lib/genre-prefetch"
+import { NavigationRouter } from "@/components/navigation-router"
 
 const MemoizedSongItem = React.memo(({ song, onPlay, trendingSongs }: any) => (
   <div
@@ -803,39 +804,7 @@ export default function VibeTunePage() {
       <AudioPlayer />
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-zinc-800 border-t border-zinc-700">
-        <div className="flex items-center justify-around py-1">
-          <div className="flex flex-col items-center py-1 px-3">
-            <div className="bg-yellow-600 rounded-full p-1.5 mb-0.5">
-              <Home className="w-4 h-4 text-black" />
-            </div>
-            <span className="text-[10px] text-white font-medium">Home</span>
-          </div>
-          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleExploreClick}>
-            <Compass className="w-5 h-5 text-gray-400 mb-0.5" />
-            <span className="text-[10px] text-gray-400">Explore</span>
-          </div>
-          {adultContentEnabled && (
-            <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleVideosClick}>
-              <div className="w-5 h-5 text-gray-400 mb-0.5 flex items-center justify-center">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2 6a2 2 0 012-2h6l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V2zM5 8a1 1 0 000 2h8a1 1 0 100-2H5z" />
-                </svg>
-              </div>
-              <span className="text-[10px] text-gray-400">Videos</span>
-            </div>
-          )}
-          <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={handleLibraryClick}>
-            <div className="relative">
-              <Library className="w-5 h-5 text-gray-400 mb-0.5" />
-              {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
-                <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-yellow-400 rounded-full"></div>
-              )}
-            </div>
-            <span className="text-[10px] text-gray-400">Library</span>
-          </div>
-        </div>
-      </nav>
+      <NavigationRouter />
     </div>
   )
 }
