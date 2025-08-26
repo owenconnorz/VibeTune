@@ -29,6 +29,7 @@ import { useDownload } from "@/contexts/download-context"
 import { DownloadManager } from "@/components/download-manager"
 import { SongMenu } from "@/components/song-menu"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
+import { useSettings } from "@/contexts/settings-context" // Added settings context for adult content check
 
 export default function LibraryPage() {
   const { user } = useAuth()
@@ -37,6 +38,7 @@ export default function LibraryPage() {
   const { playlists: localPlaylists, createPlaylist, deletePlaylist } = usePlaylist()
   const { downloadedSongs } = useDownload()
   const { state, playTrack, playQueue } = useAudioPlayer()
+  const { settings } = useSettings() // Added settings for adult content check
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<"playlists" | "songs" | "albums" | "artists" | "downloads">("playlists")
   const [searchQuery, setSearchQuery] = useState("")
@@ -253,6 +255,14 @@ export default function LibraryPage() {
     }
   }
 
+  const videoCount = localPlaylists.reduce((count, playlist) => {
+    return (
+      count +
+      playlist.songs.filter((song) => song.isVideo || song.source === "eporner" || song.id?.startsWith("eporner_"))
+        .length
+    )
+  }, 0)
+
   return (
     <div className="min-h-screen bg-zinc-900 text-white">
       <header className="flex items-center justify-between px-4 py-2 bg-zinc-800">
@@ -305,6 +315,19 @@ export default function LibraryPage() {
           )}
         </button>
         <button className="text-gray-300 hover:text-white font-medium text-sm">Downloaded</button>
+        {settings.showAdultContent && (
+          <button
+            className="text-gray-300 hover:text-white font-medium text-sm relative"
+            onClick={() => router.push("/library/videos")}
+          >
+            Videos
+            {videoCount > 0 && (
+              <span className="absolute -top-1 -right-2 bg-purple-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
+                {videoCount > 99 ? "99+" : videoCount}
+              </span>
+            )}
+          </button>
+        )}
       </nav>
 
       <div className="flex items-center justify-between px-6 py-4 bg-zinc-900 border-b border-zinc-800">
