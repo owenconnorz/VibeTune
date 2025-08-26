@@ -32,11 +32,11 @@ export default function VideosLibraryPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
 
   useEffect(() => {
-    if (!settings.showAdultContent) {
+    if (settings && !settings.showAdultContent) {
       router.push("/library")
       return
     }
-  }, [settings.showAdultContent, router])
+  }, [settings, router])
 
   useEffect(() => {
     const allVideoTracks: VideoTrack[] = []
@@ -97,7 +97,7 @@ export default function VideosLibraryPage() {
       ? videoTracks
       : videoTracks.filter((video) => video.playlistIds.includes(selectedCategory))
 
-  if (!settings.showAdultContent) {
+  if (!settings?.showAdultContent) {
     return null
   }
 
