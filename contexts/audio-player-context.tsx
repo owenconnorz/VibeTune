@@ -599,11 +599,28 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const playTrack = (track: Track) => {
     dispatch({ type: "SET_QUEUE", payload: { tracks: [track], startIndex: 0 } })
     dispatch({ type: "PLAY" })
+
+    if (track.isVideo || track.videoUrl) {
+      console.log("[v0] Auto-enabling video mode for video track:", track.title)
+      setVideoMode(true)
+    } else {
+      console.log("[v0] Disabling video mode for audio track:", track.title)
+      setVideoMode(false)
+    }
   }
 
   const playQueue = (tracks: Track[], startIndex = 0) => {
     dispatch({ type: "SET_QUEUE", payload: { tracks, startIndex } })
     dispatch({ type: "PLAY" })
+
+    const startingTrack = tracks[startIndex]
+    if (startingTrack && (startingTrack.isVideo || startingTrack.videoUrl)) {
+      console.log("[v0] Auto-enabling video mode for video queue:", startingTrack.title)
+      setVideoMode(true)
+    } else {
+      console.log("[v0] Disabling video mode for audio queue")
+      setVideoMode(false)
+    }
   }
 
   const togglePlay = () => {
@@ -657,6 +674,16 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const setGaplessPlayback = (enabled: boolean) => {
     dispatch({ type: "SET_GAPLESS_PLAYBACK", payload: enabled })
   }
+
+  useEffect(() => {
+    if (state.currentTrack) {
+      const shouldBeVideoMode = !!(state.currentTrack.isVideo || state.currentTrack.videoUrl)
+      if (shouldBeVideoMode !== state.isVideoMode) {
+        console.log("[v0] Auto-switching video mode to:", shouldBeVideoMode, "for track:", state.currentTrack.title)
+        setVideoMode(shouldBeVideoMode)
+      }
+    }
+  }, [state.currentTrack, state.isVideoMode, setVideoMode])
 
   useEffect(() => {
     setupAudioEventHandlers()
