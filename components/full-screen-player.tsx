@@ -190,33 +190,53 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
   const getEpornerEmbedUrl = useCallback(() => {
     if (!state.currentTrack || !isEpornerVideo) return null
 
-    if (state.currentTrack.videoUrl && state.currentTrack.videoUrl.includes("eporner.com/embed/")) {
-      return state.currentTrack.videoUrl
-    }
+    console.log("[v0] Getting eporner embed URL for track:", state.currentTrack)
 
-    // Extract video ID from various URL formats and create embed URL
-    let videoId = null
-
-    // Try to extract from embed URL
     if (state.currentTrack.videoUrl) {
-      const embedMatch = state.currentTrack.videoUrl.match(/\/embed\/(\w+)/)
-      if (embedMatch) {
-        return state.currentTrack.videoUrl // Already an embed URL
+      console.log("[v0] Original video URL:", state.currentTrack.videoUrl)
+
+      // If it's already an embed URL, use it directly
+      if (state.currentTrack.videoUrl.includes("eporner.com/embed/")) {
+        console.log("[v0] Using existing embed URL:", state.currentTrack.videoUrl)
+        return state.currentTrack.videoUrl
       }
 
-      // Try to extract from video page URL
-      const urlMatch = state.currentTrack.videoUrl.match(/\/video-(\w+)\//)
-      if (urlMatch) {
-        videoId = urlMatch[1]
+      // Try to extract video ID from various URL formats
+      let videoId = null
+
+      // Extract from video page URL (e.g., https://www.eporner.com/video-abc123/title)
+      const videoMatch = state.currentTrack.videoUrl.match(/\/video-([^/]+)\//)
+      if (videoMatch) {
+        videoId = videoMatch[1]
+        console.log("[v0] Extracted video ID from video URL:", videoId)
+      }
+
+      // Extract from direct eporner URLs
+      if (!videoId) {
+        const idMatch = state.currentTrack.videoUrl.match(/eporner\.com\/.*?([a-zA-Z0-9]{8,})/)
+        if (idMatch) {
+          videoId = idMatch[1]
+          console.log("[v0] Extracted video ID from general URL:", videoId)
+        }
+      }
+
+      if (videoId) {
+        const embedUrl = `https://www.eporner.com/embed/${videoId}`
+        console.log("[v0] Generated embed URL:", embedUrl)
+        return embedUrl
       }
     }
 
     // Fallback to using the track ID if it's an eporner video
-    if (!videoId && state.currentTrack.id?.startsWith("eporner_")) {
-      videoId = state.currentTrack.id.replace("eporner_", "")
+    if (state.currentTrack.id?.startsWith("eporner_")) {
+      const videoId = state.currentTrack.id.replace("eporner_", "")
+      const embedUrl = `https://www.eporner.com/embed/${videoId}`
+      console.log("[v0] Using track ID for embed URL:", embedUrl)
+      return embedUrl
     }
 
-    return videoId ? `https://www.eporner.com/embed/${videoId}` : null
+    console.log("[v0] Could not generate embed URL for track")
+    return null
   }, [state.currentTrack, isEpornerVideo])
 
   if (!isOpen || !state.currentTrack || !colors) return null
@@ -309,16 +329,37 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                     }
                   >
                     {getEpornerEmbedUrl() ? (
-                      <iframe
-                        src={getEpornerEmbedUrl()!}
-                        className="w-full h-full border-0"
-                        allowFullScreen
-                        allow="autoplay; encrypted-media; picture-in-picture"
-                        sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
-                        loading="lazy"
-                        title={state.currentTrack.title}
-                        referrerPolicy="no-referrer-when-downgrade"
-                      />
+                      <>
+                        <div className="absolute inset-0 bg-black flex items-center justify-center text-white z-10">
+                          <div className="text-center">
+                            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                            <p className="text-sm">Loading video...</p>
+                          </div>
+                        </div>
+                        <iframe
+                          src={getEpornerEmbedUrl()!}
+                          className="w-full h-full border-0 relative z-20"
+                          allowFullScreen
+                          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                          sandbox="allow-scripts allow-same-origin allow-presentation allow-forms allow-popups"
+                          loading="eager"
+                          title={state.currentTrack.title}
+                          referrerPolicy="no-referrer"
+                          onLoad={() => {
+                            console.log("[v0] Eporner iframe loaded successfully")
+                            // Hide loading indicator
+                            const loadingDiv = document.querySelector(
+                              ".absolute.inset-0.bg-black.flex.items-center.justify-center.text-white.z-10",
+                            ) as HTMLElement
+                            if (loadingDiv) {
+                              loadingDiv.style.display = "none"
+                            }
+                          }}
+                          onError={(e) => {
+                            console.error("[v0] Eporner iframe failed to load:", e)
+                          }}
+                        />
+                      </>
                     ) : (
                       <div className="w-full h-full bg-black flex items-center justify-center text-white">
                         <div className="text-center">
@@ -326,6 +367,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                           <p>Video format not supported</p>
                           <p className="text-sm text-white/60 mt-2">Unable to create embed URL</p>
                           <p className="text-xs text-white/40 mt-1">Video ID: {state.currentTrack.id}</p>
+                          <p className="text-xs text-white/40 mt-1">URL: {state.currentTrack.videoUrl}</p>
                         </div>
                       </div>
                     )}
