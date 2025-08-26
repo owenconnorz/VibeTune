@@ -29,12 +29,46 @@ class YouTubeMusicAPI {
       url.searchParams.append(key, value)
     })
 
-    const response = await fetch(url.toString())
-    if (!response.ok) {
-      throw new Error(`YouTube API error: ${response.statusText}`)
-    }
+    console.log("[v0] YouTube API request:", url.toString())
 
-    return response.json()
+    try {
+      const response = await fetch(url.toString())
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("[v0] YouTube API error response:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+        })
+
+        // Parse error details if available
+        try {
+          const errorData = JSON.parse(errorText)
+          if (errorData.error) {
+            throw new Error(`YouTube API error: ${errorData.error.message || response.statusText} (${response.status})`)
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, use the raw error text
+          throw new Error(`YouTube API error: ${response.statusText} (${response.status}): ${errorText}`)
+        }
+      }
+
+      const data = await response.json()
+      console.log("[v0] YouTube API response success:", {
+        endpoint,
+        itemCount: data.items?.length || 0,
+      })
+
+      return data
+    } catch (error) {
+      console.error("[v0] YouTube API request failed:", {
+        endpoint,
+        params,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      throw error
+    }
   }
 
   private formatDuration(duration: string): string {
@@ -68,6 +102,8 @@ class YouTubeMusicAPI {
 
   async search(query: string, maxResults = 25): Promise<YouTubeSearchResponse> {
     try {
+      console.log("[v0] YouTube API search starting:", { query, maxResults })
+
       // Search for videos
       const searchResponse = await this.makeRequest("search", {
         part: "snippet",
@@ -79,30 +115,40 @@ class YouTubeMusicAPI {
       })
 
       if (!searchResponse.items?.length) {
+        console.log("[v0] YouTube API search: No items found")
         return { videos: [] }
       }
 
       // Get video details including duration
       const videoIds = searchResponse.items.map((item: any) => item.id.videoId).join(",")
+      console.log("[v0] YouTube API: Fetching details for video IDs:", videoIds)
+
       const detailsResponse = await this.makeRequest("videos", {
         part: "snippet,contentDetails,statistics",
         id: videoIds,
       })
 
       const videos = detailsResponse.items.map((item: any) => this.parseVideo(item))
+      console.log("[v0] YouTube API search completed:", { resultCount: videos.length })
 
       return {
         videos,
         nextPageToken: searchResponse.nextPageToken,
       }
     } catch (error) {
-      console.error("YouTube Music API search error:", error)
+      console.error("[v0] YouTube Music API search error:", {
+        query,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       return { videos: [] }
     }
   }
 
   async getTrending(maxResults = 25): Promise<YouTubeSearchResponse> {
     try {
+      console.log("[v0] YouTube API trending starting:", { maxResults })
+
       const response = await this.makeRequest("videos", {
         part: "snippet,contentDetails,statistics",
         chart: "mostPopular",
@@ -112,14 +158,19 @@ class YouTubeMusicAPI {
       })
 
       if (!response.items?.length) {
+        console.log("[v0] YouTube API trending: No items found")
         return { videos: [] }
       }
 
       const videos = response.items.map((item: any) => this.parseVideo(item))
+      console.log("[v0] YouTube API trending completed:", { resultCount: videos.length })
 
       return { videos }
     } catch (error) {
-      console.error("YouTube Music API trending error:", error)
+      console.error("[v0] YouTube Music API trending error:", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       return { videos: [] }
     }
   }
@@ -137,7 +188,11 @@ class YouTubeMusicAPI {
 
       return this.parseVideo(response.items[0])
     } catch (error) {
-      console.error("YouTube Music API video details error:", error)
+      console.error("YouTube Music API video details error:", {
+        videoId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      })
       return null
     }
   }
