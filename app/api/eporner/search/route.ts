@@ -1,5 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
 
+interface EpornerSearchParams {
+  query?: string
+  page?: string
+  per_page?: string
+  order?: "latest" | "longest" | "shortest" | "top-weekly" | "top-monthly" | "top-alltime"
+  gay?: "0" | "1" | "2" // 0=straight, 1=gay, 2=all
+  lq?: "0" | "1" // low quality flag
+  format?: "json"
+  thumbsize?: "small" | "medium" | "big"
+  category?: string
+  duration?: "longest" | "shortest"
+  section?: "etero" | "gay" | string
+  searchType?: "1" | "2" | "3" | "4" | "5" | "6" // 1=category, 2=keyword, 3=duration, 4=section, 5=home, 6=trending
+}
+
 async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -25,12 +40,24 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const query = searchParams.get("query") || ""
-  const page = searchParams.get("page") || "1"
-  const per_page = searchParams.get("per_page") || "20"
+
+  const params: EpornerSearchParams = {
+    query: searchParams.get("query") || "",
+    page: searchParams.get("page") || "1",
+    per_page: searchParams.get("per_page") || "30",
+    order: (searchParams.get("order") as any) || "latest",
+    gay: (searchParams.get("gay") as any) || "0",
+    lq: (searchParams.get("lq") as any) || "0",
+    format: "json",
+    thumbsize: (searchParams.get("thumbsize") as any) || "big",
+    category: searchParams.get("category") || "",
+    duration: (searchParams.get("duration") as any) || "",
+    section: searchParams.get("section") || "",
+    searchType: (searchParams.get("searchType") as any) || "2",
+  }
 
   try {
-    console.log("[v0] Fetching from eporner API:", { query, page, per_page })
+    console.log("[v0] Fetching from eporner API with enhanced params:", params)
 
     const endpoints = ["https://www.eporner.com/api/v2/video/search/", "https://eporner.com/api/v2/video/search/"]
 
@@ -40,14 +67,79 @@ export async function GET(request: NextRequest) {
     for (const baseUrl of endpoints) {
       try {
         const apiUrl = new URL(baseUrl)
-        apiUrl.searchParams.set("query", query)
-        apiUrl.searchParams.set("per_page", per_page)
-        apiUrl.searchParams.set("page", page)
-        apiUrl.searchParams.set("thumbsize", "big")
-        apiUrl.searchParams.set("order", "latest")
-        apiUrl.searchParams.set("gay", "0")
-        apiUrl.searchParams.set("lq", "0")
+
+        switch (params.searchType) {
+          case "1": // Category search
+            if (params.category) {
+              apiUrl.searchParams.set("query", params.category)
+            }
+            apiUrl.searchParams.set("page", params.page!)
+            apiUrl.searchParams.set("lq", "1")
+            apiUrl.searchParams.set("per_page", params.per_page!)
+            break
+
+          case "2": // Keyword search (default)
+            if (params.query) {
+              apiUrl.searchParams.set("query", params.query)
+            }
+            apiUrl.searchParams.set("page", params.page!)
+            apiUrl.searchParams.set("order", "latest")
+            apiUrl.searchParams.set("per_page", params.per_page!)
+            break
+
+          case "3": // Duration search
+            apiUrl.searchParams.set("page", params.page!)
+            apiUrl.searchParams.set("order", params.duration || "longest")
+            apiUrl.searchParams.set("lq", "0")
+            apiUrl.searchParams.set("per_page", params.per_page!)
+            break
+
+          case "4": // Section search
+            apiUrl.searchParams.set("page", params.page!)
+            apiUrl.searchParams.set("per_page", params.per_page!)
+            if (params.section === "etero") {
+              apiUrl.searchParams.set("order", "latest")
+              apiUrl.searchParams.set("lq", "0")
+              apiUrl.searchParams.set("gay", "0")
+            } else if (params.section === "gay") {
+              apiUrl.searchParams.set("lq", "1")
+              apiUrl.searchParams.set("gay", "2")
+            } else if (params.section) {
+              apiUrl.searchParams.set("lq", "1")
+              apiUrl.searchParams.set("query", params.section)
+            }
+            break
+
+          case "5": // Home/Latest
+            apiUrl.searchParams.set("page", params.page!)
+            apiUrl.searchParams.set("lq", "0")
+            apiUrl.searchParams.set("per_page", params.per_page!)
+            break
+
+          case "6": // Trending
+            apiUrl.searchParams.set("page", params.page!)
+            apiUrl.searchParams.set("order", "top-weekly")
+            apiUrl.searchParams.set("lq", "0")
+            apiUrl.searchParams.set("per_page", params.per_page!)
+            break
+
+          default: // Fallback to keyword search
+            if (params.query) {
+              apiUrl.searchParams.set("query", params.query)
+            }
+            apiUrl.searchParams.set("page", params.page!)
+            apiUrl.searchParams.set("order", params.order!)
+            apiUrl.searchParams.set("per_page", params.per_page!)
+        }
+
         apiUrl.searchParams.set("format", "json")
+        apiUrl.searchParams.set("thumbsize", params.thumbsize!)
+        if (!apiUrl.searchParams.has("gay")) {
+          apiUrl.searchParams.set("gay", params.gay!)
+        }
+        if (!apiUrl.searchParams.has("lq")) {
+          apiUrl.searchParams.set("lq", params.lq!)
+        }
 
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 8000)
@@ -94,24 +186,38 @@ export async function GET(request: NextRequest) {
         const videoId = video.id
         const directVideoUrl = `https://www.eporner.com/video-${videoId}/`
 
-        // Try to get actual video file URLs from different sources
         let videoFileUrl = directVideoUrl
         if (video.src && typeof video.src === "object") {
           videoFileUrl = video.src["720"] || video.src["480"] || video.src["360"] || directVideoUrl
         }
 
+        const thumbs = []
+        if (video.default_thumb?.src) {
+          const baseThumb = video.default_thumb.src
+          for (let i = 1; i <= 15; i++) {
+            thumbs.push({
+              src: baseThumb.replace(/1_/, `${i}_`),
+              width: video.default_thumb.width || 640,
+              height: video.default_thumb.height || 360,
+            })
+          }
+        }
+
         return {
           id: video.id,
           title: video.title || "Untitled Video",
-          url: directVideoUrl, // Keep original URL for page navigation
-          videoUrl: videoFileUrl, // Direct video file URL for player
+          url: directVideoUrl,
+          videoUrl: videoFileUrl,
+          embed: video.embed || directVideoUrl,
           thumb: video.default_thumb?.src || video.thumb || "/video-thumbnail.png",
           default_thumb: {
             src: video.default_thumb?.src || video.thumb || "/video-thumbnail.png",
             width: video.default_thumb?.width || 640,
             height: video.default_thumb?.height || 360,
           },
-          length_min: Math.floor((video.length_sec || 0) / 60).toString(), // Convert seconds to minutes string
+          thumbs: thumbs,
+          length_min: video.length_min || Math.floor((video.length_sec || 0) / 60).toString(),
+          length_sec: video.length_sec || 0,
           views: video.views || 0,
           rate: typeof video.rate === "number" ? video.rate : 0,
           added: video.added || new Date().toISOString(),
@@ -122,6 +228,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         ...data,
         videos: processedVideos,
+        searchType: params.searchType,
+        currentPage: Number.parseInt(params.page!),
+        hasNextPage: processedVideos.length === Number.parseInt(params.per_page!),
       })
     }
 
@@ -140,7 +249,7 @@ export async function GET(request: NextRequest) {
           width: 640,
           height: 360,
         },
-        length_min: "9", // 596 seconds = ~9 minutes
+        length_min: "9",
         views: 125000,
         rate: 4.2,
         added: new Date().toISOString(),
@@ -156,7 +265,7 @@ export async function GET(request: NextRequest) {
           width: 640,
           height: 360,
         },
-        length_min: "10", // 653 seconds = ~10 minutes
+        length_min: "10",
         views: 89000,
         rate: 3.8,
         added: new Date().toISOString(),
@@ -172,7 +281,7 @@ export async function GET(request: NextRequest) {
           width: 640,
           height: 360,
         },
-        length_min: "0", // 15 seconds = 0 minutes
+        length_min: "0",
         views: 67000,
         rate: 4.5,
         added: new Date().toISOString(),
