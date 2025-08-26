@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useMemo, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Play, Heart, Edit, Trash2, Music, Download, Camera } from "lucide-react"
+import { ArrowLeft, Play, Heart, Edit, Trash2, Music, Download, Camera, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -63,6 +63,8 @@ const VirtualizedSongList = ({
                 return null
               }
 
+              const isVideo = song.isVideo || song.source === "eporner" || song.id?.startsWith("eporner_")
+
               return (
                 <div
                   key={`${song.id}-${actualIndex}`}
@@ -71,7 +73,7 @@ const VirtualizedSongList = ({
                   onClick={() => onPlaySong(song, songs)}
                 >
                   <div className="w-4 text-gray-500 text-sm">{actualIndex + 1}</div>
-                  <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div className="w-12 h-12 bg-zinc-700 rounded flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                     {song.thumbnail ? (
                       <img
                         src={song.thumbnail || "/placeholder.svg"}
@@ -79,13 +81,22 @@ const VirtualizedSongList = ({
                         className="w-full h-full object-cover"
                         loading="lazy"
                       />
+                    ) : isVideo ? (
+                      <Video className="w-6 h-6 text-gray-400" />
                     ) : (
                       <Music className="w-6 h-6 text-gray-400" />
+                    )}
+                    {isVideo && (
+                      <div className="absolute bottom-0 right-0 bg-black/70 text-white text-xs px-1 rounded-tl">
+                        <Video className="w-3 h-3" />
+                      </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-white font-medium truncate">{song.title || "Unknown Title"}</h3>
-                    <p className="text-gray-400 text-sm truncate">{song.artist || "Unknown Artist"}</p>
+                    <p className="text-gray-400 text-sm truncate">
+                      {isVideo ? "Adult Video" : song.artist || "Unknown Artist"}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     {song.duration && <span className="text-gray-500 text-sm">{song.duration}</span>}
@@ -115,7 +126,7 @@ const VirtualizedSongList = ({
 export default function PlaylistPage({ params }: PlaylistPageProps) {
   const router = useRouter()
   const { getPlaylist, updatePlaylist, deletePlaylist, removeSongFromPlaylist } = usePlaylist()
-  const { playQueue } = useAudioPlayer()
+  const { playQueue, playTrack } = useAudioPlayer()
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
@@ -127,17 +138,33 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
 
   const handlePlaySong = useCallback(
     (song: any, songList: any[]) => {
-      const tracks = songList.map((s: any) => ({
-        id: s.id,
-        title: s.title,
-        artist: s.artist,
-        thumbnail: s.thumbnail,
-        duration: s.duration,
-      }))
-      const startIndex = songList.findIndex((s) => s.id === song.id)
-      playQueue(tracks, startIndex)
+      const isVideo = song.isVideo || song.source === "eporner" || song.id?.startsWith("eporner_")
+
+      if (isVideo) {
+        const videoTrack = {
+          id: song.id,
+          title: song.title,
+          artist: song.artist || "Adult Video",
+          thumbnail: song.thumbnail,
+          duration: song.duration,
+          videoUrl: song.videoUrl || song.url,
+          isVideo: true,
+          source: "eporner",
+        }
+        playTrack(videoTrack)
+      } else {
+        const tracks = songList.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          artist: s.artist,
+          thumbnail: s.thumbnail,
+          duration: s.duration,
+        }))
+        const startIndex = songList.findIndex((s) => s.id === song.id)
+        playQueue(tracks, startIndex)
+      }
     },
-    [playQueue],
+    [playQueue, playTrack],
   )
 
   const handleRemoveSong = useCallback(
@@ -151,16 +178,25 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
 
   const handlePlayAll = useCallback(() => {
     if (playlist?.songs.length > 0) {
-      const tracks = playlist.songs.map((song) => ({
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        thumbnail: song.thumbnail,
-        duration: song.duration,
-      }))
-      playQueue(tracks, 0)
+      const hasVideos = playlist.songs.some(
+        (song) => song.isVideo || song.source === "eporner" || song.id?.startsWith("eporner_"),
+      )
+
+      if (hasVideos) {
+        const firstSong = playlist.songs[0]
+        handlePlaySong(firstSong, playlist.songs)
+      } else {
+        const tracks = playlist.songs.map((song) => ({
+          id: song.id,
+          title: song.title,
+          artist: song.artist,
+          thumbnail: song.thumbnail,
+          duration: song.duration,
+        }))
+        playQueue(tracks, 0)
+      }
     }
-  }, [playlist?.songs, playQueue])
+  }, [playlist?.songs, playQueue, handlePlaySong])
 
   const handleDownloadAll = useCallback(async () => {
     if (!playlist?.songs.length) return

@@ -3,7 +3,8 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Plus, Music, Check } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Plus, Music, Check, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,10 +23,17 @@ interface AddToPlaylistDialogProps {
   songs: Song[]
   trigger?: React.ReactNode
   isAddAll?: boolean
+  navigateToPlaylist?: boolean
 }
 
-export function AddToPlaylistDialog({ songs, trigger, isAddAll = false }: AddToPlaylistDialogProps) {
+export function AddToPlaylistDialog({
+  songs,
+  trigger,
+  isAddAll = false,
+  navigateToPlaylist = false,
+}: AddToPlaylistDialogProps) {
   const { playlists, createPlaylist, addSongToPlaylist, addAllSongsToPlaylist } = usePlaylist()
+  const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [newPlaylistTitle, setNewPlaylistTitle] = useState("")
@@ -39,14 +47,20 @@ export function AddToPlaylistDialog({ songs, trigger, isAddAll = false }: AddToP
     }
     setAddedToPlaylists((prev) => new Set([...prev, playlistId]))
 
-    // Remove from added set after 2 seconds
-    setTimeout(() => {
-      setAddedToPlaylists((prev) => {
-        const newSet = new Set(prev)
-        newSet.delete(playlistId)
-        return newSet
-      })
-    }, 2000)
+    if (navigateToPlaylist) {
+      setTimeout(() => {
+        setIsOpen(false)
+        router.push(`/library/playlist/${playlistId}`)
+      }, 1000)
+    } else {
+      setTimeout(() => {
+        setAddedToPlaylists((prev) => {
+          const newSet = new Set(prev)
+          newSet.delete(playlistId)
+          return newSet
+        })
+      }, 2000)
+    }
   }
 
   const handleCreatePlaylist = () => {
@@ -75,7 +89,6 @@ export function AddToPlaylistDialog({ songs, trigger, isAddAll = false }: AddToP
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Create new playlist */}
           {isCreating ? (
             <div className="space-y-3 p-4 bg-zinc-800 rounded-lg">
               <Label htmlFor="playlist-title">Playlist name</Label>
@@ -107,7 +120,6 @@ export function AddToPlaylistDialog({ songs, trigger, isAddAll = false }: AddToP
             </Button>
           )}
 
-          {/* Existing playlists */}
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {playlists.map((playlist) => (
               <Button
@@ -128,7 +140,14 @@ export function AddToPlaylistDialog({ songs, trigger, isAddAll = false }: AddToP
                   <div className="font-medium">{playlist.title}</div>
                   <div className="text-sm text-zinc-400">{playlist.songs.length} songs</div>
                 </div>
-                {addedToPlaylists.has(playlist.id) && <span className="text-sm text-green-500">Added!</span>}
+                <div className="flex items-center gap-2">
+                  {addedToPlaylists.has(playlist.id) && (
+                    <span className="text-sm text-green-500">{navigateToPlaylist ? "Opening..." : "Added!"}</span>
+                  )}
+                  {navigateToPlaylist && !addedToPlaylists.has(playlist.id) && (
+                    <ExternalLink className="w-4 h-4 text-zinc-400" />
+                  )}
+                </div>
               </Button>
             ))}
           </div>

@@ -7,6 +7,7 @@ import { Search, Play, Heart, Download, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { usePlaylist } from "@/contexts/playlist-context"
@@ -168,18 +169,15 @@ export default function VideosPage() {
     addToDownloads(track)
   }
 
-  const handleAddToPlaylist = (video: Video) => {
-    const track = {
-      id: `eporner_${video.id}`,
-      title: video.title,
-      artist: "Adult Video",
-      thumbnail: video.thumb,
-      duration: video.length_min,
-      videoUrl: video.embed || video.url,
-      isVideo: true,
-    }
-    addToPlaylist(track)
-  }
+  const convertVideoToSong = (video: Video) => ({
+    id: `eporner_${video.id}`,
+    title: video.title,
+    artist: "Adult Video",
+    thumbnail: video.thumb,
+    duration: video.length_min,
+    videoUrl: video.embed || video.url,
+    isVideo: true,
+  })
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white pb-20">
@@ -281,14 +279,15 @@ export default function VideosPage() {
                       >
                         <Download className="w-4 h-4" />
                       </Button>
-                      <Button
-                        onClick={() => handleAddToPlaylist(video)}
-                        size="sm"
-                        variant="ghost"
-                        className="p-1 h-8 w-8 text-zinc-400"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
+                      <AddToPlaylistDialog
+                        songs={[convertVideoToSong(video)]}
+                        navigateToPlaylist={true}
+                        trigger={
+                          <Button size="sm" variant="ghost" className="p-1 h-8 w-8 text-zinc-400 hover:text-white">
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        }
+                      />
                     </div>
                   </div>
                 </div>
