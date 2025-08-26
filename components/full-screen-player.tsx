@@ -190,14 +190,21 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
   const getEpornerEmbedUrl = useCallback(() => {
     if (!state.currentTrack || !isEpornerVideo) return null
 
-    // If we have a direct embed URL, use it
-    if (state.currentTrack.videoUrl && state.currentTrack.videoUrl.includes("embed")) {
+    if (state.currentTrack.videoUrl && state.currentTrack.videoUrl.includes("eporner.com/embed/")) {
       return state.currentTrack.videoUrl
     }
 
-    // Extract video ID from various URL formats
+    // Extract video ID from various URL formats and create embed URL
     let videoId = null
+
+    // Try to extract from embed URL
     if (state.currentTrack.videoUrl) {
+      const embedMatch = state.currentTrack.videoUrl.match(/\/embed\/(\w+)/)
+      if (embedMatch) {
+        return state.currentTrack.videoUrl // Already an embed URL
+      }
+
+      // Try to extract from video page URL
       const urlMatch = state.currentTrack.videoUrl.match(/\/video-(\w+)\//)
       if (urlMatch) {
         videoId = urlMatch[1]
@@ -307,9 +314,10 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                         className="w-full h-full border-0"
                         allowFullScreen
                         allow="autoplay; encrypted-media; picture-in-picture"
-                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"
                         loading="lazy"
                         title={state.currentTrack.title}
+                        referrerPolicy="no-referrer-when-downgrade"
                       />
                     ) : (
                       <div className="w-full h-full bg-black flex items-center justify-center text-white">
@@ -317,6 +325,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                           <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
                           <p>Video format not supported</p>
                           <p className="text-sm text-white/60 mt-2">Unable to create embed URL</p>
+                          <p className="text-xs text-white/40 mt-1">Video ID: {state.currentTrack.id}</p>
                         </div>
                       </div>
                     )}
@@ -369,7 +378,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
               <p className="text-white/80 text-base sm:text-lg truncate">{state.currentTrack.artist}</p>
               {isEpornerVideo && (
                 <p className="text-yellow-400 text-sm mt-1 flex items-center gap-1">
-                  <Video className="w-4 h-4" />
+                  <Video className="w-4 h-4 sm:w-5 sm:h-5" />
                   Adult Video Content
                 </p>
               )}

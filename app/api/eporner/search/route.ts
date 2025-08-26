@@ -185,6 +185,7 @@ export async function GET(request: NextRequest) {
       const processedVideos = data.videos.map((video: any) => {
         const videoId = video.id
         const directVideoUrl = `https://www.eporner.com/video-${videoId}/`
+        const embedUrl = `https://www.eporner.com/embed/${videoId}`
 
         let videoFileUrl = directVideoUrl
         if (video.src && typeof video.src === "object") {
@@ -208,7 +209,7 @@ export async function GET(request: NextRequest) {
           title: video.title || "Untitled Video",
           url: directVideoUrl,
           videoUrl: videoFileUrl,
-          embed: video.embed || directVideoUrl,
+          embed: embedUrl,
           thumb: video.default_thumb?.src || video.thumb || "/video-thumbnail.png",
           default_thumb: {
             src: video.default_thumb?.src || video.thumb || "/video-thumbnail.png",
