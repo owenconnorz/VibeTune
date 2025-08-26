@@ -133,9 +133,14 @@ export default function VideosPage() {
       duration: video.length_min,
       videoUrl: video.embed || video.url,
       isVideo: true,
+      source: "eporner", // Add explicit source identifier
+      url: video.url, // Keep original URL as fallback
     }
 
+    console.log("[v0] Playing eporner video in main media player:", track.title)
     playTrack(track)
+
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   const handleLike = (video: Video) => {

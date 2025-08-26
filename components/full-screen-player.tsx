@@ -181,11 +181,20 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
   }, [])
 
-  const isEpornerVideo =
-    state.currentTrack?.isVideo &&
-    (state.currentTrack?.videoUrl ||
-      state.currentTrack?.source === "eporner" ||
-      state.currentTrack?.id?.startsWith("eporner_"))
+  const isEpornerVideo = !!(
+    state.currentTrack &&
+    (state.currentTrack.isVideo || state.currentTrack.videoUrl) &&
+    (state.currentTrack.id?.startsWith("eporner_") ||
+      state.currentTrack.videoUrl?.includes("eporner.com") ||
+      state.currentTrack.source === "eporner")
+  )
+
+  useEffect(() => {
+    if (isEpornerVideo && !state.isVideoMode) {
+      console.log("[v0] Force enabling video mode for eporner video:", state.currentTrack?.title)
+      setVideoMode(true)
+    }
+  }, [isEpornerVideo, state.isVideoMode, state.currentTrack?.title, setVideoMode])
 
   const getEpornerEmbedUrl = useCallback(() => {
     if (!state.currentTrack || !isEpornerVideo) return null
