@@ -126,44 +126,21 @@ export default function VideosPage() {
   }
 
   const handleVideoClick = (video: Video) => {
-    console.log("[v0] Opening eporner video directly:", video.title)
-
-    // Generate eporner embed URL
-    let embedUrl = null
-
-    // Try to use existing embed URL first
-    if (video.embed && video.embed.includes("eporner.com/embed/")) {
-      embedUrl = video.embed
-    } else {
-      // Extract video ID from various URL formats to create embed URL
-      let videoId = video.id
-
-      // If video.url contains a video ID, extract it
-      if (video.url) {
-        const videoMatch = video.url.match(/\/video-([^/]+)\//)
-        if (videoMatch) {
-          videoId = videoMatch[1]
-        } else {
-          const idMatch = video.url.match(/eporner\.com\/.*?([a-zA-Z0-9]{8,})/)
-          if (idMatch) {
-            videoId = idMatch[1]
-          }
-        }
-      }
-
-      // Create embed URL
-      embedUrl = `https://www.eporner.com/embed/${videoId}`
+    const track = {
+      id: `eporner_${video.id}`,
+      title: video.title,
+      artist: "Adult Video",
+      thumbnail: video.thumb,
+      duration: video.length_min,
+      videoUrl: video.embed || video.url,
+      isVideo: true,
+      source: "eporner",
     }
 
-    if (embedUrl) {
-      console.log("[v0] Opening eporner embed URL:", embedUrl)
-      // Open the embed URL in a new tab/window
-      window.open(embedUrl, "_blank", "width=1920,height=1080,scrollbars=yes,resizable=yes")
-    } else {
-      console.error("[v0] Could not generate embed URL for video:", video)
-      // Fallback to original URL if embed generation fails
-      window.open(video.url, "_blank")
-    }
+    console.log("[v0] Playing eporner video in media player:", track.title)
+    playTrack(track)
+
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   const handleLike = (video: Video) => {
