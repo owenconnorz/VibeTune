@@ -20,9 +20,7 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "export": "next export",
     "lint": "next lint",
-    "netlify-build": "npm run build && npm run export",
     "release": "npm version patch && git push --follow-tags",
     "start": "next start"
   },

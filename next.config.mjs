@@ -1,18 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: false,
     domains: ['i.ytimg.com', 'yt3.ggpht.com', 'img.youtube.com'],
     formats: ['image/webp', 'image/avif'],
-  },
-  experimental: {
-    runtime: 'nodejs',
   },
 }
 
