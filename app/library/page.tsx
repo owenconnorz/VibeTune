@@ -17,6 +17,7 @@ import { DownloadManager } from "@/components/download-manager"
 import { SongMenu } from "@/components/song-menu"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { useSettings } from "@/contexts/settings-context" // Added settings context for adult content check
+import { NavigationRouter } from "@/components/navigation-router"
 
 export default function LibraryPage() {
   const { user } = useAuth()
@@ -525,6 +526,7 @@ export default function LibraryPage() {
       </div>
 
       <AudioPlayer />
+      <NavigationRouter />
     </div>
   )
 }
