@@ -342,11 +342,12 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                         src={getEpornerEmbedUrl()!}
                         className="w-full h-full border-0 relative z-20"
                         allowFullScreen
-                        allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                        sandbox="allow-scripts allow-same-origin allow-presentation allow-forms allow-popups"
+                        allow="autoplay; encrypted-media; picture-in-picture; fullscreen; microphone; camera"
+                        sandbox="allow-scripts allow-same-origin allow-presentation allow-forms allow-popups allow-autoplay"
                         loading="eager"
                         title={state.currentTrack.title}
                         referrerPolicy="no-referrer"
+                        autoPlay={true}
                         onLoad={() => {
                           console.log("[v0] Eporner iframe loaded successfully")
                         }}
