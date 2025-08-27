@@ -5,7 +5,6 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Compass, Library, Play } from "lucide-react"
-import { useSettings } from "@/contexts/settings-context"
 
 interface NavigationItem {
   id: string
@@ -13,7 +12,6 @@ interface NavigationItem {
   label: string
   icon: React.ComponentType<{ className?: string }>
   activeIcon: React.ComponentType<{ className?: string }>
-  requiresAdultContent?: boolean
 }
 
 const navigationItems: NavigationItem[] = [
@@ -27,7 +25,8 @@ const navigationItems: NavigationItem[] = [
           strokeLinecap="round"
           strokeLinejoin="round"
           strokeWidth={2}
-          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+          d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"
+          clipRule="evenodd"
         />
       </svg>
     ),
@@ -53,18 +52,6 @@ const navigationItems: NavigationItem[] = [
     ),
   },
   {
-    id: "videos",
-    path: "/videos",
-    label: "Videos",
-    icon: Play,
-    activeIcon: ({ className }) => (
-      <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-        <path d="M8 5v14l11-7z" />
-      </svg>
-    ),
-    requiresAdultContent: true,
-  },
-  {
     id: "library",
     path: "/library",
     label: "Library",
@@ -75,12 +62,22 @@ const navigationItems: NavigationItem[] = [
       </svg>
     ),
   },
+  {
+    id: "videos",
+    path: "/videos",
+    label: "Videos",
+    icon: Play,
+    activeIcon: ({ className }) => (
+      <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7z" />
+      </svg>
+    ),
+  },
 ]
 
 export function NavigationRouter() {
   const router = useRouter()
   const pathname = usePathname()
-  const { settings } = useSettings()
   const [activeRoute, setActiveRoute] = useState(pathname)
 
   useEffect(() => {
@@ -93,11 +90,6 @@ export function NavigationRouter() {
     // Don't navigate if already on the same route
     if (activeRoute === item.path) return
 
-    // Check adult content settings for videos
-    if (item.requiresAdultContent && (!settings || !settings.showAdultContent)) {
-      return
-    }
-
     // Update browser history and navigate
     setActiveRoute(item.path)
     router.push(item.path)
@@ -107,12 +99,7 @@ export function NavigationRouter() {
     document.title = pageTitle
   }
 
-  const visibleItems = navigationItems.filter((item) => {
-    if (item.requiresAdultContent && (!settings || !settings.showAdultContent)) {
-      return false
-    }
-    return true
-  })
+  const visibleItems = navigationItems
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-zinc-800 border-t border-zinc-700 z-50">
