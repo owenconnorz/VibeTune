@@ -125,16 +125,50 @@ const VirtualizedSongList = ({
 
 export default function PlaylistPage({ params }: PlaylistPageProps) {
   const router = useRouter()
-  const { getPlaylist, updatePlaylist, deletePlaylist, removeSongFromPlaylist } = usePlaylist()
+  const { getPlaylist, updatePlaylist, deletePlaylist, removeSongFromPlaylist, playlists } = usePlaylist()
   const { playQueue, playTrack } = useAudioPlayer()
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [isDownloading, setIsDownloading] = useState(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const playlist = getPlaylist(params.id)
+  const playlist = useMemo(() => {
+    console.log("[v0] Looking for playlist with ID:", params.id)
+    console.log("[v0] Available playlists:", playlists)
+
+    // Try direct ID match first
+    let foundPlaylist = getPlaylist(params.id)
+
+    // If not found, try URL decoding
+    if (!foundPlaylist) {
+      const decodedId = decodeURIComponent(params.id)
+      console.log("[v0] Trying decoded ID:", decodedId)
+      foundPlaylist = getPlaylist(decodedId)
+    }
+
+    // If still not found, try finding by title (case-insensitive)
+    if (!foundPlaylist) {
+      const searchTitle = decodeURIComponent(params.id).toLowerCase()
+      console.log("[v0] Trying to find by title:", searchTitle)
+      foundPlaylist = playlists.find((p) => p.title.toLowerCase() === searchTitle)
+    }
+
+    // Set debug info
+    setDebugInfo({
+      requestedId: params.id,
+      decodedId: decodeURIComponent(params.id),
+      availablePlaylistIds: playlists.map((p) => ({ id: p.id, title: p.title })),
+      foundPlaylist: foundPlaylist
+        ? { id: foundPlaylist.id, title: foundPlaylist.title, songCount: foundPlaylist.songs.length }
+        : null,
+    })
+
+    console.log("[v0] Final playlist found:", foundPlaylist)
+    return foundPlaylist
+  }, [params.id, getPlaylist, playlists])
 
   const handlePlaySong = useCallback(
     (song: any, songList: any[]) => {
@@ -280,13 +314,48 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
   if (!playlist) {
     return (
       <div className="min-h-screen bg-zinc-900 text-white flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-2xl mx-auto p-6">
           <Music className="w-16 h-16 text-gray-600 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2">Playlist not found</h1>
-          <p className="text-gray-400 mb-4">The playlist you're looking for doesn't exist.</p>
-          <Button onClick={() => router.push("/library")} className="bg-yellow-600 hover:bg-yellow-700 text-black">
-            Back to Library
-          </Button>
+          <p className="text-gray-400 mb-4">The playlist you're looking for doesn't exist or couldn't be loaded.</p>
+
+          {debugInfo && (
+            <div className="bg-zinc-800 rounded-lg p-4 mb-4 text-left text-sm">
+              <h3 className="font-semibold mb-2">Debug Information:</h3>
+              <div className="space-y-1 text-gray-300">
+                <div>
+                  <strong>Requested ID:</strong> {debugInfo.requestedId}
+                </div>
+                <div>
+                  <strong>Decoded ID:</strong> {debugInfo.decodedId}
+                </div>
+                <div>
+                  <strong>Available Playlists:</strong>
+                </div>
+                <ul className="ml-4 space-y-1">
+                  {debugInfo.availablePlaylistIds.map((p: any, i: number) => (
+                    <li key={i} className="text-xs">
+                      <strong>ID:</strong> {p.id} | <strong>Title:</strong> {p.title}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => router.push("/library")} className="bg-yellow-600 hover:bg-yellow-700 text-black">
+              Back to Library
+            </Button>
+            {debugInfo?.availablePlaylistIds.length > 0 && (
+              <Button
+                onClick={() => router.push(`/library/playlist/${debugInfo.availablePlaylistIds[0].id}`)}
+                variant="outline"
+              >
+                Try First Playlist
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     )
