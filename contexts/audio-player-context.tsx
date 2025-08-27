@@ -268,103 +268,245 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null)
   const crossfadeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const audioElementRef = useRef<HTMLAudioElement | null>(null)
+  const youtubePlayerRef = useRef<any>(null)
+  const youtubePlayerReadyRef = useRef<boolean>(false)
   const playButtonRef = useRef<HTMLButtonElement | null>(null)
   const progressRef = useRef<HTMLInputElement | null>(null)
   const { addToHistory } = useListeningHistory()
 
   useEffect(() => {
-    if (!audioElementRef.current) {
-      audioElementRef.current = new Audio()
-      audioElementRef.current.preload = "metadata"
-      audioElementRef.current.crossOrigin = "anonymous"
-      console.log("[v0] Audio element created")
+    if (typeof window === "undefined") return
+
+    // Load YouTube IFrame API if not already loaded
+    if (!window.YT) {
+      const tag = document.createElement("script")
+      tag.src = "https://www.youtube.com/iframe_api"
+      const firstScriptTag = document.getElementsByTagName("script")[0]
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+
+      // Create global callback for when API is ready
+      window.onYouTubeIframeAPIReady = () => {
+        console.log("[v0] YouTube IFrame API loaded")
+        initializeYouTubePlayer()
+      }
+    } else if (window.YT.Player) {
+      initializeYouTubePlayer()
     }
 
     return () => {
-      if (audioElementRef.current) {
-        audioElementRef.current.pause()
-        audioElementRef.current.src = ""
-        audioElementRef.current = null
-        console.log("[v0] Audio element cleaned up")
+      if (youtubePlayerRef.current) {
+        youtubePlayerRef.current.destroy()
+        youtubePlayerRef.current = null
+        youtubePlayerReadyRef.current = false
+        console.log("[v0] YouTube player cleaned up")
       }
     }
   }, [])
 
-  useEffect(() => {
-    if (state.currentTrack && audioElementRef.current) {
-      const audio = audioElementRef.current
+  const initializeYouTubePlayer = useCallback(() => {
+    if (youtubePlayerRef.current || !window.YT?.Player) return
 
-      // Check if track has a playable audio URL
-      if (!state.currentTrack.audioUrl) {
-        console.log("[v0] Track has no audio URL, checking for alternatives:", state.currentTrack.title)
+    // Create hidden div for YouTube player
+    let playerDiv = document.getElementById("youtube-audio-player")
+    if (!playerDiv) {
+      playerDiv = document.createElement("div")
+      playerDiv.id = "youtube-audio-player"
+      playerDiv.style.display = "none"
+      document.body.appendChild(playerDiv)
+    }
 
-        // For YouTube URLs, we can't play them directly due to CORS restrictions
-        if (state.currentTrack.url?.includes("youtube.com")) {
-          dispatch({
-            type: "SET_ERROR",
-            payload: "YouTube audio playback requires premium access. Displaying track info only.",
-          })
-          dispatch({ type: "SET_LOADING", payload: false })
-          return
-        }
+    youtubePlayerRef.current = new window.YT.Player("youtube-audio-player", {
+      height: "0",
+      width: "0",
+      playerVars: {
+        autoplay: 0,
+        controls: 0,
+        disablekb: 1,
+        enablejsapi: 1,
+        fs: 0,
+        iv_load_policy: 3,
+        modestbranding: 1,
+        playsinline: 1,
+        rel: 0,
+        showinfo: 0,
+      },
+      events: {
+        onReady: onPlayerReady,
+        onStateChange: onPlayerStateChange,
+        onError: onPlayerError,
+      },
+    })
 
-        dispatch({ type: "SET_ERROR", payload: "No audio source available for this track" })
-        dispatch({ type: "SET_LOADING", payload: false })
-        return
+    console.log("[v0] YouTube player initialized")
+  }, [])
+
+  const onPlayerReady = useCallback(
+    (event: any) => {
+      console.log("[v0] YouTube player ready")
+      youtubePlayerReadyRef.current = true
+
+      // Set initial volume
+      if (youtubePlayerRef.current) {
+        youtubePlayerRef.current.setVolume(state.volume * 100)
       }
+    },
+    [state.volume],
+  )
 
-      // Set audio source if available
-      if (audio.src !== state.currentTrack.audioUrl) {
-        console.log("[v0] Setting audio source:", state.currentTrack.audioUrl)
-        audio.src = state.currentTrack.audioUrl
-        audio.load()
+  const onPlayerStateChange = useCallback(
+    (event: any) => {
+      const playerState = event.data
+      console.log("[v0] YouTube player state changed:", playerState)
+
+      switch (playerState) {
+        case window.YT.PlayerState.PLAYING:
+          dispatch({ type: "PLAY" })
+          dispatch({ type: "SET_BUFFERING", payload: false })
+          dispatch({ type: "SET_NETWORK_STATE", payload: "loaded" })
+
+          // Start time updates
+          startTimeUpdates()
+
+          // Add to history after 10 seconds
+          if (state.currentTrack) {
+            historyTimeoutRef.current = setTimeout(() => {
+              addToHistory(state.currentTrack!)
+            }, 10000)
+          }
+          break
+
+        case window.YT.PlayerState.PAUSED:
+          dispatch({ type: "PAUSE" })
+          stopTimeUpdates()
+          if (historyTimeoutRef.current) {
+            clearTimeout(historyTimeoutRef.current)
+          }
+          break
+
+        case window.YT.PlayerState.ENDED:
+          dispatch({ type: "PAUSE" })
+          stopTimeUpdates()
+
+          // Auto-advance to next track
+          if (state.repeatMode === "one") {
+            youtubePlayerRef.current?.seekTo(0)
+            youtubePlayerRef.current?.playVideo()
+          } else if (state.currentIndex < state.queue.length - 1 || state.repeatMode === "all") {
+            dispatch({ type: "NEXT_TRACK" })
+          }
+          break
+
+        case window.YT.PlayerState.BUFFERING:
+          dispatch({ type: "SET_BUFFERING", payload: true })
+          break
+
+        case window.YT.PlayerState.CUED:
+          const duration = youtubePlayerRef.current?.getDuration() || 0
+          dispatch({ type: "SET_DURATION", payload: duration })
+          dispatch({ type: "SET_LOADING", payload: false })
+          break
+      }
+    },
+    [state.currentTrack, state.repeatMode, state.currentIndex, state.queue, addToHistory],
+  )
+
+  const onPlayerError = useCallback((event: any) => {
+    console.error("[v0] YouTube player error:", event.data)
+    let errorMessage = "YouTube playback error"
+
+    switch (event.data) {
+      case 2:
+        errorMessage = "Invalid video ID"
+        break
+      case 5:
+        errorMessage = "Video cannot be played in HTML5 player"
+        break
+      case 100:
+        errorMessage = "Video not found or private"
+        break
+      case 101:
+      case 150:
+        errorMessage = "Video not available for embedded playback"
+        break
+    }
+
+    dispatch({ type: "SET_ERROR", payload: errorMessage })
+    dispatch({ type: "SET_LOADING", payload: false })
+    dispatch({ type: "SET_NETWORK_STATE", payload: "error" })
+  }, [])
+
+  const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  const startTimeUpdates = useCallback(() => {
+    if (timeUpdateIntervalRef.current) return
+
+    timeUpdateIntervalRef.current = setInterval(() => {
+      if (youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+        const currentTime = youtubePlayerRef.current.getCurrentTime() || 0
+        const duration = youtubePlayerRef.current.getDuration() || 0
+
+        dispatch({ type: "SET_CURRENT_TIME", payload: currentTime })
+
+        if (duration > 0) {
+          dispatch({ type: "SET_DURATION", payload: duration })
+        }
+      }
+    }, 1000)
+  }, [])
+
+  const stopTimeUpdates = useCallback(() => {
+    if (timeUpdateIntervalRef.current) {
+      clearInterval(timeUpdateIntervalRef.current)
+      timeUpdateIntervalRef.current = null
+    }
+  }, [])
+
+  const extractYouTubeVideoId = useCallback((url: string): string | null => {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /youtube\.com\/v\/([^&\n?#]+)/,
+    ]
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern)
+      if (match) return match[1]
+    }
+
+    return null
+  }, [])
+
+  useEffect(() => {
+    if (state.currentTrack && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+      console.log("[v0] Loading track in YouTube player:", state.currentTrack.title)
+
+      // Extract video ID from YouTube URL
+      const videoId = extractYouTubeVideoId(state.currentTrack.url || state.currentTrack.videoUrl || "")
+
+      if (videoId) {
+        console.log("[v0] Loading YouTube video ID:", videoId)
+        dispatch({ type: "SET_LOADING", payload: true })
+        dispatch({ type: "SET_ERROR", payload: null })
+
+        youtubePlayerRef.current.cueVideoById(videoId)
+      } else {
+        console.log("[v0] No valid YouTube URL found for track:", state.currentTrack.title)
+        dispatch({ type: "SET_ERROR", payload: "No valid YouTube URL found for this track" })
+        dispatch({ type: "SET_LOADING", payload: false })
       }
     }
-  }, [state.currentTrack])
+  }, [state.currentTrack, extractYouTubeVideoId])
 
   useEffect(() => {
-    if (audioElementRef.current) {
-      const audio = audioElementRef.current
-
-      if (state.isPlaying && !state.error) {
-        console.log("[v0] Attempting to play audio")
-        audio.play().catch((error) => {
-          console.error("[v0] Audio play failed:", error)
-          dispatch({ type: "SET_ERROR", payload: "Failed to play audio: " + error.message })
-          dispatch({ type: "PAUSE" })
-        })
+    if (youtubePlayerRef.current && youtubePlayerReadyRef.current && !state.error) {
+      if (state.isPlaying) {
+        console.log("[v0] Playing YouTube video")
+        youtubePlayerRef.current.playVideo()
       } else {
-        console.log("[v0] Pausing audio")
-        audio.pause()
+        console.log("[v0] Pausing YouTube video")
+        youtubePlayerRef.current.pauseVideo()
       }
     }
   }, [state.isPlaying, state.error])
-
-  useEffect(() => {
-    const manageWakeLock = async () => {
-      if (state.isPlaying && state.currentTrack) {
-        if (!wakeLockRef.current) {
-          wakeLockRef.current = await PermissionsManager.requestWakeLock()
-        }
-      } else {
-        if (wakeLockRef.current) {
-          await PermissionsManager.releaseWakeLock()
-          wakeLockRef.current = null
-        }
-      }
-    }
-
-    manageWakeLock()
-  }, [state.isPlaying, state.currentTrack])
-
-  useEffect(() => {
-    return () => {
-      if (wakeLockRef.current) {
-        PermissionsManager.releaseWakeLock()
-      }
-    }
-  }, [])
 
   const setVideoMode = useCallback((enabled: boolean) => {
     if (videoModeTimeoutRef.current) {
@@ -387,12 +529,12 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }, [state.currentTrack, addToHistory])
 
   const setupAudioEventHandlers = useCallback(() => {
-    if (!audioElementRef.current) return
+    if (!youtubePlayerRef.current || !youtubePlayerReadyRef.current) return
 
-    const audio = audioElementRef.current
+    const player = youtubePlayerRef.current
 
     // Play event handler with visual feedback
-    audio.onplaying = () => {
+    player.on("play", () => {
       console.log("[v0] Audio playing event triggered")
       dispatch({ type: "PLAY" })
       dispatch({ type: "SET_BUFFERING", payload: false })
@@ -404,60 +546,59 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
           addToHistory(state.currentTrack!)
         }, 10000)
       }
-    }
+    })
 
     // Pause event handler
-    audio.onpause = () => {
+    player.on("pause", () => {
       console.log("[v0] Audio pause event triggered")
       dispatch({ type: "PAUSE" })
       if (historyTimeoutRef.current) {
         clearTimeout(historyTimeoutRef.current)
       }
-    }
+    })
 
     // Loading start handler
-    audio.onloadstart = () => {
+    player.on("loadstart", () => {
       console.log("[v0] Audio load start")
       dispatch({ type: "SET_LOADING", payload: true })
       dispatch({ type: "SET_NETWORK_STATE", payload: "loading" })
 
       // Persist playback speed
       if (state.playbackRate !== 1) {
-        audio.playbackRate = state.playbackRate
+        player.setPlaybackRate(state.playbackRate)
       }
-    }
+    })
 
     // Waiting/buffering handler
-    audio.onwaiting = () => {
+    player.on("waiting", () => {
       console.log("[v0] Audio waiting/buffering")
       dispatch({ type: "SET_BUFFERING", payload: true })
-    }
+    })
 
     // Time update handler with progress synchronization
-    audio.ontimeupdate = () => {
-      const currentTime = audio.currentTime
-      const duration = audio.duration || 0
+    player.on("timeupdate", () => {
+      const currentTime = player.getCurrentTime()
+      const duration = player.getDuration() || 0
 
       dispatch({ type: "SET_CURRENT_TIME", payload: currentTime })
 
       // Update buffer progress
-      if (audio.buffered.length > 0) {
-        const bufferedEnd = audio.buffered.end(audio.buffered.length - 1)
-        const bufferProgress = duration > 0 ? (bufferedEnd / duration) * 100 : 0
+      if (player.getVideoLoadedFraction() > 0) {
+        const bufferProgress = duration > 0 ? player.getVideoLoadedFraction() * duration * 100 : 0
         dispatch({ type: "SET_BUFFER_PROGRESS", payload: bufferProgress })
       }
-    }
+    })
 
     // Metadata loaded handler
-    audio.onloadedmetadata = () => {
+    player.on("loadedmetadata", () => {
       console.log("[v0] Audio metadata loaded")
-      const duration = audio.duration || 0
+      const duration = player.getDuration() || 0
       dispatch({ type: "SET_DURATION", payload: duration })
       dispatch({ type: "SET_LOADING", payload: false })
-    }
+    })
 
     // Can play through handler with prefetching
-    audio.oncanplaythrough = async () => {
+    player.on("canplaythrough", async () => {
       console.log("[v0] Audio can play through")
       dispatch({ type: "SET_NETWORK_STATE", payload: "loaded" })
       dispatch({ type: "SET_BUFFERING", payload: false })
@@ -474,39 +615,39 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
           preloadAudioRef.current.preload = "auto"
         }
       }
-    }
+    })
 
     // Error handler
-    audio.onerror = () => {
+    player.on("error", () => {
       console.error("[v0] Audio error occurred")
       dispatch({ type: "SET_ERROR", payload: "Failed to load audio" })
       dispatch({ type: "SET_LOADING", payload: false })
       dispatch({ type: "SET_NETWORK_STATE", payload: "error" })
-    }
+    })
 
     // Ended handler with auto-advance
-    audio.onended = () => {
+    player.on("ended", () => {
       console.log("[v0] Audio ended")
       dispatch({ type: "PAUSE" })
 
       // Auto-advance to next track
       if (state.repeatMode === "one") {
-        audio.currentTime = 0
-        audio.play()
+        player.seekTo(0)
+        player.playVideo()
       } else if (state.currentIndex < state.queue.length - 1 || state.repeatMode === "all") {
         dispatch({ type: "NEXT_TRACK" })
       }
-    }
+    })
 
     // Volume change handler
-    audio.onvolumechange = () => {
-      dispatch({ type: "SET_VOLUME", payload: audio.volume })
-    }
+    player.on("volumechange", () => {
+      dispatch({ type: "SET_VOLUME", payload: player.getVolume() / 100 })
+    })
 
     // Rate change handler
-    audio.onratechange = () => {
-      dispatch({ type: "SET_PLAYBACK_RATE", payload: audio.playbackRate })
-    }
+    player.on("ratechange", () => {
+      dispatch({ type: "SET_PLAYBACK_RATE", payload: player.getPlaybackRate() })
+    })
   }, [
     state.currentTrack,
     state.playbackRate,
@@ -519,9 +660,9 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
   const seekTo = useCallback(
     (time: number) => {
-      if (audioElementRef.current) {
+      if (youtubePlayerRef.current && youtubePlayerReadyRef.current) {
         const clampedTime = Math.max(0, Math.min(time, state.duration))
-        audioElementRef.current.currentTime = clampedTime
+        youtubePlayerRef.current.seekTo(clampedTime, true)
         dispatch({ type: "SET_CURRENT_TIME", payload: clampedTime })
         updatePositionState()
       }
@@ -531,8 +672,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
   const setVolume = useCallback((volume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, volume))
-    if (audioElementRef.current) {
-      audioElementRef.current.volume = clampedVolume
+    if (youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+      youtubePlayerRef.current.setVolume(clampedVolume * 100)
     }
     dispatch({ type: "SET_VOLUME", payload: clampedVolume })
 
@@ -544,8 +685,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
   const setPlaybackRate = useCallback((rate: number) => {
     const clampedRate = Math.max(0.25, Math.min(2, rate))
-    if (audioElementRef.current) {
-      audioElementRef.current.playbackRate = clampedRate
+    if (youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+      youtubePlayerRef.current.setPlaybackRate(clampedRate)
     }
     dispatch({ type: "SET_PLAYBACK_RATE", payload: clampedRate })
     updatePositionState()
@@ -716,9 +857,9 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }
 
   const togglePlay = () => {
-    if (!state.currentTrack?.audioUrl && !state.isPlaying) {
-      console.log("[v0] Cannot play: no audio URL available")
-      dispatch({ type: "SET_ERROR", payload: "No audio source available. YouTube API quota may be exceeded." })
+    if (!state.currentTrack?.url && !state.isPlaying) {
+      console.log("[v0] Cannot play: no YouTube URL available")
+      dispatch({ type: "SET_ERROR", payload: "No YouTube URL available. API quota may be exceeded." })
       return
     }
 
@@ -801,6 +942,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     return () => {
+      stopTimeUpdates()
       if (historyTimeoutRef.current) {
         clearTimeout(historyTimeoutRef.current)
       }
@@ -811,7 +953,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         PermissionsManager.releaseWakeLock()
       }
     }
-  }, [])
+  }, [stopTimeUpdates])
 
   return (
     <AudioPlayerContext.Provider
