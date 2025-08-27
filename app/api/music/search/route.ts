@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
     const query = searchParams.get("q")
     const maxResults = Number.parseInt(searchParams.get("maxResults") || "20")
 
+    console.log("[v0] Search API called with query:", query, "maxResults:", maxResults)
+
     if (!query) {
       return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
     }
@@ -18,6 +20,7 @@ export async function GET(request: NextRequest) {
     const cachedData = musicCache.get(cacheKey)
 
     if (cachedData) {
+      console.log("[v0] Returning cached data for query:", query, "items:", cachedData.length)
       const response = NextResponse.json({
         songs: cachedData.slice(0, maxResults),
         videos: cachedData.slice(0, maxResults),
@@ -32,10 +35,20 @@ export async function GET(request: NextRequest) {
       return response
     }
 
+    console.log("[v0] Creating YouTube API instance...")
     const youtubeAPI = createYouTubeMusicAPI()
+    console.log("[v0] YouTube API created, calling search...")
+
     const results = await youtubeAPI.search(query, maxResults)
+    console.log("[v0] YouTube API search results:", {
+      hasResults: !!results,
+      hasVideos: !!results?.videos,
+      videosLength: results?.videos?.length || 0,
+      resultKeys: results ? Object.keys(results) : "no results",
+    })
 
     if (results.videos && results.videos.length > 0) {
+      console.log("[v0] Processing YouTube results, first item:", results.videos[0])
       const songs = results.videos.map((item) => ({
         id: item.id,
         title: item.title,
@@ -64,6 +77,9 @@ export async function GET(request: NextRequest) {
       return response
     }
 
+    console.log("[v0] No YouTube results found, using fallback data for query:", query)
+    console.log("[v0] YouTube API returned:", results)
+
     // Fallback to static data
     const queryLower = query.toLowerCase()
     const fallbackResults = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
@@ -81,9 +97,13 @@ export async function GET(request: NextRequest) {
 
     return response
   } catch (error) {
-    console.error("Music search API error:", error)
+    console.error("[v0] Music search API error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      query: new URL(request.url).searchParams.get("q"),
+    })
 
-    // Return fallback data on error
     const query = new URL(request.url).searchParams.get("q") || ""
     const maxResults = Number.parseInt(new URL(request.url).searchParams.get("maxResults") || "20")
     const queryLower = query.toLowerCase()
