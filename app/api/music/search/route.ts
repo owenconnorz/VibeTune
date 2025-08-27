@@ -18,12 +18,18 @@ export async function GET(request: NextRequest) {
     const cachedData = musicCache.get(cacheKey)
 
     if (cachedData) {
-      return NextResponse.json({
+      const response = NextResponse.json({
         songs: cachedData.slice(0, maxResults),
         videos: cachedData.slice(0, maxResults),
         source: "cache",
         query,
       })
+
+      response.headers.set("Cache-Control", "public, s-maxage=1200, stale-while-revalidate=3600")
+      response.headers.set("CDN-Cache-Control", "public, s-maxage=1200")
+      response.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=1200")
+
+      return response
     }
 
     const youtubeAPI = createYouTubeMusicAPI()
@@ -44,24 +50,36 @@ export async function GET(request: NextRequest) {
       // Cache the results
       musicCache.set(cacheKey, songs, 20 * 60 * 1000) // 20 minutes
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         songs: songs.slice(0, maxResults),
         videos: songs.slice(0, maxResults),
         source: "youtube_api",
         query,
       })
+
+      response.headers.set("Cache-Control", "public, s-maxage=1200, stale-while-revalidate=3600")
+      response.headers.set("CDN-Cache-Control", "public, s-maxage=1200")
+      response.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=1200")
+
+      return response
     }
 
     // Fallback to static data
     const queryLower = query.toLowerCase()
     const fallbackResults = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       songs: fallbackResults.slice(0, maxResults),
       videos: fallbackResults.slice(0, maxResults),
       source: "fallback",
       query,
     })
+
+    response.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=7200")
+    response.headers.set("CDN-Cache-Control", "public, s-maxage=3600")
+    response.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=3600")
+
+    return response
   } catch (error) {
     console.error("Music search API error:", error)
 
@@ -71,12 +89,18 @@ export async function GET(request: NextRequest) {
     const queryLower = query.toLowerCase()
     const fallbackResults = fallbackSearchResults[queryLower] || fallbackSearchResults.default || []
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       songs: fallbackResults.slice(0, maxResults),
       videos: fallbackResults.slice(0, maxResults),
       source: "error_fallback",
       query,
       error: error.message,
     })
+
+    response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600")
+    response.headers.set("CDN-Cache-Control", "public, s-maxage=300")
+    response.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=300")
+
+    return response
   }
 }

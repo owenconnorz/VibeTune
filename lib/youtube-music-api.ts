@@ -83,6 +83,7 @@ class YouTubeMusicAPI {
   private apiKey: string
   private baseUrl = "https://www.googleapis.com/youtube/v3"
   private cache = new Map<string, CacheEntry>()
+  private pendingRequests = new Map<string, Promise<any>>()
   private quotaExceeded = false
   private lastQuotaCheck = 0
   private requestCount = 0
@@ -164,6 +165,11 @@ class YouTubeMusicAPI {
       }
     }
 
+    if (this.pendingRequests.has(cacheKey)) {
+      console.log("[v0] YouTube API: Waiting for pending request:", cacheKey)
+      return await this.pendingRequests.get(cacheKey)!
+    }
+
     if (!this.checkQuotaStatus()) {
       throw new Error("API quota exceeded - using fallback data")
     }
@@ -175,11 +181,23 @@ class YouTubeMusicAPI {
       url.searchParams.append(key, value)
     })
 
-    console.log("[v0] YouTube API request:", url.toString())
+    const requestPromise = this.executeRequest(url.toString(), endpoint, cacheKey)
+    this.pendingRequests.set(cacheKey, requestPromise)
+
+    try {
+      const result = await requestPromise
+      return result
+    } finally {
+      this.pendingRequests.delete(cacheKey)
+    }
+  }
+
+  private async executeRequest(url: string, endpoint: string, cacheKey: string) {
+    console.log("[v0] YouTube API request:", url)
     this.requestCount++
 
     try {
-      const response = await fetch(url.toString())
+      const response = await fetch(url)
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -194,14 +212,12 @@ class YouTubeMusicAPI {
           throw new Error("API quota exceeded - using fallback data")
         }
 
-        // Parse error details if available
         try {
           const errorData = JSON.parse(errorText)
           if (errorData.error) {
             throw new Error(`YouTube API error: ${errorData.error.message || response.statusText} (${response.status})`)
           }
         } catch (parseError) {
-          // If JSON parsing fails, use the raw error text
           throw new Error(`YouTube API error: ${response.statusText} (${response.status}): ${errorText}`)
         }
       }
@@ -216,7 +232,6 @@ class YouTubeMusicAPI {
     } catch (error) {
       console.error("[v0] YouTube API request failed:", {
         endpoint,
-        params,
         error: error instanceof Error ? error.message : String(error),
       })
       throw error
@@ -259,6 +274,7 @@ class YouTubeMusicAPI {
       const cacheKey = this.getCacheKey("search", { query, maxResults: maxResults.toString() })
       const cached = this.getFromCache(cacheKey)
       if (cached) {
+        console.log("[v0] YouTube API search results:", cached.videos.length, "songs")
         return cached
       }
 
@@ -277,8 +293,8 @@ class YouTubeMusicAPI {
         return { videos: [] }
       }
 
-      // Get video details including duration
-      const videoIds = searchResponse.items.map((item: any) => item.id.videoId).join(",")
+      const uniqueVideoIds = [...new Set(searchResponse.items.map((item: any) => item.id.videoId))]
+      const videoIds = uniqueVideoIds.join(",")
       console.log("[v0] YouTube API: Fetching details for video IDs:", videoIds)
 
       const detailsResponse = await this.makeRequest("videos", {
@@ -288,6 +304,7 @@ class YouTubeMusicAPI {
 
       const videos = detailsResponse.items.map((item: any) => this.parseVideo(item))
       console.log("[v0] YouTube API search completed:", { resultCount: videos.length })
+      console.log("[v0] YouTube API search results:", videos.length, "songs")
 
       const result = {
         videos,

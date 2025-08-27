@@ -13,11 +13,17 @@ export async function GET(request: NextRequest) {
     const cachedData = musicCache.get(cacheKey)
 
     if (cachedData) {
-      return NextResponse.json({
+      const response = NextResponse.json({
         songs: cachedData.slice(0, maxResults),
         videos: cachedData.slice(0, maxResults),
         source: "cache",
       })
+
+      response.headers.set("Cache-Control", "public, s-maxage=1800, stale-while-revalidate=3600")
+      response.headers.set("CDN-Cache-Control", "public, s-maxage=1800")
+      response.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=1800")
+
+      return response
     }
 
     const youtubeAPI = createYouTubeMusicAPI()
@@ -38,20 +44,33 @@ export async function GET(request: NextRequest) {
       // Cache the results
       musicCache.set(cacheKey, songs, 30 * 60 * 1000) // 30 minutes
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         songs: songs.slice(0, maxResults),
         videos: songs.slice(0, maxResults),
         source: "youtube_api",
       })
+
+      response.headers.set("Cache-Control", "public, s-maxage=1800, stale-while-revalidate=3600")
+      response.headers.set("CDN-Cache-Control", "public, s-maxage=1800")
+      response.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=1800")
+
+      return response
     }
 
     // Fallback to static data
     const fallbackData = fallbackTrendingMusic.slice(0, maxResults)
-    return NextResponse.json({
+
+    const response = NextResponse.json({
       songs: fallbackData,
       videos: fallbackData,
       source: "fallback",
     })
+
+    response.headers.set("Cache-Control", "public, s-maxage=3600, stale-while-revalidate=7200")
+    response.headers.set("CDN-Cache-Control", "public, s-maxage=3600")
+    response.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=3600")
+
+    return response
   } catch (error) {
     console.error("Music trending API error:", error)
 
@@ -59,11 +78,17 @@ export async function GET(request: NextRequest) {
     const maxResults = Number.parseInt(new URL(request.url).searchParams.get("maxResults") || "20")
     const fallbackData = fallbackTrendingMusic.slice(0, maxResults)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       songs: fallbackData,
       videos: fallbackData,
       source: "error_fallback",
       error: error.message,
     })
+
+    response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600")
+    response.headers.set("CDN-Cache-Control", "public, s-maxage=300")
+    response.headers.set("Vercel-CDN-Cache-Control", "public, s-maxage=300")
+
+    return response
   }
 }
