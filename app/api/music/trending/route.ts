@@ -8,11 +8,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const maxResults = Number.parseInt(searchParams.get("maxResults") || "20")
 
+    console.log("[v0] Music trending API called with maxResults:", maxResults)
+
     // Check cache first
     const cacheKey = getCacheKey.trending()
     const cachedData = musicCache.get(cacheKey)
 
     if (cachedData) {
+      console.log("[v0] Music trending API: Returning cached data, count:", cachedData.length)
       const response = NextResponse.json({
         songs: cachedData.slice(0, maxResults),
         videos: cachedData.slice(0, maxResults),
@@ -26,8 +29,21 @@ export async function GET(request: NextRequest) {
       return response
     }
 
+    console.log("[v0] Music trending API: No cache found, calling YouTube API")
+
+    const apiKey = process.env.YOUTUBE_API_KEY
+    console.log("[v0] Music trending API: API key exists:", !!apiKey)
+    console.log("[v0] Music trending API: API key length:", apiKey?.length || 0)
+
     const youtubeAPI = createYouTubeMusicAPI()
+    console.log("[v0] Music trending API: YouTube API instance created")
+
     const results = await youtubeAPI.getTrending(maxResults)
+    console.log("[v0] Music trending API: YouTube API results:", {
+      hasVideos: !!results.videos,
+      videoCount: results.videos?.length || 0,
+      firstVideoTitle: results.videos?.[0]?.title || "none",
+    })
 
     if (results.videos && results.videos.length > 0) {
       const songs = results.videos.map((item) => ({
@@ -43,6 +59,7 @@ export async function GET(request: NextRequest) {
 
       // Cache the results
       musicCache.set(cacheKey, songs, 30 * 60 * 1000) // 30 minutes
+      console.log("[v0] Music trending API: Cached fresh YouTube data, count:", songs.length)
 
       const response = NextResponse.json({
         songs: songs.slice(0, maxResults),
@@ -58,6 +75,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fallback to static data
+    console.log("[v0] Music trending API: No YouTube results, using fallback data")
     const fallbackData = fallbackTrendingMusic.slice(0, maxResults)
 
     const response = NextResponse.json({
@@ -72,11 +90,16 @@ export async function GET(request: NextRequest) {
 
     return response
   } catch (error) {
-    console.error("Music trending API error:", error)
+    console.error("[v0] Music trending API error:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    })
 
     // Return fallback data on error
     const maxResults = Number.parseInt(new URL(request.url).searchParams.get("maxResults") || "20")
     const fallbackData = fallbackTrendingMusic.slice(0, maxResults)
+    console.log("[v0] Music trending API: Error occurred, returning fallback data, count:", fallbackData.length)
 
     const response = NextResponse.json({
       songs: fallbackData,
