@@ -1,15 +1,17 @@
 "use client"
 import { useState, useEffect } from "react"
-import { ArrowLeft, Shield, Eye, Lock, Globe, UserCheck, Database, AlertCircle } from "lucide-react"
+import { ArrowLeft, Shield, Eye, Lock, Globe, UserCheck, Database, AlertCircle, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
+import { useSettings } from "@/contexts/settings-context"
 
 export default function PrivacySettingsPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const { adultContentEnabled, setAdultContentEnabled, isAgeVerified } = useSettings()
 
   const [privacySettings, setPrivacySettings] = useState({
     shareListeningHistory: false,
@@ -163,6 +165,24 @@ export default function PrivacySettingsPage() {
             <CardDescription className="text-gray-400">Control what data is shared and how it's used</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
+                  <Play className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Adult Content</p>
+                  <p className="text-gray-400 text-sm">
+                    Enable access to adult video content
+                    {!isAgeVerified && adultContentEnabled && (
+                      <span className="block text-yellow-400 text-xs mt-1">Age verification required</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <Switch checked={adultContentEnabled} onCheckedChange={setAdultContentEnabled} />
+            </div>
+
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
