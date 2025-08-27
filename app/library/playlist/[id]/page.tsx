@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { PlaylistThumbnailGrid } from "@/components/playlist-thumbnail-grid"
 
 import { useState, useMemo, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
@@ -11,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { usePlaylist } from "@/contexts/playlist-context"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { SongMenu } from "@/components/song-menu"
+import { AudioPlayer } from "@/components/audio-player"
 
 interface PlaylistPageProps {
   params: {
@@ -401,7 +403,13 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
               className="relative w-48 h-48 bg-zinc-700 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer group hover:bg-zinc-600 transition-colors"
               onClick={handleImageClick}
             >
-              {playlist.thumbnail ? (
+              {playlist.songs?.length > 0 ? (
+                <PlaylistThumbnailGrid
+                  songs={playlist.songs}
+                  className="w-full h-full rounded-lg"
+                  fallbackThumbnail={playlist.thumbnail}
+                />
+              ) : playlist.thumbnail ? (
                 <img
                   src={playlist.thumbnail || "/placeholder.svg"}
                   alt={playlist.title}
@@ -513,6 +521,8 @@ export default function PlaylistPage({ params }: PlaylistPageProps) {
           <VirtualizedSongList songs={playlist.songs} onPlaySong={handlePlaySong} onRemoveSong={handleRemoveSong} />
         )}
       </div>
+
+      <AudioPlayer />
     </div>
   )
 }

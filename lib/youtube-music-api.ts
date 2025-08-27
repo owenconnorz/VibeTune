@@ -87,9 +87,9 @@ class YouTubeMusicAPI {
   private quotaExceeded = false
   private lastQuotaCheck = 0
   private requestCount = 0
-  private readonly CACHE_TTL = 8 * 60 * 60 * 1000 // 8 hours (was 4 hours)
-  private readonly QUOTA_RESET_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours (was 1 hour)
-  private readonly MAX_REQUESTS_PER_HOUR = 5 // Reduced from 15
+  private readonly CACHE_TTL = 4 * 60 * 60 * 1000 // Reduced from 8 hours to 4 hours for fresher data
+  private readonly QUOTA_RESET_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours
+  private readonly MAX_REQUESTS_PER_HOUR = 25 // Increased from 5 to 25 requests per day to allow API to actually work
 
   constructor(apiKey: string) {
     this.apiKey = apiKey
@@ -163,7 +163,7 @@ class YouTubeMusicAPI {
 
     if (this.requestCount >= this.MAX_REQUESTS_PER_HOUR) {
       this.quotaExceeded = true
-      console.log("[v0] YouTube API: Self-imposed quota limit reached")
+      console.log("[v0] YouTube API: Daily quota limit reached, using fallback data")
       this.persistQuotaStatus()
     }
 
@@ -476,6 +476,39 @@ class YouTubeMusicAPI {
     const subset = shuffled.slice(0, Math.min(8, shuffled.length))
 
     return { videos: subset }
+  }
+
+  private parseVideo(item: any): YouTubeVideo {
+    const duration = this.parseDuration(item.contentDetails?.duration || "PT0S")
+    const thumbnail =
+      item.snippet?.thumbnails?.high?.url ||
+      item.snippet?.thumbnails?.medium?.url ||
+      item.snippet?.thumbnails?.default?.url ||
+      "/placeholder.svg"
+
+    return {
+      id: item.id?.videoId || item.id,
+      title: item.snippet?.title || "Unknown Title",
+      artist: item.snippet?.channelTitle || "Unknown Artist",
+      duration,
+      thumbnail,
+      viewCount: item.statistics?.viewCount,
+      publishedAt: item.snippet?.publishedAt,
+    }
+  }
+
+  private parseDuration(duration: string): string {
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+    if (!match) return "0:00"
+
+    const hours = Number.parseInt(match[1] || "0")
+    const minutes = Number.parseInt(match[2] || "0")
+    const seconds = Number.parseInt(match[3] || "0")
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+    }
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`
   }
 }
 

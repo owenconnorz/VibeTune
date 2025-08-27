@@ -18,6 +18,7 @@ import { SongMenu } from "@/components/song-menu"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { useSettings } from "@/contexts/settings-context" // Added settings context for adult content check
 import { NavigationRouter } from "@/components/navigation-router"
+import { PlaylistThumbnailGrid } from "@/components/playlist-thumbnail-grid"
 
 export default function LibraryPage() {
   const { user } = useAuth()
@@ -344,7 +345,13 @@ export default function LibraryPage() {
                 >
                   <CardContent className="p-4 relative">
                     <div className="aspect-square mb-3 bg-zinc-700 rounded-xl flex items-center justify-center overflow-hidden relative shadow-lg">
-                      {playlist.thumbnail ? (
+                      {playlist.songs?.length > 0 || playlist.videos?.length > 0 ? (
+                        <PlaylistThumbnailGrid
+                          songs={playlist.songs || playlist.videos || []}
+                          className="w-full h-full"
+                          fallbackThumbnail={playlist.thumbnail}
+                        />
+                      ) : playlist.thumbnail ? (
                         <img
                           src={playlist.thumbnail || "/placeholder.svg"}
                           alt={playlist.title}

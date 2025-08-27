@@ -194,19 +194,14 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
       console.log("[v0] Force enabling video mode for eporner video:", state.currentTrack?.title)
       setVideoMode(true)
     }
-  }, [isEpornerVideo, state.isVideoMode, state.currentTrack?.title, setVideoMode])
+  }, [isEpornerVideo, state.isVideoMode])
 
   const getEpornerEmbedUrl = useCallback(() => {
     if (!state.currentTrack || !isEpornerVideo) return null
 
-    console.log("[v0] Getting eporner embed URL for track:", state.currentTrack)
-
     if (state.currentTrack.videoUrl) {
-      console.log("[v0] Original video URL:", state.currentTrack.videoUrl)
-
       // If it's already an embed URL, use it directly
       if (state.currentTrack.videoUrl.includes("eporner.com/embed/")) {
-        console.log("[v0] Using existing embed URL:", state.currentTrack.videoUrl)
         return state.currentTrack.videoUrl
       }
 
@@ -217,7 +212,6 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
       const videoMatch = state.currentTrack.videoUrl.match(/\/video-([^/]+)\//)
       if (videoMatch) {
         videoId = videoMatch[1]
-        console.log("[v0] Extracted video ID from video URL:", videoId)
       }
 
       // Extract from direct eporner URLs
@@ -225,28 +219,24 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
         const idMatch = state.currentTrack.videoUrl.match(/eporner\.com\/.*?([a-zA-Z0-9]{8,})/)
         if (idMatch) {
           videoId = idMatch[1]
-          console.log("[v0] Extracted video ID from general URL:", videoId)
         }
       }
 
       if (videoId) {
-        const embedUrl = `https://www.eporner.com/embed/${videoId}`
-        console.log("[v0] Generated embed URL:", embedUrl)
-        return embedUrl
+        return `https://www.eporner.com/embed/${videoId}`
       }
     }
 
     // Fallback to using the track ID if it's an eporner video
     if (state.currentTrack.id?.startsWith("eporner_")) {
       const videoId = state.currentTrack.id.replace("eporner_", "")
-      const embedUrl = `https://www.eporner.com/embed/${videoId}`
-      console.log("[v0] Using track ID for embed URL:", embedUrl)
-      return embedUrl
+      return `https://www.eporner.com/embed/${videoId}`
     }
 
-    console.log("[v0] Could not generate embed URL for track")
     return null
-  }, [state.currentTrack, isEpornerVideo])
+  }, [state.currentTrack, isEpornerVideo]) // Fixed dependency array to use state.currentTrack instead of individual properties
+
+  const embedUrl = getEpornerEmbedUrl()
 
   if (!isOpen || !state.currentTrack || !colors) return null
 
@@ -337,9 +327,9 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                       </div>
                     }
                   >
-                    {getEpornerEmbedUrl() ? (
+                    {embedUrl ? (
                       <iframe
-                        src={getEpornerEmbedUrl()!}
+                        src={embedUrl}
                         className="w-full h-full border-0 relative z-20"
                         allowFullScreen
                         allow="autoplay; encrypted-media; picture-in-picture; fullscreen; microphone; camera"
@@ -347,13 +337,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                         loading="eager"
                         title={state.currentTrack.title}
                         referrerPolicy="no-referrer"
-                        autoPlay={true}
-                        onLoad={() => {
-                          console.log("[v0] Eporner iframe loaded successfully")
-                        }}
-                        onError={(e) => {
-                          console.error("[v0] Eporner iframe failed to load:", e)
-                        }}
+                        key={embedUrl}
                       />
                     ) : (
                       <div className="w-full h-full bg-black flex items-center justify-center text-white">
