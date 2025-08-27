@@ -87,16 +87,29 @@ class YouTubeMusicAPI {
   private quotaExceeded = false
   private lastQuotaCheck = 0
   private requestCount = 0
-  private readonly CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+  private readonly CACHE_TTL = 4 * 60 * 60 * 1000 // 4 hours (was 2 hours)
   private readonly QUOTA_RESET_INTERVAL = 60 * 60 * 1000 // 1 hour
-  private readonly MAX_REQUESTS_PER_HOUR = 50
+  private readonly MAX_REQUESTS_PER_HOUR = 15 // Reduced from 25
 
   constructor(apiKey: string) {
     this.apiKey = apiKey
   }
 
   private getCacheKey(endpoint: string, params: Record<string, string>): string {
-    return `${endpoint}_${JSON.stringify(params)}`
+    const normalizedParams = Object.keys(params)
+      .sort()
+      .reduce(
+        (acc, key) => {
+          let value = params[key].toLowerCase().trim().replace(/\s+/g, " ")
+          if (key === "q") {
+            value = value.replace(/\b(music|song|audio|track)\b/g, "").trim()
+          }
+          acc[key] = value
+          return acc
+        },
+        {} as Record<string, string>,
+      )
+    return `${endpoint}_${JSON.stringify(normalizedParams)}`
   }
 
   private getFromCache(key: string): YouTubeSearchResponse | null {
@@ -108,7 +121,7 @@ class YouTubeMusicAPI {
       return null
     }
 
-    console.log("[v0] YouTube API: Using cached data for", key)
+    console.log("[v0] YouTube API: Using cached data for", key.substring(0, 50) + "...")
     return entry.data
   }
 
@@ -118,21 +131,25 @@ class YouTubeMusicAPI {
       timestamp: Date.now(),
       ttl: this.CACHE_TTL,
     })
+    if (this.cache.size > 200) {
+      const oldestKey = this.cache.keys().next().value
+      this.cache.delete(oldestKey)
+    }
   }
 
   private checkQuotaStatus(): boolean {
     const now = Date.now()
 
-    // Reset quota status every hour
     if (now - this.lastQuotaCheck > this.QUOTA_RESET_INTERVAL) {
       this.quotaExceeded = false
       this.requestCount = 0
       this.lastQuotaCheck = now
+      console.log("[v0] YouTube API: Quota status reset")
     }
 
-    // Check if we've exceeded our self-imposed limit
     if (this.requestCount >= this.MAX_REQUESTS_PER_HOUR) {
       this.quotaExceeded = true
+      console.log("[v0] YouTube API: Self-imposed quota limit reached")
     }
 
     return !this.quotaExceeded
@@ -141,7 +158,6 @@ class YouTubeMusicAPI {
   private generateFallbackData(query?: string): YouTubeSearchResponse {
     console.log("[v0] YouTube API: Using fallback data due to quota limits")
 
-    // Shuffle and return a subset of fallback data
     const shuffled = [...FALLBACK_MUSIC_DATA].sort(() => Math.random() - 0.5)
     const subset = shuffled.slice(0, Math.min(8, shuffled.length))
 
@@ -166,8 +182,16 @@ class YouTubeMusicAPI {
     }
 
     if (this.pendingRequests.has(cacheKey)) {
-      console.log("[v0] YouTube API: Waiting for pending request:", cacheKey)
-      return await this.pendingRequests.get(cacheKey)!
+      console.log("[v0] YouTube API: Deduplicating request for:", cacheKey.substring(0, 50) + "...")
+      try {
+        return await Promise.race([
+          this.pendingRequests.get(cacheKey)!,
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), 15000)),
+        ])
+      } catch (error) {
+        this.pendingRequests.delete(cacheKey)
+        throw new Error("Request deduplication failed - using fallback data")
+      }
     }
 
     if (!this.checkQuotaStatus()) {
@@ -193,18 +217,23 @@ class YouTubeMusicAPI {
   }
 
   private async executeRequest(url: string, endpoint: string, cacheKey: string) {
-    console.log("[v0] YouTube API request:", url)
+    console.log("[v0] YouTube API request:", endpoint, "- Request count:", this.requestCount + 1)
     this.requestCount++
 
     try {
-      const response = await fetch(url)
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(8000),
+        headers: {
+          "User-Agent": "VibeTune-Music-App/1.0",
+        },
+      })
 
       if (!response.ok) {
         const errorText = await response.text()
         console.error("[v0] YouTube API error response:", {
           status: response.status,
           statusText: response.statusText,
-          body: errorText,
+          body: errorText.substring(0, 200) + "...",
         })
 
         if (response.status === 403 && errorText.includes("quota")) {
@@ -218,7 +247,7 @@ class YouTubeMusicAPI {
             throw new Error(`YouTube API error: ${errorData.error.message || response.statusText} (${response.status})`)
           }
         } catch (parseError) {
-          throw new Error(`YouTube API error: ${response.statusText} (${response.status}): ${errorText}`)
+          throw new Error(`YouTube API error: ${response.statusText} (${response.status})`)
         }
       }
 
@@ -226,6 +255,7 @@ class YouTubeMusicAPI {
       console.log("[v0] YouTube API response success:", {
         endpoint,
         itemCount: data.items?.length || 0,
+        cached: false,
       })
 
       return data
@@ -269,19 +299,33 @@ class YouTubeMusicAPI {
 
   async search(query: string, maxResults = 25): Promise<YouTubeSearchResponse> {
     try {
-      console.log("[v0] YouTube API search starting:", { query, maxResults })
+      const normalizedQuery = query
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ")
+        .replace(/\b(music|song|audio|track|playlist|mix)\b/g, "")
+        .trim()
 
-      const cacheKey = this.getCacheKey("search", { query, maxResults: maxResults.toString() })
+      console.log("[v0] YouTube API search starting:", {
+        originalQuery: query,
+        normalizedQuery,
+        maxResults,
+      })
+
+      const cacheKey = this.getCacheKey("search", {
+        query: normalizedQuery,
+        maxResults: maxResults.toString(),
+      })
+
       const cached = this.getFromCache(cacheKey)
       if (cached) {
-        console.log("[v0] YouTube API search results:", cached.videos.length, "songs")
+        console.log("[v0] YouTube API search results:", cached.videos.length, "songs (cached)")
         return cached
       }
 
-      // Search for videos
       const searchResponse = await this.makeRequest("search", {
         part: "snippet",
-        q: `${query} music`,
+        q: `${normalizedQuery} music`,
         type: "video",
         maxResults: maxResults.toString(),
         order: "relevance",
@@ -290,12 +334,13 @@ class YouTubeMusicAPI {
 
       if (!searchResponse.items?.length) {
         console.log("[v0] YouTube API search: No items found")
-        return { videos: [] }
+        const emptyResult = { videos: [] }
+        this.setCache(cacheKey, emptyResult)
+        return emptyResult
       }
 
       const uniqueVideoIds = [...new Set(searchResponse.items.map((item: any) => item.id.videoId))]
       const videoIds = uniqueVideoIds.join(",")
-      console.log("[v0] YouTube API: Fetching details for video IDs:", videoIds)
 
       const detailsResponse = await this.makeRequest("videos", {
         part: "snippet,contentDetails,statistics",
@@ -303,7 +348,6 @@ class YouTubeMusicAPI {
       })
 
       const videos = detailsResponse.items.map((item: any) => this.parseVideo(item))
-      console.log("[v0] YouTube API search completed:", { resultCount: videos.length })
       console.log("[v0] YouTube API search results:", videos.length, "songs")
 
       const result = {
@@ -320,7 +364,10 @@ class YouTubeMusicAPI {
         error: error instanceof Error ? error.message : String(error),
       })
 
-      if (error instanceof Error && error.message.includes("quota exceeded")) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("quota exceeded") || error.message.includes("deduplication failed"))
+      ) {
         return this.generateFallbackData(query)
       }
 
