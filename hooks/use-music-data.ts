@@ -4,6 +4,16 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { fetchTrendingMusic, searchMusic, type Song } from "@/lib/music-data"
 import { musicCache, getCacheKey } from "@/lib/music-cache"
 
+const MINIMAL_FALLBACK_SONGS: Song[] = [
+  {
+    id: "fallback_notice",
+    title: "YouTube API Quota Exceeded",
+    artist: "Please try again later",
+    thumbnail: "/single-music-note.png",
+    duration: "0:00",
+  },
+]
+
 const FALLBACK_TRENDING_SONGS: Song[] = [
   {
     id: "fallback_1",
@@ -73,22 +83,22 @@ export function useTrendingMusic() {
         }
       }
 
-      console.log("[v0] Fetching fresh trending music from API")
-      const trendingSongs = await fetchTrendingMusic()
+      console.log("[v0] Fetching fresh trending music from YouTube API")
+      const trendingSongs = await fetchTrendingMusic(25) // Increased from default to get more results
 
       if (trendingSongs && trendingSongs.length > 0) {
-        console.log("[v0] Got trending music from API:", trendingSongs.length, "songs")
+        console.log("[v0] Got trending music from YouTube API:", trendingSongs.length, "songs")
         setSongs(trendingSongs)
         setSource("api")
-        musicCache.set(cacheKey, trendingSongs, 5 * 60 * 1000)
+        musicCache.set(cacheKey, trendingSongs, 10 * 60 * 1000) // Increased cache time to reduce API calls
       } else {
-        throw new Error("No trending songs returned from API")
+        throw new Error("No trending songs returned from YouTube API")
       }
     } catch (err) {
-      console.error("[v0] Trending music API failed, using fallback data:", err)
-      setSongs(FALLBACK_TRENDING_SONGS)
+      console.error("[v0] YouTube API failed for trending music:", err)
+      setSongs(MINIMAL_FALLBACK_SONGS) // Using minimal fallback instead of fake songs
       setSource("fallback")
-      setError(null) // Don't show error to user, fallback data is working
+      setError("YouTube API quota exceeded. Music will be available when quota resets.")
     } finally {
       setLoading(false)
     }
@@ -128,23 +138,28 @@ export function useSearchMusic(query: string, enabled = false) {
           return
         }
 
-        const results = await searchMusic(query)
-        setSongs(results)
-        setSource("api")
+        console.log(`[v0] Searching YouTube API for: "${query}"`)
+        const results = await searchMusic(query, 15) // Increased results for better search experience
 
-        if (results.length > 0) {
-          musicCache.set(cacheKey, results, 20 * 60 * 1000)
+        if (results && results.length > 0) {
+          setSongs(results)
+          setSource("api")
+          musicCache.set(cacheKey, results, 30 * 60 * 1000) // Longer cache for search results
+        } else {
+          setSongs([])
+          setSource("api")
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Search failed")
+        console.error(`[v0] YouTube API search failed for "${query}":`, err)
+        setError("YouTube API quota exceeded. Search will be available when quota resets.")
+        setSongs(MINIMAL_FALLBACK_SONGS) // Minimal fallback for search
         setSource("fallback")
-        console.error("Error searching music:", err)
       } finally {
         setLoading(false)
       }
     }
 
-    const debounceTimer = setTimeout(performSearch, 500)
+    const debounceTimer = setTimeout(performSearch, 300) // Reduced debounce for faster search
     return () => clearTimeout(debounceTimer)
   }, [query, enabled])
 
