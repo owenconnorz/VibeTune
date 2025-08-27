@@ -14,6 +14,7 @@ export interface Track {
   audioUrl?: string
   videoUrl?: string // Add video URL support
   isVideo?: boolean // Flag to indicate video content
+  url?: string // Additional URL field for YouTube links
 }
 
 interface AudioPlayerState {
@@ -271,6 +272,74 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const playButtonRef = useRef<HTMLButtonElement | null>(null)
   const progressRef = useRef<HTMLInputElement | null>(null)
   const { addToHistory } = useListeningHistory()
+
+  useEffect(() => {
+    if (!audioElementRef.current) {
+      audioElementRef.current = new Audio()
+      audioElementRef.current.preload = "metadata"
+      audioElementRef.current.crossOrigin = "anonymous"
+      console.log("[v0] Audio element created")
+    }
+
+    return () => {
+      if (audioElementRef.current) {
+        audioElementRef.current.pause()
+        audioElementRef.current.src = ""
+        audioElementRef.current = null
+        console.log("[v0] Audio element cleaned up")
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (state.currentTrack && audioElementRef.current) {
+      const audio = audioElementRef.current
+
+      // Check if track has a playable audio URL
+      if (!state.currentTrack.audioUrl) {
+        console.log("[v0] Track has no audio URL, checking for alternatives:", state.currentTrack.title)
+
+        // For YouTube URLs, we can't play them directly due to CORS restrictions
+        if (state.currentTrack.url?.includes("youtube.com")) {
+          dispatch({
+            type: "SET_ERROR",
+            payload: "YouTube audio playback requires premium access. Displaying track info only.",
+          })
+          dispatch({ type: "SET_LOADING", payload: false })
+          return
+        }
+
+        dispatch({ type: "SET_ERROR", payload: "No audio source available for this track" })
+        dispatch({ type: "SET_LOADING", payload: false })
+        return
+      }
+
+      // Set audio source if available
+      if (audio.src !== state.currentTrack.audioUrl) {
+        console.log("[v0] Setting audio source:", state.currentTrack.audioUrl)
+        audio.src = state.currentTrack.audioUrl
+        audio.load()
+      }
+    }
+  }, [state.currentTrack])
+
+  useEffect(() => {
+    if (audioElementRef.current) {
+      const audio = audioElementRef.current
+
+      if (state.isPlaying && !state.error) {
+        console.log("[v0] Attempting to play audio")
+        audio.play().catch((error) => {
+          console.error("[v0] Audio play failed:", error)
+          dispatch({ type: "SET_ERROR", payload: "Failed to play audio: " + error.message })
+          dispatch({ type: "PAUSE" })
+        })
+      } else {
+        console.log("[v0] Pausing audio")
+        audio.pause()
+      }
+    }
+  }, [state.isPlaying, state.error])
 
   useEffect(() => {
     const manageWakeLock = async () => {
@@ -597,8 +666,17 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }, [state.duration, state.currentTime, state.currentTrack, state.isPlaying, state.playbackRate])
 
   const playTrack = (track: Track) => {
+    console.log("[v0] Playing track:", track.title, "Audio URL:", track.audioUrl || "None")
+
     dispatch({ type: "SET_QUEUE", payload: { tracks: [track], startIndex: 0 } })
-    dispatch({ type: "PLAY" })
+
+    // Only attempt to play if we have an audio URL
+    if (track.audioUrl) {
+      dispatch({ type: "PLAY" })
+    } else {
+      console.log("[v0] Track has no audio URL, showing info only")
+      dispatch({ type: "PAUSE" })
+    }
 
     if (track.isVideo || track.videoUrl) {
       console.log("[v0] Auto-enabling video mode for video track:", track.title)
@@ -610,10 +688,24 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }
 
   const playQueue = (tracks: Track[], startIndex = 0) => {
-    dispatch({ type: "SET_QUEUE", payload: { tracks, startIndex } })
-    dispatch({ type: "PLAY" })
-
     const startingTrack = tracks[startIndex]
+    console.log(
+      "[v0] Playing queue starting with:",
+      startingTrack?.title,
+      "Audio URL:",
+      startingTrack?.audioUrl || "None",
+    )
+
+    dispatch({ type: "SET_QUEUE", payload: { tracks, startIndex } })
+
+    // Only attempt to play if the starting track has an audio URL
+    if (startingTrack?.audioUrl) {
+      dispatch({ type: "PLAY" })
+    } else {
+      console.log("[v0] Starting track has no audio URL, showing info only")
+      dispatch({ type: "PAUSE" })
+    }
+
     if (startingTrack && (startingTrack.isVideo || startingTrack.videoUrl)) {
       console.log("[v0] Auto-enabling video mode for video queue:", startingTrack.title)
       setVideoMode(true)
@@ -624,6 +716,12 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }
 
   const togglePlay = () => {
+    if (!state.currentTrack?.audioUrl && !state.isPlaying) {
+      console.log("[v0] Cannot play: no audio URL available")
+      dispatch({ type: "SET_ERROR", payload: "No audio source available. YouTube API quota may be exceeded." })
+      return
+    }
+
     dispatch({ type: "TOGGLE_PLAY" })
   }
 
