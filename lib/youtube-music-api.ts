@@ -87,12 +87,25 @@ class YouTubeMusicAPI {
   private quotaExceeded = false
   private lastQuotaCheck = 0
   private requestCount = 0
-  private readonly CACHE_TTL = 4 * 60 * 60 * 1000 // 4 hours (was 2 hours)
-  private readonly QUOTA_RESET_INTERVAL = 60 * 60 * 1000 // 1 hour
-  private readonly MAX_REQUESTS_PER_HOUR = 15 // Reduced from 25
+  private readonly CACHE_TTL = 8 * 60 * 60 * 1000 // 8 hours (was 4 hours)
+  private readonly QUOTA_RESET_INTERVAL = 24 * 60 * 60 * 1000 // 24 hours (was 1 hour)
+  private readonly MAX_REQUESTS_PER_HOUR = 5 // Reduced from 15
 
   constructor(apiKey: string) {
     this.apiKey = apiKey
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("youtube_api_quota")
+      if (stored) {
+        try {
+          const data = JSON.parse(stored)
+          this.requestCount = data.requestCount || 0
+          this.lastQuotaCheck = data.lastQuotaCheck || 0
+          this.quotaExceeded = data.quotaExceeded || false
+        } catch (e) {
+          // Ignore parsing errors
+        }
+      }
+    }
   }
 
   private getCacheKey(endpoint: string, params: Record<string, string>): string {
@@ -145,23 +158,116 @@ class YouTubeMusicAPI {
       this.requestCount = 0
       this.lastQuotaCheck = now
       console.log("[v0] YouTube API: Quota status reset")
+      this.persistQuotaStatus()
     }
 
     if (this.requestCount >= this.MAX_REQUESTS_PER_HOUR) {
       this.quotaExceeded = true
       console.log("[v0] YouTube API: Self-imposed quota limit reached")
+      this.persistQuotaStatus()
     }
 
     return !this.quotaExceeded
   }
 
-  private generateFallbackData(query?: string): YouTubeSearchResponse {
-    console.log("[v0] YouTube API: Using fallback data due to quota limits")
+  private persistQuotaStatus(): void {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(
+          "youtube_api_quota",
+          JSON.stringify({
+            requestCount: this.requestCount,
+            lastQuotaCheck: this.lastQuotaCheck,
+            quotaExceeded: this.quotaExceeded,
+          }),
+        )
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    }
+  }
 
-    const shuffled = [...FALLBACK_MUSIC_DATA].sort(() => Math.random() - 0.5)
-    const subset = shuffled.slice(0, Math.min(8, shuffled.length))
+  private async executeRequest(url: string, endpoint: string, cacheKey: string) {
+    console.log("[v0] YouTube API request:", endpoint, "- Request count:", this.requestCount + 1)
+    this.requestCount++
+    this.persistQuotaStatus()
 
-    return { videos: subset }
+    try {
+      const response = await fetch(url, {
+        signal: AbortSignal.timeout(8000),
+        headers: {
+          "User-Agent": "VibeTune-Music-App/1.0",
+        },
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("[v0] YouTube API error response:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText.substring(0, 200) + "...",
+        })
+
+        if (response.status === 403 && errorText.includes("quota")) {
+          this.quotaExceeded = true
+          this.persistQuotaStatus()
+          console.log("[v0] YouTube API: Quota exceeded, returning fallback data")
+          return this.createFallbackResponse(endpoint)
+        }
+
+        console.log("[v0] YouTube API: API error, returning fallback data")
+        return this.createFallbackResponse(endpoint)
+      }
+
+      const data = await response.json()
+      console.log("[v0] YouTube API response success:", {
+        endpoint,
+        itemCount: data.items?.length || 0,
+        cached: false,
+      })
+
+      return data
+    } catch (error) {
+      console.error("[v0] YouTube API request failed:", {
+        endpoint,
+        error: error instanceof Error ? error.message : String(error),
+      })
+      console.log("[v0] YouTube API: Request failed, returning fallback data")
+      return this.createFallbackResponse(endpoint)
+    }
+  }
+
+  private createFallbackResponse(endpoint: string) {
+    const fallbackVideos = [...FALLBACK_MUSIC_DATA].sort(() => Math.random() - 0.5).slice(0, 8)
+
+    if (endpoint === "search") {
+      return {
+        items: fallbackVideos.map((v) => ({
+          id: { videoId: v.id },
+          snippet: {
+            title: v.title,
+            channelTitle: v.artist,
+            thumbnails: { high: { url: v.thumbnail } },
+          },
+          contentDetails: { duration: `PT${v.duration.replace(":", "M")}S` },
+        })),
+      }
+    } else if (endpoint === "videos") {
+      return {
+        items: fallbackVideos.map((v) => ({
+          id: v.id,
+          snippet: {
+            title: v.title,
+            channelTitle: v.artist,
+            thumbnails: { high: { url: v.thumbnail } },
+          },
+          contentDetails: { duration: `PT${v.duration.replace(":", "M")}S` },
+          statistics: { viewCount: "1000000" },
+        })),
+      }
+    }
+
+    return { items: [] }
   }
 
   private async makeRequest(endpoint: string, params: Record<string, string>) {
@@ -190,12 +296,14 @@ class YouTubeMusicAPI {
         ])
       } catch (error) {
         this.pendingRequests.delete(cacheKey)
-        throw new Error("Request deduplication failed - using fallback data")
+        console.log("[v0] YouTube API: Deduplication failed, returning fallback data")
+        return this.createFallbackResponse(endpoint)
       }
     }
 
     if (!this.checkQuotaStatus()) {
-      throw new Error("API quota exceeded - using fallback data")
+      console.log("[v0] YouTube API: Quota check failed, returning fallback data")
+      return this.createFallbackResponse(endpoint)
     }
 
     const url = new URL(`${this.baseUrl}/${endpoint}`)
@@ -216,89 +324,13 @@ class YouTubeMusicAPI {
     }
   }
 
-  private async executeRequest(url: string, endpoint: string, cacheKey: string) {
-    console.log("[v0] YouTube API request:", endpoint, "- Request count:", this.requestCount + 1)
-    this.requestCount++
-
-    try {
-      const response = await fetch(url, {
-        signal: AbortSignal.timeout(8000),
-        headers: {
-          "User-Agent": "VibeTune-Music-App/1.0",
-        },
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error("[v0] YouTube API error response:", {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText.substring(0, 200) + "...",
-        })
-
-        if (response.status === 403 && errorText.includes("quota")) {
-          this.quotaExceeded = true
-          throw new Error("API quota exceeded - using fallback data")
-        }
-
-        try {
-          const errorData = JSON.parse(errorText)
-          if (errorData.error) {
-            throw new Error(`YouTube API error: ${errorData.error.message || response.statusText} (${response.status})`)
-          }
-        } catch (parseError) {
-          throw new Error(`YouTube API error: ${response.statusText} (${response.status})`)
-        }
-      }
-
-      const data = await response.json()
-      console.log("[v0] YouTube API response success:", {
-        endpoint,
-        itemCount: data.items?.length || 0,
-        cached: false,
-      })
-
-      return data
-    } catch (error) {
-      console.error("[v0] YouTube API request failed:", {
-        endpoint,
-        error: error instanceof Error ? error.message : String(error),
-      })
-      throw error
-    }
-  }
-
-  private formatDuration(duration: string): string {
-    const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/)
-    if (!match) return "0:00"
-
-    const hours = Number.parseInt(match[1]?.replace("H", "") || "0")
-    const minutes = Number.parseInt(match[2]?.replace("M", "") || "0")
-    const seconds = Number.parseInt(match[3]?.replace("S", "") || "0")
-
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
-    }
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`
-  }
-
-  private parseVideo(item: any): YouTubeVideo {
-    const snippet = item.snippet
-    const contentDetails = item.contentDetails
-
-    return {
-      id: item.id.videoId || item.id,
-      title: snippet.title,
-      artist: snippet.channelTitle,
-      duration: contentDetails ? this.formatDuration(contentDetails.duration) : "0:00",
-      thumbnail: snippet.thumbnails?.high?.url || snippet.thumbnails?.default?.url || "",
-      viewCount: item.statistics?.viewCount,
-      publishedAt: snippet.publishedAt,
-    }
-  }
-
   async search(query: string, maxResults = 25): Promise<YouTubeSearchResponse> {
     try {
+      if (!this.checkQuotaStatus()) {
+        console.log("[v0] YouTube API: Quota exceeded, using fallback data immediately")
+        return this.generateFallbackData(query)
+      }
+
       const normalizedQuery = query
         .toLowerCase()
         .trim()
@@ -364,19 +396,18 @@ class YouTubeMusicAPI {
         error: error instanceof Error ? error.message : String(error),
       })
 
-      if (
-        error instanceof Error &&
-        (error.message.includes("quota exceeded") || error.message.includes("deduplication failed"))
-      ) {
-        return this.generateFallbackData(query)
-      }
-
-      return { videos: [] }
+      console.log("[v0] YouTube API: Using fallback data due to error")
+      return this.generateFallbackData(query)
     }
   }
 
   async getTrending(maxResults = 25): Promise<YouTubeSearchResponse> {
     try {
+      if (!this.checkQuotaStatus()) {
+        console.log("[v0] YouTube API: Quota exceeded, using fallback data for trending")
+        return this.generateFallbackData()
+      }
+
       console.log("[v0] YouTube API trending starting:", { maxResults })
 
       const cacheKey = this.getCacheKey("trending", { maxResults: maxResults.toString() })
@@ -411,11 +442,8 @@ class YouTubeMusicAPI {
         error: error instanceof Error ? error.message : String(error),
       })
 
-      if (error instanceof Error && error.message.includes("quota exceeded")) {
-        return this.generateFallbackData()
-      }
-
-      return { videos: [] }
+      console.log("[v0] YouTube API: Using fallback data for trending due to error")
+      return this.generateFallbackData()
     }
   }
 
@@ -439,6 +467,15 @@ class YouTubeMusicAPI {
       })
       return null
     }
+  }
+
+  private generateFallbackData(query?: string): YouTubeSearchResponse {
+    console.log("[v0] YouTube API: Using fallback data due to quota limits")
+
+    const shuffled = [...FALLBACK_MUSIC_DATA].sort(() => Math.random() - 0.5)
+    const subset = shuffled.slice(0, Math.min(8, shuffled.length))
+
+    return { videos: subset }
   }
 }
 
