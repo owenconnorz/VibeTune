@@ -14,6 +14,7 @@ interface DiscordUser {
 interface SettingsContextType {
   adultContentEnabled: boolean
   setAdultContentEnabled: (enabled: boolean) => void
+  showAdultContent: boolean
   discordRpcEnabled: boolean
   setDiscordRpcEnabled: (enabled: boolean) => void
   discordUser: DiscordUser | null
@@ -166,6 +167,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       value={{
         adultContentEnabled,
         setAdultContentEnabled,
+        showAdultContent: adultContentEnabled,
         discordRpcEnabled,
         setDiscordRpcEnabled: setDiscordRpcEnabledState,
         discordUser,

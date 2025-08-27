@@ -662,7 +662,12 @@ export class YouTubeAPI {
   private quotaResetTime = 24 * 60 * 60 * 1000 // 24 hours
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || process.env.YOUTUBE_API_KEY || "AIzaSyBIQVGnXO2T7smsxf6q_MWxMD1sQzek1Nc"
+    this.apiKey = apiKey || process.env.YOUTUBE_API_KEY || ""
+    if (!this.apiKey) {
+      throw new Error(
+        "YouTube API key is required. Please provide it via constructor parameter or set YOUTUBE_API_KEY environment variable.",
+      )
+    }
   }
 
   private isQuotaExceeded(): boolean {
