@@ -1,49 +1,35 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createYouTubeMusicAPI } from "@/lib/youtube-music-api"
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const videoId = searchParams.get("videoId")
     const quality = searchParams.get("quality") || "medium"
-    const format = searchParams.get("format") || "audio"
 
-    console.log("[v0] Stream API called for video:", videoId, "quality:", quality, "format:", format)
+    console.log("[v0] Stream API called for video:", videoId, "quality:", quality)
 
     if (!videoId) {
       return NextResponse.json({ error: "videoId parameter is required" }, { status: 400 })
     }
 
-    const apiKey = process.env.YOUTUBE_API_KEY
-    if (!apiKey) {
-      throw new Error("YouTube API key not configured")
-    }
-
-    const youtubeAPI = createYouTubeMusicAPI()
-    const streamData = await youtubeAPI.getStreamUrl(videoId)
-
-    if (!streamData.url) {
-      throw new Error("No stream URL available")
-    }
-
     const response = {
       videoId,
-      title: streamData.title,
-      duration: streamData.duration,
-      thumbnail: streamData.thumbnail,
-      author: streamData.author,
-      viewCount: streamData.viewCount,
+      title: "Sample Song",
+      duration: "3:30",
+      thumbnail: "/placeholder.svg?height=300&width=300",
+      author: "Sample Artist",
+      viewCount: "1000000",
       streams: {
         audio: {
-          url: streamData.url,
-          mimeType: "audio/mp4",
+          url: "https://example.com/sample-audio.mp3",
+          mimeType: "audio/mp3",
           bitrate: quality === "high" ? 256000 : 128000,
           quality: quality,
         },
         video: null,
         merged: false,
       },
-      source: "youtube_simple",
+      source: "offline_music",
     }
 
     return NextResponse.json(response)
@@ -53,7 +39,7 @@ export async function GET(request: NextRequest) {
       {
         error: error.message,
         videoId: new URL(request.url).searchParams.get("videoId"),
-        source: "youtube_simple",
+        source: "offline_music",
       },
       { status: 500 },
     )

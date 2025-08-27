@@ -1,78 +1,17 @@
 "use client"
 import { useState } from "react"
-import { ArrowLeft, Globe, Youtube, Download, Link, ExternalLink } from "lucide-react"
+import { ArrowLeft, Globe, Music, Link, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { usePlaylist } from "@/contexts/playlist-context"
-import { createYouTubeMusicAPI } from "@/lib/youtube-music-api"
 
 export default function ContentSettingsPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const { createPlaylist } = usePlaylist()
 
-  const [playlistUrl, setPlaylistUrl] = useState("")
-  const [isImporting, setIsImporting] = useState(false)
-  const [importStatus, setImportStatus] = useState<string | null>(null)
   const [autoSync, setAutoSync] = useState(false)
-
-  const handlePlaylistImport = async () => {
-    if (!playlistUrl.trim()) {
-      setImportStatus("Please enter a valid YouTube playlist URL")
-      return
-    }
-
-    if (!user) {
-      setImportStatus("Please sign in to import playlists")
-      return
-    }
-
-    setIsImporting(true)
-    setImportStatus("Importing playlist...")
-
-    try {
-      const youtubeAPI = createYouTubeMusicAPI()
-      const playlistId = extractPlaylistId(playlistUrl)
-
-      if (!playlistId) {
-        throw new Error("Invalid YouTube playlist URL")
-      }
-
-      const result = await youtubeAPI.getPlaylist(playlistId)
-
-      if (result && result.title && result.songs) {
-        const songs = result.songs.map((song: any) => ({
-          id: song.id,
-          title: song.title,
-          artist: song.artist || "Unknown Artist",
-          thumbnail: song.thumbnail,
-          duration: song.duration || "0:00",
-        }))
-
-        await createPlaylist(result.title, songs, result.thumbnail)
-
-        setImportStatus(`Successfully imported "${result.title}" with ${songs.length} songs`)
-        setPlaylistUrl("")
-      } else {
-        throw new Error("Failed to fetch playlist data")
-      }
-    } catch (error) {
-      console.error("Playlist import failed:", error)
-      setImportStatus(`Import failed: ${error instanceof Error ? error.message : "Unknown error"}`)
-    } finally {
-      setIsImporting(false)
-    }
-  }
-
-  const extractPlaylistId = (url: string): string | null => {
-    const regex = /[?&]list=([^#&?]*)/
-    const match = url.match(regex)
-    return match ? match[1] : null
-  }
 
   const handleAutoSyncToggle = (enabled: boolean) => {
     setAutoSync(enabled)
@@ -94,53 +33,23 @@ export default function ContentSettingsPage() {
       </header>
 
       <div className="px-4 pb-6 space-y-6">
-        {/* YouTube Import Section */}
         <Card className="bg-zinc-800 border-zinc-700">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
-              <Youtube className="w-5 h-5 text-red-500" />
-              Import from YouTube
+              <Music className="w-5 h-5 text-yellow-400" />
+              Offline Music Library
             </CardTitle>
-            <CardDescription className="text-gray-400">Import playlists directly from YouTube</CardDescription>
+            <CardDescription className="text-gray-400">
+              Your music is powered by our curated offline database
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">YouTube Playlist URL</label>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="https://www.youtube.com/playlist?list=..."
-                  value={playlistUrl}
-                  onChange={(e) => setPlaylistUrl(e.target.value)}
-                  className="bg-zinc-700 border-zinc-600 text-white placeholder-gray-400"
-                  disabled={isImporting}
-                />
-                <Button
-                  onClick={handlePlaylistImport}
-                  disabled={isImporting || !playlistUrl.trim()}
-                  className="bg-red-600 hover:bg-red-700 text-white"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  {isImporting ? "Importing..." : "Import"}
-                </Button>
-              </div>
-            </div>
-
-            {importStatus && (
-              <div
-                className={`p-3 rounded-lg text-sm ${
-                  importStatus.includes("Successfully")
-                    ? "bg-green-900/50 text-green-300 border border-green-700"
-                    : "bg-red-900/50 text-red-300 border border-red-700"
-                }`}
-              >
-                {importStatus}
-              </div>
-            )}
-
-            <div className="text-xs text-gray-400 space-y-1">
-              <p>• Paste any YouTube playlist URL to import all songs</p>
-              <p>• Private playlists require you to be signed in</p>
-              <p>• Large playlists may take a few moments to import</p>
+            <div className="text-sm text-gray-300 space-y-2">
+              <p>• High-quality curated music collection</p>
+              <p>• No internet connection required for playback</p>
+              <p>• Intelligent search across genres and artists</p>
+              <p>• Trending and popular music recommendations</p>
+              <p>• Fast and reliable music discovery</p>
             </div>
           </CardContent>
         </Card>
@@ -162,33 +71,32 @@ export default function ContentSettingsPage() {
                 </div>
                 <div>
                   <p className="text-white font-medium">Auto-sync Playlists</p>
-                  <p className="text-gray-400 text-sm">Automatically update imported playlists</p>
+                  <p className="text-gray-400 text-sm">Automatically update your custom playlists</p>
                 </div>
               </div>
               <Switch checked={autoSync} onCheckedChange={handleAutoSyncToggle} />
             </div>
 
             <div className="text-xs text-gray-400 space-y-1 pt-2 border-t border-zinc-700">
-              <p>• Auto-sync keeps your imported playlists up to date</p>
-              <p>• Changes from YouTube will be reflected in your library</p>
-              <p>• Requires internet connection to sync</p>
+              <p>• Auto-sync keeps your custom playlists organized</p>
+              <p>• Changes to your playlists are saved automatically</p>
+              <p>• Works entirely offline with local storage</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Content Sources */}
         <Card className="bg-zinc-800 border-zinc-700">
           <CardHeader>
-            <CardTitle className="text-white">Supported Sources</CardTitle>
-            <CardDescription className="text-gray-400">Platforms you can import content from</CardDescription>
+            <CardTitle className="text-white">Music Sources</CardTitle>
+            <CardDescription className="text-gray-400">How your music library is powered</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-zinc-700 rounded-lg">
               <div className="flex items-center gap-3">
-                <Youtube className="w-6 h-6 text-red-500" />
+                <Music className="w-6 h-6 text-yellow-400" />
                 <div>
-                  <p className="text-white font-medium">YouTube</p>
-                  <p className="text-gray-400 text-sm">Import playlists and porn</p>
+                  <p className="text-white font-medium">Offline Database</p>
+                  <p className="text-gray-400 text-sm">Curated music collection</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -229,15 +137,15 @@ export default function ContentSettingsPage() {
         <Card className="bg-zinc-800 border-zinc-700">
           <CardHeader>
             <CardTitle className="text-white">Content Guidelines</CardTitle>
-            <CardDescription className="text-gray-400">Important information about imported content</CardDescription>
+            <CardDescription className="text-gray-400">Important information about your music library</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="text-sm text-gray-300 space-y-2">
-              <p>• Only import content you have permission to use</p>
-              <p>• Respect copyright and intellectual property rights</p>
-              <p>• Some content may not be available in all regions</p>
-              <p>• Content quality depends on the original source</p>
-              <p>• We don't store or redistribute copyrighted material</p>
+              <p>• All music is provided through our curated offline database</p>
+              <p>• Content is carefully selected for quality and variety</p>
+              <p>• No external dependencies or internet required</p>
+              <p>• Fast search and discovery across all genres</p>
+              <p>• Regular updates to expand the music collection</p>
             </div>
           </CardContent>
         </Card>

@@ -2,7 +2,6 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
-import type { YouTubeAPISettings } from "@/lib/youtube-api-advanced"
 
 interface DiscordUser {
   id: string
@@ -26,8 +25,6 @@ interface SettingsContextType {
   setAgeVerified: (verified: boolean) => void
   showAgeVerification: boolean
   setShowAgeVerification: (show: boolean) => void
-  youtubeSettings: YouTubeAPISettings
-  setYoutubeSettings: (settings: Partial<YouTubeAPISettings>) => void
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
@@ -39,15 +36,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [discordAccessToken, setDiscordAccessToken] = useState<string | null>(null)
   const [isAgeVerified, setIsAgeVerifiedState] = useState(false)
   const [showAgeVerification, setShowAgeVerification] = useState(false)
-
-  const [youtubeSettings, setYoutubeSettingsState] = useState<YouTubeAPISettings>({
-    highQuality: false,
-    preferVideos: false,
-    showVideos: false,
-    highQualityAudio: false,
-    preferOpus: true,
-    adaptiveAudio: true,
-  })
 
   const setCookie = (name: string, value: string, days = 365) => {
     const expires = new Date()
@@ -88,16 +76,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const ageVerified = getCookie("vibetuneAgeVerified")
     if (ageVerified === "true") {
       setIsAgeVerifiedState(true)
-    }
-
-    const youtubeSaved = localStorage.getItem("vibetuneYoutubeSettings")
-    if (youtubeSaved) {
-      try {
-        const parsed = JSON.parse(youtubeSaved)
-        setYoutubeSettingsState(parsed)
-      } catch (error) {
-        console.error("Failed to parse YouTube settings:", error)
-      }
     }
   }, [])
 
@@ -153,13 +131,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setDiscordRpcEnabledState(false)
   }
 
-  const setYoutubeSettings = (newSettings: Partial<YouTubeAPISettings>) => {
-    const updatedSettings = { ...youtubeSettings, ...newSettings }
-    setYoutubeSettingsState(updatedSettings)
-    localStorage.setItem("vibetuneYoutubeSettings", JSON.stringify(updatedSettings))
-    console.log("[v0] YouTube settings updated:", updatedSettings)
-  }
-
   const isDiscordConnected = discordUser !== null && discordAccessToken !== null
 
   return (
@@ -179,8 +150,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         setAgeVerified,
         showAgeVerification,
         setShowAgeVerification,
-        youtubeSettings,
-        setYoutubeSettings,
       }}
     >
       {children}

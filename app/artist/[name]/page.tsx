@@ -5,7 +5,7 @@ import { ArrowLeft, Play, MoreVertical, User, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
-import { createYouTubeMusicAPI } from "@/lib/youtube-music-api"
+import { createMusicAPI } from "@/lib/youtube-data-api"
 
 interface Song {
   id: string
@@ -27,73 +27,44 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
   const { playQueue } = useAudioPlayer()
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
 
   const artistName = decodeURIComponent(resolvedParams.name)
 
-  const loadSongs = useCallback(
-    async (pageToken?: string, isInitial = false) => {
-      if (loading) return
+  const loadSongs = useCallback(async () => {
+    if (loading) return
 
-      setLoading(true)
-      setError(null)
+    setLoading(true)
+    setError(null)
 
-      try {
-        console.log("[v0] Loading songs for artist:", artistName, "pageToken:", pageToken)
+    try {
+      console.log("[v0] Loading songs for artist:", artistName)
 
-        const youtubeAPI = createYouTubeMusicAPI()
-        const results = await youtubeAPI.search(artistName, { maxResults: 20, pageToken })
+      const musicAPI = createMusicAPI()
+      const results = await musicAPI.search(artistName, 20)
 
-        const artistSongs = results.songs.map((song) => ({
-          id: song.id,
-          title: song.title || "Unknown Title",
-          artist: song.artist || artistName,
-          thumbnail: song.thumbnail,
-          duration: song.duration,
-        }))
+      const artistSongs = results.tracks.map((track) => ({
+        id: track.id,
+        title: track.title || "Unknown Title",
+        artist: track.artist || artistName,
+        thumbnail: track.thumbnail,
+        duration: track.duration,
+      }))
 
-        console.log("[v0] Loaded", artistSongs.length, "songs for artist")
+      console.log("[v0] Loaded", artistSongs.length, "songs for artist")
 
-        if (isInitial) {
-          setSongs(artistSongs)
-        } else {
-          setSongs((prev) => [...prev, ...artistSongs])
-        }
-
-        setNextPageToken(results.nextPageToken)
-        setHasMore(!!results.nextPageToken && artistSongs.length > 0)
-      } catch (err) {
-        setError("Failed to load songs")
-        console.error("Error loading artist songs:", err)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [artistName, loading],
-  )
-
-  useEffect(() => {
-    loadSongs(undefined, true)
-  }, [artistName])
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop >= document.documentElement.offsetHeight - 1000 &&
-        hasMore &&
-        !loading &&
-        nextPageToken
-      ) {
-        console.log("[v0] Loading next page with token:", nextPageToken)
-        loadSongs(nextPageToken)
-      }
+      setSongs(artistSongs)
+    } catch (err) {
+      setError("Failed to load songs")
+      console.error("Error loading artist songs:", err)
+    } finally {
+      setLoading(false)
     }
+  }, [artistName, loading])
 
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [hasMore, loading, nextPageToken, loadSongs])
+  useEffect(() => {
+    loadSongs()
+  }, [artistName])
 
   const handlePlaySong = (song: Song, index: number) => {
     playQueue(songs, index)
@@ -122,9 +93,7 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
             <User className="w-16 h-16 text-white" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-2">{artistName}</h2>
-          <p className="text-gray-400 mb-6">
-            Artist • {songs.length} songs{hasMore ? "+" : ""}
-          </p>
+          <p className="text-gray-400 mb-6">Artist • {songs.length} songs</p>
 
           {songs.length > 0 && (
             <Button
@@ -188,7 +157,7 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
         {loading && (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
-            {songs.length > 0 && <span className="ml-3 text-gray-400">Loading more songs...</span>}
+            <span className="ml-3 text-gray-400">Loading songs...</span>
           </div>
         )}
 
@@ -196,16 +165,9 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
         {error && (
           <div className="text-center py-8">
             <p className="text-red-400 mb-4">{error}</p>
-            <Button onClick={() => loadSongs(undefined, true)} variant="outline">
+            <Button onClick={() => loadSongs()} variant="outline">
               Try Again
             </Button>
-          </div>
-        )}
-
-        {/* No More Results */}
-        {!hasMore && songs.length > 0 && !loading && (
-          <div className="text-center py-8">
-            <p className="text-gray-400">You've reached the end • {songs.length} songs total</p>
           </div>
         )}
 
