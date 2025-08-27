@@ -141,7 +141,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-16">
-      <div className="bg-zinc-900 w-full max-w-2xl mx-4 rounded-lg shadow-xl max-h-[80vh] overflow-hidden">
+      <div className="bg-zinc-900 w-full h-[50vh] mx-4 rounded-lg shadow-xl overflow-hidden md:max-w-2xl md:h-auto md:max-h-[80vh]">
         {/* Search Header */}
         <div className="flex items-center gap-4 p-4 border-b border-zinc-700">
           <div className="flex-1 relative">
@@ -177,7 +177,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
         </div>
 
         {/* Search Content */}
-        <div className="overflow-y-auto max-h-[calc(80vh-80px)]">
+        <div className="overflow-y-auto h-[calc(50vh-80px)] md:max-h-[calc(80vh-80px)]">
           {query.length === 0 ? (
             <div className="p-4">
               {recentSearches.length > 0 ? (
