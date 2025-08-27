@@ -11,6 +11,18 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Search API called with query:", query, "maxResults:", maxResults)
 
+    const apiKey = process.env.YOUTUBE_API_KEY
+    console.log("[v0] YouTube API key status:", {
+      exists: !!apiKey,
+      length: apiKey?.length || 0,
+      firstChars: apiKey?.substring(0, 10) || "none",
+    })
+
+    if (!apiKey) {
+      console.error("[v0] YOUTUBE_API_KEY environment variable is not set!")
+      throw new Error("YouTube API key is not configured")
+    }
+
     if (!query) {
       return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
     }
@@ -37,14 +49,21 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Creating YouTube API instance...")
     const youtubeAPI = createYouTubeMusicAPI()
-    console.log("[v0] YouTube API created, calling search...")
+    console.log("[v0] YouTube API created successfully, calling search...")
 
     const results = await youtubeAPI.search(query, maxResults)
-    console.log("[v0] YouTube API search results:", {
+    console.log("[v0] YouTube API search completed:", {
       hasResults: !!results,
       hasVideos: !!results?.videos,
       videosLength: results?.videos?.length || 0,
       resultKeys: results ? Object.keys(results) : "no results",
+      firstResult: results?.videos?.[0]
+        ? {
+            id: results.videos[0].id,
+            title: results.videos[0].title,
+            artist: results.videos[0].artist,
+          }
+        : "no first result",
     })
 
     if (results.videos && results.videos.length > 0) {
@@ -102,6 +121,7 @@ export async function GET(request: NextRequest) {
       stack: error.stack,
       name: error.name,
       query: new URL(request.url).searchParams.get("q"),
+      apiKeyExists: !!process.env.YOUTUBE_API_KEY,
     })
 
     const query = new URL(request.url).searchParams.get("q") || ""
