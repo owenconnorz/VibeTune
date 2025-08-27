@@ -27,6 +27,20 @@ export default function PlayerAudioSettingsPage() {
   const { state, setVolume, setVideoMode } = useAudioPlayer()
   const { youtubeSettings, setYoutubeSettings } = useSettings()
 
+  const safeYoutubeSettings = youtubeSettings || {
+    highQualityAudio: false,
+    preferOpus: false,
+    adaptiveAudio: true,
+    showVideos: true,
+    preferVideos: false,
+  }
+
+  const safeSetYoutubeSettings = setYoutubeSettings
+    ? (updates: Partial<typeof safeYoutubeSettings>) => {
+        setYoutubeSettings({ ...safeYoutubeSettings, ...updates })
+      }
+    : () => {}
+
   const [audioSettings, setAudioSettings] = useState({
     autoplay: true,
     crossfade: false,
@@ -112,8 +126,8 @@ export default function PlayerAudioSettingsPage() {
                 </div>
               </div>
               <Switch
-                checked={youtubeSettings.highQualityAudio}
-                onCheckedChange={(checked) => setYoutubeSettings({ highQualityAudio: checked })}
+                checked={safeYoutubeSettings.highQualityAudio}
+                onCheckedChange={(checked) => safeSetYoutubeSettings({ highQualityAudio: checked })}
               />
             </div>
 
@@ -128,8 +142,8 @@ export default function PlayerAudioSettingsPage() {
                 </div>
               </div>
               <Switch
-                checked={youtubeSettings.preferOpus}
-                onCheckedChange={(checked) => setYoutubeSettings({ preferOpus: checked })}
+                checked={safeYoutubeSettings.preferOpus}
+                onCheckedChange={(checked) => safeSetYoutubeSettings({ preferOpus: checked })}
               />
             </div>
 
@@ -144,8 +158,8 @@ export default function PlayerAudioSettingsPage() {
                 </div>
               </div>
               <Switch
-                checked={youtubeSettings.adaptiveAudio}
-                onCheckedChange={(checked) => setYoutubeSettings({ adaptiveAudio: checked })}
+                checked={safeYoutubeSettings.adaptiveAudio}
+                onCheckedChange={(checked) => safeSetYoutubeSettings({ adaptiveAudio: checked })}
               />
             </div>
 
@@ -160,8 +174,8 @@ export default function PlayerAudioSettingsPage() {
                 </div>
               </div>
               <Switch
-                checked={youtubeSettings.showVideos}
-                onCheckedChange={(checked) => setYoutubeSettings({ showVideos: checked })}
+                checked={safeYoutubeSettings.showVideos}
+                onCheckedChange={(checked) => safeSetYoutubeSettings({ showVideos: checked })}
               />
             </div>
 
@@ -176,9 +190,9 @@ export default function PlayerAudioSettingsPage() {
                 </div>
               </div>
               <Switch
-                checked={youtubeSettings.preferVideos}
-                onCheckedChange={(checked) => setYoutubeSettings({ preferVideos: checked })}
-                disabled={!youtubeSettings.showVideos}
+                checked={safeYoutubeSettings.preferVideos}
+                onCheckedChange={(checked) => safeSetYoutubeSettings({ preferVideos: checked })}
+                disabled={!safeYoutubeSettings.showVideos}
               />
             </div>
 
@@ -360,14 +374,14 @@ export default function PlayerAudioSettingsPage() {
                 </div>
                 <div>
                   <p className="text-white font-medium">Video Mode</p>
-                  <p className="text-gray-400 text-sm">Show porn when available</p>
+                  <p className="text-gray-400 text-sm">Show video content when available</p>
                 </div>
               </div>
               <Switch checked={state.isVideoMode} onCheckedChange={setVideoMode} />
             </div>
 
             <div className="text-xs text-gray-400 space-y-1 pt-2 border-t border-zinc-700">
-              <p>• Video mode shows porn when available</p>
+              <p>• Video mode shows video content when available</p>
               <p>• Audio mode shows album artwork and visualizations</p>
               <p>• You can toggle between modes anytime during playback</p>
             </div>
