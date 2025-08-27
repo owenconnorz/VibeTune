@@ -11,6 +11,7 @@ import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { usePlaylist } from "@/contexts/playlist-context"
+import { AudioPlayer } from "@/components/audio-player"
 
 const { useDownloads: useDownloadsHook } = require("@/contexts/download-context")
 const useDownloads = typeof window !== "undefined" ? useDownloadsHook : () => ({ addToDownloads: () => {} })
@@ -303,6 +304,8 @@ export default function VideosPage() {
           </>
         )}
       </div>
+
+      <AudioPlayer />
     </div>
   )
 }
