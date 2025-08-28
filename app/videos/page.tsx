@@ -91,24 +91,13 @@ export default function VideosPage() {
 
   const loadGitHubExtensions = async () => {
     try {
-      console.log("[v0] Loading GitHub extensions...")
+      console.log("[v0] Loading GitHub extensions via plugin manager...")
+
+      await videoPluginManager.loadGitHubExtensions()
+
+      // Get extensions from the plugin manager
       const extensions = await githubExtensionLoader.getAllExtensions()
       setGithubExtensions(extensions)
-
-      for (const extension of extensions) {
-        try {
-          console.log(`[v0] Loading GitHub extension into plugin manager: ${extension.name}`)
-          const plugin = await githubExtensionLoader.createPluginFromExtension(extension)
-          if (plugin) {
-            videoPluginManager.registerPlugin(plugin)
-            console.log(`[v0] Successfully registered GitHub extension: ${extension.name}`)
-          } else {
-            console.warn(`[v0] Failed to create plugin for extension: ${extension.name}`)
-          }
-        } catch (error) {
-          console.error(`[v0] Error loading GitHub extension ${extension.name}:`, error)
-        }
-      }
 
       const githubExtensionItems = extensions.map((ext) => ({
         id: ext.id,
@@ -131,7 +120,7 @@ export default function VideosPage() {
         notDownloaded,
       })
 
-      console.log(`[v0] Loaded ${extensions.length} GitHub extensions`)
+      console.log(`[v0] Loaded ${extensions.length} GitHub extensions via plugin manager`)
     } catch (error) {
       console.error("[v0] Failed to load GitHub extensions:", error)
     }
@@ -229,31 +218,15 @@ export default function VideosPage() {
     try {
       console.log(`[v0] Setting active plugin to: ${extensionId}`)
 
-      // Check if plugin exists before setting it active
       const allPlugins = videoPluginManager.getAllPlugins()
-      const targetPlugin = allPlugins.find((plugin) => plugin.id === extensionId)
+      const githubPlugin = videoPluginManager.getGitHubPlugin(extensionId)
+      const targetPlugin = allPlugins.find((plugin) => plugin.id === extensionId) || githubPlugin
+
       console.log(`[v0] Target plugin found:`, targetPlugin ? { id: targetPlugin.id, name: targetPlugin.name } : "null")
+      console.log(`[v0] GitHub plugin found:`, githubPlugin ? { id: githubPlugin.id, name: githubPlugin.name } : "null")
 
       if (!targetPlugin) {
-        // Try to find GitHub extension and create plugin
-        const githubExtension = githubExtensions.find((ext) => ext.id === extensionId)
-        console.log(
-          `[v0] GitHub extension found:`,
-          githubExtension ? { id: githubExtension.id, name: githubExtension.name } : "null",
-        )
-
-        if (githubExtension) {
-          console.log(`[v0] Creating plugin from GitHub extension: ${githubExtension.name}`)
-          const plugin = await githubExtensionLoader.createPluginFromExtension(githubExtension)
-          if (plugin) {
-            videoPluginManager.registerPlugin(plugin)
-            console.log(`[v0] Successfully registered GitHub extension: ${githubExtension.name}`)
-          } else {
-            throw new Error(`Failed to create plugin from GitHub extension: ${githubExtension.name}`)
-          }
-        } else {
-          throw new Error(`Plugin not found: ${extensionId}`)
-        }
+        throw new Error(`Plugin not found: ${extensionId}`)
       }
 
       videoPluginManager.setActivePlugin(extensionId)
