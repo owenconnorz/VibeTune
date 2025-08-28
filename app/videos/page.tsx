@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Search, Play, Heart, Download, Plus, Settings } from "lucide-react"
+import { Search, Play, Heart, Download, Plus, Settings, ChevronDown, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -25,6 +25,26 @@ export default function VideosPage() {
   const [hasNextPage, setHasNextPage] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [availableSearchTypes, setAvailableSearchTypes] = useState([{ value: "2", label: "Search Videos" }])
+  const [showExtensionSwitcher, setShowExtensionSwitcher] = useState(false)
+  const [selectedExtension, setSelectedExtension] = useState("eporner")
+  const [availableExtensions] = useState([
+    { id: "none", name: "None", flag: null },
+    { id: "random", name: "Random", flag: null },
+    { id: "allpornstream", name: "AllPornStream", flag: "🇬🇧" },
+    { id: "allpornstream2", name: "AllPornStream", flag: "🇬🇧" },
+    { id: "cam4", name: "Cam4", flag: "🇬🇧" },
+    { id: "camsoda", name: "Camsoda", flag: "🇬🇧" },
+    { id: "chatrubate", name: "Chatrubate", flag: "🇬🇧" },
+    { id: "desisins", name: "Desisins", flag: "🇮🇳" },
+    { id: "eporner", name: "Eporner", flag: "🇬🇧" },
+    { id: "fpo", name: "FPO", flag: "🇬🇧" },
+    { id: "freepornvideos", name: "Free Porn Videos", flag: "🇬🇧" },
+    { id: "fsharecine", name: "Fshare Cine", flag: "🇻🇳" },
+    { id: "fsharefavourite", name: "Fshare Favourite", flag: "🇻🇳" },
+    { id: "fsharehd", name: "Fshare HD", flag: "🇻🇳" },
+    { id: "fsharesheet", name: "Fshare Sheet", flag: "🇻🇳" },
+    { id: "fullporner", name: "FullPorner", flag: "🇬🇧" },
+  ])
 
   const { playTrack } = useAudioPlayer()
   const { isLiked, toggleLike } = useLikedSongs()
@@ -33,20 +53,16 @@ export default function VideosPage() {
 
   useEffect(() => {
     const initializePlugins = async () => {
-      // Register default plugins
       const epornerPlugin = new EpornerPlugin()
       videoPluginManager.registerPlugin(epornerPlugin)
 
-      // Initialize all plugins
       await videoPluginManager.initializeAll()
 
-      // Update available search types from enabled plugins
       const enabledPlugins = videoPluginManager.getEnabledPlugins()
       if (enabledPlugins.length > 0) {
         setAvailableSearchTypes(enabledPlugins[0].supportedSearchTypes)
       }
 
-      // Load initial videos
       fetchVideos("", searchType, 1)
     }
 
@@ -92,6 +108,13 @@ export default function VideosPage() {
     const nextPage = currentPage + 1
     setCurrentPage(nextPage)
     fetchVideos(searchQuery, searchType, nextPage)
+  }
+
+  const handleExtensionSelect = (extensionId: string) => {
+    setSelectedExtension(extensionId)
+    setShowExtensionSwitcher(false)
+    setCurrentPage(1)
+    fetchVideos(searchQuery, searchType, 1)
   }
 
   const handleVideoClick = (video: VideoSource) => {
@@ -144,6 +167,8 @@ export default function VideosPage() {
     isVideo: true,
   })
 
+  const selectedExtensionName = availableExtensions.find((ext) => ext.id === selectedExtension)?.name || "Eporner"
+
   return (
     <div className="min-h-screen bg-zinc-900 text-white pb-20">
       <div className="sticky top-0 bg-zinc-900/95 backdrop-blur-sm border-b border-zinc-800 z-40">
@@ -154,6 +179,16 @@ export default function VideosPage() {
               <Settings className="w-4 h-4" />
               <span>{videoPluginManager.getEnabledPlugins().length} plugins active</span>
             </div>
+          </div>
+
+          <div className="mb-4">
+            <Button
+              onClick={() => setShowExtensionSwitcher(true)}
+              className="bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-600 w-full justify-between"
+            >
+              <span>Extension: {selectedExtensionName}</span>
+              <ChevronDown className="w-4 h-4" />
+            </Button>
           </div>
 
           <form onSubmit={handleSearch} className="space-y-3">
@@ -187,6 +222,43 @@ export default function VideosPage() {
           </form>
         </div>
       </div>
+
+      {showExtensionSwitcher && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-zinc-800">
+              <h2 className="text-lg font-semibold">Select Extension</h2>
+              <Button onClick={() => setShowExtensionSwitcher(false)} size="sm" variant="ghost" className="p-1 h-8 w-8">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="overflow-y-auto max-h-[60vh]">
+              {availableExtensions.map((extension) => (
+                <button
+                  key={extension.id}
+                  onClick={() => handleExtensionSelect(extension.id)}
+                  className={`w-full flex items-center gap-3 p-4 hover:bg-zinc-800 transition-colors text-left ${
+                    selectedExtension === extension.id ? "bg-zinc-800" : ""
+                  }`}
+                >
+                  <span className="text-2xl w-8 flex-shrink-0">{extension.flag || "🌐"}</span>
+                  <span className="text-white font-medium">{extension.name}</span>
+                </button>
+              ))}
+            </div>
+            <div className="p-4 border-t border-zinc-800">
+              <div className="flex items-center justify-between text-sm text-zinc-400">
+                <span>Extensions</span>
+                <div className="flex items-center gap-4">
+                  <span>● Downloaded: 1</span>
+                  <span>● Disabled: 0</span>
+                  <span>● Not downloaded: {availableExtensions.length - 1}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="p-4">
         {error && (
