@@ -193,6 +193,17 @@ export default function VideosPage() {
   }
 
   const handleExtensionSelect = async (extensionId: string) => {
+    console.log(`[v0] === EXTENSION SELECTION STARTED ===`)
+    console.log(`[v0] Selected extension ID: ${extensionId}`)
+    console.log(
+      `[v0] Available extensions:`,
+      availableExtensions.map((ext) => ({ id: ext.id, name: ext.name, type: ext.type })),
+    )
+    console.log(
+      `[v0] GitHub extensions:`,
+      githubExtensions.map((ext) => ({ id: ext.id, name: ext.name, status: ext.status })),
+    )
+
     setSelectedExtension(extensionId)
     setShowExtensionSwitcher(false)
     setCurrentPage(1)
@@ -203,19 +214,44 @@ export default function VideosPage() {
 
     try {
       const githubExtension = githubExtensions.find((ext) => ext.id === extensionId)
-      if (githubExtension) {
-        console.log(`[v0] Selecting GitHub extension: ${githubExtension.name}`)
+      console.log(
+        `[v0] GitHub extension found:`,
+        githubExtension
+          ? { id: githubExtension.id, name: githubExtension.name, status: githubExtension.status }
+          : "null",
+      )
 
-        // Check if plugin already exists in plugin manager
+      if (githubExtension) {
+        console.log(`[v0] Processing GitHub extension: ${githubExtension.name}`)
+
+        console.log(`[v0] Checking if plugin already exists in plugin manager...`)
         const existingPlugin = videoPluginManager.getGitHubPlugin(extensionId)
+        console.log(
+          `[v0] Existing plugin found:`,
+          existingPlugin ? { id: existingPlugin.id, name: existingPlugin.name } : "null",
+        )
+
         if (existingPlugin) {
+          console.log(`[v0] Setting active plugin to existing: ${extensionId}`)
           videoPluginManager.setActivePlugin(extensionId)
           console.log(`[v0] Successfully activated existing GitHub extension: ${githubExtension.name}`)
         } else {
-          // Create plugin if it doesn't exist
+          console.log(`[v0] Creating new plugin from extension...`)
+          console.log(`[v0] Extension details:`, {
+            id: githubExtension.id,
+            name: githubExtension.name,
+            url: githubExtension.url,
+            status: githubExtension.status,
+            iconUrl: githubExtension.iconUrl,
+          })
+
           const plugin = await githubExtensionLoader.createPluginFromExtension(githubExtension)
+          console.log(`[v0] Plugin creation result:`, plugin ? { id: plugin.id, name: plugin.name } : "null")
+
           if (plugin) {
+            console.log(`[v0] Registering plugin with plugin manager...`)
             videoPluginManager.registerPlugin(plugin)
+            console.log(`[v0] Setting active plugin to: ${extensionId}`)
             videoPluginManager.setActivePlugin(extensionId)
             console.log(`[v0] Successfully created and activated GitHub extension: ${githubExtension.name}`)
           } else {
@@ -223,19 +259,33 @@ export default function VideosPage() {
           }
         }
       } else {
+        console.log(`[v0] Processing built-in extension: ${extensionId}`)
         videoPluginManager.setActivePlugin(extensionId)
         console.log(`[v0] Activated built-in extension: ${extensionId}`)
       }
 
+      console.log(`[v0] Verifying active plugin...`)
       const activePlugin = videoPluginManager.getActivePlugin()
+      console.log(`[v0] Active plugin:`, activePlugin ? { id: activePlugin.id, name: activePlugin.name } : "null")
+
       if (!activePlugin) {
         throw new Error(`No active plugin found after selecting: ${extensionId}`)
       }
 
+      console.log(`[v0] Setting available search types...`)
       setAvailableSearchTypes(activePlugin.supportedSearchTypes)
+      console.log(`[v0] Available search types:`, activePlugin.supportedSearchTypes)
+
+      console.log(`[v0] Fetching videos with active plugin...`)
       await fetchVideos(searchQuery, searchType, 1)
+      console.log(`[v0] === EXTENSION SELECTION COMPLETED SUCCESSFULLY ===`)
     } catch (error) {
-      console.error(`[v0] Failed to switch to extension ${extensionId}:`, error)
+      console.error(`[v0] === EXTENSION SELECTION FAILED ===`)
+      console.error(`[v0] Error details:`, error)
+      console.error(`[v0] Extension ID: ${extensionId}`)
+      console.error(`[v0] Error message: ${error instanceof Error ? error.message : "Unknown error"}`)
+      console.error(`[v0] Error stack:`, error instanceof Error ? error.stack : "No stack trace")
+
       setError(`Failed to load extension: ${extensionId}`)
       setLoading(false)
     }
