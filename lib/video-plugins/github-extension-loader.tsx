@@ -41,7 +41,7 @@ class GitHubExtensionLoader {
       // Check cache first
       const cached = this.cache.get(repoUrl)
       if (cached && Date.now() - cached.lastUpdated.getTime() < this.CACHE_DURATION) {
-        console.log(`[v0] Using cached extensions for ${repoUrl}`)
+        console.log(`[v0] Using cached extensions for ${repoUrl}: ${cached.extensions.length} extensions`)
         return cached.extensions
       }
 
@@ -56,7 +56,7 @@ class GitHubExtensionLoader {
         lastUpdated: new Date(),
       })
 
-      console.log(`[v0] Loaded ${extensions.length} extensions from ${repoUrl}`)
+      console.log(`[v0] Successfully loaded ${extensions.length} extensions from ${repoUrl}`)
       return extensions
     } catch (error) {
       console.error(`[v0] Failed to fetch extensions from ${repoUrl}:`, error)
@@ -66,33 +66,57 @@ class GitHubExtensionLoader {
 
   private async fetchRealCloudStreamExtensions(repoUrl: string): Promise<GitHubExtension[]> {
     try {
+      console.log(`[v0] Starting to fetch real CloudStream extensions from: ${repoUrl}`)
+
       const apiUrl = this.convertToGitHubApiUrl(repoUrl)
+      console.log(`[v0] Converted to API URL: ${apiUrl}`)
+
       const response = await fetch(apiUrl)
+      console.log(`[v0] GitHub API response status: ${response.status}`)
 
       if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`[v0] GitHub API request failed: ${response.status} - ${errorText}`)
         throw new Error(`GitHub API request failed: ${response.status}`)
       }
 
       const contents = await response.json()
+      console.log(`[v0] GitHub API response type: ${Array.isArray(contents) ? "array" : typeof contents}`)
+      console.log(`[v0] GitHub API response length: ${Array.isArray(contents) ? contents.length : "N/A"}`)
+
       if (!Array.isArray(contents)) {
+        console.error(`[v0] Invalid GitHub API response - expected array, got:`, typeof contents)
         throw new Error("Invalid GitHub API response")
       }
 
       const extensions: GitHubExtension[] = []
+      console.log(`[v0] Processing ${contents.length} items from repository`)
 
-      // Look for CloudStream extension files and directories
       for (const item of contents) {
-        if (item.type === "file" && this.isCloudStreamExtensionFile(item.name)) {
-          const extension = await this.parseCloudStreamExtensionFile(item, repoUrl)
-          if (extension) {
-            extensions.push(extension)
+        console.log(`[v0] Processing item: ${item.name} (type: ${item.type})`)
+
+        if (item.type === "file") {
+          if (this.isCloudStreamExtensionFile(item.name)) {
+            console.log(`[v0] Found potential extension file: ${item.name}`)
+            const extension = await this.parseCloudStreamExtensionFile(item, repoUrl)
+            if (extension) {
+              console.log(`[v0] Successfully parsed extension: ${extension.name}`)
+              extensions.push(extension)
+            } else {
+              console.log(`[v0] Failed to parse extension file: ${item.name}`)
+            }
+          } else {
+            console.log(`[v0] Skipping non-extension file: ${item.name}`)
           }
         } else if (item.type === "dir" && this.isLikelyExtensionDir(item.name)) {
+          console.log(`[v0] Found potential extension directory: ${item.name}`)
           const dirExtensions = await this.parseExtensionDirectory(item, repoUrl)
+          console.log(`[v0] Found ${dirExtensions.length} extensions in directory: ${item.name}`)
           extensions.push(...dirExtensions)
         }
       }
 
+      console.log(`[v0] Total extensions found: ${extensions.length}`)
       return extensions
     } catch (error) {
       console.error(`[v0] Failed to fetch real CloudStream extensions:`, error)
@@ -105,22 +129,37 @@ class GitHubExtensionLoader {
       /\.js$/i,
       /\.kt$/i,
       /\.ts$/i,
+      /\.json$/i,
       /plugin\.json$/i,
       /manifest\.json$/i,
       /build\.gradle\.kts$/i,
+      /\.gradle$/i,
+      /provider\.js$/i,
+      /extension\.js$/i,
     ]
-    return extensionPatterns.some((pattern) => pattern.test(filename))
+
+    const isExtension = extensionPatterns.some((pattern) => pattern.test(filename))
+    console.log(`[v0] File ${filename} is extension: ${isExtension}`)
+    return isExtension
   }
 
   private async parseCloudStreamExtensionFile(item: any, repoUrl: string): Promise<GitHubExtension | null> {
     try {
+      console.log(`[v0] Parsing extension file: ${item.name} from ${item.download_url}`)
+
       const fileResponse = await fetch(item.download_url)
-      if (!fileResponse.ok) return null
+      if (!fileResponse.ok) {
+        console.error(`[v0] Failed to fetch file content: ${fileResponse.status}`)
+        return null
+      }
 
       const fileContent = await fileResponse.text()
-      const metadata = this.extractCloudStreamMetadata(fileContent, item.name)
+      console.log(`[v0] File content length: ${fileContent.length} characters`)
 
-      return {
+      const metadata = this.extractCloudStreamMetadata(fileContent, item.name)
+      console.log(`[v0] Extracted metadata:`, metadata)
+
+      const extension: GitHubExtension = {
         id: `${this.generateRepoId(repoUrl)}_${metadata.name.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
         name: metadata.name,
         version: metadata.version,
@@ -134,6 +173,9 @@ class GitHubExtensionLoader {
         apiEndpoints: metadata.apiEndpoints,
         searchTypes: metadata.searchTypes,
       }
+
+      console.log(`[v0] Created extension object:`, extension.name)
+      return extension
     } catch (error) {
       console.error(`[v0] Failed to parse extension file ${item.name}:`, error)
       return null
@@ -141,8 +183,10 @@ class GitHubExtensionLoader {
   }
 
   private extractCloudStreamMetadata(code: string, filename: string): any {
+    console.log(`[v0] Extracting metadata from file: ${filename}`)
+
     const metadata = {
-      name: filename.replace(/\.(js|kt|ts)$/i, ""),
+      name: filename.replace(/\.(js|kt|ts|json)$/i, ""),
       version: "1.0.0",
       description: "CloudStream video provider",
       author: "Unknown",
@@ -152,43 +196,109 @@ class GitHubExtensionLoader {
     }
 
     try {
-      // Extract plugin name from class declaration
-      const classMatch = code.match(/class\s+(\w+)/i)
-      if (classMatch) {
-        metadata.name = classMatch[1].replace(/Plugin|Provider|Extension$/i, "")
+      // Try to parse as JSON first (for manifest files)
+      if (filename.toLowerCase().includes("json")) {
+        try {
+          const jsonData = JSON.parse(code)
+          if (jsonData.name) metadata.name = jsonData.name
+          if (jsonData.version) metadata.version = jsonData.version
+          if (jsonData.description) metadata.description = jsonData.description
+          if (jsonData.author) metadata.author = jsonData.author
+          if (jsonData.language) metadata.language = jsonData.language
+          console.log(`[v0] Parsed JSON metadata:`, metadata)
+          return metadata
+        } catch (e) {
+          console.log(`[v0] Failed to parse as JSON, trying text extraction`)
+        }
       }
 
-      // Extract version from comments or constants
-      const versionMatch =
-        code.match(/version\s*[:=]\s*["']([^"']+)["']/i) ||
-        code.match(/@version\s+([^\s]+)/i) ||
-        code.match(/VERSION\s*=\s*["']([^"']+)["']/i)
-      if (versionMatch) {
-        metadata.version = versionMatch[1]
+      // Extract plugin name from various patterns
+      const namePatterns = [
+        /class\s+(\w+)/i,
+        /name\s*[:=]\s*["']([^"']+)["']/i,
+        /plugin_name\s*[:=]\s*["']([^"']+)["']/i,
+        /@name\s+([^\s]+)/i,
+      ]
+
+      for (const pattern of namePatterns) {
+        const match = code.match(pattern)
+        if (match) {
+          metadata.name = match[1].replace(/Plugin|Provider|Extension$/i, "")
+          console.log(`[v0] Found name: ${metadata.name}`)
+          break
+        }
+      }
+
+      // Extract version from various patterns
+      const versionPatterns = [
+        /version\s*[:=]\s*["']([^"']+)["']/i,
+        /@version\s+([^\s]+)/i,
+        /VERSION\s*=\s*["']([^"']+)["']/i,
+        /plugin_version\s*[:=]\s*["']([^"']+)["']/i,
+      ]
+
+      for (const pattern of versionPatterns) {
+        const match = code.match(pattern)
+        if (match) {
+          metadata.version = match[1]
+          console.log(`[v0] Found version: ${metadata.version}`)
+          break
+        }
       }
 
       // Extract description
-      const descMatch = code.match(/description\s*[:=]\s*["']([^"']+)["']/i) || code.match(/@description\s+([^\n]+)/i)
-      if (descMatch) {
-        metadata.description = descMatch[1]
+      const descPatterns = [
+        /description\s*[:=]\s*["']([^"']+)["']/i,
+        /@description\s+([^\n]+)/i,
+        /plugin_description\s*[:=]\s*["']([^"']+)["']/i,
+      ]
+
+      for (const pattern of descPatterns) {
+        const match = code.match(pattern)
+        if (match) {
+          metadata.description = match[1]
+          console.log(`[v0] Found description: ${metadata.description}`)
+          break
+        }
       }
 
       // Extract author
-      const authorMatch = code.match(/author\s*[:=]\s*["']([^"']+)["']/i) || code.match(/@author\s+([^\s]+)/i)
-      if (authorMatch) {
-        metadata.author = authorMatch[1]
+      const authorPatterns = [
+        /author\s*[:=]\s*["']([^"']+)["']/i,
+        /@author\s+([^\s]+)/i,
+        /plugin_author\s*[:=]\s*["']([^"']+)["']/i,
+      ]
+
+      for (const pattern of authorPatterns) {
+        const match = code.match(pattern)
+        if (match) {
+          metadata.author = match[1]
+          console.log(`[v0] Found author: ${metadata.author}`)
+          break
+        }
       }
 
       // Extract API endpoints
       const urlMatches = code.match(/https?:\/\/[^\s"']+/g)
       if (urlMatches) {
         metadata.apiEndpoints = [...new Set(urlMatches)]
+        console.log(`[v0] Found ${metadata.apiEndpoints.length} API endpoints`)
       }
 
       // Extract search functionality
-      if (code.includes("search") || code.includes("getMainPage")) {
-        metadata.searchTypes = ["search", "trending", "latest"]
+      const searchKeywords = ["search", "getMainPage", "getSearchResults", "load", "query"]
+      const hasSearch = searchKeywords.some((keyword) => code.toLowerCase().includes(keyword.toLowerCase()))
+
+      if (hasSearch) {
+        metadata.searchTypes = [
+          { value: "search", label: "Search Videos" },
+          { value: "trending", label: "Trending Videos" },
+          { value: "latest", label: "Latest Videos" },
+        ]
+        console.log(`[v0] Extension supports search functionality`)
       }
+
+      console.log(`[v0] Final extracted metadata:`, metadata)
     } catch (error) {
       console.error("[v0] Failed to extract metadata:", error)
     }
@@ -198,15 +308,27 @@ class GitHubExtensionLoader {
 
   private async parseExtensionDirectory(item: any, repoUrl: string): Promise<GitHubExtension[]> {
     try {
-      const dirApiUrl = `${this.convertToGitHubApiUrl(repoUrl)}/${item.name}`
-      const response = await fetch(dirApiUrl)
+      console.log(`[v0] Parsing extension directory: ${item.name}`)
 
-      if (!response.ok) return []
+      const dirApiUrl = `${this.convertToGitHubApiUrl(repoUrl)}/${item.name}`
+      console.log(`[v0] Directory API URL: ${dirApiUrl}`)
+
+      const response = await fetch(dirApiUrl)
+      console.log(`[v0] Directory response status: ${response.status}`)
+
+      if (!response.ok) {
+        console.error(`[v0] Failed to fetch directory: ${response.status}`)
+        return []
+      }
 
       const dirContents = await response.json()
+      console.log(`[v0] Directory contains ${dirContents.length} items`)
+
       const extensions: GitHubExtension[] = []
 
       for (const file of dirContents) {
+        console.log(`[v0] Processing directory file: ${file.name}`)
+
         if (file.type === "file" && this.isCloudStreamExtensionFile(file.name)) {
           const extension = await this.parseCloudStreamExtensionFile(file, repoUrl)
           if (extension) {
@@ -215,6 +337,7 @@ class GitHubExtensionLoader {
         }
       }
 
+      console.log(`[v0] Found ${extensions.length} extensions in directory: ${item.name}`)
       return extensions
     } catch (error) {
       console.error(`[v0] Failed to parse extension directory ${item.name}:`, error)
@@ -678,12 +801,26 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   private convertToGitHubApiUrl(githubUrl: string): string {
-    if (githubUrl.includes("github.com")) {
+    console.log(`[v0] Converting URL to GitHub API: ${githubUrl}`)
+
+    if (githubUrl.includes("raw.githubusercontent.com")) {
+      // Convert raw URL back to API URL
+      const parts = githubUrl.replace("https://raw.githubusercontent.com/", "").split("/")
+      if (parts.length >= 2) {
+        const apiUrl = `https://api.github.com/repos/${parts[0]}/${parts[1]}/contents`
+        console.log(`[v0] Converted raw URL to API URL: ${apiUrl}`)
+        return apiUrl
+      }
+    } else if (githubUrl.includes("github.com")) {
       const parts = githubUrl.replace("https://github.com/", "").split("/")
       if (parts.length >= 2) {
-        return `https://api.github.com/repos/${parts[0]}/${parts[1]}/contents`
+        const apiUrl = `https://api.github.com/repos/${parts[0]}/${parts[1]}/contents`
+        console.log(`[v0] Converted GitHub URL to API URL: ${apiUrl}`)
+        return apiUrl
       }
     }
+
+    console.log(`[v0] Using original URL as API URL: ${githubUrl}`)
     return githubUrl
   }
 
@@ -695,9 +832,23 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   private isLikelyExtensionDir(dirName: string): boolean {
-    const extensionKeywords = ["provider", "plugin", "extension", "stream", "video", "porn", "adult"]
+    const extensionKeywords = [
+      "provider",
+      "plugin",
+      "extension",
+      "stream",
+      "video",
+      "porn",
+      "adult",
+      "src",
+      "lib",
+      "plugins",
+      "providers",
+    ]
     const lowerName = dirName.toLowerCase()
-    return extensionKeywords.some((keyword) => lowerName.includes(keyword)) || lowerName.length > 3 // Assume directories with reasonable names might be extensions
+    const isExtensionDir = extensionKeywords.some((keyword) => lowerName.includes(keyword)) || lowerName.length > 3
+    console.log(`[v0] Directory ${dirName} is likely extension dir: ${isExtensionDir}`)
+    return isExtensionDir
   }
 
   private generateRepoId(repoUrl: string): string {
