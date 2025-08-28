@@ -607,7 +607,10 @@ export default function VideosPage() {
                 <div className="flex items-center justify-between p-4 border-b border-zinc-800">
                   <h2 className="text-lg font-semibold">Select Extension</h2>
                   <Button
-                    onClick={() => setShowExtensionSwitcher(false)}
+                    onClick={() => {
+                      console.log("[v0] Extension switcher close button clicked")
+                      setShowExtensionSwitcher(false)
+                    }}
                     size="sm"
                     variant="ghost"
                     className="p-1 h-8 w-8"
@@ -616,60 +619,116 @@ export default function VideosPage() {
                   </Button>
                 </div>
                 <div className="overflow-y-auto max-h-[60vh]">
-                  {availableExtensions.map((extension) => (
-                    <div
-                      key={extension.id}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        console.log(`[v0] === EXTENSION BUTTON CLICKED ===`)
-                        console.log(`[v0] Extension clicked:`, extension.name)
-                        console.log(`[v0] Extension ID:`, extension.id)
-                        console.log(`[v0] Extension type:`, extension.type)
-                        console.log(`[v0] Calling handleExtensionSelect...`)
-                        handleExtensionSelect(extension.id)
-                      }}
-                      className={`w-full flex items-center gap-3 p-4 hover:bg-zinc-800 transition-colors text-left cursor-pointer select-none ${
-                        selectedExtension === extension.id ? "bg-zinc-800" : ""
-                      }`}
-                      style={{ pointerEvents: "auto" }}
-                    >
-                      <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
-                        {extension.iconUrl ? (
-                          <img
-                            src={extension.iconUrl || "/placeholder.svg"}
-                            alt={extension.name}
-                            className="w-8 h-8 rounded"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none"
-                              const fallback = e.currentTarget.parentElement?.querySelector(".fallback-flag")
-                              if (fallback) fallback.style.display = "inline"
-                            }}
-                          />
-                        ) : null}
-                        <span className={`text-2xl fallback-flag ${extension.iconUrl ? "hidden" : ""}`}>
-                          {extension.flag || "🌐"}
-                        </span>
-                      </div>
-                      <div className="flex-1">
-                        <span className="text-white font-medium">{extension.name}</span>
+                  {(() => {
+                    console.log("[v0] === RENDERING EXTENSION SWITCHER MODAL ===")
+                    console.log("[v0] Available extensions count:", availableExtensions.length)
+                    console.log(
+                      "[v0] Extensions being rendered:",
+                      availableExtensions.map((ext) => ({ id: ext.id, name: ext.name, type: ext.type })),
+                    )
+                    return null
+                  })()}
+                  {availableExtensions.map((extension, index) => {
+                    console.log(`[v0] Rendering extension ${index}:`, {
+                      id: extension.id,
+                      name: extension.name,
+                      type: extension.type,
+                    })
+                    return (
+                      <div
+                        key={extension.id}
+                        onClick={(e) => {
+                          console.log(`[v0] === EXTENSION CLICK EVENT TRIGGERED ===`)
+                          console.log(`[v0] Event object:`, e)
+                          console.log(`[v0] Event type:`, e.type)
+                          console.log(`[v0] Event target:`, e.target)
+                          console.log(`[v0] Event currentTarget:`, e.currentTarget)
+
+                          e.preventDefault()
+                          e.stopPropagation()
+
+                          console.log(`[v0] Extension button clicked:`, extension.name)
+                          console.log(`[v0] Extension ID:`, extension.id)
+                          console.log(`[v0] Extension type:`, extension.type)
+                          console.log(`[v0] Extension status:`, extension.status)
+                          console.log(`[v0] About to call handleExtensionSelect...`)
+
+                          try {
+                            handleExtensionSelect(extension.id)
+                            console.log(`[v0] handleExtensionSelect called successfully`)
+                          } catch (error) {
+                            console.error(`[v0] Error calling handleExtensionSelect:`, error)
+                          }
+                        }}
+                        onMouseDown={(e) => {
+                          console.log(`[v0] Mouse down on extension:`, extension.name)
+                        }}
+                        onMouseUp={(e) => {
+                          console.log(`[v0] Mouse up on extension:`, extension.name)
+                        }}
+                        onTouchStart={(e) => {
+                          console.log(`[v0] Touch start on extension:`, extension.name)
+                        }}
+                        onTouchEnd={(e) => {
+                          console.log(`[v0] Touch end on extension:`, extension.name)
+                        }}
+                        className={`w-full flex items-center gap-3 p-4 hover:bg-zinc-800 transition-colors text-left cursor-pointer select-none ${
+                          selectedExtension === extension.id ? "bg-zinc-800" : ""
+                        }`}
+                        style={{
+                          pointerEvents: "auto",
+                          touchAction: "manipulation",
+                          userSelect: "none",
+                          WebkitUserSelect: "none",
+                          WebkitTouchCallout: "none",
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            console.log(`[v0] Keyboard activation on extension:`, extension.name)
+                            e.preventDefault()
+                            handleExtensionSelect(extension.id)
+                          }
+                        }}
+                      >
+                        <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
+                          {extension.iconUrl ? (
+                            <img
+                              src={extension.iconUrl || "/placeholder.svg"}
+                              alt={extension.name}
+                              className="w-8 h-8 rounded"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none"
+                                const fallback = e.currentTarget.parentElement?.querySelector(".fallback-flag")
+                                if (fallback) fallback.style.display = "inline"
+                              }}
+                            />
+                          ) : null}
+                          <span className={`text-2xl fallback-flag ${extension.iconUrl ? "hidden" : ""}`}>
+                            {extension.flag || "🌐"}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-white font-medium">{extension.name}</span>
+                          {extension.type === "github" && (
+                            <div className="text-xs text-zinc-400 mt-1">GitHub Extension</div>
+                          )}
+                        </div>
                         {extension.type === "github" && (
-                          <div className="text-xs text-zinc-400 mt-1">GitHub Extension</div>
+                          <div
+                            className={`w-2 h-2 rounded-full ${
+                              extension.status === "active"
+                                ? "bg-green-500"
+                                : extension.status === "disabled"
+                                  ? "bg-yellow-500"
+                                  : "bg-red-500"
+                            }`}
+                          />
                         )}
                       </div>
-                      {extension.type === "github" && (
-                        <div
-                          className={`w-2 h-2 rounded-full ${
-                            extension.status === "active"
-                              ? "bg-green-500"
-                              : extension.status === "disabled"
-                                ? "bg-yellow-500"
-                                : "bg-red-500"
-                          }`}
-                        />
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <div className="p-4 border-t border-zinc-800">
                   <div className="flex items-center justify-between text-sm text-zinc-400">
