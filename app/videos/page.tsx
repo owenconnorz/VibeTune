@@ -238,14 +238,13 @@ export default function VideosPage() {
           "Erotic Dreams",
         ]
 
-        // Create mock video data for CloudStream extensions
         const mockVideos: VideoSource[] = Array.from({ length: 20 }, (_, i) => ({
           id: `${extensionId}_${i + 1}`,
           title: realisticTitles[i % realisticTitles.length],
           thumbnail: `/placeholder.svg?height=180&width=320&query=${extensionId} video thumbnail`,
           duration: Math.floor(Math.random() * 60) + 10,
-          url: `https://example.com/${extensionId}/video${i + 1}`,
-          embed: `https://example.com/${extensionId}/embed${i + 1}`,
+          url: `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`,
+          embed: `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4`,
           source: extensionId,
           views: Math.floor(Math.random() * 1000000),
           uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
