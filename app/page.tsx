@@ -2,16 +2,13 @@
 
 import React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Search, Settings, Play } from "lucide-react"
+import { Search, Settings, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AudioPlayer } from "@/components/audio-player"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useAuth } from "@/contexts/auth-context"
 import { useSync } from "@/contexts/sync-context"
 import { useSettings } from "@/contexts/settings-context"
-import { SongMenu } from "@/components/song-menu"
-import { DownloadedIcon } from "@/components/downloaded-icon"
 import { useTrendingMusic, useMoodPlaylist, useNewReleases } from "@/hooks/use-music-data"
 import { SongSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 import { useRouter } from "next/navigation"
@@ -20,41 +17,34 @@ import { NavigationRouter } from "@/components/navigation-router"
 
 const MemoizedSongItem = React.memo(({ song, onPlay, trendingSongs }: any) => (
   <div
-    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/30 rounded-lg p-3 transition-colors"
+    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-2 transition-colors"
     onClick={() => onPlay(song, trendingSongs)}
   >
     <OptimizedImage
       src={song.thumbnail}
       alt={`${song.title} thumbnail`}
-      width={48}
-      height={48}
-      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+      width={40}
+      height={40}
+      className="w-10 h-10 rounded-md object-cover flex-shrink-0"
     />
     <div className="flex-1 min-w-0">
-      <h3 className="text-white font-medium text-sm truncate">{song.title}</h3>
+      <h3 className="text-white font-normal text-sm truncate">{song.title}</h3>
       <p className="text-gray-400 text-xs truncate">{song.artist}</p>
     </div>
     <div className="text-xs text-gray-500">{song.duration}</div>
-    <div className="flex items-center gap-1">
-      <DownloadedIcon songId={song.id} className="w-4 h-4" />
-      <SongMenu song={song} />
-    </div>
+    <MoreVertical className="w-4 h-4 text-gray-400" />
   </div>
 ))
 
 const CategoryItem = React.memo(({ category, onClick, flag }: any) => (
   <div
-    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/30 rounded-lg p-3 transition-colors"
+    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-colors"
     onClick={onClick}
   >
-    <div className="w-8 h-8 bg-zinc-700 rounded-lg flex items-center justify-center flex-shrink-0">
-      <span className="text-lg">{flag || "🎵"}</span>
-    </div>
+    <span className="text-lg flex-shrink-0">{flag || "🎵"}</span>
     <div className="flex-1 min-w-0">
-      <h3 className="text-white font-medium text-sm truncate">{category.title}</h3>
-      <p className="text-gray-400 text-xs truncate">{category.description}</p>
+      <h3 className="text-white font-normal text-sm">{category.title}</h3>
     </div>
-    <Play className="w-4 h-4 text-gray-400" />
   </div>
 ))
 
@@ -222,31 +212,16 @@ export default function VibeTunePage() {
 
   const musicCategories = useMemo(
     () => [
-      {
-        title: "Hip-Hop Classics",
-        description: "The Notorious B.I.G., Tupac, Nas",
-        flag: "🇺🇸",
-      },
-      {
-        title: "R&B Party-Starters",
-        description: "Destiny's Child, Beyoncé, Usher",
-        flag: "🇺🇸",
-      },
-      {
-        title: "K-Pop Hits",
-        description: "BTS, BLACKPINK, NewJeans",
-        flag: "🇰🇷",
-      },
-      {
-        title: "UK Drill",
-        description: "Central Cee, Dave, AJ Tracey",
-        flag: "🇬🇧",
-      },
-      {
-        title: "Latin Reggaeton",
-        description: "Bad Bunny, J Balvin, Ozuna",
-        flag: "🇵🇷",
-      },
+      { title: "Hip-Hop Classics", flag: "🇺🇸" },
+      { title: "R&B Party-Starters", flag: "🇺🇸" },
+      { title: "K-Pop Hits", flag: "🇰🇷" },
+      { title: "UK Drill", flag: "🇬🇧" },
+      { title: "Latin Reggaeton", flag: "🇵🇷" },
+      { title: "Afrobeats", flag: "🇳🇬" },
+      { title: "French Rap", flag: "🇫🇷" },
+      { title: "German Hip-Hop", flag: "🇩🇪" },
+      { title: "Italian Pop", flag: "🇮🇹" },
+      { title: "Japanese City Pop", flag: "🇯🇵" },
     ],
     [],
   )
@@ -258,74 +233,54 @@ export default function VibeTunePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <header className="flex items-center justify-between px-4 py-3 bg-zinc-900 border-b border-zinc-800">
+      <header className="flex items-center justify-between px-4 py-4 bg-black border-b border-zinc-800">
+        <h1 className="text-xl font-normal text-white">VibeTune</h1>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-purple-500 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">V</span>
-          </div>
-          <h1 className="text-xl font-semibold text-white">VibeTune</h1>
-        </div>
-        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-300 hover:text-white hover:bg-zinc-800 w-9 h-9"
-            onClick={handleSearchClick}
+            className="text-gray-400 hover:text-white hover:bg-zinc-800 w-8 h-8"
+            onClick={() => router.push("/search")}
           >
-            <Search className="w-5 h-5" />
+            <Search className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-300 hover:text-white hover:bg-zinc-800 w-9 h-9"
-            onClick={handleSettingsClick}
+            className="text-gray-400 hover:text-white hover:bg-zinc-800 w-8 h-8"
+            onClick={() => router.push("/settings")}
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-4 h-4" />
           </Button>
-          <Avatar className="w-8 h-8">
-            <AvatarImage src={user?.picture || "/diverse-group-making-music.png"} />
-            <AvatarFallback className="bg-zinc-700 text-white text-sm">{user?.name?.charAt(0) || "U"}</AvatarFallback>
-          </Avatar>
         </div>
       </header>
 
-      <nav className="flex gap-8 px-4 py-3 bg-zinc-900 border-b border-zinc-800">
-        <button className="text-white font-medium text-sm border-b-2 border-purple-500 pb-1">Home</button>
-        <button className="text-gray-400 hover:text-white font-medium text-sm">Trending</button>
-        <button className="text-gray-400 hover:text-white font-medium text-sm">New</button>
-        <button className="text-gray-400 hover:text-white font-medium text-sm">Genres</button>
-      </nav>
-
       <div className="px-4 pb-20">
-        <div className="space-y-6">
+        <div className="space-y-8">
           <section className="mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-white">Recently Played</h2>
-              {trendingSource === "fallback" && (
-                <span className="text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">Offline</span>
-              )}
-            </div>
-
+            <h2 className="text-lg font-normal text-white mb-4">Recently Played</h2>
             {trendingError ? (
               <ErrorMessage message={trendingError} onRetry={refetchTrending} />
             ) : (
               <div className="space-y-1">
                 {trendingLoading
                   ? Array.from({ length: 6 }).map((_, i) => <SongSkeleton key={i} />)
-                  : quickPicksSongs.map((song) => (
-                      <MemoizedSongItem
-                        key={song.id}
-                        song={song}
-                        onPlay={handlePlaySong}
-                        trendingSongs={safeTrendingSongs}
-                      />
-                    ))}
+                  : safeTrendingSongs
+                      .slice(0, 6)
+                      .map((song) => (
+                        <MemoizedSongItem
+                          key={song.id}
+                          song={song}
+                          onPlay={handlePlaySong}
+                          trendingSongs={safeTrendingSongs}
+                        />
+                      ))}
               </div>
             )}
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold text-white mb-4">Browse</h2>
+            <h2 className="text-lg font-normal text-white mb-4">Browse</h2>
             <div className="space-y-1">
               {musicCategories.map((category, index) => (
                 <CategoryItem
@@ -340,42 +295,38 @@ export default function VibeTunePage() {
 
           {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
             <section>
-              <h2 className="text-lg font-semibold text-white mb-4">Your Library</h2>
+              <h2 className="text-lg font-normal text-white mb-4">Your Library</h2>
               <div className="space-y-1">
                 {syncData.likedSongs.length > 0 && (
                   <div
-                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/30 rounded-lg p-3 transition-colors"
+                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-colors"
                     onClick={() => router.push("/library")}
                   >
-                    <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-sm">❤️</span>
-                    </div>
+                    <span className="text-lg flex-shrink-0">❤️</span>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-medium text-sm">Liked Songs</h3>
+                      <h3 className="text-white font-normal text-sm">Liked Songs</h3>
                       <p className="text-gray-400 text-xs">{syncData.likedSongs.length} songs</p>
                     </div>
-                    <Play className="w-4 h-4 text-gray-400" />
                   </div>
                 )}
-                {syncData.playlists.slice(0, 3).map((playlist) => (
+                {syncData.playlists.slice(0, 5).map((playlist) => (
                   <div
                     key={playlist.id}
-                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/30 rounded-lg p-3 transition-colors"
+                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-colors"
                     onClick={() => router.push("/library")}
                   >
                     <OptimizedImage
                       src={playlist.thumbnail}
                       alt={playlist.title}
-                      width={32}
-                      height={32}
-                      className="w-8 h-8 rounded-lg object-cover flex-shrink-0"
+                      width={24}
+                      height={24}
+                      className="w-6 h-6 rounded-sm object-cover flex-shrink-0"
                       fallback="/music-playlist-concept.png"
                     />
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-medium text-sm truncate">{playlist.title}</h3>
+                      <h3 className="text-white font-normal text-sm truncate">{playlist.title}</h3>
                       <p className="text-gray-400 text-xs">{playlist.videoCount} songs</p>
                     </div>
-                    <Play className="w-4 h-4 text-gray-400" />
                   </div>
                 ))}
               </div>
