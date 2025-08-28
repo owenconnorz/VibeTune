@@ -189,74 +189,25 @@ class GitHubExtensionLoader {
 
     // Convert GitHub repo URL to raw content URL base
     const rawBaseUrl = this.convertToRawUrl(repoUrl)
+    console.log(`[v0] Raw base URL: ${rawBaseUrl}`)
 
-    for (const manifestPath of possibleManifests) {
+    for (const manifest of possibleManifests) {
       try {
-        const manifestUrl = `${rawBaseUrl}/${manifestPath}`
+        const manifestUrl = `${rawBaseUrl}/${manifest}`
         console.log(`[v0] Trying manifest URL: ${manifestUrl}`)
 
         const response = await this.fetchWithRetry(manifestUrl)
         if (response.ok) {
-          const text = await response.text()
-          // Verify it's valid JSON and has CloudStream structure
-          const data = JSON.parse(text)
-          if (data.pluginLists || data.manifestVersion || data.name) {
-            console.log(`[v0] Found valid CloudStream manifest: ${manifestUrl}`)
-            return manifestUrl
-          }
+          console.log(`[v0] Found valid manifest at: ${manifestUrl}`)
+          return manifestUrl
         }
       } catch (error) {
-        console.log(`[v0] Manifest not found at: ${manifestPath}`)
+        console.log(`[v0] Manifest not found at ${manifest}:`, error.message)
       }
     }
 
+    console.log(`[v0] No CloudStream manifest found in any of the expected locations`)
     return null
-  }
-
-  private async parseCloudStreamPlugin(plugin: any, repoUrl: string): Promise<GitHubExtension | null> {
-    try {
-      console.log(`[v0] Parsing CloudStream plugin: ${plugin.name}`)
-
-      const extension: GitHubExtension = {
-        id: `${this.generateRepoId(repoUrl)}_${plugin.internalName?.toLowerCase().replace(/[^a-z0-9]/g, "") || plugin.name.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
-        name: plugin.name,
-        version: plugin.version?.toString() || "1.0.0",
-        description: plugin.description || `CloudStream provider for ${plugin.name}`,
-        author: Array.isArray(plugin.authors) ? plugin.authors.join(", ") : plugin.authors || "CloudStream Community",
-        url: plugin.url, // Direct link to .cs3 file
-        iconUrl: plugin.iconUrl || this.generateColoredIcon(plugin.name),
-        language: plugin.language || "en",
-        status: plugin.status === 1 ? "active" : "disabled",
-        sourceCode: undefined, // Will be loaded on demand
-        apiEndpoints: plugin.url ? [plugin.url] : [],
-        searchTypes: plugin.tvTypes
-          ? plugin.tvTypes.map((type: string) => ({
-              value: type.toLowerCase(),
-              label: type,
-            }))
-          : [{ value: "search", label: "Search Videos" }],
-        cloudStreamProvider: {
-          name: plugin.name,
-          internalName: plugin.internalName || plugin.name,
-          mainUrl: plugin.url,
-          supportedTypes: plugin.tvTypes || ["NSFW"],
-          version: plugin.version,
-          apiVersion: plugin.apiVersion,
-          fileSize: plugin.fileSize,
-          repositoryUrl: plugin.repositoryUrl || repoUrl,
-          iconUrl: plugin.iconUrl,
-          authors: plugin.authors,
-          description: plugin.description,
-          language: plugin.language,
-        },
-      }
-
-      console.log(`[v0] Successfully parsed CloudStream plugin: ${extension.name}`)
-      return extension
-    } catch (error) {
-      console.error(`[v0] Failed to parse CloudStream plugin:`, error)
-      return null
-    }
   }
 
   private async fetchRealCloudStreamExtensions(repoUrl: string): Promise<GitHubExtension[]> {
@@ -969,25 +920,32 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   private convertToRawUrl(githubUrl: string): string {
-    console.log(`[v0] Converting to raw URL: ${githubUrl}`)
+    console.log(`[v0] Converting repo URL to raw URL: ${githubUrl}`)
 
-    if (githubUrl.includes("raw.githubusercontent.com")) {
-      return githubUrl
-    }
+    // Handle different GitHub URL formats
+    const cleanUrl = githubUrl.replace(/\/$/, "") // Remove trailing slash
 
-    if (githubUrl.includes("github.com")) {
-      // Convert github.com URL to raw.githubusercontent.com
-      const url = new URL(githubUrl)
-      const pathParts = url.pathname.split("/").filter(Boolean)
-
-      if (pathParts.length >= 2) {
-        const rawUrl = `https://raw.githubusercontent.com/${pathParts[0]}/${pathParts[1]}/main`
-        console.log(`[v0] Converted to raw URL: ${rawUrl}`)
+    // Convert github.com URLs to raw.githubusercontent.com
+    if (cleanUrl.includes("github.com")) {
+      // Extract owner and repo from URL like https://github.com/owner/repo
+      const match = cleanUrl.match(/github\.com\/([^/]+)\/([^/]+)/)
+      if (match) {
+        const [, owner, repo] = match
+        const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main`
+        console.log(`[v0] Converted GitHub URL to raw URL: ${rawUrl}`)
         return rawUrl
       }
     }
 
-    return githubUrl
+    // If already a raw URL, use as is
+    if (cleanUrl.includes("raw.githubusercontent.com")) {
+      console.log(`[v0] URL is already a raw URL: ${cleanUrl}`)
+      return cleanUrl
+    }
+
+    // Default fallback
+    console.log(`[v0] Using URL as-is: ${cleanUrl}`)
+    return cleanUrl
   }
 
   private convertToGitHubApiUrl(githubUrl: string): string {
