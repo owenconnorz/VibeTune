@@ -50,7 +50,14 @@ Each recommendation should include a specific search query and explanation.`,
       },
     })
   } catch (error) {
-    console.error("[v0] AI recommendations error:", error)
-    return NextResponse.json({ error: "Failed to generate recommendations" }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+
+    return NextResponse.json(
+      {
+        error: "Failed to generate recommendations",
+        details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      },
+      { status: 500 },
+    )
   }
 }

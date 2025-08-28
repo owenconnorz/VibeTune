@@ -146,9 +146,12 @@ export default function ExtensionsPage() {
 
     setIsAddingRepo(true)
     try {
-      console.log("[v0] Fetching extensions from repository:", newRepoUrl)
+      console.log("[v0] Adding repository:", newRepoUrl)
       const { githubExtensionLoader } = await import("@/lib/video-plugins/github-extension-loader")
+      console.log("[v0] GitHub extension loader imported successfully")
+
       const extensions = await githubExtensionLoader.fetchRepositoryExtensions(newRepoUrl)
+      console.log("[v0] Fetched extensions from repository:", extensions.length, "extensions found")
 
       const newRepo: Repository = {
         id: Date.now().toString(),
@@ -165,9 +168,12 @@ export default function ExtensionsPage() {
 
       if (extensions.length > 0) {
         toast.success(`Repository added with ${extensions.length} extensions`)
+        console.log("[v0] Loading GitHub extensions into plugin manager")
         const { videoPluginManager } = await import("@/lib/video-plugins/plugin-manager")
         await videoPluginManager.loadGitHubExtensions()
+        console.log("[v0] GitHub extensions loaded into plugin manager")
       } else {
+        console.warn("[v0] No extensions found in repository:", newRepoUrl)
         toast.error("Repository added but no extensions found")
       }
     } catch (error) {
@@ -193,24 +199,31 @@ export default function ExtensionsPage() {
     setIsLoadingExtensions(true)
 
     try {
-      console.log("[v0] Loading extensions for repository:", repo.url)
+      console.log("[v0] Loading extensions for repository:", repo.name, repo.url)
       const { githubExtensionLoader } = await import("@/lib/video-plugins/github-extension-loader")
+      console.log("[v0] GitHub extension loader imported for repository view")
+
       const extensions = await githubExtensionLoader.fetchRepositoryExtensions(repo.url)
+      console.log("[v0] Repository extensions loaded:", extensions.length, "extensions")
 
       // Convert to Extension format with CloudStream-style metadata
-      const formattedExtensions: Extension[] = extensions.map((ext, index) => ({
-        id: `${repo.id}-${index}`,
-        name: ext.name || `Extension ${index + 1}`,
-        description: ext.description || ext.name || "No description available",
-        version: ext.version || "v1.0",
-        language: "English",
-        size: `${Math.floor(Math.random() * 50) + 10} kB`,
-        rating: Math.floor(Math.random() * 5),
-        ageRating: "18+",
-        icon: ext.icon,
-        status: Math.random() > 0.3 ? "downloaded" : "available",
-      }))
+      const formattedExtensions: Extension[] = extensions.map((ext, index) => {
+        console.log("[v0] Processing extension:", ext.name || `Extension ${index + 1}`)
+        return {
+          id: `${repo.id}-${index}`,
+          name: ext.name || `Extension ${index + 1}`,
+          description: ext.description || ext.name || "No description available",
+          version: ext.version || "v1.0",
+          language: "English",
+          size: `${Math.floor(Math.random() * 50) + 10} kB`,
+          rating: Math.floor(Math.random() * 5),
+          ageRating: "18+",
+          icon: ext.icon,
+          status: Math.random() > 0.3 ? "downloaded" : "available",
+        }
+      })
 
+      console.log("[v0] Formatted extensions for display:", formattedExtensions.length)
       setRepoExtensions(formattedExtensions)
     } catch (error) {
       console.error("[v0] Failed to load repository extensions:", error)
@@ -362,20 +375,20 @@ export default function ExtensionsPage() {
               className="bg-zinc-800 border-zinc-700 cursor-pointer hover:bg-zinc-750 transition-colors"
             >
               <CardContent className="p-4" onClick={() => handleRepositoryClick(repo)}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-10 h-10 bg-zinc-700 rounded-full flex items-center justify-center">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 bg-zinc-700 rounded-full flex items-center justify-center flex-shrink-0">
                       <Github className="w-5 h-5 text-gray-300" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-medium text-lg truncate">{repo.name}</h3>
-                      <p className="text-gray-400 text-sm truncate">{repo.url}</p>
+                      <h3 className="text-white font-medium text-lg break-words leading-tight">{repo.name}</h3>
+                      <p className="text-gray-400 text-sm break-all leading-tight mt-1">{repo.url}</p>
                       {repo.extensionCount && (
-                        <p className="text-gray-500 text-xs mt-1">{repo.extensionCount} extensions</p>
+                        <p className="text-gray-500 text-xs mt-2">{repo.extensionCount} extensions</p>
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {repo.status === "error" && <AlertCircle className="w-5 h-5 text-red-400" />}
                     <Button
                       variant="ghost"
@@ -397,7 +410,7 @@ export default function ExtensionsPage() {
 
         {/* Add Repository Section */}
         <div className="p-4 border-t border-zinc-800">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Input
               placeholder="Repository URL"
               value={newRepoUrl}
@@ -408,7 +421,7 @@ export default function ExtensionsPage() {
             <Button
               onClick={handleAddRepository}
               disabled={!newRepoUrl.trim() || isAddingRepo}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 w-full sm:w-auto"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add repository
@@ -430,17 +443,17 @@ export default function ExtensionsPage() {
             />
           </div>
         </div>
-        <div className="flex items-center gap-6 text-sm flex-wrap">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-500 rounded-full" />
+            <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0" />
             <span className="text-gray-300">Downloaded: {stats.downloaded}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-blue-500 rounded-full" />
+            <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0" />
             <span className="text-gray-300">Disabled: {stats.disabled}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-gray-500 rounded-full" />
+            <div className="w-3 h-3 bg-gray-500 rounded-full flex-shrink-0" />
             <span className="text-gray-300">Not downloaded: {stats.notDownloaded}</span>
           </div>
         </div>

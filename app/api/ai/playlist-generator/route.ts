@@ -56,7 +56,14 @@ Focus on creating a cohesive listening experience that matches the requested moo
       },
     })
   } catch (error) {
-    console.error("[v0] Playlist generator error:", error)
-    return NextResponse.json({ error: "Failed to generate playlist" }, { status: 500 })
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+
+    return NextResponse.json(
+      {
+        error: "Failed to generate playlist",
+        details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      },
+      { status: 500 },
+    )
   }
 }

@@ -143,6 +143,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Metronomy",
     thumbnail: "/ed-sheeran-shape-of-you.png",
     duration: "3:58",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
   },
   {
     id: "fallback_2",
@@ -150,6 +151,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Eminem",
     thumbnail: "/the-weeknd-blinding-lights.png",
     duration: "6:17",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
   },
   {
     id: "fallback_3",
@@ -157,6 +159,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Twenty One Pilots",
     thumbnail: "/harry-styles-watermelon-sugar.png",
     duration: "3:45",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
   },
   {
     id: "fallback_4",
@@ -164,6 +167,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Imagine Dragons",
     thumbnail: "/dua-lipa-levitating.png",
     duration: "4:03",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
   },
   {
     id: "fallback_5",
@@ -171,6 +175,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Ed Sheeran",
     thumbnail: "/ed-sheeran-shape-of-you.png",
     duration: "3:53",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
   },
   {
     id: "fallback_6",
@@ -178,6 +183,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "The Weeknd",
     thumbnail: "/the-weeknd-blinding-lights.png",
     duration: "3:20",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
   },
   {
     id: "fallback_7",
@@ -185,6 +191,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Harry Styles",
     thumbnail: "/harry-styles-watermelon-sugar.png",
     duration: "2:54",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",
   },
   {
     id: "fallback_8",
@@ -192,6 +199,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Dua Lipa",
     thumbnail: "/dua-lipa-levitating.png",
     duration: "3:23",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
   },
   {
     id: "fallback_9",
@@ -199,6 +207,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Olivia Rodrigo",
     thumbnail: "/ed-sheeran-shape-of-you.png",
     duration: "2:58",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
   },
   {
     id: "fallback_10",
@@ -206,6 +215,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "The Kid LAROI & Justin Bieber",
     thumbnail: "/the-weeknd-blinding-lights.png",
     duration: "2:21",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3",
   },
   {
     id: "fallback_11",
@@ -213,6 +223,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Glass Animals",
     thumbnail: "/harry-styles-watermelon-sugar.png",
     duration: "3:58",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3",
   },
   {
     id: "fallback_12",
@@ -220,6 +231,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Harry Styles",
     thumbnail: "/harry-styles-watermelon-sugar.png",
     duration: "2:47",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3",
   },
   {
     id: "fallback_13",
@@ -227,6 +239,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Taylor Swift",
     thumbnail: "/dua-lipa-levitating.png",
     duration: "3:20",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3",
   },
   {
     id: "fallback_14",
@@ -234,6 +247,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Sam Smith ft. Kim Petras",
     thumbnail: "/ed-sheeran-shape-of-you.png",
     duration: "2:36",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3",
   },
   {
     id: "fallback_15",
@@ -241,6 +255,7 @@ const FALLBACK_TRENDING_SONGS: Song[] = [
     artist: "Steve Lacy",
     thumbnail: "/the-weeknd-blinding-lights.png",
     duration: "3:51",
+    audioUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3",
   },
 ]
 
