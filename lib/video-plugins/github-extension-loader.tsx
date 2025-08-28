@@ -135,6 +135,11 @@ class GitHubExtensionLoader {
     try {
       console.log(`[v0] Fetching CloudStream extensions from: ${repoUrl}`)
 
+      if (repoUrl.endsWith(".json") && (repoUrl.includes("XXX.json") || repoUrl.includes("manifest.json"))) {
+        console.log(`[v0] URL appears to be a direct manifest file: ${repoUrl}`)
+        return await this.fetchFromDirectManifest(repoUrl)
+      }
+
       // Step 1: Try to fetch the main manifest file (XXX.json or similar)
       const manifestUrl = await this.findCloudStreamManifest(repoUrl)
       if (!manifestUrl) {
@@ -184,30 +189,48 @@ class GitHubExtensionLoader {
     }
   }
 
-  private async findCloudStreamManifest(repoUrl: string): Promise<string | null> {
-    const possibleManifests = ["XXX.json", "manifest.json", "plugins.json", "builds/XXX.json", "builds/manifest.json"]
+  private async fetchFromDirectManifest(manifestUrl: string): Promise<GitHubExtension[]> {
+    try {
+      console.log(`[v0] Fetching direct manifest: ${manifestUrl}`)
 
-    // Convert GitHub repo URL to raw content URL base
-    const rawBaseUrl = this.convertToRawUrl(repoUrl)
-    console.log(`[v0] Raw base URL: ${rawBaseUrl}`)
+      const manifestResponse = await this.fetchWithRetry(manifestUrl)
+      const manifest = await manifestResponse.json()
 
-    for (const manifest of possibleManifests) {
-      try {
-        const manifestUrl = `${rawBaseUrl}/${manifest}`
-        console.log(`[v0] Trying manifest URL: ${manifestUrl}`)
+      console.log(`[v0] Direct manifest data:`, manifest)
 
-        const response = await this.fetchWithRetry(manifestUrl)
-        if (response.ok) {
-          console.log(`[v0] Found valid manifest at: ${manifestUrl}`)
-          return manifestUrl
+      const extensions: GitHubExtension[] = []
+
+      // Handle CloudStream manifest format
+      if (manifest.pluginLists && Array.isArray(manifest.pluginLists)) {
+        for (const pluginListUrl of manifest.pluginLists) {
+          console.log(`[v0] Fetching plugin list from direct manifest: ${pluginListUrl}`)
+
+          try {
+            const pluginResponse = await this.fetchWithRetry(pluginListUrl)
+            const plugins = await pluginResponse.json()
+
+            console.log(`[v0] Found ${plugins.length} plugins in direct manifest list`)
+
+            if (Array.isArray(plugins)) {
+              for (const plugin of plugins) {
+                const extension = await this.parseCloudStreamPlugin(plugin, manifestUrl)
+                if (extension) {
+                  extensions.push(extension)
+                }
+              }
+            }
+          } catch (error) {
+            console.error(`[v0] Failed to fetch plugin list from direct manifest ${pluginListUrl}:`, error)
+          }
         }
-      } catch (error) {
-        console.log(`[v0] Manifest not found at ${manifest}:`, error.message)
       }
-    }
 
-    console.log(`[v0] No CloudStream manifest found in any of the expected locations`)
-    return null
+      console.log(`[v0] Total extensions from direct manifest: ${extensions.length}`)
+      return extensions
+    } catch (error) {
+      console.error(`[v0] Failed to fetch from direct manifest:`, error)
+      return []
+    }
   }
 
   private async fetchRealCloudStreamExtensions(repoUrl: string): Promise<GitHubExtension[]> {
@@ -920,32 +943,37 @@ if (typeof module !== 'undefined' && module.exports) {
   }
 
   private convertToRawUrl(githubUrl: string): string {
-    console.log(`[v0] Converting repo URL to raw URL: ${githubUrl}`)
+    console.log(`[v0] Converting URL to raw format: ${githubUrl}`)
 
-    // Handle different GitHub URL formats
-    const cleanUrl = githubUrl.replace(/\/$/, "") // Remove trailing slash
+    if (githubUrl.includes("raw.githubusercontent.com")) {
+      console.log(`[v0] URL is already a raw GitHub URL`)
+      // Extract base path without the file name
+      const parts = githubUrl.split("/")
+      if (parts.length >= 6) {
+        const basePath = parts.slice(0, -1).join("/")
+        console.log(`[v0] Extracted base path: ${basePath}`)
+        return basePath
+      }
+      return githubUrl
+    }
 
-    // Convert github.com URLs to raw.githubusercontent.com
-    if (cleanUrl.includes("github.com")) {
-      // Extract owner and repo from URL like https://github.com/owner/repo
-      const match = cleanUrl.match(/github\.com\/([^/]+)\/([^/]+)/)
-      if (match) {
-        const [, owner, repo] = match
-        const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main`
-        console.log(`[v0] Converted GitHub URL to raw URL: ${rawUrl}`)
+    // Handle regular GitHub repository URLs
+    if (githubUrl.includes("github.com")) {
+      const url = new URL(githubUrl)
+      const pathParts = url.pathname.split("/").filter(Boolean)
+
+      if (pathParts.length >= 2) {
+        const owner = pathParts[0]
+        const repo = pathParts[1]
+        const branch = pathParts[3] || "main"
+        const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}`
+        console.log(`[v0] Converted to raw URL: ${rawUrl}`)
         return rawUrl
       }
     }
 
-    // If already a raw URL, use as is
-    if (cleanUrl.includes("raw.githubusercontent.com")) {
-      console.log(`[v0] URL is already a raw URL: ${cleanUrl}`)
-      return cleanUrl
-    }
-
-    // Default fallback
-    console.log(`[v0] Using URL as-is: ${cleanUrl}`)
-    return cleanUrl
+    console.log(`[v0] Could not convert URL, returning as-is: ${githubUrl}`)
+    return githubUrl
   }
 
   private convertToGitHubApiUrl(githubUrl: string): string {
