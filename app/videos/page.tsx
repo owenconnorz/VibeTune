@@ -31,9 +31,9 @@ export default function VideosPage() {
   const [selectedVideo, setSelectedVideo] = useState<VideoSource | null>(null)
   const [selectedExtension, setSelectedExtension] = useState("eporner")
   const [availableExtensions, setAvailableExtensions] = useState([
-    { id: "none", name: "None", flag: null, type: "builtin" },
-    { id: "random", name: "Random", flag: null, type: "builtin" },
-    { id: "eporner", name: "Eporner", flag: "🇬🇧", type: "builtin" },
+    { id: "none", name: "None", flag: null, iconUrl: null, type: "builtin" },
+    { id: "random", name: "Random", flag: null, iconUrl: null, type: "builtin" },
+    { id: "eporner", name: "Eporner", flag: "🇬🇧", iconUrl: null, type: "builtin" },
   ])
   const [githubExtensions, setGithubExtensions] = useState<GitHubExtension[]>([])
   const [extensionStats, setExtensionStats] = useState({
@@ -99,6 +99,7 @@ export default function VideosPage() {
         id: ext.id,
         name: ext.name,
         flag: getExtensionFlag(ext.name),
+        iconUrl: ext.iconUrl,
         type: "github" as const,
         status: ext.status,
       }))
@@ -145,11 +146,16 @@ export default function VideosPage() {
     setError(null)
 
     try {
-      console.log(`[v0] Fetching videos via plugin system: query="${query}", type="${type}", page=${page}`)
+      console.log(`[v0] Fetching videos from active plugin: query="${query}", type="${type}", page=${page}`)
 
       localStorage.setItem("selectedVideoPlugin", selectedExtension)
 
-      const result: SearchResult = await videoPluginManager.searchAll({
+      const activePlugin = videoPluginManager.getActivePlugin()
+      if (!activePlugin) {
+        throw new Error("No active plugin selected")
+      }
+
+      const result: SearchResult = await activePlugin.search({
         query,
         type,
         page,
@@ -159,7 +165,9 @@ export default function VideosPage() {
       if (result.error) {
         setError(result.error)
         setVideos([])
+        setBannerVideos([])
       } else {
+        console.log(`[v0] Loaded ${result.videos.length} videos from ${activePlugin.name}`)
         setVideos(page === 1 ? result.videos : [...videos, ...result.videos])
         setHasNextPage(result.hasNextPage)
         if (page === 1 && result.videos.length > 0) {
@@ -167,8 +175,10 @@ export default function VideosPage() {
         }
       }
     } catch (err) {
-      console.error("[v0] Error fetching videos via plugins:", err)
-      setError("Failed to load videos")
+      console.error("[v0] Error fetching videos from active plugin:", err)
+      setError("Failed to load videos from selected provider")
+      setVideos([])
+      setBannerVideos([])
     } finally {
       setLoading(false)
     }
@@ -186,21 +196,38 @@ export default function VideosPage() {
     setShowExtensionSwitcher(false)
     setCurrentPage(1)
 
-    const githubExtension = githubExtensions.find((ext) => ext.id === extensionId)
-    if (githubExtension) {
-      try {
+    setVideos([])
+    setBannerVideos([])
+    setLoading(true)
+
+    try {
+      const githubExtension = githubExtensions.find((ext) => ext.id === extensionId)
+      if (githubExtension) {
         console.log(`[v0] Loading GitHub extension: ${githubExtension.name}`)
         const plugin = await githubExtensionLoader.createPluginFromExtension(githubExtension)
         if (plugin) {
-          console.log(`[v0] Successfully loaded GitHub extension: ${githubExtension.name}`)
+          videoPluginManager.registerPlugin(plugin)
+          videoPluginManager.setActivePlugin(extensionId)
+          console.log(`[v0] Successfully loaded and activated GitHub extension: ${githubExtension.name}`)
+        } else {
+          throw new Error(`Failed to create plugin from extension: ${githubExtension.name}`)
         }
-      } catch (error) {
-        console.error(`[v0] Failed to load GitHub extension ${githubExtension.name}:`, error)
-        setError(`Failed to load extension: ${githubExtension.name}`)
+      } else {
+        videoPluginManager.setActivePlugin(extensionId)
+        console.log(`[v0] Activated built-in extension: ${extensionId}`)
       }
-    }
 
-    fetchVideos(searchQuery, searchType, 1)
+      const activePlugin = videoPluginManager.getActivePlugin()
+      if (activePlugin) {
+        setAvailableSearchTypes(activePlugin.supportedSearchTypes)
+      }
+
+      await fetchVideos(searchQuery, searchType, 1)
+    } catch (error) {
+      console.error(`[v0] Failed to switch to extension ${extensionId}:`, error)
+      setError(`Failed to load extension: ${extensionId}`)
+      setLoading(false)
+    }
   }
 
   const handleVideoClick = (video: VideoSource) => {
@@ -392,9 +419,23 @@ export default function VideosPage() {
                 variant="outline"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-lg">
-                    {availableExtensions.find((ext) => ext.id === selectedExtension)?.flag || "🌐"}
-                  </span>
+                  {(() => {
+                    const selectedExt = availableExtensions.find((ext) => ext.id === selectedExtension)
+                    if (selectedExt?.iconUrl) {
+                      return (
+                        <img
+                          src={selectedExt.iconUrl || "/placeholder.svg"}
+                          alt={selectedExt.name}
+                          className="w-6 h-6 rounded"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none"
+                            e.currentTarget.nextElementSibling.style.display = "inline"
+                          }}
+                        />
+                      )
+                    }
+                    return <span className="text-lg">{selectedExt?.flag || "🌐"}</span>
+                  })()}
                   <span className="font-medium">{selectedExtensionName}</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-zinc-400" />
@@ -513,7 +554,23 @@ export default function VideosPage() {
                         selectedExtension === extension.id ? "bg-zinc-800" : ""
                       }`}
                     >
-                      <span className="text-2xl w-8 flex-shrink-0">{extension.flag || "🌐"}</span>
+                      <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
+                        {extension.iconUrl ? (
+                          <img
+                            src={extension.iconUrl || "/placeholder.svg"}
+                            alt={extension.name}
+                            className="w-8 h-8 rounded"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none"
+                              const fallback = e.currentTarget.parentElement?.querySelector(".fallback-flag")
+                              if (fallback) fallback.style.display = "inline"
+                            }}
+                          />
+                        ) : null}
+                        <span className={`text-2xl fallback-flag ${extension.iconUrl ? "hidden" : ""}`}>
+                          {extension.flag || "🌐"}
+                        </span>
+                      </div>
                       <div className="flex-1">
                         <span className="text-white font-medium">{extension.name}</span>
                         {extension.type === "github" && (

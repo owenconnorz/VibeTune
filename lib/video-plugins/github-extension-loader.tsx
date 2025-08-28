@@ -95,7 +95,7 @@ class GitHubExtensionLoader {
           description: ext.description || "No description available",
           author: ext.author || "Unknown",
           url: ext.url || repoUrl,
-          iconUrl: ext.iconUrl,
+          iconUrl: ext.iconUrl || this.generateIconUrl(repoUrl, ext.name || `Extension ${index + 1}`),
           language: ext.language || "en",
           status: "active" as const,
         }))
@@ -129,6 +129,7 @@ class GitHubExtensionLoader {
         description: `${provider} video streaming provider`,
         author: repoName,
         url: repoUrl,
+        iconUrl: this.generateIconUrl(repoUrl, provider),
         language: "en",
         status: "active",
       })
@@ -357,6 +358,57 @@ if (typeof module !== 'undefined' && module.exports) {
       console.error(`[v0] Failed to create plugin from extension ${extension.name}:`, error)
       return null
     }
+  }
+
+  private generateIconUrl(repoUrl: string, extensionName: string): string {
+    try {
+      // Try to construct icon URL from repository
+      const rawUrl = this.convertToRawUrl(repoUrl)
+      const iconName = extensionName.toLowerCase().replace(/[^a-z0-9]/g, "")
+
+      // Common icon paths in CloudStream repositories
+      const possibleIconPaths = [
+        `${rawUrl}/icons/${iconName}.png`,
+        `${rawUrl}/assets/${iconName}.png`,
+        `${rawUrl}/${iconName}/icon.png`,
+        `${rawUrl}/${iconName}.png`,
+        `${rawUrl}/icon.png`,
+      ]
+
+      // Return the first possible path (in real implementation, we'd check if it exists)
+      return possibleIconPaths[0]
+    } catch {
+      // Fallback to generating a colored icon based on extension name
+      return this.generateColoredIcon(extensionName)
+    }
+  }
+
+  private generateColoredIcon(extensionName: string): string {
+    const colors = [
+      "#3B82F6", // blue
+      "#EF4444", // red
+      "#10B981", // green
+      "#F59E0B", // yellow
+      "#8B5CF6", // purple
+      "#F97316", // orange
+      "#06B6D4", // cyan
+      "#84CC16", // lime
+    ]
+
+    // Use extension name to consistently pick a color
+    const colorIndex = extensionName.length % colors.length
+    const color = colors[colorIndex]
+    const letter = extensionName.charAt(0).toUpperCase()
+
+    // Generate a data URL for a colored square with letter
+    const svg = `
+      <svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" fill="${color}" rx="6"/>
+        <text x="16" y="20" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">${letter}</text>
+      </svg>
+    `
+
+    return `data:image/svg+xml;base64,${btoa(svg)}`
   }
 }
 
