@@ -250,8 +250,16 @@ export default function VideosPage() {
   }
 
   const handleVideoClick = (video: VideoSource) => {
+    console.log("[v0] === VIDEO CLICK DETECTED ===")
+    console.log("[v0] Video clicked:", video.title)
+    console.log("[v0] Video ID:", video.id)
+    console.log("[v0] Video source:", video.source)
+    console.log("[v0] Opening video detail modal...")
+
     setSelectedVideo(video)
     setShowVideoDetail(true)
+
+    console.log("[v0] Video detail modal should now be visible")
   }
 
   const handlePlayVideo = (video: VideoSource) => {
@@ -410,12 +418,13 @@ export default function VideosPage() {
                           e.currentTarget.src = "/video-thumbnail.png"
                         }}
                         onClick={() => {
-                          setSelectedVideo(video)
+                          console.log("[v0] Video thumbnail clicked:", video.title)
+                          handleVideoClick(video)
                         }}
                       />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <div className="bg-white/20 rounded-full p-2">
-                          <Play className="w-4 h-4 text-white" />
+                          <Play className="w-6 h-6 text-white" />
                         </div>
                       </div>
                       <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
@@ -513,7 +522,10 @@ export default function VideosPage() {
                     <span className="text-sm text-zinc-300">{selectedExtensionName}</span>
                   </div>
                   <Button
-                    onClick={() => handleVideoClick(currentBannerVideo)}
+                    onClick={() => {
+                      console.log("[v0] Banner play button clicked:", currentBannerVideo.title)
+                      handleVideoClick(currentBannerVideo)
+                    }}
                     className="bg-white text-black hover:bg-zinc-200 font-semibold px-6"
                   >
                     <Play className="w-4 h-4 mr-2" />
@@ -686,7 +698,10 @@ export default function VideosPage() {
                                   onError={(e) => {
                                     e.currentTarget.src = "/video-thumbnail.png"
                                   }}
-                                  onClick={() => handleVideoClick(video)}
+                                  onClick={() => {
+                                    console.log("[v0] Video thumbnail clicked:", video.title)
+                                    handleVideoClick(video)
+                                  }}
                                 />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                   <div className="bg-white/20 rounded-full p-2">
