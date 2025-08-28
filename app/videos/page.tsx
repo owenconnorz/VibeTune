@@ -30,6 +30,8 @@ export default function VideosPage() {
   const [showVideoDetail, setShowVideoDetail] = useState(false)
   const [selectedVideo, setSelectedVideo] = useState<VideoSource | null>(null)
   const [selectedExtension, setSelectedExtension] = useState("eporner")
+  const [activeCategory, setActiveCategory] = useState("home")
+  const [providerCategories, setProviderCategories] = useState<string[]>(["home"])
   const [availableExtensions, setAvailableExtensions] = useState([
     { id: "none", name: "None", flag: null, iconUrl: null, type: "builtin" },
     { id: "random", name: "Random", flag: null, iconUrl: null, type: "builtin" },
@@ -48,15 +50,103 @@ export default function VideosPage() {
   const { addToDownloads } = useDownloads()
   const { addToPlaylist } = usePlaylist()
 
-  const videoSections = [
-    { title: "Home", videos: videos.slice(0, 6) },
-    { title: "Latest Videos 2", videos: videos.slice(6, 12) },
-    { title: "Latest 4", videos: videos.slice(12, 18) },
-    { title: "Adult Time", videos: videos.slice(18, 24) },
-    { title: "Couples", videos: videos.slice(24, 30) },
-    { title: "Main Page", videos: videos.slice(30, 36) },
-    { title: "Latest Videos", videos: videos.slice(36, 42) },
-  ]
+  const getProviderCategories = (extensionId: string): string[] => {
+    const categoryMap: Record<string, string[]> = {
+      // Built-in providers
+      eporner: ["home", "trending", "categories", "live"],
+      none: ["home"],
+      random: ["home", "random"],
+
+      // Adult content providers
+      allpornstream: ["movies", "tv series", "anime", "categories", "live"],
+      fxprnhd: ["movies", "categories", "trending", "new releases"],
+      eporner: ["home", "categories", "trending", "live"],
+      actionviewphotography: ["photos", "videos", "galleries", "models"],
+      cam4: ["live", "categories", "models", "recordings"],
+      camsoda: ["live", "categories", "private", "group"],
+      chatrubate: ["live", "categories", "couples", "trans"],
+      desisins: ["movies", "categories", "desi", "bollywood"],
+      fpo: ["movies", "categories", "trending", "new"],
+      fullporner: ["movies", "categories", "pornstars", "channels"],
+
+      // Default fallback
+      default: ["home", "categories", "trending", "new"],
+    }
+
+    return categoryMap[extensionId.toLowerCase()] || categoryMap.default
+  }
+
+  const getCategoryDisplayName = (category: string): string => {
+    const displayNames: Record<string, string> = {
+      home: "Home",
+      movies: "Movies",
+      "tv series": "TV Series",
+      anime: "Anime",
+      categories: "Categories",
+      live: "Live",
+      trending: "Trending",
+      "new releases": "New Releases",
+      photos: "Photos",
+      videos: "Videos",
+      galleries: "Galleries",
+      models: "Models",
+      recordings: "Recordings",
+      private: "Private",
+      group: "Group",
+      couples: "Couples",
+      trans: "Trans",
+      desi: "Desi",
+      bollywood: "Bollywood",
+      new: "New",
+      pornstars: "Pornstars",
+      channels: "Channels",
+      random: "Random",
+    }
+
+    return displayNames[category.toLowerCase()] || category.charAt(0).toUpperCase() + category.slice(1)
+  }
+
+  const getVideoSections = () => {
+    if (activeCategory === "home") {
+      return [
+        { title: "Featured", videos: videos.slice(0, 6) },
+        { title: "Latest Videos", videos: videos.slice(6, 12) },
+        { title: "Popular", videos: videos.slice(12, 18) },
+        { title: "Recommended", videos: videos.slice(18, 24) },
+      ]
+    } else if (activeCategory === "movies") {
+      return [
+        { title: "New Movies", videos: videos.slice(0, 8) },
+        { title: "Popular Movies", videos: videos.slice(8, 16) },
+        { title: "HD Movies", videos: videos.slice(16, 24) },
+      ]
+    } else if (activeCategory === "tv series") {
+      return [
+        { title: "New Episodes", videos: videos.slice(0, 6) },
+        { title: "Popular Series", videos: videos.slice(6, 12) },
+        { title: "Completed Series", videos: videos.slice(12, 18) },
+      ]
+    } else if (activeCategory === "anime") {
+      return [
+        { title: "New Anime", videos: videos.slice(0, 6) },
+        { title: "Popular Anime", videos: videos.slice(6, 12) },
+        { title: "Ongoing Series", videos: videos.slice(12, 18) },
+      ]
+    } else if (activeCategory === "live") {
+      return [
+        { title: "Live Now", videos: videos.slice(0, 8) },
+        { title: "Popular Rooms", videos: videos.slice(8, 16) },
+      ]
+    } else {
+      // Default category view
+      return [
+        { title: getCategoryDisplayName(activeCategory), videos: videos.slice(0, 12) },
+        { title: "Related", videos: videos.slice(12, 24) },
+      ]
+    }
+  }
+
+  const videoSections = getVideoSections()
 
   useEffect(() => {
     if (bannerVideos.length > 1) {
@@ -194,7 +284,7 @@ export default function VideosPage() {
   }
 
   const handleExtensionSelect = async (extensionId: string) => {
-    console.log(`[v0] === SIMPLIFIED EXTENSION SELECTION ===`)
+    console.log(`[v0] === REAL CLOUDSTREAM EXTENSION SELECTION ===`)
     console.log(`[v0] Extension ID: ${extensionId}`)
 
     setSelectedExtension(extensionId)
@@ -205,65 +295,111 @@ export default function VideosPage() {
     setLoading(true)
     setError(null)
 
+    const categories = getProviderCategories(extensionId)
+    setProviderCategories(categories)
+    setActiveCategory(categories[0])
+
     try {
-      // For GitHub extensions, create a simple mock plugin
       if (extensionId !== "eporner" && extensionId !== "none" && extensionId !== "random") {
-        console.log(`[v0] Creating simplified CloudStream plugin for: ${extensionId}`)
+        console.log(`[v0] Loading real CloudStream provider: ${extensionId}`)
 
-        const realisticTitles = [
-          "Hot Summer Nights",
-          "Passionate Encounter",
-          "Intimate Moments",
-          "Sensual Romance",
-          "Private Session",
-          "Steamy Adventure",
-          "Romantic Evening",
-          "Desire Unleashed",
-          "Forbidden Attraction",
-          "Secret Rendezvous",
-          "Wild Passion",
-          "Tempting Seduction",
-          "Erotic Fantasy",
-          "Lustful Desires",
-          "Heated Exchange",
-          "Sensual Massage",
-          "Romantic Getaway",
-          "Passionate Affair",
-          "Intimate Connection",
-          "Seductive Charm",
-          "Burning Desire",
-          "Romantic Tension",
-          "Sensual Awakening",
-          "Private Paradise",
-          "Erotic Dreams",
-        ]
+        const githubExtension = githubExtensions.find((ext) => ext.id === extensionId)
+        if (githubExtension && githubExtension.cloudStreamProvider) {
+          console.log(`[v0] Found CloudStream provider for: ${extensionId}`)
 
-        const mockVideos: VideoSource[] = Array.from({ length: 20 }, (_, i) => ({
-          id: `${extensionId}_${i + 1}`,
-          title: realisticTitles[i % realisticTitles.length],
-          thumbnail: `/placeholder.svg?height=180&width=320&query=${extensionId} video thumbnail`,
-          duration: Math.floor(Math.random() * 60) + 10,
-          url:
-            i % 2 === 0
-              ? `https://www.youtube.com/watch?v=dQw4w9WgXcQ` // Rick Astley - Never Gonna Give You Up
-              : `https://www.youtube.com/watch?v=9bZkp7q19f0`, // PSY - GANGNAM STYLE
-          embed:
-            i % 2 === 0 ? `https://www.youtube.com/embed/dQw4w9WgXcQ` : `https://www.youtube.com/embed/9bZkp7q19f0`,
-          source: extensionId,
-          views: Math.floor(Math.random() * 1000000),
-          uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-        }))
+          // Use the actual CloudStream provider's search functionality
+          const cloudStreamProvider = githubExtension.cloudStreamProvider
 
-        console.log(`[v0] Generated ${mockVideos.length} mock videos for ${extensionId}`)
-        setVideos(mockVideos)
-        setBannerVideos(mockVideos.slice(0, 5))
+          try {
+            // Get the home page content (equivalent to search with empty query)
+            console.log(`[v0] Fetching home page content from CloudStream provider...`)
+            const searchResults = await cloudStreamProvider.search("")
+
+            console.log(`[v0] CloudStream search results:`, searchResults)
+
+            // Convert CloudStream results to our video format
+            const realVideos: VideoSource[] = searchResults.map((result, index) => ({
+              id: `${extensionId}_${result.url || index}`,
+              title: result.name || `Video ${index + 1}`,
+              thumbnail: result.posterUrl || `/placeholder.svg?height=180&width=320&query=${result.name || "video"}`,
+              duration: Math.floor(Math.random() * 60) + 10, // CloudStream doesn't always provide duration
+              url: result.url || `https://www.youtube.com/watch?v=dQw4w9WgXcQ`,
+              embed: result.url || `https://www.youtube.com/embed/dQw4w9WgXcQ`,
+              source: extensionId,
+              views: Math.floor(Math.random() * 1000000),
+              uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+              cloudStreamData: result, // Store original CloudStream data
+            }))
+
+            console.log(`[v0] Converted ${realVideos.length} CloudStream results to video format`)
+
+            if (realVideos.length > 0) {
+              setVideos(realVideos)
+              setBannerVideos(realVideos.slice(0, 5))
+              console.log(`[v0] Successfully loaded real content from CloudStream provider: ${extensionId}`)
+            } else {
+              throw new Error("No content found from CloudStream provider")
+            }
+          } catch (cloudStreamError) {
+            console.error(`[v0] CloudStream provider search failed:`, cloudStreamError)
+
+            console.log(`[v0] Falling back to mock data for: ${extensionId}`)
+            const realisticTitles = [
+              "Hot Summer Nights",
+              "Passionate Encounter",
+              "Intimate Moments",
+              "Sensual Romance",
+              "Private Session",
+              "Steamy Adventure",
+              "Romantic Evening",
+              "Desire Unleashed",
+              "Forbidden Attraction",
+              "Secret Rendezvous",
+              "Wild Passion",
+              "Tempting Seduction",
+              "Erotic Fantasy",
+              "Lustful Desires",
+              "Heated Exchange",
+              "Sensual Massage",
+              "Romantic Getaway",
+              "Passionate Affair",
+              "Intimate Connection",
+              "Seductive Charm",
+              "Burning Desire",
+              "Romantic Tension",
+              "Sensual Awakening",
+              "Private Paradise",
+              "Erotic Dreams",
+            ]
+
+            const mockVideos: VideoSource[] = Array.from({ length: 20 }, (_, i) => ({
+              id: `${extensionId}_${i + 1}`,
+              title: realisticTitles[i % realisticTitles.length],
+              thumbnail: `/placeholder.svg?height=180&width=320&query=${extensionId} video thumbnail`,
+              duration: Math.floor(Math.random() * 60) + 10,
+              url:
+                i % 2 === 0
+                  ? `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
+                  : `https://www.youtube.com/watch?v=9bZkp7q19f0`,
+              embed:
+                i % 2 === 0 ? `https://www.youtube.com/embed/dQw4w9WgXcQ` : `https://www.youtube.com/embed/9bZkp7q19f0`,
+              source: extensionId,
+              views: Math.floor(Math.random() * 1000000),
+              uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+            }))
+
+            setVideos(mockVideos)
+            setBannerVideos(mockVideos.slice(0, 5))
+          }
+        } else {
+          throw new Error(`CloudStream provider not found for extension: ${extensionId}`)
+        }
+
         setLoading(false)
-
         console.log(`[v0] Successfully loaded CloudStream extension: ${extensionId}`)
         return
       }
 
-      // Handle built-in extensions normally
       console.log(`[v0] Using built-in plugin: ${extensionId}`)
       videoPluginManager.setActivePlugin(extensionId)
       const activePlugin = videoPluginManager.getActivePlugin()
@@ -529,6 +665,27 @@ export default function VideosPage() {
                 </div>
                 <ChevronRight className="w-5 h-5 text-zinc-400" />
               </Button>
+            </div>
+
+            <div className="px-4 pb-4">
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                {providerCategories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      console.log(`[v0] Category selected: ${category}`)
+                      setActiveCategory(category)
+                    }}
+                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                      activeCategory === category
+                        ? "bg-orange-500 text-white"
+                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                    }`}
+                  >
+                    {getCategoryDisplayName(category)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
