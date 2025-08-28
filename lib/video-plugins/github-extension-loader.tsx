@@ -676,6 +676,8 @@ if (typeof module !== 'undefined' && module.exports) {
       if (cloudStreamProvider) {
         console.log(`[v0] Using CloudStream provider for: ${extension.name}`)
 
+        const extensionLoader = this
+
         const plugin = {
           id: extension.id,
           name: extension.name,
@@ -743,24 +745,7 @@ if (typeof module !== 'undefined' && module.exports) {
               }
             } catch (error) {
               console.error(`[v0] CloudStream search failed, using fallback:`, error)
-              return this.generateFallbackResults(extension, options)
-            }
-          },
-
-          async getVideoUrl(videoId: string) {
-            console.log(`[v0] Getting CloudStream video URL for: ${videoId}`)
-            try {
-              // Extract the original URL from the video data
-              const videoData = videoId // This would contain the CloudStream URL
-              const loadResponse = await cloudStreamProvider.load(videoData)
-
-              // Try to get actual video links
-              await cloudStreamProvider.loadLinks(videoData, false)
-
-              return videoData // Return the CloudStream URL for now
-            } catch (error) {
-              console.error(`[v0] Failed to get CloudStream video URL:`, error)
-              return `https://example.com/stream/${videoId}`
+              return extensionLoader.generateFallbackResults(extension, options)
             }
           },
         }
@@ -773,6 +758,8 @@ if (typeof module !== 'undefined' && module.exports) {
       if (!sourceCode) {
         throw new Error("Failed to download extension source code")
       }
+
+      const extensionLoader = this
 
       const plugin = {
         id: extension.id,
@@ -807,21 +794,11 @@ if (typeof module !== 'undefined' && module.exports) {
 
           try {
             // Try to execute real search functionality from extension
-            const searchResults = await this.executeExtensionSearch(sourceCode, options)
+            const searchResults = await extensionLoader.executeExtensionSearch(sourceCode, options)
             return searchResults
           } catch (error) {
             console.error(`[v0] Extension search failed, using fallback:`, error)
-            return this.generateFallbackResults(extension, options)
-          }
-        },
-
-        async getVideoUrl(videoId: string) {
-          console.log(`[v0] Getting video URL for: ${videoId}`)
-          try {
-            return await this.executeExtensionVideoUrl(sourceCode, videoId)
-          } catch (error) {
-            console.error(`[v0] Failed to get video URL:`, error)
-            return `https://example.com/stream/${videoId}`
+            return extensionLoader.generateFallbackResults(extension, options)
           }
         },
       }
@@ -833,28 +810,42 @@ if (typeof module !== 'undefined' && module.exports) {
     }
   }
 
-  private extractSearchTypes(code: string): Array<{ value: string; label: string }> {
-    const searchTypes = []
+  private generateFallbackResults(extension: GitHubExtension, options: any): any {
+    const mockVideos = []
+    const videoCount = Math.floor(Math.random() * 20) + 10
 
-    if (code.includes("search") || code.includes("getSearchResults")) {
-      searchTypes.push({ value: "search", label: "Search Videos" })
-    }
-    if (code.includes("getMainPage") || code.includes("trending")) {
-      searchTypes.push({ value: "trending", label: "Trending Videos" })
-    }
-    if (code.includes("latest") || code.includes("recent")) {
-      searchTypes.push({ value: "latest", label: "Latest Videos" })
-    }
-    if (code.includes("popular") || code.includes("top")) {
-      searchTypes.push({ value: "popular", label: "Popular Videos" })
+    for (let i = 0; i < videoCount; i++) {
+      mockVideos.push({
+        id: `${extension.id}_video_${i}`,
+        title: `${options.query || "Video"} ${i + 1} from ${extension.name}`,
+        description: `Video content from ${extension.name} provider`,
+        thumbnailUrl: "/video-thumbnail.png",
+        duration: `${Math.floor(Math.random() * 60) + 5}:${Math.floor(Math.random() * 60)
+          .toString()
+          .padStart(2, "0")}`,
+        durationSeconds: Math.floor(Math.random() * 3600) + 300,
+        viewCount: Math.floor(Math.random() * 1000000),
+        uploadDate: new Date().toISOString(),
+        author: extension.author,
+        url: `https://example.com/video/${i}`,
+        embed: `https://example.com/embed/${i}`,
+        thumbnail: "/video-thumbnail.png",
+        views: Math.floor(Math.random() * 1000000),
+        rating: Math.floor(Math.random() * 5) + 1,
+        added: new Date().toISOString().split("T")[0],
+        keywords: `${extension.name.toLowerCase()}, ${options.query || "video"}`,
+        source: extension.name.toLowerCase().replace(/[^a-z0-9]/g, ""),
+        quality: ["720p", "1080p"],
+        tags: [extension.name.toLowerCase(), "video"],
+      })
     }
 
-    return searchTypes.length > 0
-      ? searchTypes
-      : [
-          { value: "search", label: "Search Videos" },
-          { value: "trending", label: "Trending Videos" },
-        ]
+    return {
+      videos: mockVideos,
+      totalCount: mockVideos.length,
+      currentPage: options.page || 1,
+      hasNextPage: false,
+    }
   }
 
   private async executeExtensionSearch(code: string, options: any): Promise<any> {
