@@ -278,66 +278,92 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     if (typeof window === "undefined") return
 
     // Load YouTube IFrame API if not already loaded
-    if (!window.YT) {
-      const tag = document.createElement("script")
-      tag.src = "https://www.youtube.com/iframe_api"
-      const firstScriptTag = document.getElementsByTagName("script")[0]
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+    try {
+      if (!window.YT) {
+        const tag = document.createElement("script")
+        tag.src = "https://www.youtube.com/iframe_api"
+        tag.onerror = () => {
+          console.error("[v0] Failed to load YouTube IFrame API")
+          dispatch({ type: "SET_ERROR", payload: "Failed to load YouTube player" })
+        }
+        const firstScriptTag = document.getElementsByTagName("script")[0]
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
 
-      // Create global callback for when API is ready
-      window.onYouTubeIframeAPIReady = () => {
-        console.log("[v0] YouTube IFrame API loaded")
+        const existingCallback = window.onYouTubeIframeAPIReady
+        window.onYouTubeIframeAPIReady = () => {
+          try {
+            console.log("[v0] YouTube IFrame API loaded")
+            if (existingCallback && typeof existingCallback === "function") {
+              existingCallback()
+            }
+            initializeYouTubePlayer()
+          } catch (error) {
+            console.error("[v0] Error in YouTube API ready callback:", error)
+            dispatch({ type: "SET_ERROR", payload: "YouTube player initialization failed" })
+          }
+        }
+      } else if (window.YT.Player) {
         initializeYouTubePlayer()
       }
-    } else if (window.YT.Player) {
-      initializeYouTubePlayer()
+    } catch (error) {
+      console.error("[v0] Error setting up YouTube API:", error)
+      dispatch({ type: "SET_ERROR", payload: "YouTube player setup failed" })
     }
 
     return () => {
-      if (youtubePlayerRef.current) {
-        youtubePlayerRef.current.destroy()
-        youtubePlayerRef.current = null
-        youtubePlayerReadyRef.current = false
-        console.log("[v0] YouTube player cleaned up")
+      try {
+        if (youtubePlayerRef.current) {
+          youtubePlayerRef.current.destroy()
+          youtubePlayerRef.current = null
+          youtubePlayerReadyRef.current = false
+          console.log("[v0] YouTube player cleaned up")
+        }
+      } catch (error) {
+        console.error("[v0] Error cleaning up YouTube player:", error)
       }
     }
   }, [])
 
   const initializeYouTubePlayer = useCallback(() => {
-    if (youtubePlayerRef.current || !window.YT?.Player) return
+    try {
+      if (youtubePlayerRef.current || !window.YT?.Player) return
 
-    // Create hidden div for YouTube player
-    let playerDiv = document.getElementById("youtube-audio-player")
-    if (!playerDiv) {
-      playerDiv = document.createElement("div")
-      playerDiv.id = "youtube-audio-player"
-      playerDiv.style.display = "none"
-      document.body.appendChild(playerDiv)
+      // Create hidden div for YouTube player
+      let playerDiv = document.getElementById("youtube-audio-player")
+      if (!playerDiv) {
+        playerDiv = document.createElement("div")
+        playerDiv.id = "youtube-audio-player"
+        playerDiv.style.display = "none"
+        document.body.appendChild(playerDiv)
+      }
+
+      youtubePlayerRef.current = new window.YT.Player("youtube-audio-player", {
+        height: "0",
+        width: "0",
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          enablejsapi: 1,
+          fs: 0,
+          iv_load_policy: 3,
+          modestbranding: 1,
+          playsinline: 1,
+          rel: 0,
+          showinfo: 0,
+        },
+        events: {
+          onReady: onPlayerReady,
+          onStateChange: onPlayerStateChange,
+          onError: onPlayerError,
+        },
+      })
+
+      console.log("[v0] YouTube player initialized")
+    } catch (error) {
+      console.error("[v0] Error initializing YouTube player:", error)
+      dispatch({ type: "SET_ERROR", payload: "Failed to initialize YouTube player" })
     }
-
-    youtubePlayerRef.current = new window.YT.Player("youtube-audio-player", {
-      height: "0",
-      width: "0",
-      playerVars: {
-        autoplay: 0,
-        controls: 0,
-        disablekb: 1,
-        enablejsapi: 1,
-        fs: 0,
-        iv_load_policy: 3,
-        modestbranding: 1,
-        playsinline: 1,
-        rel: 0,
-        showinfo: 0,
-      },
-      events: {
-        onReady: onPlayerReady,
-        onStateChange: onPlayerStateChange,
-        onError: onPlayerError,
-      },
-    })
-
-    console.log("[v0] YouTube player initialized")
   }, [])
 
   const onPlayerReady = useCallback(
@@ -529,125 +555,151 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }, [state.currentTrack, addToHistory])
 
   const setupAudioEventHandlers = useCallback(() => {
-    if (!youtubePlayerRef.current || !youtubePlayerReadyRef.current) return
+    try {
+      if (!youtubePlayerRef.current || !youtubePlayerReadyRef.current) return
 
-    const player = youtubePlayerRef.current
+      const player = youtubePlayerRef.current
 
-    // Play event handler with visual feedback
-    player.on("play", () => {
-      console.log("[v0] Audio playing event triggered")
-      dispatch({ type: "PLAY" })
-      dispatch({ type: "SET_BUFFERING", payload: false })
-      dispatch({ type: "SET_NETWORK_STATE", payload: "loaded" })
-
-      // Add to history after 10 seconds of playback
-      if (state.currentTrack) {
-        historyTimeoutRef.current = setTimeout(() => {
-          addToHistory(state.currentTrack!)
-        }, 10000)
-      }
-    })
-
-    // Pause event handler
-    player.on("pause", () => {
-      console.log("[v0] Audio pause event triggered")
-      dispatch({ type: "PAUSE" })
-      if (historyTimeoutRef.current) {
-        clearTimeout(historyTimeoutRef.current)
-      }
-    })
-
-    // Loading start handler
-    player.on("loadstart", () => {
-      console.log("[v0] Audio load start")
-      dispatch({ type: "SET_LOADING", payload: true })
-      dispatch({ type: "SET_NETWORK_STATE", payload: "loading" })
-
-      // Persist playback speed
-      if (state.playbackRate !== 1) {
-        player.setPlaybackRate(state.playbackRate)
-      }
-    })
-
-    // Waiting/buffering handler
-    player.on("waiting", () => {
-      console.log("[v0] Audio waiting/buffering")
-      dispatch({ type: "SET_BUFFERING", payload: true })
-    })
-
-    // Time update handler with progress synchronization
-    player.on("timeupdate", () => {
-      const currentTime = player.getCurrentTime()
-      const duration = player.getDuration() || 0
-
-      dispatch({ type: "SET_CURRENT_TIME", payload: currentTime })
-
-      // Update buffer progress
-      if (player.getVideoLoadedFraction() > 0) {
-        const bufferProgress = duration > 0 ? player.getVideoLoadedFraction() * duration * 100 : 0
-        dispatch({ type: "SET_BUFFER_PROGRESS", payload: bufferProgress })
-      }
-    })
-
-    // Metadata loaded handler
-    player.on("loadedmetadata", () => {
-      console.log("[v0] Audio metadata loaded")
-      const duration = player.getDuration() || 0
-      dispatch({ type: "SET_DURATION", payload: duration })
-      dispatch({ type: "SET_LOADING", payload: false })
-    })
-
-    // Can play through handler with prefetching
-    player.on("canplaythrough", async () => {
-      console.log("[v0] Audio can play through")
-      dispatch({ type: "SET_NETWORK_STATE", payload: "loaded" })
-      dispatch({ type: "SET_BUFFERING", payload: false })
-
-      // Prefetch next track for gapless playback
-      if (state.gaplessPlayback && state.currentIndex < state.queue.length - 1) {
-        const nextTrack = state.queue[state.currentIndex + 1]
-        if (nextTrack && nextTrack.audioUrl) {
-          console.log("[v0] Prefetching next track:", nextTrack.title)
-          if (!preloadAudioRef.current) {
-            preloadAudioRef.current = new Audio()
-          }
-          preloadAudioRef.current.src = nextTrack.audioUrl
-          preloadAudioRef.current.preload = "auto"
+      const safeEventHandler = (eventName: string, handler: () => void) => {
+        try {
+          handler()
+        } catch (error) {
+          console.error(`[v0] Error in ${eventName} handler:`, error)
         }
       }
-    })
 
-    // Error handler
-    player.on("error", () => {
-      console.error("[v0] Audio error occurred")
-      dispatch({ type: "SET_ERROR", payload: "Failed to load audio" })
-      dispatch({ type: "SET_LOADING", payload: false })
-      dispatch({ type: "SET_NETWORK_STATE", payload: "error" })
-    })
+      // Play event handler with visual feedback
+      player.on("play", () =>
+        safeEventHandler("play", () => {
+          console.log("[v0] Audio playing event triggered")
+          dispatch({ type: "PLAY" })
+          dispatch({ type: "SET_BUFFERING", payload: false })
+          dispatch({ type: "SET_NETWORK_STATE", payload: "loaded" })
 
-    // Ended handler with auto-advance
-    player.on("ended", () => {
-      console.log("[v0] Audio ended")
-      dispatch({ type: "PAUSE" })
+          // Add to history after 10 seconds of playback
+          if (state.currentTrack) {
+            historyTimeoutRef.current = setTimeout(() => {
+              addToHistory(state.currentTrack!)
+            }, 10000)
+          }
+        }),
+      )
 
-      // Auto-advance to next track
-      if (state.repeatMode === "one") {
-        player.seekTo(0)
-        player.playVideo()
-      } else if (state.currentIndex < state.queue.length - 1 || state.repeatMode === "all") {
-        dispatch({ type: "NEXT_TRACK" })
-      }
-    })
+      // Pause event handler
+      player.on("pause", () =>
+        safeEventHandler("pause", () => {
+          console.log("[v0] Audio pause event triggered")
+          dispatch({ type: "PAUSE" })
+          if (historyTimeoutRef.current) {
+            clearTimeout(historyTimeoutRef.current)
+          }
+        }),
+      )
 
-    // Volume change handler
-    player.on("volumechange", () => {
-      dispatch({ type: "SET_VOLUME", payload: player.getVolume() / 100 })
-    })
+      player.on("loadstart", () =>
+        safeEventHandler("loadstart", () => {
+          console.log("[v0] Audio load start")
+          dispatch({ type: "SET_LOADING", payload: true })
+          dispatch({ type: "SET_NETWORK_STATE", payload: "loading" })
 
-    // Rate change handler
-    player.on("ratechange", () => {
-      dispatch({ type: "SET_PLAYBACK_RATE", payload: player.getPlaybackRate() })
-    })
+          // Persist playback speed
+          if (state.playbackRate !== 1) {
+            player.setPlaybackRate(state.playbackRate)
+          }
+        }),
+      )
+
+      player.on("waiting", () =>
+        safeEventHandler("waiting", () => {
+          console.log("[v0] Audio waiting/buffering")
+          dispatch({ type: "SET_BUFFERING", payload: true })
+        }),
+      )
+
+      player.on("timeupdate", () =>
+        safeEventHandler("timeupdate", () => {
+          const currentTime = player.getCurrentTime()
+          const duration = player.getDuration() || 0
+
+          dispatch({ type: "SET_CURRENT_TIME", payload: currentTime })
+
+          // Update buffer progress
+          if (player.getVideoLoadedFraction() > 0) {
+            const bufferProgress = duration > 0 ? player.getVideoLoadedFraction() * duration * 100 : 0
+            dispatch({ type: "SET_BUFFER_PROGRESS", payload: bufferProgress })
+          }
+        }),
+      )
+
+      player.on("loadedmetadata", () =>
+        safeEventHandler("loadedmetadata", () => {
+          console.log("[v0] Audio metadata loaded")
+          const duration = player.getDuration() || 0
+          dispatch({ type: "SET_DURATION", payload: duration })
+          dispatch({ type: "SET_LOADING", payload: false })
+        }),
+      )
+
+      player.on("canplaythrough", async () =>
+        safeEventHandler("canplaythrough", async () => {
+          console.log("[v0] Audio can play through")
+          dispatch({ type: "SET_NETWORK_STATE", payload: "loaded" })
+          dispatch({ type: "SET_BUFFERING", payload: false })
+
+          // Prefetch next track for gapless playback
+          if (state.gaplessPlayback && state.currentIndex < state.queue.length - 1) {
+            const nextTrack = state.queue[state.currentIndex + 1]
+            if (nextTrack && nextTrack.audioUrl) {
+              console.log("[v0] Prefetching next track:", nextTrack.title)
+              if (!preloadAudioRef.current) {
+                preloadAudioRef.current = new Audio()
+              }
+              preloadAudioRef.current.src = nextTrack.audioUrl
+              preloadAudioRef.current.preload = "auto"
+            }
+          }
+        }),
+      )
+
+      player.on("error", () =>
+        safeEventHandler("error", () => {
+          console.error("[v0] Audio error occurred")
+          dispatch({ type: "SET_ERROR", payload: "Failed to load audio" })
+          dispatch({ type: "SET_LOADING", payload: false })
+          dispatch({ type: "SET_NETWORK_STATE", payload: "error" })
+        }),
+      )
+
+      player.on("ended", () =>
+        safeEventHandler("ended", () => {
+          console.log("[v0] Audio ended")
+          dispatch({ type: "PAUSE" })
+
+          // Auto-advance to next track
+          if (state.repeatMode === "one") {
+            player.seekTo(0)
+            player.playVideo()
+          } else if (state.currentIndex < state.queue.length - 1 || state.repeatMode === "all") {
+            dispatch({ type: "NEXT_TRACK" })
+          }
+        }),
+      )
+
+      player.on("volumechange", () =>
+        safeEventHandler("volumechange", () => {
+          dispatch({ type: "SET_VOLUME", payload: player.getVolume() / 100 })
+        }),
+      )
+
+      player.on("ratechange", () =>
+        safeEventHandler("ratechange", () => {
+          dispatch({ type: "SET_PLAYBACK_RATE", payload: player.getPlaybackRate() })
+        }),
+      )
+    } catch (error) {
+      console.error("[v0] Error setting up audio event handlers:", error)
+      dispatch({ type: "SET_ERROR", payload: "Failed to setup audio event handlers" })
+    }
   }, [
     state.currentTrack,
     state.playbackRate,

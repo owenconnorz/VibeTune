@@ -186,6 +186,22 @@ export default function VideosPage() {
             </Button>
           </div>
         </div>
+
+        <div className="px-4 pb-4">
+          <Button
+            onClick={() => setShowExtensionSwitcher(true)}
+            className="w-full bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 justify-between h-12"
+            variant="outline"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-lg">
+                {availableExtensions.find((ext) => ext.id === selectedExtension)?.flag || "🌐"}
+              </span>
+              <span className="font-medium">{selectedExtensionName}</span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-zinc-400" />
+          </Button>
+        </div>
       </div>
 
       {showSearch && (
