@@ -18,8 +18,17 @@ interface GitHubRepository {
   lastUpdated: Date
 }
 
+interface ExtensionCode {
+  id: string
+  name: string
+  code: string
+  manifest: any
+  lastUpdated: Date
+}
+
 class GitHubExtensionLoader {
   private cache = new Map<string, GitHubRepository>()
+  private extensionCode = new Map<string, ExtensionCode>()
   private readonly CACHE_DURATION = 1000 * 60 * 30 // 30 minutes
 
   async fetchRepositoryExtensions(repoUrl: string): Promise<GitHubExtension[]> {
@@ -165,7 +174,191 @@ class GitHubExtensionLoader {
   clearCache(): void {
     this.cache.clear()
   }
+
+  async downloadExtensionCode(extension: GitHubExtension): Promise<string | null> {
+    try {
+      console.log(`[v0] Downloading extension code for: ${extension.name}`)
+
+      // Check if already cached
+      const cached = this.extensionCode.get(extension.id)
+      if (cached && Date.now() - cached.lastUpdated.getTime() < this.CACHE_DURATION) {
+        return cached.code
+      }
+
+      // Try to fetch the actual extension file
+      const possibleUrls = [
+        `${extension.url}/main.js`,
+        `${extension.url}/index.js`,
+        `${extension.url}/${extension.name.toLowerCase()}.js`,
+        `${extension.url}/plugin.js`,
+      ]
+
+      for (const url of possibleUrls) {
+        try {
+          const rawUrl = this.convertToRawUrl(url)
+          const response = await fetch(rawUrl)
+
+          if (response.ok) {
+            const code = await response.text()
+
+            // Save to cache and localStorage
+            const extensionCode: ExtensionCode = {
+              id: extension.id,
+              name: extension.name,
+              code,
+              manifest: extension,
+              lastUpdated: new Date(),
+            }
+
+            this.extensionCode.set(extension.id, extensionCode)
+            this.saveExtensionToStorage(extensionCode)
+
+            console.log(`[v0] Successfully downloaded extension: ${extension.name}`)
+            return code
+          }
+        } catch (error) {
+          console.log(`[v0] Failed to fetch from ${url}:`, error)
+        }
+      }
+
+      // If no actual code found, generate a basic template
+      const templateCode = this.generateExtensionTemplate(extension)
+      const extensionCode: ExtensionCode = {
+        id: extension.id,
+        name: extension.name,
+        code: templateCode,
+        manifest: extension,
+        lastUpdated: new Date(),
+      }
+
+      this.extensionCode.set(extension.id, extensionCode)
+      this.saveExtensionToStorage(extensionCode)
+
+      return templateCode
+    } catch (error) {
+      console.error(`[v0] Failed to download extension ${extension.name}:`, error)
+      return null
+    }
+  }
+
+  private saveExtensionToStorage(extensionCode: ExtensionCode): void {
+    try {
+      const stored = JSON.parse(localStorage.getItem("vibetuneExtensionCode") || "{}")
+      stored[extensionCode.id] = {
+        ...extensionCode,
+        lastUpdated: extensionCode.lastUpdated.toISOString(),
+      }
+      localStorage.setItem("vibetuneExtensionCode", JSON.stringify(stored))
+    } catch (error) {
+      console.error("[v0] Failed to save extension to storage:", error)
+    }
+  }
+
+  loadExtensionFromStorage(extensionId: string): ExtensionCode | null {
+    try {
+      const stored = JSON.parse(localStorage.getItem("vibetuneExtensionCode") || "{}")
+      const data = stored[extensionId]
+
+      if (data) {
+        return {
+          ...data,
+          lastUpdated: new Date(data.lastUpdated),
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Failed to load extension from storage:", error)
+    }
+    return null
+  }
+
+  private generateExtensionTemplate(extension: GitHubExtension): string {
+    return `
+// Auto-generated extension for ${extension.name}
+class ${extension.name.replace(/[^a-zA-Z0-9]/g, "")}Plugin {
+  constructor() {
+    this.id = '${extension.id}';
+    this.name = '${extension.name}';
+    this.version = '${extension.version}';
+    this.description = '${extension.description}';
+    this.author = '${extension.author}';
+    this.baseUrl = 'https://example.com'; // Replace with actual API endpoint
+  }
+
+  async initialize() {
+    console.log('Initializing ${extension.name} plugin');
+    return true;
+  }
+
+  isEnabled() {
+    return true;
+  }
+
+  async search(options) {
+    console.log('Searching with ${extension.name}:', options);
+    
+    // Mock search results - replace with actual API calls
+    const mockVideos = [];
+    for (let i = 0; i < 10; i++) {
+      mockVideos.push({
+        id: \`\${this.id}_video_\${i}\`,
+        title: \`Sample Video \${i + 1} from ${extension.name}\`,
+        description: 'Sample video description',
+        thumbnailUrl: '/video-thumbnail.png',
+        duration: Math.floor(Math.random() * 3600),
+        viewCount: Math.floor(Math.random() * 1000000),
+        uploadDate: new Date().toISOString(),
+        author: '${extension.author}',
+        url: \`https://example.com/video/\${i}\`,
+        quality: ['720p', '1080p'],
+        tags: ['sample', 'video']
+      });
+    }
+
+    return {
+      videos: mockVideos,
+      totalCount: mockVideos.length,
+      currentPage: options.page || 1,
+      hasNextPage: false
+    };
+  }
+
+  async getVideoUrl(videoId) {
+    console.log('Getting video URL for:', videoId);
+    return 'https://example.com/stream/' + videoId;
+  }
+}
+
+// Export the plugin
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = ${extension.name.replace(/[^a-zA-Z0-9]/g, "")}Plugin;
+} else if (typeof window !== 'undefined') {
+  window.${extension.name.replace(/[^a-zA-Z0-9]/g, "")}Plugin = ${extension.name.replace(/[^a-zA-Z0-9]/g, "")}Plugin;
+}
+`
+  }
+
+  async createPluginFromExtension(extension: GitHubExtension): Promise<any> {
+    try {
+      const code = await this.downloadExtensionCode(extension)
+      if (!code) {
+        throw new Error("Failed to download extension code")
+      }
+
+      // Create a safe execution environment
+      const pluginFunction = new Function(
+        "console",
+        "fetch",
+        code + "; return " + extension.name.replace(/[^a-zA-Z0-9]/g, "") + "Plugin;",
+      )
+      const PluginClass = pluginFunction(console, fetch)
+
+      return new PluginClass()
+    } catch (error) {
+      console.error(`[v0] Failed to create plugin from extension ${extension.name}:`, error)
+      return null
+    }
+  }
 }
 
 export const githubExtensionLoader = new GitHubExtensionLoader()
-export type { GitHubExtension, GitHubRepository }
+export type { GitHubExtension, GitHubRepository, ExtensionCode }

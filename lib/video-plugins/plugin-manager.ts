@@ -4,6 +4,7 @@ import { githubExtensionLoader, type GitHubExtension } from "./github-extension-
 class PluginManager implements IPluginManager {
   plugins = new Map<string, VideoPlugin>()
   private githubExtensions: GitHubExtension[] = []
+  private githubPlugins = new Map<string, VideoPlugin>()
 
   registerPlugin(plugin: VideoPlugin): void {
     console.log(`[v0] Registering video plugin: ${plugin.name} v${plugin.version}`)
@@ -20,21 +21,39 @@ class PluginManager implements IPluginManager {
   }
 
   getEnabledPlugins(): VideoPlugin[] {
-    return Array.from(this.plugins.values()).filter((plugin) => plugin.isEnabled())
+    const regularPlugins = Array.from(this.plugins.values()).filter((plugin) => plugin.isEnabled())
+    const githubPlugins = Array.from(this.githubPlugins.values()).filter((plugin) => plugin.isEnabled())
+    return [...regularPlugins, ...githubPlugins]
   }
 
   async loadGitHubExtensions(): Promise<void> {
     try {
       console.log("[v0] Loading extensions from GitHub repositories...")
       this.githubExtensions = await githubExtensionLoader.getAllExtensions()
-      console.log(`[v0] Loaded ${this.githubExtensions.length} GitHub extensions`)
+
+      // Create actual plugin instances from extensions
+      for (const extension of this.githubExtensions) {
+        try {
+          const plugin = await githubExtensionLoader.createPluginFromExtension(extension)
+          if (plugin) {
+            this.githubPlugins.set(extension.id, plugin)
+            console.log(`[v0] Created plugin from extension: ${extension.name}`)
+          }
+        } catch (error) {
+          console.error(`[v0] Failed to create plugin from extension ${extension.name}:`, error)
+        }
+      }
+
+      console.log(
+        `[v0] Loaded ${this.githubExtensions.length} GitHub extensions, created ${this.githubPlugins.size} plugins`,
+      )
     } catch (error) {
       console.error("[v0] Failed to load GitHub extensions:", error)
     }
   }
 
-  getGitHubExtensions(): GitHubExtension[] {
-    return this.githubExtensions
+  getGitHubPlugin(extensionId: string): VideoPlugin | undefined {
+    return this.githubPlugins.get(extensionId)
   }
 
   async searchAll(options: SearchOptions): Promise<SearchResult> {
@@ -50,9 +69,16 @@ class PluginManager implements IPluginManager {
       }
     }
 
-    // For now, use the first enabled plugin
-    // In the future, we could merge results from multiple plugins
-    const primaryPlugin = enabledPlugins[0]
+    // Use the selected plugin if specified, otherwise use the first enabled plugin
+    const selectedPluginId = localStorage.getItem("selectedVideoPlugin")
+    let primaryPlugin = enabledPlugins[0]
+
+    if (selectedPluginId) {
+      const selectedPlugin = this.plugins.get(selectedPluginId) || this.githubPlugins.get(selectedPluginId)
+      if (selectedPlugin && selectedPlugin.isEnabled()) {
+        primaryPlugin = selectedPlugin
+      }
+    }
 
     try {
       console.log(`[v0] Searching videos using plugin: ${primaryPlugin.name}`)
