@@ -644,9 +644,11 @@ export default function VideosPage() {
                 </div>
                 <div className="overflow-y-auto max-h-[60vh]">
                   {availableExtensions.map((extension) => (
-                    <button
+                    <div
                       key={extension.id}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
                         console.log(`[v0] === EXTENSION BUTTON CLICKED ===`)
                         console.log(`[v0] Extension clicked:`, extension.name)
                         console.log(`[v0] Extension ID:`, extension.id)
@@ -654,9 +656,10 @@ export default function VideosPage() {
                         console.log(`[v0] Calling handleExtensionSelect...`)
                         handleExtensionSelect(extension.id)
                       }}
-                      className={`w-full flex items-center gap-3 p-4 hover:bg-zinc-800 transition-colors text-left ${
+                      className={`w-full flex items-center gap-3 p-4 hover:bg-zinc-800 transition-colors text-left cursor-pointer select-none ${
                         selectedExtension === extension.id ? "bg-zinc-800" : ""
                       }`}
+                      style={{ pointerEvents: "auto" }}
                     >
                       <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
                         {extension.iconUrl ? (
@@ -692,7 +695,7 @@ export default function VideosPage() {
                           }`}
                         />
                       )}
-                    </button>
+                    </div>
                   ))}
                 </div>
                 <div className="p-4 border-t border-zinc-800">
