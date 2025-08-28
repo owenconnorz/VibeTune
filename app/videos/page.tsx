@@ -10,13 +10,11 @@ import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { usePlaylist } from "@/contexts/playlist-context"
+import { useDownloads } from "@/contexts/download-context"
 import { AudioPlayer } from "@/components/audio-player"
 import { videoPluginManager } from "@/lib/video-plugins/plugin-manager"
 import { EpornerPlugin } from "@/lib/video-plugins/eporner-plugin"
 import type { VideoSource, SearchResult } from "@/lib/video-plugins/plugin-interface"
-
-const { useDownloads: useDownloadsHook } = require("@/contexts/download-context")
-const useDownloads = typeof window !== "undefined" ? useDownloadsHook : () => ({ addToDownloads: () => {} })
 
 export default function VideosPage() {
   const [videos, setVideos] = useState<VideoSource[]>([])
@@ -30,8 +28,7 @@ export default function VideosPage() {
 
   const { playTrack } = useAudioPlayer()
   const { isLiked, toggleLike } = useLikedSongs()
-  const downloadsContext = useDownloads()
-  const addToDownloads = downloadsContext.addToDownloads || (() => {})
+  const { addToDownloads } = useDownloads()
   const { addToPlaylist } = usePlaylist()
 
   useEffect(() => {
@@ -126,8 +123,6 @@ export default function VideosPage() {
   }
 
   const handleDownload = (video: VideoSource) => {
-    if (!addToDownloads) return
-
     const track = {
       id: `${video.source}_${video.id}`,
       title: video.title,
