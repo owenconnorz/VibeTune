@@ -28,6 +28,7 @@ interface AudioPlayerState {
   isLoading: boolean
   error: string | null
   isVideoMode: boolean
+  playerType: "youtube" | "native" | null
   // Enhanced audio features
   bufferProgress: number
   playbackRate: number
@@ -56,6 +57,7 @@ type AudioPlayerAction =
   | { type: "SET_LOADING"; payload: boolean }
   | { type: "SET_ERROR"; payload: string | null }
   | { type: "SET_VIDEO_MODE"; payload: boolean }
+  | { type: "SET_PLAYER_TYPE"; payload: "youtube" | "native" | null }
   // Enhanced audio actions
   | { type: "SET_BUFFER_PROGRESS"; payload: number }
   | { type: "SET_PLAYBACK_RATE"; payload: number }
@@ -78,6 +80,7 @@ const initialState: AudioPlayerState = {
   isLoading: false,
   error: null,
   isVideoMode: typeof window !== "undefined" ? localStorage.getItem("vibetuneVideoMode") === "true" : false,
+  playerType: null,
   // Enhanced audio features
   bufferProgress: 0,
   playbackRate: 1,
@@ -103,6 +106,8 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
         bufferProgress: 0,
         networkState: "loading",
       }
+    case "SET_PLAYER_TYPE":
+      return { ...state, playerType: action.payload }
     case "SET_QUEUE":
       const startIndex = action.payload.startIndex ?? 0
       return {
@@ -270,12 +275,141 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const historyTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const youtubePlayerRef = useRef<any>(null)
   const youtubePlayerReadyRef = useRef<boolean>(false)
+  const nativeVideoRef = useRef<HTMLVideoElement | null>(null)
+  const nativeAudioRef = useRef<HTMLAudioElement | null>(null)
   const playButtonRef = useRef<HTMLButtonElement | null>(null)
   const progressRef = useRef<HTMLInputElement | null>(null)
   const { addToHistory } = useListeningHistory()
 
+  const detectMediaType = useCallback((url: string): "youtube" | "native" => {
+    const youtubePatterns = [/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/, /youtube\.com\/v\//]
+
+    for (const pattern of youtubePatterns) {
+      if (pattern.test(url)) return "youtube"
+    }
+
+    return "native"
+  }, [])
+
+  const createNativeMediaElements = useCallback(() => {
+    if (typeof window === "undefined") return
+
+    // Create native video element
+    if (!nativeVideoRef.current) {
+      const video = document.createElement("video")
+      video.style.display = "none"
+      video.preload = "metadata"
+      video.crossOrigin = "anonymous"
+      document.body.appendChild(video)
+      nativeVideoRef.current = video
+      console.log("[v0] Native video element created")
+    }
+
+    // Create native audio element
+    if (!nativeAudioRef.current) {
+      const audio = document.createElement("audio")
+      audio.preload = "metadata"
+      audio.crossOrigin = "anonymous"
+      document.body.appendChild(audio)
+      nativeAudioRef.current = audio
+      console.log("[v0] Native audio element created")
+    }
+  }, [])
+
+  const setupNativeMediaHandlers = useCallback(
+    (element: HTMLVideoElement | HTMLAudioElement) => {
+      const handleLoadStart = () => {
+        console.log("[v0] Native media: Load start")
+        dispatch({ type: "SET_LOADING", payload: true })
+        dispatch({ type: "SET_NETWORK_STATE", payload: "loading" })
+      }
+
+      const handleLoadedMetadata = () => {
+        console.log("[v0] Native media: Metadata loaded, duration:", element.duration)
+        dispatch({ type: "SET_DURATION", payload: element.duration || 0 })
+        dispatch({ type: "SET_LOADING", payload: false })
+        dispatch({ type: "SET_NETWORK_STATE", payload: "loaded" })
+      }
+
+      const handleCanPlay = () => {
+        console.log("[v0] Native media: Can play")
+        dispatch({ type: "SET_BUFFERING", payload: false })
+      }
+
+      const handlePlay = () => {
+        console.log("[v0] Native media: Playing")
+        dispatch({ type: "PLAY" })
+        startTimeUpdates()
+      }
+
+      const handlePause = () => {
+        console.log("[v0] Native media: Paused")
+        dispatch({ type: "PAUSE" })
+        stopTimeUpdates()
+      }
+
+      const handleEnded = () => {
+        console.log("[v0] Native media: Ended")
+        dispatch({ type: "PAUSE" })
+        stopTimeUpdates()
+
+        // Auto-advance to next track
+        if (state.repeatMode === "one") {
+          element.currentTime = 0
+          element.play()
+        } else if (state.currentIndex < state.queue.length - 1 || state.repeatMode === "all") {
+          dispatch({ type: "NEXT_TRACK" })
+        }
+      }
+
+      const handleTimeUpdate = () => {
+        dispatch({ type: "SET_CURRENT_TIME", payload: element.currentTime })
+      }
+
+      const handleError = (e: Event) => {
+        console.error("[v0] Native media error:", e)
+        dispatch({ type: "SET_ERROR", payload: "Media playback error" })
+        dispatch({ type: "SET_LOADING", payload: false })
+        dispatch({ type: "SET_NETWORK_STATE", payload: "error" })
+      }
+
+      const handleWaiting = () => {
+        console.log("[v0] Native media: Waiting/buffering")
+        dispatch({ type: "SET_BUFFERING", payload: true })
+      }
+
+      // Add event listeners
+      element.addEventListener("loadstart", handleLoadStart)
+      element.addEventListener("loadedmetadata", handleLoadedMetadata)
+      element.addEventListener("canplay", handleCanPlay)
+      element.addEventListener("play", handlePlay)
+      element.addEventListener("pause", handlePause)
+      element.addEventListener("ended", handleEnded)
+      element.addEventListener("timeupdate", handleTimeUpdate)
+      element.addEventListener("error", handleError)
+      element.addEventListener("waiting", handleWaiting)
+
+      // Return cleanup function
+      return () => {
+        element.removeEventListener("loadstart", handleLoadStart)
+        element.removeEventListener("loadedmetadata", handleLoadedMetadata)
+        element.removeEventListener("canplay", handleCanPlay)
+        element.removeEventListener("play", handlePlay)
+        element.removeEventListener("pause", handlePause)
+        element.removeEventListener("ended", handleEnded)
+        element.removeEventListener("timeupdate", handleTimeUpdate)
+        element.removeEventListener("error", handleError)
+        element.removeEventListener("waiting", handleWaiting)
+      }
+    },
+    [state.repeatMode, state.currentIndex, state.queue],
+  )
+
   useEffect(() => {
     if (typeof window === "undefined") return
+
+    // Create native media elements
+    createNativeMediaElements()
 
     // Load YouTube IFrame API if not already loaded
     try {
@@ -318,11 +452,19 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
           youtubePlayerReadyRef.current = false
           console.log("[v0] YouTube player cleaned up")
         }
+        if (nativeVideoRef.current) {
+          nativeVideoRef.current.remove()
+          nativeVideoRef.current = null
+        }
+        if (nativeAudioRef.current) {
+          nativeAudioRef.current.remove()
+          nativeAudioRef.current = null
+        }
       } catch (error) {
-        console.error("[v0] Error cleaning up YouTube player:", error)
+        console.error("[v0] Error cleaning up media players:", error)
       }
     }
-  }, [])
+  }, [createNativeMediaElements])
 
   const initializeYouTubePlayer = useCallback(() => {
     try {
@@ -502,37 +644,87 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }, [])
 
   useEffect(() => {
-    if (state.currentTrack && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
-      console.log("[v0] Loading track in YouTube player:", state.currentTrack.title)
+    if (state.currentTrack) {
+      console.log("[v0] Loading track:", state.currentTrack.title)
 
-      // Extract video ID from YouTube URL
-      const videoId = extractYouTubeVideoId(state.currentTrack.url || state.currentTrack.videoUrl || "")
+      // Determine media URL and type
+      const mediaUrl = state.currentTrack.videoUrl || state.currentTrack.audioUrl || state.currentTrack.url || ""
+      const mediaType = detectMediaType(mediaUrl)
 
-      if (videoId) {
-        console.log("[v0] Loading YouTube video ID:", videoId)
-        dispatch({ type: "SET_LOADING", payload: true })
-        dispatch({ type: "SET_ERROR", payload: null })
+      console.log("[v0] Media URL:", mediaUrl, "Type:", mediaType)
+      dispatch({ type: "SET_PLAYER_TYPE", payload: mediaType })
 
-        youtubePlayerRef.current.cueVideoById(videoId)
-      } else {
-        console.log("[v0] No valid YouTube URL found for track:", state.currentTrack.title)
-        dispatch({ type: "SET_ERROR", payload: "No valid YouTube URL found for this track" })
-        dispatch({ type: "SET_LOADING", payload: false })
+      if (mediaType === "youtube" && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+        // Handle YouTube playback
+        const videoId = extractYouTubeVideoId(mediaUrl)
+        if (videoId) {
+          console.log("[v0] Loading YouTube video ID:", videoId)
+          dispatch({ type: "SET_LOADING", payload: true })
+          dispatch({ type: "SET_ERROR", payload: null })
+          youtubePlayerRef.current.cueVideoById(videoId)
+        } else {
+          console.log("[v0] No valid YouTube URL found for track:", state.currentTrack.title)
+          dispatch({ type: "SET_ERROR", payload: "No valid YouTube URL found for this track" })
+          dispatch({ type: "SET_LOADING", payload: false })
+        }
+      } else if (mediaType === "native") {
+        // Handle native media playback
+        const isVideo = state.currentTrack.isVideo || !!state.currentTrack.videoUrl
+        const element = isVideo ? nativeVideoRef.current : nativeAudioRef.current
+
+        if (element && mediaUrl) {
+          console.log("[v0] Loading native media:", mediaUrl, "Is video:", isVideo)
+          dispatch({ type: "SET_LOADING", payload: true })
+          dispatch({ type: "SET_ERROR", payload: null })
+
+          // Setup event handlers
+          const cleanup = setupNativeMediaHandlers(element)
+
+          // Load the media
+          element.src = mediaUrl
+          element.volume = state.volume
+          element.load()
+
+          // Store cleanup function for later
+          element.dataset.cleanup = "true"
+        } else {
+          console.log("[v0] No valid media URL or element for track:", state.currentTrack.title)
+          dispatch({ type: "SET_ERROR", payload: "No valid media URL found for this track" })
+          dispatch({ type: "SET_LOADING", payload: false })
+        }
       }
     }
-  }, [state.currentTrack, extractYouTubeVideoId])
+  }, [state.currentTrack, detectMediaType, extractYouTubeVideoId, setupNativeMediaHandlers, state.volume])
 
   useEffect(() => {
-    if (youtubePlayerRef.current && youtubePlayerReadyRef.current && !state.error) {
-      if (state.isPlaying) {
-        console.log("[v0] Playing YouTube video")
-        youtubePlayerRef.current.playVideo()
-      } else {
-        console.log("[v0] Pausing YouTube video")
-        youtubePlayerRef.current.pauseVideo()
+    if (!state.error) {
+      if (state.playerType === "youtube" && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+        if (state.isPlaying) {
+          console.log("[v0] Playing YouTube video")
+          youtubePlayerRef.current.playVideo()
+        } else {
+          console.log("[v0] Pausing YouTube video")
+          youtubePlayerRef.current.pauseVideo()
+        }
+      } else if (state.playerType === "native") {
+        const isVideo = state.currentTrack?.isVideo || !!state.currentTrack?.videoUrl
+        const element = isVideo ? nativeVideoRef.current : nativeAudioRef.current
+
+        if (element) {
+          if (state.isPlaying) {
+            console.log("[v0] Playing native media")
+            element.play().catch((error) => {
+              console.error("[v0] Native media play error:", error)
+              dispatch({ type: "SET_ERROR", payload: "Media playback failed" })
+            })
+          } else {
+            console.log("[v0] Pausing native media")
+            element.pause()
+          }
+        }
       }
     }
-  }, [state.isPlaying, state.error])
+  }, [state.isPlaying, state.error, state.playerType, state.currentTrack])
 
   const setVideoMode = useCallback((enabled: boolean) => {
     if (videoModeTimeoutRef.current) {
@@ -567,37 +759,61 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
 
   const seekTo = useCallback(
     (time: number) => {
-      if (youtubePlayerRef.current && youtubePlayerReadyRef.current) {
-        const clampedTime = Math.max(0, Math.min(time, state.duration))
+      const clampedTime = Math.max(0, Math.min(time, state.duration))
+
+      if (state.playerType === "youtube" && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
         youtubePlayerRef.current.seekTo(clampedTime, true)
-        dispatch({ type: "SET_CURRENT_TIME", payload: clampedTime })
-        updatePositionState()
+      } else if (state.playerType === "native") {
+        const isVideo = state.currentTrack?.isVideo || !!state.currentTrack?.videoUrl
+        const element = isVideo ? nativeVideoRef.current : nativeAudioRef.current
+        if (element) {
+          element.currentTime = clampedTime
+        }
       }
+
+      dispatch({ type: "SET_CURRENT_TIME", payload: clampedTime })
+      updatePositionState()
     },
-    [state.duration],
+    [state.duration, state.playerType, state.currentTrack],
   )
 
-  const setVolume = useCallback((volume: number) => {
-    const clampedVolume = Math.max(0, Math.min(1, volume))
-    if (youtubePlayerRef.current && youtubePlayerReadyRef.current) {
-      youtubePlayerRef.current.setVolume(clampedVolume * 100)
-    }
-    dispatch({ type: "SET_VOLUME", payload: clampedVolume })
+  const setVolume = useCallback(
+    (volume: number) => {
+      const clampedVolume = Math.max(0, Math.min(1, volume))
 
-    // Store volume preference
-    if (typeof window !== "undefined") {
-      localStorage.setItem("vibetuneVolume", clampedVolume.toString())
-    }
-  }, [])
+      if (state.playerType === "youtube" && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+        youtubePlayerRef.current.setVolume(clampedVolume * 100)
+      } else if (state.playerType === "native") {
+        if (nativeVideoRef.current) nativeVideoRef.current.volume = clampedVolume
+        if (nativeAudioRef.current) nativeAudioRef.current.volume = clampedVolume
+      }
 
-  const setPlaybackRate = useCallback((rate: number) => {
-    const clampedRate = Math.max(0.25, Math.min(2, rate))
-    if (youtubePlayerRef.current && youtubePlayerReadyRef.current) {
-      youtubePlayerRef.current.setPlaybackRate(clampedRate)
-    }
-    dispatch({ type: "SET_PLAYBACK_RATE", payload: clampedRate })
-    updatePositionState()
-  }, [])
+      dispatch({ type: "SET_VOLUME", payload: clampedVolume })
+
+      // Store volume preference
+      if (typeof window !== "undefined") {
+        localStorage.setItem("vibetuneVolume", clampedVolume.toString())
+      }
+    },
+    [state.playerType],
+  )
+
+  const setPlaybackRate = useCallback(
+    (rate: number) => {
+      const clampedRate = Math.max(0.25, Math.min(2, rate))
+
+      if (state.playerType === "youtube" && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+        youtubePlayerRef.current.setPlaybackRate(clampedRate)
+      } else if (state.playerType === "native") {
+        if (nativeVideoRef.current) nativeVideoRef.current.playbackRate = clampedRate
+        if (nativeAudioRef.current) nativeAudioRef.current.playbackRate = clampedRate
+      }
+
+      dispatch({ type: "SET_PLAYBACK_RATE", payload: clampedRate })
+      updatePositionState()
+    },
+    [state.playerType],
+  )
 
   const seekForward = useCallback(
     (seconds = 15) => {
@@ -714,15 +930,22 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }, [state.duration, state.currentTime, state.currentTrack, state.isPlaying, state.playbackRate])
 
   const playTrack = (track: Track) => {
-    console.log("[v0] Playing track:", track.title, "Audio URL:", track.audioUrl || "None")
+    console.log(
+      "[v0] Playing track:",
+      track.title,
+      "Audio URL:",
+      track.audioUrl || "None",
+      "Video URL:",
+      track.videoUrl || "None",
+    )
 
     dispatch({ type: "SET_QUEUE", payload: { tracks: [track], startIndex: 0 } })
 
-    // Only attempt to play if we have an audio URL
-    if (track.audioUrl) {
+    const hasPlayableUrl = track.audioUrl || track.videoUrl || track.url
+    if (hasPlayableUrl) {
       dispatch({ type: "PLAY" })
     } else {
-      console.log("[v0] Track has no audio URL, showing info only")
+      console.log("[v0] Track has no playable URL, showing info only")
       dispatch({ type: "PAUSE" })
     }
 
@@ -742,15 +965,17 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       startingTrack?.title,
       "Audio URL:",
       startingTrack?.audioUrl || "None",
+      "Video URL:",
+      startingTrack?.videoUrl || "None",
     )
 
     dispatch({ type: "SET_QUEUE", payload: { tracks, startIndex } })
 
-    // Only attempt to play if the starting track has an audio URL
-    if (startingTrack?.audioUrl) {
+    const hasPlayableUrl = startingTrack && (startingTrack.audioUrl || startingTrack.videoUrl || startingTrack.url)
+    if (hasPlayableUrl) {
       dispatch({ type: "PLAY" })
     } else {
-      console.log("[v0] Starting track has no audio URL, showing info only")
+      console.log("[v0] Starting track has no playable URL, showing info only")
       dispatch({ type: "PAUSE" })
     }
 
@@ -764,9 +989,11 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }
 
   const togglePlay = () => {
-    if (!state.currentTrack?.url && !state.isPlaying) {
-      console.log("[v0] Cannot play: no YouTube URL available")
-      dispatch({ type: "SET_ERROR", payload: "No YouTube URL available. API quota may be exceeded." })
+    const hasPlayableUrl =
+      state.currentTrack && (state.currentTrack.audioUrl || state.currentTrack.videoUrl || state.currentTrack.url)
+    if (!hasPlayableUrl && !state.isPlaying) {
+      console.log("[v0] Cannot play: no playable URL available")
+      dispatch({ type: "SET_ERROR", payload: "No playable URL available." })
       return
     }
 
