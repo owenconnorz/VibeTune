@@ -243,8 +243,12 @@ export default function VideosPage() {
           title: realisticTitles[i % realisticTitles.length],
           thumbnail: `/placeholder.svg?height=180&width=320&query=${extensionId} video thumbnail`,
           duration: Math.floor(Math.random() * 60) + 10,
-          url: `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4`,
-          embed: `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4`,
+          url:
+            i % 2 === 0
+              ? `https://www.youtube.com/watch?v=dQw4w9WgXcQ` // Rick Astley - Never Gonna Give You Up
+              : `https://www.youtube.com/watch?v=9bZkp7q19f0`, // PSY - GANGNAM STYLE
+          embed:
+            i % 2 === 0 ? `https://www.youtube.com/embed/dQw4w9WgXcQ` : `https://www.youtube.com/embed/9bZkp7q19f0`,
           source: extensionId,
           views: Math.floor(Math.random() * 1000000),
           uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
