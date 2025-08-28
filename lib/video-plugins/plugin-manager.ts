@@ -5,6 +5,7 @@ class PluginManager implements IPluginManager {
   plugins = new Map<string, VideoPlugin>()
   private githubExtensions: GitHubExtension[] = []
   private githubPlugins = new Map<string, VideoPlugin>()
+  private activePluginId: string | null = null // Added active plugin tracking
 
   registerPlugin(plugin: VideoPlugin): void {
     console.log(`[v0] Registering video plugin: ${plugin.name} v${plugin.version}`)
@@ -56,10 +57,30 @@ class PluginManager implements IPluginManager {
     return this.githubPlugins.get(extensionId)
   }
 
-  async searchAll(options: SearchOptions): Promise<SearchResult> {
-    const enabledPlugins = this.getEnabledPlugins()
+  setActivePlugin(pluginId: string): void {
+    const plugin = this.plugins.get(pluginId) || this.githubPlugins.get(pluginId)
+    if (plugin && plugin.isEnabled()) {
+      this.activePluginId = pluginId
+      console.log(`[v0] Set active plugin: ${plugin.name}`)
+    } else {
+      console.warn(`[v0] Plugin ${pluginId} not found or not enabled`)
+    }
+  }
 
-    if (enabledPlugins.length === 0) {
+  getActivePlugin(): VideoPlugin | undefined {
+    if (this.activePluginId) {
+      return this.plugins.get(this.activePluginId) || this.githubPlugins.get(this.activePluginId)
+    }
+
+    // Fallback to first enabled plugin
+    const enabledPlugins = this.getEnabledPlugins()
+    return enabledPlugins[0]
+  }
+
+  async searchAll(options: SearchOptions): Promise<SearchResult> {
+    const activePlugin = this.getActivePlugin()
+
+    if (!activePlugin) {
       return {
         videos: [],
         totalCount: 0,
@@ -69,20 +90,9 @@ class PluginManager implements IPluginManager {
       }
     }
 
-    // Use the selected plugin if specified, otherwise use the first enabled plugin
-    const selectedPluginId = localStorage.getItem("selectedVideoPlugin")
-    let primaryPlugin = enabledPlugins[0]
-
-    if (selectedPluginId) {
-      const selectedPlugin = this.plugins.get(selectedPluginId) || this.githubPlugins.get(selectedPluginId)
-      if (selectedPlugin && selectedPlugin.isEnabled()) {
-        primaryPlugin = selectedPlugin
-      }
-    }
-
     try {
-      console.log(`[v0] Searching videos using plugin: ${primaryPlugin.name}`)
-      return await primaryPlugin.search(options)
+      console.log(`[v0] Searching videos using active plugin: ${activePlugin.name}`)
+      return await activePlugin.search(options)
     } catch (error) {
       console.error(`[v0] Plugin search error:`, error)
       return {

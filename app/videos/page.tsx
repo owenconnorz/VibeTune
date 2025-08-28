@@ -176,7 +176,8 @@ export default function VideosPage() {
       }
     } catch (err) {
       console.error("[v0] Error fetching videos from active plugin:", err)
-      setError("Failed to load videos from selected provider")
+      const errorMessage = err instanceof Error ? err.message : "Unknown error occurred"
+      setError(`Failed to load videos: ${errorMessage}`)
       setVideos([])
       setBannerVideos([])
     } finally {

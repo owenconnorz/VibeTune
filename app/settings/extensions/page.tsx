@@ -344,9 +344,9 @@ export default function ExtensionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-900 text-white">
+    <div className="min-h-screen bg-zinc-900 text-white flex flex-col">
       {/* Header */}
-      <header className="flex items-center p-4 border-b border-zinc-800">
+      <header className="flex items-center p-4 border-b border-zinc-800 flex-shrink-0">
         <Button variant="ghost" size="icon" className="text-gray-300 hover:text-white mr-4" onClick={handleBack}>
           <ArrowLeft className="w-6 h-6" />
         </Button>
@@ -418,7 +418,7 @@ export default function ExtensionsPage() {
       </div>
 
       {/* Bottom Stats */}
-      <div className="border-t border-zinc-800 p-4">
+      <div className="border-t border-zinc-800 p-4 flex-shrink-0 bg-zinc-900">
         <div className="mb-4">
           <h3 className="text-white font-medium mb-2">Extensions</h3>
           <div className="w-full bg-zinc-700 rounded-full h-2">
@@ -430,7 +430,7 @@ export default function ExtensionsPage() {
             />
           </div>
         </div>
-        <div className="flex items-center gap-6 text-sm">
+        <div className="flex items-center gap-6 text-sm flex-wrap">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-green-500 rounded-full" />
             <span className="text-gray-300">Downloaded: {stats.downloaded}</span>
