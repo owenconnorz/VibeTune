@@ -204,14 +204,23 @@ export default function VideosPage() {
     try {
       const githubExtension = githubExtensions.find((ext) => ext.id === extensionId)
       if (githubExtension) {
-        console.log(`[v0] Loading GitHub extension: ${githubExtension.name}`)
-        const plugin = await githubExtensionLoader.createPluginFromExtension(githubExtension)
-        if (plugin) {
-          videoPluginManager.registerPlugin(plugin)
+        console.log(`[v0] Selecting GitHub extension: ${githubExtension.name}`)
+
+        // Check if plugin already exists in plugin manager
+        const existingPlugin = videoPluginManager.getGitHubPlugin(extensionId)
+        if (existingPlugin) {
           videoPluginManager.setActivePlugin(extensionId)
-          console.log(`[v0] Successfully loaded and activated GitHub extension: ${githubExtension.name}`)
+          console.log(`[v0] Successfully activated existing GitHub extension: ${githubExtension.name}`)
         } else {
-          throw new Error(`Failed to create plugin from extension: ${githubExtension.name}`)
+          // Create plugin if it doesn't exist
+          const plugin = await githubExtensionLoader.createPluginFromExtension(githubExtension)
+          if (plugin) {
+            videoPluginManager.registerPlugin(plugin)
+            videoPluginManager.setActivePlugin(extensionId)
+            console.log(`[v0] Successfully created and activated GitHub extension: ${githubExtension.name}`)
+          } else {
+            throw new Error(`Failed to create plugin from extension: ${githubExtension.name}`)
+          }
         }
       } else {
         videoPluginManager.setActivePlugin(extensionId)
@@ -219,10 +228,11 @@ export default function VideosPage() {
       }
 
       const activePlugin = videoPluginManager.getActivePlugin()
-      if (activePlugin) {
-        setAvailableSearchTypes(activePlugin.supportedSearchTypes)
+      if (!activePlugin) {
+        throw new Error(`No active plugin found after selecting: ${extensionId}`)
       }
 
+      setAvailableSearchTypes(activePlugin.supportedSearchTypes)
       await fetchVideos(searchQuery, searchType, 1)
     } catch (error) {
       console.error(`[v0] Failed to switch to extension ${extensionId}:`, error)
