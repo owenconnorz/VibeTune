@@ -1,7 +1,9 @@
 import type { VideoPlugin, PluginManager as IPluginManager, SearchOptions, SearchResult } from "./plugin-interface"
+import { githubExtensionLoader, type GitHubExtension } from "./github-extension-loader"
 
 class PluginManager implements IPluginManager {
   plugins = new Map<string, VideoPlugin>()
+  private githubExtensions: GitHubExtension[] = []
 
   registerPlugin(plugin: VideoPlugin): void {
     console.log(`[v0] Registering video plugin: ${plugin.name} v${plugin.version}`)
@@ -19,6 +21,20 @@ class PluginManager implements IPluginManager {
 
   getEnabledPlugins(): VideoPlugin[] {
     return Array.from(this.plugins.values()).filter((plugin) => plugin.isEnabled())
+  }
+
+  async loadGitHubExtensions(): Promise<void> {
+    try {
+      console.log("[v0] Loading extensions from GitHub repositories...")
+      this.githubExtensions = await githubExtensionLoader.getAllExtensions()
+      console.log(`[v0] Loaded ${this.githubExtensions.length} GitHub extensions`)
+    } catch (error) {
+      console.error("[v0] Failed to load GitHub extensions:", error)
+    }
+  }
+
+  getGitHubExtensions(): GitHubExtension[] {
+    return this.githubExtensions
   }
 
   async searchAll(options: SearchOptions): Promise<SearchResult> {
@@ -56,6 +72,8 @@ class PluginManager implements IPluginManager {
   async initializeAll(): Promise<void> {
     const plugins = Array.from(this.plugins.values())
     console.log(`[v0] Initializing ${plugins.length} video plugins`)
+
+    await this.loadGitHubExtensions()
 
     await Promise.all(
       plugins.map(async (plugin) => {

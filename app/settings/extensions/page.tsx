@@ -130,23 +130,32 @@ export default function ExtensionsPage() {
 
     setIsAddingRepo(true)
     try {
-      // Simulate repository validation
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      console.log("[v0] Fetching extensions from repository:", newRepoUrl)
+      const { githubExtensionLoader } = await import("@/lib/video-plugins/github-extension-loader")
+      const extensions = await githubExtensionLoader.fetchRepositoryExtensions(newRepoUrl)
 
       const newRepo: Repository = {
         id: Date.now().toString(),
         name: extractRepoName(newRepoUrl),
         url: newRepoUrl,
-        status: "active",
-        extensionCount: Math.floor(Math.random() * 50) + 10,
+        status: extensions.length > 0 ? "active" : "error",
+        extensionCount: extensions.length,
       }
 
       const updatedRepos = [...repositories, newRepo]
       setRepositories(updatedRepos)
       saveRepositories(updatedRepos)
       setNewRepoUrl("")
-      toast.success("Repository added successfully")
+
+      if (extensions.length > 0) {
+        toast.success(`Repository added with ${extensions.length} extensions`)
+        const { videoPluginManager } = await import("@/lib/video-plugins/plugin-manager")
+        await videoPluginManager.loadGitHubExtensions()
+      } else {
+        toast.error("Repository added but no extensions found")
+      }
     } catch (error) {
+      console.error("[v0] Failed to add repository:", error)
       toast.error("Failed to add repository")
     } finally {
       setIsAddingRepo(false)
