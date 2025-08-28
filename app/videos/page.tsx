@@ -409,17 +409,19 @@ export default function VideosPage() {
               <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
                 {videos.slice(0, 6).map((video, index) => (
                   <div key={`related_${video.source}_${video.id}_${index}`} className="flex-shrink-0 w-40">
-                    <div className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer">
+                    <div
+                      className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer"
+                      onClick={() => {
+                        console.log("[v0] Related video thumbnail clicked:", video.title)
+                        handleVideoClick(video)
+                      }}
+                    >
                       <img
                         src={video.thumbnail || "/video-thumbnail.png"}
                         alt={video.title}
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.src = "/video-thumbnail.png"
-                        }}
-                        onClick={() => {
-                          console.log("[v0] Video thumbnail clicked:", video.title)
-                          handleVideoClick(video)
                         }}
                       />
                       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -690,17 +692,19 @@ export default function VideosPage() {
                               key={`${video.source}_${video.id}_${sectionIndex}_${index}`}
                               className="flex-shrink-0 w-48"
                             >
-                              <div className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer">
+                              <div
+                                className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer"
+                                onClick={() => {
+                                  console.log("[v0] Section video thumbnail clicked:", video.title)
+                                  handleVideoClick(video)
+                                }}
+                              >
                                 <img
                                   src={video.thumbnail || "/placeholder.svg"}
                                   alt={video.title}
                                   className="w-full h-full object-cover"
                                   onError={(e) => {
                                     e.currentTarget.src = "/video-thumbnail.png"
-                                  }}
-                                  onClick={() => {
-                                    console.log("[v0] Video thumbnail clicked:", video.title)
-                                    handleVideoClick(video)
                                   }}
                                 />
                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
