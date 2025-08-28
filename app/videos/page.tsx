@@ -255,21 +255,48 @@ export default function VideosPage() {
   }
 
   const handlePlayVideo = (video: VideoSource) => {
+    console.log("[v0] === VIDEO PLAYBACK STARTED ===")
+    console.log("[v0] Video object:", video)
+    console.log("[v0] Video properties:", {
+      id: video.id,
+      title: video.title,
+      url: video.url,
+      embed: video.embed,
+      source: video.source,
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+    })
+
+    const videoUrl = video.embed || video.url || video.thumbnail
+    console.log("[v0] Extracted video URL:", videoUrl)
+
+    if (!videoUrl) {
+      console.error("[v0] No video URL found for video:", video.title)
+      setError(`No playable URL found for video: ${video.title}`)
+      return
+    }
+
     const track = {
       id: `${video.source}_${video.id}`,
       title: video.title,
       artist: "Adult Video",
       thumbnail: video.thumbnail,
       duration: video.duration,
-      videoUrl: video.embed || video.url,
+      audioUrl: videoUrl,
+      videoUrl: videoUrl,
       isVideo: true,
       source: video.source,
     }
 
+    console.log("[v0] Track object for playback:", track)
     console.log("[v0] Playing video from plugin:", track.title, "source:", video.source)
+    console.log("[v0] Video URL being passed:", videoUrl)
+
     playTrack(track)
     setShowVideoDetail(false)
     window.scrollTo({ top: 0, behavior: "smooth" })
+
+    console.log("[v0] === VIDEO PLAYBACK INITIATED ===")
   }
 
   const handlePlanToWatch = (video: VideoSource) => {
