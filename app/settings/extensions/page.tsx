@@ -86,12 +86,20 @@ export default function ExtensionsPage() {
 
     setIsAddingRepo(true)
     try {
+      console.log("[v0] ==> STARTING REPOSITORY ADD PROCESS")
       console.log("[v0] Adding repository:", newRepoUrl)
+      console.log("[v0] Current repositories count:", repositories.length)
+
       const { githubExtensionLoader } = await import("@/lib/video-plugins/github-extension-loader")
       console.log("[v0] GitHub extension loader imported successfully")
 
+      console.log("[v0] ==> CALLING fetchRepositoryExtensions")
       const extensions = await githubExtensionLoader.fetchRepositoryExtensions(newRepoUrl)
-      console.log("[v0] Fetched extensions from repository:", extensions.length, "extensions found")
+      console.log("[v0] ==> FETCH COMPLETE - Extensions found:", extensions.length)
+      console.log(
+        "[v0] Extension details:",
+        extensions.map((ext) => ({ name: ext.name, url: ext.url })),
+      )
 
       const newRepo: Repository = {
         id: Date.now().toString(),
@@ -100,6 +108,8 @@ export default function ExtensionsPage() {
         status: extensions.length > 0 ? "active" : "error",
         extensionCount: extensions.length,
       }
+
+      console.log("[v0] Created new repository object:", newRepo)
 
       const updatedRepos = [...repositories, newRepo]
       setRepositories(updatedRepos)
@@ -113,14 +123,16 @@ export default function ExtensionsPage() {
         await videoPluginManager.loadGitHubExtensions()
         console.log("[v0] GitHub extensions loaded into plugin manager")
       } else {
-        console.warn("[v0] No extensions found in repository:", newRepoUrl)
+        console.warn("[v0] ==> NO EXTENSIONS FOUND IN REPOSITORY:", newRepoUrl)
         toast.error("Repository added but no extensions found")
       }
     } catch (error) {
-      console.error("[v0] Failed to add repository:", error)
+      console.error("[v0] ==> REPOSITORY ADD FAILED:", error)
+      console.error("[v0] Error details:", error.message, error.stack)
       toast.error("Failed to add repository")
     } finally {
       setIsAddingRepo(false)
+      console.log("[v0] ==> REPOSITORY ADD PROCESS COMPLETE")
     }
   }, [newRepoUrl, repositories])
 
@@ -135,20 +147,25 @@ export default function ExtensionsPage() {
   )
 
   const handleRepositoryClick = useCallback(async (repo: Repository) => {
+    console.log("[v0] ==> REPOSITORY CLICKED:", repo.name, repo.url)
     setSelectedRepo(repo)
     setIsLoadingExtensions(true)
 
     try {
+      console.log("[v0] ==> STARTING EXTENSION LOAD FOR REPOSITORY")
       console.log("[v0] Loading extensions for repository:", repo.name, repo.url)
+
       const { githubExtensionLoader } = await import("@/lib/video-plugins/github-extension-loader")
       console.log("[v0] GitHub extension loader imported for repository view")
 
+      console.log("[v0] ==> CALLING fetchRepositoryExtensions FOR DETAIL VIEW")
       const extensions = await githubExtensionLoader.fetchRepositoryExtensions(repo.url)
-      console.log("[v0] Repository extensions loaded:", extensions.length, "extensions")
+      console.log("[v0] ==> DETAIL VIEW FETCH COMPLETE - Extensions loaded:", extensions.length)
+      console.log("[v0] Raw extensions data:", extensions)
 
       // Convert to Extension format with CloudStream-style metadata
       const formattedExtensions: Extension[] = extensions.map((ext, index) => {
-        console.log("[v0] Processing extension:", ext.name || `Extension ${index + 1}`)
+        console.log("[v0] Processing extension for display:", ext.name || `Extension ${index + 1}`, ext)
         return {
           id: `${repo.id}-${index}`,
           name: ext.name || `Extension ${index + 1}`,
@@ -163,14 +180,20 @@ export default function ExtensionsPage() {
         }
       })
 
-      console.log("[v0] Formatted extensions for display:", formattedExtensions.length)
+      console.log("[v0] ==> FORMATTED EXTENSIONS FOR DISPLAY:", formattedExtensions.length)
+      console.log(
+        "[v0] Formatted extension names:",
+        formattedExtensions.map((ext) => ext.name),
+      )
       setRepoExtensions(formattedExtensions)
     } catch (error) {
-      console.error("[v0] Failed to load repository extensions:", error)
+      console.error("[v0] ==> REPOSITORY EXTENSION LOAD FAILED:", error)
+      console.error("[v0] Error details:", error.message, error.stack)
       toast.error("Failed to load extensions from repository")
       setRepoExtensions([])
     } finally {
       setIsLoadingExtensions(false)
+      console.log("[v0] ==> REPOSITORY EXTENSION LOAD COMPLETE")
     }
   }, [])
 
