@@ -53,68 +53,8 @@ export default function ExtensionsPage() {
           setRepositories(repos)
           updateStats(repos)
         } else {
-          // Initialize with default CloudStream-style repositories
-          const defaultRepos: Repository[] = [
-            {
-              id: "1",
-              name: "Mega",
-              url: "https://raw.githubusercontent.com/self...",
-              status: "active",
-              extensionCount: 25,
-            },
-            {
-              id: "2",
-              name: "Cloudstream providers repository",
-              url: "https://raw.githubusercontent.com/recl...",
-              status: "active",
-              extensionCount: 150,
-            },
-            {
-              id: "3",
-              name: "Aniyomi Compat",
-              url: "https://raw.githubusercontent.com/Cra...",
-              status: "active",
-              extensionCount: 45,
-            },
-            {
-              id: "4",
-              name: "Italian providers repository",
-              url: "https://raw.githubusercontent.com/Gia...",
-              status: "active",
-              extensionCount: 30,
-            },
-            {
-              id: "5",
-              name: "(OLD) English providers repository",
-              url: "https://codeberg.org/cloudstream/clou...",
-              status: "disabled",
-              extensionCount: 89,
-            },
-            {
-              id: "6",
-              name: "Multilingual providers repository",
-              url: "https://codeberg.org/cloudstream/clou...",
-              status: "active",
-              extensionCount: 65,
-            },
-            {
-              id: "7",
-              name: "Hexated providers repository",
-              url: "https://codeberg.org/cloudstream/clou...",
-              status: "active",
-              extensionCount: 78,
-            },
-            {
-              id: "8",
-              name: "LikDev-256 Pro Repository",
-              url: "https://codeberg.org/cloudstream/likde...",
-              status: "active",
-              extensionCount: 12,
-            },
-          ]
-          setRepositories(defaultRepos)
-          updateStats(defaultRepos)
-          localStorage.setItem("vibetuneExtensionRepos", JSON.stringify(defaultRepos))
+          setRepositories([])
+          updateStats([])
         }
       } catch (error) {
         console.error("Failed to load repositories:", error)
