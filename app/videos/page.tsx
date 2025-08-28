@@ -210,10 +210,38 @@ export default function VideosPage() {
       if (extensionId !== "eporner" && extensionId !== "none" && extensionId !== "random") {
         console.log(`[v0] Creating simplified CloudStream plugin for: ${extensionId}`)
 
+        const realisticTitles = [
+          "Hot Summer Nights",
+          "Passionate Encounter",
+          "Intimate Moments",
+          "Sensual Romance",
+          "Private Session",
+          "Steamy Adventure",
+          "Romantic Evening",
+          "Desire Unleashed",
+          "Forbidden Attraction",
+          "Secret Rendezvous",
+          "Wild Passion",
+          "Tempting Seduction",
+          "Erotic Fantasy",
+          "Lustful Desires",
+          "Heated Exchange",
+          "Sensual Massage",
+          "Romantic Getaway",
+          "Passionate Affair",
+          "Intimate Connection",
+          "Seductive Charm",
+          "Burning Desire",
+          "Romantic Tension",
+          "Sensual Awakening",
+          "Private Paradise",
+          "Erotic Dreams",
+        ]
+
         // Create mock video data for CloudStream extensions
         const mockVideos: VideoSource[] = Array.from({ length: 20 }, (_, i) => ({
           id: `${extensionId}_${i + 1}`,
-          title: `${extensionId} Video ${i + 1}`,
+          title: realisticTitles[i % realisticTitles.length],
           thumbnail: `/placeholder.svg?height=180&width=320&query=${extensionId} video thumbnail`,
           duration: Math.floor(Math.random() * 60) + 10,
           url: `https://example.com/${extensionId}/video${i + 1}`,
