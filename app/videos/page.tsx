@@ -210,11 +210,17 @@ export default function VideosPage() {
   const handleExtensionSelect = async (extensionId: string) => {
     console.log(`[v0] === EXTENSION SELECTION STARTED ===`)
     console.log(`[v0] Selected extension ID: ${extensionId}`)
+    console.log(`[v0] Current selected extension: ${selectedExtension}`)
+    console.log(
+      `[v0] Available extensions:`,
+      availableExtensions.map((ext) => ({ id: ext.id, name: ext.name })),
+    )
 
     setSelectedExtension(extensionId)
     setShowExtensionSwitcher(false)
     setCurrentPage(1)
 
+    // Clear existing content immediately
     setVideos([])
     setBannerVideos([])
     setLoading(true)
@@ -222,10 +228,41 @@ export default function VideosPage() {
 
     try {
       console.log(`[v0] Setting active plugin to: ${extensionId}`)
+
+      // Check if plugin exists before setting it active
+      const allPlugins = videoPluginManager.getAllPlugins()
+      const targetPlugin = allPlugins.find((plugin) => plugin.id === extensionId)
+      console.log(`[v0] Target plugin found:`, targetPlugin ? { id: targetPlugin.id, name: targetPlugin.name } : "null")
+
+      if (!targetPlugin) {
+        // Try to find GitHub extension and create plugin
+        const githubExtension = githubExtensions.find((ext) => ext.id === extensionId)
+        console.log(
+          `[v0] GitHub extension found:`,
+          githubExtension ? { id: githubExtension.id, name: githubExtension.name } : "null",
+        )
+
+        if (githubExtension) {
+          console.log(`[v0] Creating plugin from GitHub extension: ${githubExtension.name}`)
+          const plugin = await githubExtensionLoader.createPluginFromExtension(githubExtension)
+          if (plugin) {
+            videoPluginManager.registerPlugin(plugin)
+            console.log(`[v0] Successfully registered GitHub extension: ${githubExtension.name}`)
+          } else {
+            throw new Error(`Failed to create plugin from GitHub extension: ${githubExtension.name}`)
+          }
+        } else {
+          throw new Error(`Plugin not found: ${extensionId}`)
+        }
+      }
+
       videoPluginManager.setActivePlugin(extensionId)
 
       const activePlugin = videoPluginManager.getActivePlugin()
-      console.log(`[v0] Active plugin:`, activePlugin ? { id: activePlugin.id, name: activePlugin.name } : "null")
+      console.log(
+        `[v0] Active plugin after setting:`,
+        activePlugin ? { id: activePlugin.id, name: activePlugin.name } : "null",
+      )
 
       if (!activePlugin) {
         throw new Error(`Failed to activate plugin: ${extensionId}`)
@@ -236,7 +273,7 @@ export default function VideosPage() {
       console.log(`[v0] Available search types:`, activePlugin.supportedSearchTypes)
 
       console.log(`[v0] Fetching videos with active plugin...`)
-      await fetchVideos(searchQuery, searchType, 1)
+      await fetchVideos("", searchType, 1)
       console.log(`[v0] === EXTENSION SELECTION COMPLETED SUCCESSFULLY ===`)
     } catch (error) {
       console.error(`[v0] === EXTENSION SELECTION FAILED ===`)
@@ -609,7 +646,14 @@ export default function VideosPage() {
                   {availableExtensions.map((extension) => (
                     <button
                       key={extension.id}
-                      onClick={() => handleExtensionSelect(extension.id)}
+                      onClick={() => {
+                        console.log(`[v0] === EXTENSION BUTTON CLICKED ===`)
+                        console.log(`[v0] Extension clicked:`, extension.name)
+                        console.log(`[v0] Extension ID:`, extension.id)
+                        console.log(`[v0] Extension type:`, extension.type)
+                        console.log(`[v0] Calling handleExtensionSelect...`)
+                        handleExtensionSelect(extension.id)
+                      }}
                       className={`w-full flex items-center gap-3 p-4 hover:bg-zinc-800 transition-colors text-left ${
                         selectedExtension === extension.id ? "bg-zinc-800" : ""
                       }`}
