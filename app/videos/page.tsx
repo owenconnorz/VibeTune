@@ -2,11 +2,10 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Search, Play, Heart, Download, Plus, Settings, ChevronDown, X } from "lucide-react"
+import { Search, Play, Settings, X, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { usePlaylist } from "@/contexts/playlist-context"
@@ -20,12 +19,13 @@ export default function VideosPage() {
   const [videos, setVideos] = useState<VideoSource[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchType, setSearchType] = useState("2") // Default to keyword search
+  const [searchType, setSearchType] = useState("2")
   const [currentPage, setCurrentPage] = useState(1)
   const [hasNextPage, setHasNextPage] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [availableSearchTypes, setAvailableSearchTypes] = useState([{ value: "2", label: "Search Videos" }])
   const [showExtensionSwitcher, setShowExtensionSwitcher] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
   const [selectedExtension, setSelectedExtension] = useState("eporner")
   const [availableExtensions] = useState([
     { id: "none", name: "None", flag: null },
@@ -50,6 +50,16 @@ export default function VideosPage() {
   const { isLiked, toggleLike } = useLikedSongs()
   const { addToDownloads } = useDownloads()
   const { addToPlaylist } = usePlaylist()
+
+  const videoSections = [
+    { title: "Home", videos: videos.slice(0, 6) },
+    { title: "Latest Videos 2", videos: videos.slice(6, 12) },
+    { title: "Latest 4", videos: videos.slice(12, 18) },
+    { title: "Adult Time", videos: videos.slice(18, 24) },
+    { title: "Couples", videos: videos.slice(24, 30) },
+    { title: "Main Page", videos: videos.slice(30, 36) },
+    { title: "Latest Videos", videos: videos.slice(36, 42) },
+  ]
 
   useEffect(() => {
     const initializePlugins = async () => {
@@ -80,7 +90,7 @@ export default function VideosPage() {
         query,
         type,
         page,
-        perPage: 20,
+        perPage: 50, // Increased to populate multiple sections
       })
 
       if (result.error) {
@@ -102,12 +112,7 @@ export default function VideosPage() {
     e.preventDefault()
     setCurrentPage(1)
     fetchVideos(searchQuery, searchType, 1)
-  }
-
-  const handleLoadMore = () => {
-    const nextPage = currentPage + 1
-    setCurrentPage(nextPage)
-    fetchVideos(searchQuery, searchType, nextPage)
+    setShowSearch(false)
   }
 
   const handleExtensionSelect = (extensionId: string) => {
@@ -145,18 +150,6 @@ export default function VideosPage() {
     toggleLike(track)
   }
 
-  const handleDownload = (video: VideoSource) => {
-    const track = {
-      id: `${video.source}_${video.id}`,
-      title: video.title,
-      artist: "Adult Video",
-      thumbnail: video.thumbnail,
-      duration: video.duration,
-      audioUrl: video.url,
-    }
-    addToDownloads(track)
-  }
-
   const convertVideoToSong = (video: VideoSource) => ({
     id: `${video.source}_${video.id}`,
     title: video.title,
@@ -170,59 +163,70 @@ export default function VideosPage() {
   const selectedExtensionName = availableExtensions.find((ext) => ext.id === selectedExtension)?.name || "Eporner"
 
   return (
-    <div className="min-h-screen bg-zinc-900 text-white pb-20">
-      <div className="sticky top-0 bg-zinc-900/95 backdrop-blur-sm border-b border-zinc-800 z-40">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">Adult Videos</h1>
-            <div className="flex items-center gap-2 text-sm text-zinc-400">
-              <Settings className="w-4 h-4" />
-              <span>{videoPluginManager.getEnabledPlugins().length} plugins active</span>
-            </div>
-          </div>
-
-          <div className="mb-4">
+    <div className="min-h-screen bg-black text-white pb-20">
+      <div className="sticky top-0 bg-black/95 backdrop-blur-sm z-40">
+        <div className="flex items-center justify-between p-4">
+          <h1 className="text-xl font-medium">Videos</h1>
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={() => setShowSearch(true)}
+              size="sm"
+              variant="ghost"
+              className="p-2 h-10 w-10 text-white hover:bg-zinc-800"
+            >
+              <Search className="w-5 h-5" />
+            </Button>
             <Button
               onClick={() => setShowExtensionSwitcher(true)}
-              className="bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-600 w-full justify-between"
+              size="sm"
+              variant="ghost"
+              className="p-2 h-10 w-10 text-white hover:bg-zinc-800"
             >
-              <span>Extension: {selectedExtensionName}</span>
-              <ChevronDown className="w-4 h-4" />
+              <Settings className="w-5 h-5" />
             </Button>
           </div>
-
-          <form onSubmit={handleSearch} className="space-y-3">
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Input
-                  type="text"
-                  placeholder="Search videos..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-zinc-800 border-zinc-700 text-white"
-                />
-              </div>
-              <Button type="submit" className="bg-orange-500 hover:bg-orange-600">
-                <Search className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <Select value={searchType} onValueChange={setSearchType}>
-              <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-zinc-800 border-zinc-700">
-                {availableSearchTypes.map((type) => (
-                  <SelectItem key={type.value} value={type.value} className="text-white">
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </form>
         </div>
       </div>
 
+      {showSearch && (
+        <div className="fixed inset-0 bg-black/90 z-50 flex items-start justify-center pt-20">
+          <div className="bg-zinc-900 rounded-lg w-full max-w-md mx-4 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Search Videos</h2>
+              <Button onClick={() => setShowSearch(false)} size="sm" variant="ghost" className="p-1 h-8 w-8">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            <form onSubmit={handleSearch} className="space-y-3">
+              <Input
+                type="text"
+                placeholder="Search videos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-zinc-800 border-zinc-700 text-white"
+                autoFocus
+              />
+              <Select value={searchType} onValueChange={setSearchType}>
+                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-800 border-zinc-700">
+                  {availableSearchTypes.map((type) => (
+                    <SelectItem key={type.value} value={type.value} className="text-white">
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="submit" className="bg-orange-500 hover:bg-orange-600 w-full">
+                Search
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Extension switcher modal - unchanged */}
       {showExtensionSwitcher && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden">
@@ -260,94 +264,62 @@ export default function VideosPage() {
         </div>
       )}
 
-      <div className="p-4">
-        {error && (
-          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-4">
-            <p className="text-red-200">{error}</p>
-          </div>
-        )}
-
+      <div className="space-y-6">
         {loading && videos.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
           </div>
+        ) : error ? (
+          <div className="p-4">
+            <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
+              <p className="text-red-200">{error}</p>
+            </div>
+          </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {videos.map((video) => (
-                <div key={`${video.source}_${video.id}`} className="bg-zinc-800 rounded-lg overflow-hidden group">
-                  <div className="relative aspect-video">
-                    <img
-                      src={video.thumbnail || "/placeholder.svg"}
-                      alt={video.title}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = "/video-thumbnail.png"
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Button
-                        onClick={() => handleVideoClick(video)}
-                        className="bg-orange-500 hover:bg-orange-600 rounded-full w-12 h-12"
-                      >
-                        <Play className="w-6 h-6" />
-                      </Button>
-                    </div>
-                    <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-                      {video.duration}m
-                    </div>
-                    <div className="absolute top-2 left-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-                      {video.source}
-                    </div>
+          videoSections.map(
+            (section, sectionIndex) =>
+              section.videos.length > 0 && (
+                <div key={section.title} className="space-y-3">
+                  <div className="flex items-center justify-between px-4">
+                    <h2 className="text-xl font-medium text-white">{section.title}</h2>
+                    <ChevronRight className="w-5 h-5 text-zinc-400" />
                   </div>
-
-                  <div className="p-3">
-                    <h3 className="font-medium text-sm line-clamp-2 mb-2">{video.title}</h3>
-                    <div className="flex items-center justify-between text-xs text-zinc-400 mb-3">
-                      <span>{video.views.toLocaleString()} views</span>
-                      <span>★ {video.rating.toFixed(1)}</span>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <Button
-                        onClick={() => handleLike(video)}
-                        size="sm"
-                        variant="ghost"
-                        className={`p-1 h-8 w-8 ${isLiked(`${video.source}_${video.id}`) ? "text-red-500" : "text-zinc-400"}`}
-                      >
-                        <Heart className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        onClick={() => handleDownload(video)}
-                        size="sm"
-                        variant="ghost"
-                        className="p-1 h-8 w-8 text-zinc-400"
-                      >
-                        <Download className="w-4 h-4" />
-                      </Button>
-                      <AddToPlaylistDialog
-                        songs={[convertVideoToSong(video)]}
-                        navigateToPlaylist={true}
-                        trigger={
-                          <Button size="sm" variant="ghost" className="p-1 h-8 w-8 text-zinc-400 hover:text-white">
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        }
-                      />
+                  <div className="overflow-x-auto scrollbar-hide">
+                    <div className="flex gap-3 px-4 pb-2" style={{ width: "max-content" }}>
+                      {section.videos.map((video, index) => (
+                        <div
+                          key={`${video.source}_${video.id}_${sectionIndex}_${index}`}
+                          className="flex-shrink-0 w-48"
+                        >
+                          <div className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer">
+                            <img
+                              src={video.thumbnail || "/placeholder.svg"}
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "/video-thumbnail.png"
+                              }}
+                              onClick={() => handleVideoClick(video)}
+                            />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <div className="bg-white/20 rounded-full p-2">
+                                <Play className="w-6 h-6 text-white" />
+                              </div>
+                            </div>
+                            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+                              {video.duration}m
+                            </div>
+                          </div>
+                          <div className="mt-2 space-y-1">
+                            <h3 className="text-sm font-medium text-white line-clamp-2 leading-tight">{video.title}</h3>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {hasNextPage && (
-              <div className="flex justify-center mt-8">
-                <Button onClick={handleLoadMore} disabled={loading} className="bg-orange-500 hover:bg-orange-600">
-                  {loading ? "Loading..." : "Load More"}
-                </Button>
-              </div>
-            )}
-          </>
+              ),
+          )
         )}
       </div>
 
