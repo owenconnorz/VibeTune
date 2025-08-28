@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { fetchTrendingMusic, searchMusic, type Song } from "@/lib/music-data"
-import { musicCache, getCacheKey } from "@/lib/music-cache"
+import { fetchTrendingMusic, searchMusic, type Song } from "../lib/music-data"
+import { musicCache, getCacheKey } from "../lib/music-cache"
 
 const MINIMAL_FALLBACK_SONGS: Song[] = [
   {

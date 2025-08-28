@@ -1,6 +1,18 @@
 "use client"
 import { useEffect, useState, useCallback, useMemo } from "react"
-import { ArrowLeft, User, Globe, Play, HardDrive, Shield, RefreshCw, Info, Palette, ChevronRight } from "lucide-react"
+import {
+  ArrowLeft,
+  User,
+  Globe,
+  Play,
+  HardDrive,
+  Shield,
+  RefreshCw,
+  Info,
+  Palette,
+  ChevronRight,
+  Puzzle,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
@@ -43,6 +55,12 @@ export default function SettingsPage() {
         title: "Content",
         icon: Globe,
         description: "YouTube import and sync settings",
+      },
+      {
+        id: "extensions",
+        title: "Extensions",
+        icon: Puzzle,
+        description: "Manage video plugins and repositories",
       },
       {
         id: "player",
