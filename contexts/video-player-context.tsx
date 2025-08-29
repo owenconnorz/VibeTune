@@ -111,6 +111,15 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
 
       muxPlayer.setAttribute("src", video.videoUrl)
 
+      muxPlayer.classList.remove("hidden")
+      muxPlayer.style.position = "fixed"
+      muxPlayer.style.top = "0"
+      muxPlayer.style.left = "0"
+      muxPlayer.style.width = "100vw"
+      muxPlayer.style.height = "100vh"
+      muxPlayer.style.zIndex = "9999"
+      muxPlayer.style.backgroundColor = "black"
+
       switch (renderQuality) {
         case "ultra":
           muxPlayer.style.filter = "contrast(1.1) saturate(1.1) brightness(1.05)"
@@ -133,6 +142,8 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
         muxPlayer.style.transform = "translateZ(0)"
         muxPlayer.setAttribute("debug", "false")
       }
+
+      muxPlayer.setAttribute("controls", "true")
 
       try {
         await muxPlayer.play()
@@ -169,6 +180,16 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
       videoRef.current.currentTime = 0
       setIsPlaying(false)
       setCurrentTime(0)
+
+      videoRef.current.classList.add("hidden")
+      videoRef.current.style.position = ""
+      videoRef.current.style.top = ""
+      videoRef.current.style.left = ""
+      videoRef.current.style.width = ""
+      videoRef.current.style.height = ""
+      videoRef.current.style.zIndex = ""
+      videoRef.current.style.backgroundColor = ""
+      videoRef.current.setAttribute("controls", "false")
     }
     setOptimizeForVideo(false)
   }

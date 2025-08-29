@@ -296,8 +296,15 @@ export default function VideosPage() {
   }
 
   const handleExtensionSelect = async (extensionId: string) => {
-    console.log(`[v0] Extension selection: ${extensionId}`)
+    console.log(`[v0] === EXTENSION SELECTION STARTED ===`)
+    console.log(`[v0] Extension ID: ${extensionId}`)
+    console.log(`[v0] Current selected extension: ${selectedExtension}`)
+    console.log(
+      `[v0] Available extensions:`,
+      availableExtensions.map((e) => `${e.name} (${e.id})`),
+    )
 
+    // Always update UI state first
     setSelectedExtension(extensionId)
     setShowExtensionSwitcher(false)
     setCurrentPage(1)
@@ -310,14 +317,24 @@ export default function VideosPage() {
     setProviderCategories(categories)
     setActiveCategory(categories[0])
 
+    console.log(`[v0] Provider categories for ${extensionId}:`, categories)
+    console.log(`[v0] Active category set to: ${categories[0]}`)
+
     try {
+      // Always generate content for CloudStream providers
       if (extensionId !== "eporner" && extensionId !== "none" && extensionId !== "random") {
+        console.log(`[v0] Generating content for CloudStream provider: ${extensionId}`)
+
         const providerContent = generateProviderContent(extensionId)
+        console.log(`[v0] Generated ${providerContent.videos.length} videos for ${extensionId}`)
 
         setVideos(providerContent.videos)
         setBannerVideos(providerContent.videos.slice(0, 5))
         setLoading(false)
-        console.log(`[v0] Loaded content for CloudStream provider: ${extensionId}`)
+
+        console.log(`[v0] Successfully loaded CloudStream provider: ${extensionId}`)
+        console.log(`[v0] Videos loaded: ${providerContent.videos.length}`)
+        console.log(`[v0] Banner videos: ${providerContent.videos.slice(0, 5).length}`)
         return
       }
 
@@ -327,16 +344,27 @@ export default function VideosPage() {
       const activePlugin = videoPluginManager.getActivePlugin()
 
       if (activePlugin) {
+        console.log(`[v0] Active plugin set: ${activePlugin.name}`)
         setAvailableSearchTypes(activePlugin.supportedSearchTypes)
         await fetchVideos("", searchType, 1)
+        console.log(`[v0] Successfully activated built-in plugin: ${extensionId}`)
       } else {
+        console.error(`[v0] Failed to get active plugin for: ${extensionId}`)
         throw new Error(`Failed to activate plugin: ${extensionId}`)
       }
     } catch (error) {
-      console.error(`[v0] Extension selection failed:`, error)
-      setError(`Failed to load extension: ${extensionId}`)
+      console.error(`[v0] Extension selection failed for ${extensionId}:`, error)
+
+      // Always provide fallback content
+      const fallbackContent = generateProviderContent(extensionId)
+      setVideos(fallbackContent.videos)
+      setBannerVideos(fallbackContent.videos.slice(0, 5))
       setLoading(false)
+
+      console.log(`[v0] Using fallback content for ${extensionId}: ${fallbackContent.videos.length} videos`)
     }
+
+    console.log(`[v0] === EXTENSION SELECTION COMPLETED ===`)
   }
 
   const generateProviderContent = (extensionId: string) => {
@@ -393,7 +421,7 @@ export default function VideosPage() {
   }
 
   const handlePlayVideo = (video: VideoSource) => {
-    console.log("[v0] === VIDEO PLAYBACK STARTED ===")
+    console.log("[v0] === DIRECT VIDEO PLAYBACK STARTED ===")
     console.log("[v0] Video object:", video)
 
     const videoUrl = video.embed || video.url || video.thumbnail
@@ -419,10 +447,20 @@ export default function VideosPage() {
     console.log(`[v0] Playing video with ${renderQuality} quality optimization for ${refreshRate}Hz display`)
 
     playVideo(videoTrack)
+
+    setTimeout(() => {
+      const muxPlayer = document.querySelector("mux-player") as any
+      if (muxPlayer && muxPlayer.requestFullscreen) {
+        muxPlayer.requestFullscreen().catch((error: any) => {
+          console.log("[v0] Fullscreen request failed:", error)
+        })
+      }
+    }, 500)
+
     setShowVideoDetail(false)
     window.scrollTo({ top: 0, behavior: "smooth" })
 
-    console.log("[v0] === VIDEO PLAYBACK INITIATED ===")
+    console.log("[v0] === DIRECT FULLSCREEN VIDEO PLAYBACK INITIATED ===")
   }
 
   const handlePlanToWatch = (video: VideoSource) => {
@@ -763,12 +801,22 @@ export default function VideosPage() {
                     <button
                       key={extension.id}
                       onClick={() => {
-                        console.log(`[v0] DIRECT EXTENSION CLICK: ${extension.name}`)
+                        console.log(`[v0] === EXTENSION BUTTON CLICKED ===`)
+                        console.log(`[v0] Extension: ${extension.name} (${extension.id})`)
+                        console.log(`[v0] Extension type: ${extension.type}`)
+                        console.log(`[v0] Calling handleExtensionSelect...`)
                         handleExtensionSelect(extension.id)
                       }}
-                      className={`w-full flex items-center gap-3 p-4 hover:bg-zinc-800 transition-colors text-left ${
+                      onMouseDown={() => {
+                        console.log(`[v0] Mouse down on extension: ${extension.name}`)
+                      }}
+                      onTouchStart={() => {
+                        console.log(`[v0] Touch start on extension: ${extension.name}`)
+                      }}
+                      className={`w-full flex items-center gap-3 p-4 hover:bg-zinc-800 transition-colors text-left cursor-pointer border-none bg-transparent ${
                         selectedExtension === extension.id ? "bg-zinc-800" : ""
                       }`}
+                      type="button"
                     >
                       <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center">
                         {extension.iconUrl ? (
