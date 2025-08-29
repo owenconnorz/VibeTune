@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { AudioPlayerProvider } from "@/contexts/audio-player-context"
+import { VideoPlayerProvider } from "@/contexts/video-player-context"
 import { AuthProvider } from "@/contexts/auth-context"
 import { SyncProvider } from "@/contexts/sync-context"
 import { ThemeProvider } from "@/contexts/theme-context"
@@ -48,23 +49,25 @@ const CombinedProviders = ({ children }: { children: React.ReactNode }) => (
     <SyncProvider>
       <ListeningHistoryProvider>
         <AudioPlayerProvider>
-          <PlaylistProvider>
-            <LikedSongsProvider>
-              <DownloadProvider>
-                <ThemeProvider>
-                  <RefreshProvider>
-                    <UpdateProvider>
-                      <SettingsProvider>
-                        <DiscordRPCIntegration />
-                        <AgeVerificationModal />
-                        {children}
-                      </SettingsProvider>
-                    </UpdateProvider>
-                  </RefreshProvider>
-                </ThemeProvider>
-              </DownloadProvider>
-            </LikedSongsProvider>
-          </PlaylistProvider>
+          <VideoPlayerProvider>
+            <PlaylistProvider>
+              <LikedSongsProvider>
+                <DownloadProvider>
+                  <ThemeProvider>
+                    <RefreshProvider>
+                      <UpdateProvider>
+                        <SettingsProvider>
+                          <DiscordRPCIntegration />
+                          <AgeVerificationModal />
+                          {children}
+                        </SettingsProvider>
+                      </UpdateProvider>
+                    </RefreshProvider>
+                  </ThemeProvider>
+                </DownloadProvider>
+              </LikedSongsProvider>
+            </PlaylistProvider>
+          </VideoPlayerProvider>
         </AudioPlayerProvider>
       </ListeningHistoryProvider>
     </SyncProvider>

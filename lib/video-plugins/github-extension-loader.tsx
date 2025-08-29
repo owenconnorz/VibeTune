@@ -99,9 +99,13 @@ class GitHubExtensionLoader {
 
         const response = await fetch(url, {
           headers: {
-            Accept: "application/vnd.github.v3+json",
-            "User-Agent": "VibeTune-Extension-Loader/1.0",
+            Accept: "application/vnd.github.v3+json, application/json, text/plain, */*",
+            "User-Agent": "OpenTune-CloudStream-Loader/1.0",
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
           },
+          mode: "cors",
+          credentials: "omit",
         })
 
         if (response.status === 403) {
@@ -121,6 +125,19 @@ class GitHubExtensionLoader {
       } catch (error) {
         lastError = error as Error
         console.warn(`[v0] Attempt ${attempt + 1} failed:`, error)
+
+        if (attempt === 0 && url.includes("api.github.com")) {
+          const proxyUrl = url.replace("https://api.github.com", "/proxy/github")
+          console.log(`[v0] Trying proxy route: ${proxyUrl}`)
+          try {
+            const proxyResponse = await fetch(proxyUrl)
+            if (proxyResponse.ok) {
+              return proxyResponse
+            }
+          } catch (proxyError) {
+            console.warn(`[v0] Proxy request also failed:`, proxyError)
+          }
+        }
 
         if (attempt < maxRetries - 1) {
           const delay = Math.pow(2, attempt) * 1000
@@ -922,44 +939,6 @@ if (typeof module !== 'undefined' && module.exports) {
       return Number.parseInt(parts[0]) * 60 + Number.parseInt(parts[1])
     }
     return Number.parseInt(duration.toString()) || 0
-  }
-
-  private generateFallbackResults(extension: GitHubExtension, options: any): any {
-    const mockVideos = []
-    const videoCount = Math.floor(Math.random() * 20) + 10
-
-    for (let i = 0; i < videoCount; i++) {
-      mockVideos.push({
-        id: `${extension.id}_video_${i}`,
-        title: `${options.query || "Video"} ${i + 1} from ${extension.name}`,
-        description: `Video content from ${extension.name} provider`,
-        thumbnailUrl: "/video-thumbnail.png",
-        duration: `${Math.floor(Math.random() * 60) + 5}:${Math.floor(Math.random() * 60)
-          .toString()
-          .padStart(2, "0")}`,
-        durationSeconds: Math.floor(Math.random() * 3600) + 300,
-        viewCount: Math.floor(Math.random() * 1000000),
-        uploadDate: new Date().toISOString(),
-        author: extension.author,
-        url: `https://example.com/video/${i}`,
-        embed: `https://example.com/embed/${i}`,
-        thumbnail: "/video-thumbnail.png",
-        views: Math.floor(Math.random() * 1000000),
-        rating: Math.floor(Math.random() * 5) + 1,
-        added: new Date().toISOString().split("T")[0],
-        keywords: `${extension.name.toLowerCase()}, ${options.query || "video"}`,
-        source: extension.name.toLowerCase().replace(/[^a-z0-9]/g, ""),
-        quality: ["720p", "1080p"],
-        tags: [extension.name.toLowerCase(), "video"],
-      })
-    }
-
-    return {
-      videos: mockVideos,
-      totalCount: mockVideos.length,
-      currentPage: options.page || 1,
-      hasNextPage: false,
-    }
   }
 
   private async executeExtensionVideoUrl(code: string, videoId: string): Promise<string> {

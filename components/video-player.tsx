@@ -1,201 +1,123 @@
 "use client"
-import { X, Plus, Play, ExternalLink, Pause } from "lucide-react"
+import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, SkipBack, SkipForward } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useEffect, useRef, useState } from "react"
+import { Slider } from "@/components/ui/slider"
+import { useVideoPlayer } from "@/contexts/video-player-context"
 
-interface Video {
-  id: string
-  title: string
-  url: string
-  embed?: string // Added embed URL for iframe playback
-  thumb: string
-  sources?: { [quality: string]: string }
-}
+export function VideoPlayer() {
+  const {
+    currentVideo,
+    isPlaying,
+    isLoading,
+    currentTime,
+    duration,
+    volume,
+    isMuted,
+    isFullscreen,
+    pauseVideo,
+    resumeVideo,
+    seekTo,
+    setVolume,
+    toggleMute,
+    toggleFullscreen,
+  } = useVideoPlayer()
 
-interface VideoPlayerProps {
-  video: Video | null
-  onClose: () => void
-  onAddToPlaylist: (video: Video) => void
-}
+  if (!currentVideo) return null
 
-export function VideoPlayer({ video, onClose, onAddToPlaylist }: VideoPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [hasError, setHasError] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [useIframe, setUseIframe] = useState(false) // Added iframe mode toggle
-
-  useEffect(() => {
-    if (video) {
-      setIsLoading(true)
-      setHasError(false)
-      setIsPlaying(false)
-
-      if (video.embed) {
-        setUseIframe(true)
-        setIsLoading(false)
-        return
-      }
-
-      if (videoRef.current) {
-        const videoElement = videoRef.current
-        videoElement.innerHTML = ""
-
-        if (video.sources) {
-          Object.entries(video.sources).forEach(([quality, url]) => {
-            const source = document.createElement("source")
-            source.src = url
-            source.type = "video/mp4"
-            videoElement.appendChild(source)
-          })
-        } else {
-          const source = document.createElement("source")
-          source.src = video.url
-          source.type = "video/mp4"
-          videoElement.appendChild(source)
-        }
-
-        videoElement.load()
-
-        const handleLoadStart = () => setIsLoading(true)
-        const handleCanPlay = () => setIsLoading(false)
-        const handleError = () => {
-          setHasError(true)
-          setIsLoading(false)
-          if (video.embed) {
-            setUseIframe(true)
-            setHasError(false)
-          }
-        }
-        const handlePlay = () => setIsPlaying(true)
-        const handlePause = () => setIsPlaying(false)
-
-        videoElement.addEventListener("loadstart", handleLoadStart)
-        videoElement.addEventListener("canplay", handleCanPlay)
-        videoElement.addEventListener("error", handleError)
-        videoElement.addEventListener("play", handlePlay)
-        videoElement.addEventListener("pause", handlePause)
-
-        return () => {
-          videoElement.removeEventListener("loadstart", handleLoadStart)
-          videoElement.removeEventListener("canplay", handleCanPlay)
-          videoElement.removeEventListener("error", handleError)
-          videoElement.removeEventListener("play", handlePlay)
-          videoElement.removeEventListener("pause", handlePause)
-        }
-      }
-    }
-  }, [video])
-
-  if (!video) return null
-
-  const handlePlayVideo = () => {
-    if (useIframe || hasError) {
-      const embedUrl = video.embed || video.url
-      window.open(embedUrl, "_blank", "width=1200,height=800,scrollbars=yes,resizable=yes")
-    } else if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause()
-      } else {
-        videoRef.current.play().catch(() => {
-          if (video.embed) {
-            setUseIframe(true)
-            setHasError(false)
-          } else {
-            window.open(video.url, "_blank")
-          }
-        })
-      }
-    }
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60)
+    const seconds = Math.floor(time % 60)
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`
   }
 
-  const handleWatchInBrowser = () => {
-    const watchUrl = video.embed || video.url
-    window.open(watchUrl, "_blank", "width=1200,height=800,scrollbars=yes,resizable=yes")
+  const handleSeek = (value: number[]) => {
+    seekTo(value[0])
+  }
+
+  const handleVolumeChange = (value: number[]) => {
+    setVolume(value[0] / 100)
+  }
+
+  const skipTime = (seconds: number) => {
+    const newTime = Math.max(0, Math.min(duration, currentTime + seconds))
+    seekTo(newTime)
   }
 
   return (
-    <div className="fixed inset-0 bg-black/95 z-50 flex flex-col">
-      <div className="flex justify-between items-center p-4 bg-gray-900/50">
-        <h3 className="text-white font-medium text-lg flex-1 pr-4 leading-tight">{video.title}</h3>
-        <Button onClick={onClose} size="sm" variant="ghost" className="text-white hover:bg-white/20">
-          <X className="w-6 h-6" />
-        </Button>
-      </div>
-
-      <div className="flex-1 flex items-center justify-center p-4">
-        {!isLoading && useIframe && video.embed && (
-          <div className="w-full max-w-4xl aspect-video">
-            <iframe
-              ref={iframeRef}
-              src={video.embed}
-              className="w-full h-full rounded-lg"
-              frameBorder="0"
-              allowFullScreen
-              allow="autoplay; encrypted-media; picture-in-picture"
-              title={video.title}
-            />
-          </div>
-        )}
-
-        {!isLoading && !useIframe && !hasError && (
-          <div className="w-full max-w-4xl aspect-video">
-            <video
-              ref={videoRef}
-              className="w-full h-full rounded-lg bg-black"
-              controls
-              poster={video.thumb}
-              preload="metadata"
-            />
-          </div>
-        )}
-
-        {hasError && !useIframe && (
-          <div className="text-center text-white">
-            <p className="mb-4">Unable to load video player</p>
-            <Button onClick={handleWatchInBrowser} className="bg-orange-500 hover:bg-orange-600">
-              <ExternalLink className="w-5 h-5 mr-2" />
-              Watch in Browser
-            </Button>
-          </div>
-        )}
-      </div>
-
-      <div className="p-4 bg-gray-900/50">
-        <div className="flex flex-wrap gap-3 justify-center max-w-md mx-auto">
-          <Button
-            onClick={handlePlayVideo}
-            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2"
-          >
-            {useIframe ? (
-              <>
-                <ExternalLink className="w-5 h-5 mr-2" />
-                Open Player
-              </>
+    <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-zinc-800 z-50">
+      <div className="flex items-center gap-4 p-4">
+        {/* Video info */}
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-12 h-12 bg-zinc-800 rounded overflow-hidden flex-shrink-0">
+            {currentVideo.thumbnail ? (
+              <img
+                src={currentVideo.thumbnail || "/placeholder.svg"}
+                alt={currentVideo.title}
+                className="w-full h-full object-cover"
+              />
             ) : (
-              <>
-                {isPlaying ? <Pause className="w-5 h-5 mr-2" /> : <Play className="w-5 h-5 mr-2" />}
-                {isPlaying ? "Pause" : "Play"}
-              </>
+              <div className="w-full h-full flex items-center justify-center">
+                <Play className="w-6 h-6 text-zinc-400" />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-white text-sm font-medium truncate">{currentVideo.title}</h4>
+            <p className="text-zinc-400 text-xs truncate">{currentVideo.artist || "Video"}</p>
+          </div>
+        </div>
+
+        {/* Playback controls */}
+        <div className="flex items-center gap-2">
+          <Button onClick={() => skipTime(-10)} size="sm" variant="ghost" className="text-white hover:bg-zinc-800 p-2">
+            <SkipBack className="w-4 h-4" />
+          </Button>
+
+          <Button
+            onClick={isPlaying ? pauseVideo : resumeVideo}
+            size="sm"
+            className="bg-white text-black hover:bg-zinc-200 w-10 h-10 rounded-full p-0"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
+            ) : isPlaying ? (
+              <Pause className="w-4 h-4" />
+            ) : (
+              <Play className="w-4 h-4" />
             )}
           </Button>
 
-          <Button
-            onClick={handleWatchInBrowser}
-            variant="outline"
-            className="border-gray-600 text-white hover:bg-gray-700 bg-transparent px-6 py-2"
-          >
-            <ExternalLink className="w-5 h-5 mr-2" />
-            Browser
+          <Button onClick={() => skipTime(10)} size="sm" variant="ghost" className="text-white hover:bg-zinc-800 p-2">
+            <SkipForward className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Progress bar */}
+        <div className="flex items-center gap-2 flex-1 max-w-md">
+          <span className="text-xs text-zinc-400 w-10 text-right">{formatTime(currentTime)}</span>
+          <Slider value={[currentTime]} max={duration || 100} step={1} onValueChange={handleSeek} className="flex-1" />
+          <span className="text-xs text-zinc-400 w-10">{formatTime(duration)}</span>
+        </div>
+
+        {/* Volume and fullscreen controls */}
+        <div className="flex items-center gap-2">
+          <Button onClick={toggleMute} size="sm" variant="ghost" className="text-white hover:bg-zinc-800 p-2">
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </Button>
 
-          <Button
-            onClick={() => onAddToPlaylist(video)}
-            className="bg-gray-700 hover:bg-gray-600 text-orange-500 px-6 py-2"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Playlist
+          <div className="flex items-center gap-2 w-20">
+            <Slider
+              value={[isMuted ? 0 : volume * 100]}
+              max={100}
+              step={1}
+              onValueChange={handleVolumeChange}
+              className="flex-1"
+            />
+          </div>
+
+          <Button onClick={toggleFullscreen} size="sm" variant="ghost" className="text-white hover:bg-zinc-800 p-2">
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
           </Button>
         </div>
       </div>

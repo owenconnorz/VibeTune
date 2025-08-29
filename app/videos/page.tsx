@@ -6,11 +6,11 @@ import { Search, Play, Settings, X, ChevronRight, Bookmark, Info, ArrowLeft } fr
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useAudioPlayer } from "@/contexts/audio-player-context"
+import { useVideoPlayer } from "@/contexts/video-player-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { usePlaylist } from "@/contexts/playlist-context"
 import { useDownloads } from "@/contexts/download-context"
-import { AudioPlayer } from "@/components/audio-player"
+import { VideoPlayer } from "@/components/video-player"
 import { videoPluginManager } from "@/lib/video-plugins/plugin-manager"
 import { EpornerPlugin } from "@/lib/video-plugins/eporner-plugin"
 import type { VideoSource, SearchResult } from "@/lib/video-plugins/plugin-interface"
@@ -45,7 +45,7 @@ export default function VideosPage() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
   const [bannerVideos, setBannerVideos] = useState<VideoSource[]>([])
 
-  const { playTrack } = useAudioPlayer()
+  const { playVideo } = useVideoPlayer()
   const { isLiked, toggleLike } = useLikedSongs()
   const { addToDownloads } = useDownloads()
   const { addToPlaylist } = usePlaylist()
@@ -384,15 +384,6 @@ export default function VideosPage() {
   const handlePlayVideo = (video: VideoSource) => {
     console.log("[v0] === VIDEO PLAYBACK STARTED ===")
     console.log("[v0] Video object:", video)
-    console.log("[v0] Video properties:", {
-      id: video.id,
-      title: video.title,
-      url: video.url,
-      embed: video.embed,
-      source: video.source,
-      thumbnail: video.thumbnail,
-      duration: video.duration,
-    })
 
     const videoUrl = video.embed || video.url || video.thumbnail
     console.log("[v0] Extracted video URL:", videoUrl)
@@ -403,23 +394,18 @@ export default function VideosPage() {
       return
     }
 
-    const track = {
+    const videoTrack = {
       id: `${video.source}_${video.id}`,
       title: video.title,
-      artist: "Adult Video",
+      artist: video.source || "Video",
       thumbnail: video.thumbnail,
       duration: video.duration,
-      audioUrl: videoUrl,
       videoUrl: videoUrl,
-      isVideo: true,
       source: video.source,
     }
 
-    console.log("[v0] Track object for playback:", track)
-    console.log("[v0] Playing video from plugin:", track.title, "source:", video.source)
-    console.log("[v0] Video URL being passed:", videoUrl)
-
-    playTrack(track)
+    console.log("[v0] Video track for playback:", videoTrack)
+    playVideo(videoTrack)
     setShowVideoDetail(false)
     window.scrollTo({ top: 0, behavior: "smooth" })
 
@@ -430,7 +416,7 @@ export default function VideosPage() {
     const track = {
       id: `${video.source}_${video.id}`,
       title: video.title,
-      artist: "Adult Video",
+      artist: video.source || "Video",
       thumbnail: video.thumbnail,
       duration: video.duration,
     }
@@ -864,7 +850,7 @@ export default function VideosPage() {
         </>
       )}
 
-      <AudioPlayer />
+      <VideoPlayer />
     </div>
   )
 }
