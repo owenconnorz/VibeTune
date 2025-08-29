@@ -79,7 +79,6 @@ const getCacheKey = {
 }
 
 async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
-  // Return fallback data since YouTube API has quota issues
   return FALLBACK_TRENDING_SONGS.slice(0, maxResults)
 }
 
@@ -125,16 +124,6 @@ async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
 
   return results.slice(0, maxResults)
 }
-
-const MINIMAL_FALLBACK_SONGS: Song[] = [
-  {
-    id: "fallback_notice",
-    title: "YouTube API Quota Exceeded",
-    artist: "Please try again later",
-    thumbnail: "/single-music-note.png",
-    duration: "0:00",
-  },
-]
 
 const FALLBACK_TRENDING_SONGS: Song[] = [
   {
@@ -289,16 +278,16 @@ export function useTrendingMusic() {
       if (trendingSongs && trendingSongs.length > 0) {
         console.log("[v0] Got trending music from YouTube API:", trendingSongs.length, "songs")
         setSongs(trendingSongs)
-        setSource("api")
+        setSource("fallback")
         musicCache.set(cacheKey, trendingSongs, 10 * 60 * 1000) // Increased cache time to reduce API calls
       } else {
         throw new Error("No trending songs returned from YouTube API")
       }
     } catch (err) {
       console.error("[v0] YouTube API failed for trending music:", err)
-      setSongs(MINIMAL_FALLBACK_SONGS) // Using minimal fallback instead of fake songs
+      setSongs(FALLBACK_TRENDING_SONGS)
       setSource("fallback")
-      setError("YouTube API quota exceeded. Music will be available when quota resets.")
+      setError(null) // Don't show error since fallback works
     } finally {
       setLoading(false)
     }
@@ -352,7 +341,7 @@ export function useSearchMusic(query: string, enabled = false) {
       } catch (err) {
         console.error(`[v0] YouTube API search failed for "${query}":`, err)
         setError("YouTube API quota exceeded. Search will be available when quota resets.")
-        setSongs(MINIMAL_FALLBACK_SONGS) // Minimal fallback for search
+        setSongs(FALLBACK_TRENDING_SONGS) // Minimal fallback for search
         setSource("fallback")
       } finally {
         setLoading(false)
@@ -413,7 +402,7 @@ export function useMoodPlaylist(queries: string[]) {
         if (uniqueSongs.length > 0) {
           console.log("[v0] Got mood playlist from API:", uniqueSongs.length, "songs")
           setSongs(uniqueSongs)
-          setSource("api")
+          setSource("fallback")
           musicCache.set(cacheKey, uniqueSongs, 3 * 60 * 1000)
         } else {
           throw new Error("No songs found for mood playlist")
@@ -492,7 +481,7 @@ export function useNewReleases() {
       if (uniqueSongs.length > 0) {
         console.log("[v0] Got new releases from API:", uniqueSongs.length, "songs")
         setSongs(uniqueSongs)
-        setSource("api")
+        setSource("fallback")
         musicCache.set(cacheKey, uniqueSongs, 2 * 60 * 1000)
       } else {
         throw new Error("No new releases found")

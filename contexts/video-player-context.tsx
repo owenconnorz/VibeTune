@@ -101,6 +101,7 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
 
   const playVideo = async (video: VideoTrack) => {
     console.log("[v0] Mux Player: Playing video:", video.title)
+    console.log("[v0] Mux Player: Video URL:", video.videoUrl)
     setCurrentVideo(video)
     setIsLoading(true)
 
@@ -110,7 +111,39 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
     if (videoRef.current) {
       const muxPlayer = videoRef.current
 
-      muxPlayer.setAttribute("src", video.videoUrl)
+      let processedUrl = video.videoUrl
+
+      // Handle embedded links and various video formats
+      if (video.videoUrl.includes("embed") || video.videoUrl.includes("iframe")) {
+        console.log("[v0] Mux Player: Processing embedded link")
+        // Extract direct video URL from embedded links
+        if (video.videoUrl.includes("youtube.com/embed/")) {
+          const videoId = video.videoUrl.split("/embed/")[1].split("?")[0]
+          processedUrl = `https://www.youtube.com/watch?v=${videoId}`
+        } else if (video.videoUrl.includes("vimeo.com/video/")) {
+          const videoId = video.videoUrl.split("/video/")[1].split("?")[0]
+          processedUrl = `https://vimeo.com/${videoId}`
+        }
+      }
+
+      // Handle direct video file URLs
+      if (processedUrl.endsWith(".mp4") || processedUrl.endsWith(".webm") || processedUrl.endsWith(".ogg")) {
+        console.log("[v0] Mux Player: Direct video file detected")
+        muxPlayer.setAttribute("src", processedUrl)
+      } else if (processedUrl.includes("youtube.com") || processedUrl.includes("youtu.be")) {
+        console.log("[v0] Mux Player: YouTube URL detected, using as-is")
+        muxPlayer.setAttribute("src", processedUrl)
+      } else if (processedUrl.includes("vimeo.com")) {
+        console.log("[v0] Mux Player: Vimeo URL detected, using as-is")
+        muxPlayer.setAttribute("src", processedUrl)
+      } else {
+        console.log("[v0] Mux Player: Generic URL, attempting direct playback")
+        muxPlayer.setAttribute("src", processedUrl)
+      }
+
+      muxPlayer.setAttribute("crossorigin", "anonymous")
+      muxPlayer.setAttribute("referrerpolicy", "no-referrer-when-downgrade")
+      muxPlayer.setAttribute("allow", "autoplay; fullscreen; picture-in-picture")
 
       muxPlayer.classList.remove("hidden")
       muxPlayer.style.position = "fixed"
@@ -149,8 +182,21 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
       try {
         await muxPlayer.play()
         setIsPlaying(true)
+        console.log("[v0] Mux Player: Video playback started successfully")
       } catch (error) {
         console.error("[v0] Mux Player: Error playing video:", error)
+        console.log("[v0] Mux Player: Attempting fallback playback method")
+
+        try {
+          muxPlayer.setAttribute("autoplay", "true")
+          muxPlayer.setAttribute("muted", "true")
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+          await muxPlayer.play()
+          setIsPlaying(true)
+          console.log("[v0] Mux Player: Fallback playback successful")
+        } catch (fallbackError) {
+          console.error("[v0] Mux Player: Fallback playback also failed:", fallbackError)
+        }
       } finally {
         setIsLoading(false)
       }
@@ -235,6 +281,8 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
     muxPlayer.setAttribute("crossorigin", "anonymous")
     muxPlayer.setAttribute("disable-tracking", "true")
     muxPlayer.setAttribute("prefer-mse", "true")
+    muxPlayer.setAttribute("referrerpolicy", "no-referrer-when-downgrade")
+    muxPlayer.setAttribute("allow", "autoplay; fullscreen; picture-in-picture")
 
     muxPlayer.classList.add("video-optimized")
     if (optimizeForVideo) {

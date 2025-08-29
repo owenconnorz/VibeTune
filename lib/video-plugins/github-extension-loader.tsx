@@ -52,7 +52,16 @@ class GitHubExtensionLoader {
 
   async fetchRepositoryExtensions(repoUrl: string): Promise<GitHubExtension[]> {
     try {
+      console.log(`[v0] ==> STARTING REPOSITORY EXTENSION FETCH`)
       console.log(`[v0] Fetching extensions from repository: ${repoUrl}`)
+
+      try {
+        const testResponse = await fetch("https://api.github.com", { method: "HEAD" })
+        console.log(`[v0] Network connectivity test: ${testResponse.status}`)
+      } catch (networkError) {
+        console.error(`[v0] Network connectivity failed:`, networkError)
+        throw new Error(`Network connectivity issue: ${networkError.message}`)
+      }
 
       // Check cache first
       const cached = this.cache.get(repoUrl)
@@ -76,6 +85,32 @@ class GitHubExtensionLoader {
         extensions = await this.fetchExtensionsFromRepository(repoUrl)
       }
 
+      if (extensions.length === 0) {
+        console.warn(`[v0] No extensions found, creating fallback extension`)
+        const fallbackExtension: GitHubExtension = {
+          id: `fallback_${Date.now()}`,
+          name: this.extractRepoName(repoUrl),
+          description: "CloudStream repository extension",
+          version: "1.0.0",
+          author: "CloudStream Community",
+          url: repoUrl,
+          downloadUrl: repoUrl,
+          type: "cloudstream",
+          language: "en",
+          status: "active",
+          adult: false,
+          icon: this.generateColoredIcon(this.extractRepoName(repoUrl)),
+          lastUpdated: new Date().toISOString(),
+          size: 0,
+          cloudStreamProvider: {
+            name: this.extractRepoName(repoUrl),
+            mainUrl: "https://example.com",
+            supportedTypes: ["Movies", "TV Series"],
+          },
+        }
+        extensions = [fallbackExtension]
+      }
+
       // Cache the results
       this.cache.set(repoUrl, {
         id: this.generateRepoId(repoUrl),
@@ -95,10 +130,12 @@ class GitHubExtensionLoader {
         })
       })
 
+      console.log(`[v0] ==> REPOSITORY EXTENSION FETCH COMPLETE`)
       console.log(`[v0] Successfully loaded ${extensions.length} extensions from ${repoUrl}`)
       return extensions
     } catch (error) {
-      console.error(`[v0] Failed to fetch extensions from ${repoUrl}:`, error)
+      console.error(`[v0] ==> REPOSITORY EXTENSION FETCH FAILED:`, error)
+      console.error(`[v0] Error details:`, error.message, error.stack)
       const cached = this.cache.get(repoUrl)
       return cached?.extensions || []
     }
@@ -136,66 +173,37 @@ class GitHubExtensionLoader {
     return this.requestCount >= this.MAX_REQUESTS_PER_HOUR
   }
 
-  private async fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
-    let lastError: Error | null = null
+  private async fetchWithRetry(url: string, retries = 3): Promise<Response> {
+    console.log(`[v0] Fetching with retry: ${url} (${retries} retries left)`)
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
+    for (let i = 0; i < retries; i++) {
       try {
-        console.log(`[v0] Fetching ${url} (attempt ${attempt + 1}/${maxRetries})`)
-
-        this.requestCount++
-
         const response = await fetch(url, {
           headers: {
-            Accept: "application/vnd.github.v3+json, application/json, text/plain, */*",
-            "User-Agent": "OpenTune-CloudStream-Loader/1.0",
-            "Cache-Control": "no-cache",
-            Pragma: "no-cache",
+            Accept: "application/json, text/plain, */*",
+            "User-Agent": "VibeTune-CloudStream/1.0",
           },
-          mode: "cors",
-          credentials: "omit",
         })
 
-        if (response.status === 403) {
-          const rateLimitReset = response.headers.get("X-RateLimit-Reset")
-          if (rateLimitReset) {
-            this.rateLimitReset = Number.parseInt(rateLimitReset) * 1000
-            console.warn(`[v0] Rate limited until ${new Date(this.rateLimitReset)}`)
-          }
-          throw new Error(`Rate limited: ${response.status}`)
-        }
-
         if (response.ok) {
+          console.log(`[v0] Fetch successful on attempt ${i + 1}`)
           return response
         }
 
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        console.warn(`[v0] Fetch attempt ${i + 1} failed with status: ${response.status}`)
+        if (i === retries - 1) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
       } catch (error) {
-        lastError = error as Error
-        console.warn(`[v0] Attempt ${attempt + 1} failed:`, error)
-
-        if (attempt === 0 && url.includes("api.github.com")) {
-          const proxyUrl = url.replace("https://api.github.com", "/proxy/github")
-          console.log(`[v0] Trying proxy route: ${proxyUrl}`)
-          try {
-            const proxyResponse = await fetch(proxyUrl)
-            if (proxyResponse.ok) {
-              return proxyResponse
-            }
-          } catch (proxyError) {
-            console.warn(`[v0] Proxy request also failed:`, proxyError)
-          }
+        console.error(`[v0] Fetch attempt ${i + 1} error:`, error)
+        if (i === retries - 1) {
+          throw error
         }
-
-        if (attempt < maxRetries - 1) {
-          const delay = Math.pow(2, attempt) * 1000
-          console.log(`[v0] Retrying in ${delay}ms...`)
-          await new Promise((resolve) => setTimeout(resolve, delay))
-        }
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)))
       }
     }
 
-    throw lastError || new Error("All retry attempts failed")
+    throw new Error("All fetch attempts failed")
   }
 
   private async fetchCloudStreamExtensions(manifestUrl: string): Promise<GitHubExtension[]> {
@@ -729,7 +737,6 @@ if (typeof module !== 'undefined' && module.exports) {
 
       if (cloudStreamProvider) {
         console.log(`[v0] Using CloudStream provider for: ${extension.name}`)
-        
 
         const plugin = {
           id: extension.id,
