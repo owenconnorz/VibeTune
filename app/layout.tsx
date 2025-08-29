@@ -88,17 +88,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
         <meta name="theme-color" content="#f97316" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="VibeTune" />
         <meta name="color-scheme" content="dark light" />
         <meta name="supported-color-schemes" content="dark light" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge,chrome=1" />
         <meta name="renderer" content="webkit" />
         <meta name="force-rendering" content="webkit" />
@@ -132,9 +131,6 @@ html {
 body {
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
 }
 video, canvas {
   transform: translateZ(0);
@@ -147,9 +143,11 @@ video, canvas {
   transform: translateZ(0);
   will-change: transform, opacity;
 }
-/* Added global styles for fixed navigation and miniplayer */
 .page-content {
+  padding-top: 5rem;
   padding-bottom: 8rem;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 .fixed-navigation {
   position: fixed;
