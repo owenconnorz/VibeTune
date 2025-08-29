@@ -47,17 +47,25 @@ export default function ExtensionsPage() {
   useEffect(() => {
     const loadRepositories = () => {
       try {
+        console.log("[v0] ==> LOADING REPOSITORIES FROM LOCALSTORAGE")
         const saved = localStorage.getItem("vibetuneExtensionRepos")
+        console.log("[v0] Raw localStorage data:", saved)
+
         if (saved) {
           const repos = JSON.parse(saved)
+          console.log("[v0] Parsed repositories:", repos)
+          console.log("[v0] Repository count:", repos.length)
           setRepositories(repos)
           updateStats(repos)
         } else {
+          console.log("[v0] No repositories found in localStorage")
           setRepositories([])
           updateStats([])
         }
       } catch (error) {
-        console.error("Failed to load repositories:", error)
+        console.error("[v0] Failed to load repositories:", error)
+        setRepositories([])
+        updateStats([])
       }
     }
 
@@ -89,6 +97,10 @@ export default function ExtensionsPage() {
       console.log("[v0] ==> STARTING REPOSITORY ADD PROCESS")
       console.log("[v0] Adding repository:", newRepoUrl)
       console.log("[v0] Current repositories count:", repositories.length)
+
+      console.log("[v0] Testing network connectivity...")
+      const testResponse = await fetch("https://api.github.com", { method: "HEAD" })
+      console.log("[v0] GitHub API connectivity test:", testResponse.status)
 
       const { githubExtensionLoader } = await import("@/lib/video-plugins/github-extension-loader")
       console.log("[v0] GitHub extension loader imported successfully")
@@ -129,7 +141,10 @@ export default function ExtensionsPage() {
     } catch (error) {
       console.error("[v0] ==> REPOSITORY ADD FAILED:", error)
       console.error("[v0] Error details:", error.message, error.stack)
-      toast.error("Failed to add repository")
+      if (error.name === "TypeError" && error.message.includes("fetch")) {
+        console.error("[v0] Network error - check CORS and connectivity")
+      }
+      toast.error(`Failed to add repository: ${error.message}`)
     } finally {
       setIsAddingRepo(false)
       console.log("[v0] ==> REPOSITORY ADD PROCESS COMPLETE")
@@ -332,6 +347,13 @@ export default function ExtensionsPage() {
       <div className="flex-1 overflow-y-auto">
         {/* Repository List */}
         <div className="p-4 space-y-3">
+          {repositories.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-gray-400 mb-2">No repositories added yet</p>
+              <p className="text-gray-500 text-sm">Add a CloudStream repository URL below to get started</p>
+            </div>
+          )}
+
           {repositories.map((repo) => (
             <Card
               key={repo.id}
@@ -346,9 +368,23 @@ export default function ExtensionsPage() {
                     <div className="flex-1 min-w-0">
                       <h3 className="text-white font-medium text-lg break-words leading-tight">{repo.name}</h3>
                       <p className="text-gray-400 text-sm break-all leading-tight mt-1">{repo.url}</p>
-                      {repo.extensionCount && (
-                        <p className="text-gray-500 text-xs mt-2">{repo.extensionCount} extensions</p>
+                      {repo.extensionCount !== undefined && (
+                        <p className="text-gray-500 text-xs mt-2">
+                          {repo.extensionCount} extension{repo.extensionCount !== 1 ? "s" : ""}
+                        </p>
                       )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            repo.status === "active"
+                              ? "bg-green-500"
+                              : repo.status === "disabled"
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
+                          }`}
+                        />
+                        <span className="text-xs text-gray-500 capitalize">{repo.status}</span>
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
