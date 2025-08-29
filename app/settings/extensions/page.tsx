@@ -1,7 +1,9 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect, useCallback } from "react"
-import { ArrowLeft, Github, Trash2, Plus, AlertCircle, Download } from "lucide-react"
+import { ArrowLeft, Github, Trash2, Plus, AlertCircle, Download, Edit2, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -37,13 +39,14 @@ export default function ExtensionsPage() {
   const [newRepoUrl, setNewRepoUrl] = useState("")
   const [isAddingRepo, setIsAddingRepo] = useState(false)
   const [isLoadingExtensions, setIsLoadingExtensions] = useState(false)
+  const [renamingRepoId, setRenamingRepoId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
   const [stats, setStats] = useState({
     downloaded: 0,
     disabled: 0,
     notDownloaded: 0,
   })
 
-  // Load repositories from localStorage on mount
   useEffect(() => {
     const loadRepositories = () => {
       try {
@@ -178,7 +181,6 @@ export default function ExtensionsPage() {
       console.log("[v0] ==> DETAIL VIEW FETCH COMPLETE - Extensions loaded:", extensions.length)
       console.log("[v0] Raw extensions data:", extensions)
 
-      // Convert to Extension format with CloudStream-style metadata
       const formattedExtensions: Extension[] = extensions.map((ext, index) => {
         console.log("[v0] Processing extension for display:", ext.name || `Extension ${index + 1}`, ext)
         return {
@@ -233,6 +235,33 @@ export default function ExtensionsPage() {
       router.back()
     }
   }, [router, selectedRepo, handleBackToRepos])
+
+  const handleStartRename = useCallback((repo: Repository, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setRenamingRepoId(repo.id)
+    setRenameValue(repo.name)
+  }, [])
+
+  const handleSaveRename = useCallback(
+    (repoId: string) => {
+      if (!renameValue.trim()) return
+
+      const updatedRepos = repositories.map((repo) =>
+        repo.id === repoId ? { ...repo, name: renameValue.trim() } : repo,
+      )
+      setRepositories(updatedRepos)
+      saveRepositories(updatedRepos)
+      setRenamingRepoId(null)
+      setRenameValue("")
+      toast.success("Repository renamed successfully")
+    },
+    [repositories, renameValue],
+  )
+
+  const handleCancelRename = useCallback(() => {
+    setRenamingRepoId(null)
+    setRenameValue("")
+  }, [])
 
   const extractRepoName = (url: string): string => {
     try {
@@ -359,14 +388,52 @@ export default function ExtensionsPage() {
               key={repo.id}
               className="bg-zinc-800 border-zinc-700 cursor-pointer hover:bg-zinc-750 transition-colors"
             >
-              <CardContent className="p-4" onClick={() => handleRepositoryClick(repo)}>
+              <CardContent className="p-4" onClick={() => renamingRepoId !== repo.id && handleRepositoryClick(repo)}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <div className="w-10 h-10 bg-zinc-700 rounded-full flex items-center justify-center flex-shrink-0">
                       <Github className="w-5 h-5 text-gray-300" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-medium text-lg break-words leading-tight">{repo.name}</h3>
+                      {renamingRepoId === repo.id ? (
+                        <div className="flex items-center gap-2 mb-2">
+                          <Input
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            className="flex-1 bg-zinc-700 border-zinc-600 text-white text-lg font-medium"
+                            onKeyPress={(e) => {
+                              if (e.key === "Enter") handleSaveRename(repo.id)
+                              if (e.key === "Escape") handleCancelRename()
+                            }}
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-green-400 hover:text-green-300 hover:bg-green-400/10"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleSaveRename(repo.id)
+                            }}
+                          >
+                            <Check className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-gray-400 hover:text-gray-300 hover:bg-gray-400/10"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCancelRename()
+                            }}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <h3 className="text-white font-medium text-lg break-words leading-tight">{repo.name}</h3>
+                      )}
                       <p className="text-gray-400 text-sm break-all leading-tight mt-1">{repo.url}</p>
                       {repo.extensionCount !== undefined && (
                         <p className="text-gray-500 text-xs mt-2">
@@ -389,6 +456,16 @@ export default function ExtensionsPage() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {repo.status === "error" && <AlertCircle className="w-5 h-5 text-red-400" />}
+                    {renamingRepoId !== repo.id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-gray-400 hover:text-blue-400 hover:bg-blue-400/10"
+                        onClick={(e) => handleStartRename(repo, e)}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"

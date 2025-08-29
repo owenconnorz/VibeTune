@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Search, Settings, MoreVertical } from "lucide-react"
+import { Search, Settings, MoreVertical, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AudioPlayer } from "@/components/audio-player"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
@@ -33,6 +33,28 @@ const MemoizedSongItem = React.memo(({ song, onPlay, trendingSongs }: any) => (
     </div>
     <div className="text-xs text-gray-500">{song.duration}</div>
     <MoreVertical className="w-4 h-4 text-gray-400" />
+  </div>
+))
+
+const MusicCard = React.memo(({ song, onPlay, songList }: any) => (
+  <div className="flex-shrink-0 w-40 cursor-pointer group" onClick={() => onPlay(song, songList)}>
+    <div className="relative rounded-lg overflow-hidden mb-3">
+      <OptimizedImage
+        src={song.thumbnail}
+        alt={`${song.title} thumbnail`}
+        width={160}
+        height={160}
+        className="w-full h-40 object-cover transition-transform group-hover:scale-105"
+      />
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+          <Play className="w-4 h-4 text-black fill-black" />
+        </div>
+      </div>
+    </div>
+    <h3 className="text-white font-medium text-sm truncate mb-1">{song.title}</h3>
+    <p className="text-gray-400 text-xs truncate">{song.artist}</p>
   </div>
 ))
 
@@ -234,7 +256,12 @@ export default function VibeTunePage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <header className="flex items-center justify-between px-4 py-4 bg-black border-b border-zinc-800">
-        <h1 className="text-xl font-normal text-white">VibeTune</h1>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-xs">YT</span>
+          </div>
+          <h1 className="text-xl font-normal text-white">Music</h1>
+        </div>
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -258,7 +285,99 @@ export default function VibeTunePage() {
       <div className="px-4 pb-20">
         <div className="space-y-8">
           <section className="mt-6">
-            <h2 className="text-lg font-normal text-white mb-4">Recently Played</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">Quick picks</h2>
+              <Button
+                variant="ghost"
+                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium"
+                onClick={() => router.push("/explore")}
+              >
+                Show all
+              </Button>
+            </div>
+            {trendingError ? (
+              <ErrorMessage message={trendingError} onRetry={refetchTrending} />
+            ) : (
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {trendingLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex-shrink-0 w-40">
+                        <div className="w-full h-40 bg-zinc-800 rounded-lg animate-pulse mb-3" />
+                        <div className="h-4 bg-zinc-800 rounded animate-pulse mb-2" />
+                        <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/4" />
+                      </div>
+                    ))
+                  : quickPicksSongs.map((song) => (
+                      <MusicCard key={song.id} song={song} onPlay={handlePlaySong} songList={safeTrendingSongs} />
+                    ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">Mixed for you</h2>
+              <Button
+                variant="ghost"
+                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium"
+                onClick={() => router.push("/explore")}
+              >
+                Show all
+              </Button>
+            </div>
+            {mixedError ? (
+              <ErrorMessage message={mixedError} onRetry={() => window.location.reload()} />
+            ) : (
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {mixedLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex-shrink-0 w-40">
+                        <div className="w-full h-40 bg-zinc-800 rounded-lg animate-pulse mb-3" />
+                        <div className="h-4 bg-zinc-800 rounded animate-pulse mb-2" />
+                        <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/4" />
+                      </div>
+                    ))
+                  : safeMixedForYouSongs
+                      .slice(0, 6)
+                      .map((song) => (
+                        <MusicCard key={song.id} song={song} onPlay={handlePlaySong} songList={safeMixedForYouSongs} />
+                      ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">New releases for you</h2>
+              <Button
+                variant="ghost"
+                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium"
+                onClick={() => router.push("/explore")}
+              >
+                Show all
+              </Button>
+            </div>
+            {newReleasesError ? (
+              <ErrorMessage message={newReleasesError} onRetry={refetchNewReleases} />
+            ) : (
+              <div className="flex gap-4 overflow-x-auto pb-4">
+                {newReleasesLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex-shrink-0 w-40">
+                        <div className="w-full h-40 bg-zinc-800 rounded-lg animate-pulse mb-3" />
+                        <div className="h-4 bg-zinc-800 rounded animate-pulse mb-2" />
+                        <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/4" />
+                      </div>
+                    ))
+                  : safeNewReleasesSongs.map((song) => (
+                      <MusicCard key={song.id} song={song} onPlay={handlePlaySong} songList={safeNewReleasesSongs} />
+                    ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-white mb-4">Listen again</h2>
             {trendingError ? (
               <ErrorMessage message={trendingError} onRetry={refetchTrending} />
             ) : (
@@ -280,7 +399,7 @@ export default function VibeTunePage() {
           </section>
 
           <section>
-            <h2 className="text-lg font-normal text-white mb-4">Browse</h2>
+            <h2 className="text-xl font-bold text-white mb-4">Explore</h2>
             <div className="space-y-1">
               {musicCategories.map((category, index) => (
                 <CategoryItem

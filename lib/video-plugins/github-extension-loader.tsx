@@ -209,11 +209,25 @@ class GitHubExtensionLoader {
 
       const manifest = await response.json()
       console.log(`[v0] CloudStream manifest loaded:`, manifest)
+      console.log(`[v0] Manifest type:`, Array.isArray(manifest) ? "array" : typeof manifest)
+      console.log(`[v0] Manifest keys:`, Object.keys(manifest || {}))
 
       const extensions: GitHubExtension[] = []
 
-      // Check if manifest has plugins list
-      if (manifest.plugins && Array.isArray(manifest.plugins)) {
+      if (Array.isArray(manifest)) {
+        console.log(`[v0] Processing direct plugin array with ${manifest.length} plugins`)
+
+        for (const plugin of manifest) {
+          console.log(`[v0] Processing plugin:`, plugin.name || plugin.displayName || "Unknown")
+          const extension = this.createCloudStreamExtension(plugin, manifestUrl)
+          if (extension) {
+            extensions.push(extension)
+            console.log(`[v0] Successfully created extension: ${extension.name}`)
+          }
+        }
+      }
+      // Check if manifest has plugins list (original logic)
+      else if (manifest.plugins && Array.isArray(manifest.plugins)) {
         console.log(`[v0] Found ${manifest.plugins.length} plugins in manifest`)
 
         for (const pluginUrl of manifest.plugins) {
@@ -240,9 +254,11 @@ class GitHubExtensionLoader {
         }
       } else {
         // Try to parse as single extension manifest
+        console.log(`[v0] Attempting to parse as single extension manifest`)
         const extension = this.createCloudStreamExtension(manifest, manifestUrl)
         if (extension) {
           extensions.push(extension)
+          console.log(`[v0] Created single extension: ${extension.name}`)
         }
       }
 
@@ -250,43 +266,57 @@ class GitHubExtensionLoader {
       return extensions
     } catch (error) {
       console.error(`[v0] Failed to parse CloudStream manifest:`, error)
+      console.error(`[v0] Error details:`, error.message, error.stack)
       return []
     }
   }
 
   private createCloudStreamExtension(plugin: any, manifestUrl: string): GitHubExtension | null {
     try {
+      console.log(`[v0] Creating extension from plugin:`, plugin)
+
       if (!plugin || typeof plugin !== "object") {
+        console.log(`[v0] Invalid plugin object:`, plugin)
         return null
       }
 
-      const name = plugin.name || plugin.displayName || plugin.id || "Unknown Extension"
-      const description = plugin.description || plugin.summary || "CloudStream extension"
-      const version = plugin.version || "1.0.0"
-      const author = plugin.author || plugin.authors?.[0] || "Unknown"
+      const name = plugin.name || plugin.displayName || plugin.id || plugin.title || "Unknown Extension"
+      const description = plugin.description || plugin.summary || plugin.about || `CloudStream extension: ${name}`
+      const version = plugin.version || plugin.versionName || "1.0.0"
+      const author = plugin.author || plugin.authors?.[0] || plugin.developer || "CloudStream Community"
+      const iconUrl = plugin.iconUrl || plugin.icon || plugin.logo
+      const language = plugin.language || plugin.locale || "en"
+      const adult = plugin.adult || plugin.nsfw || plugin.mature || false
+      const status = plugin.status || plugin.state || "Working"
 
       const extension: GitHubExtension = {
-        id: plugin.id || name.toLowerCase().replace(/\s+/g, "_"),
+        id:
+          plugin.id ||
+          name
+            .toLowerCase()
+            .replace(/\s+/g, "_")
+            .replace(/[^a-z0-9_]/g, ""),
         name,
         description,
         version,
         author,
-        url: plugin.url || manifestUrl,
-        downloadUrl: plugin.url || manifestUrl,
+        url: plugin.url || plugin.sourceUrl || manifestUrl,
+        downloadUrl: plugin.url || plugin.sourceUrl || manifestUrl,
         type: "cloudstream",
-        language: plugin.language || "en",
-        status: plugin.status || "Working",
-        adult: plugin.adult || false,
-        icon: plugin.iconUrl || this.generateColoredIcon(name),
-        lastUpdated: new Date().toISOString(),
+        language,
+        status,
+        adult,
+        icon: iconUrl || this.generateColoredIcon(name),
+        lastUpdated: plugin.lastUpdated || new Date().toISOString(),
         size: plugin.size || 0,
         cloudStreamProvider: plugin, // Store the original plugin data
       }
 
-      console.log(`[v0] Created CloudStream extension: ${extension.name}`)
+      console.log(`[v0] Successfully created CloudStream extension: ${extension.name} (ID: ${extension.id})`)
       return extension
     } catch (error) {
       console.error(`[v0] Failed to create CloudStream extension:`, error)
+      console.error(`[v0] Plugin data:`, plugin)
       return null
     }
   }
@@ -699,8 +729,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
       if (cloudStreamProvider) {
         console.log(`[v0] Using CloudStream provider for: ${extension.name}`)
-
-        const extensionLoader = this
+        
 
         const plugin = {
           id: extension.id,
@@ -769,7 +798,7 @@ if (typeof module !== 'undefined' && module.exports) {
               }
             } catch (error) {
               console.error(`[v0] CloudStream search failed, using fallback:`, error)
-              return extensionLoader.generateFallbackResults(extension, options)
+              return this.generateFallbackResults(extension, options)
             }
           },
         }
