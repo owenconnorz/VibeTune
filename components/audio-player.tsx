@@ -123,9 +123,9 @@ export function AudioPlayer() {
 
   return (
     <>
-      <div className="fixed bottom-20 left-4 right-4 z-50">
+      <div className="fixed bottom-24 left-4 right-4 z-40">
         <div
-          className="bg-zinc-900/95 backdrop-blur-md rounded-full border border-zinc-700/50 shadow-2xl overflow-hidden transition-transform duration-200 ease-out"
+          className="bg-zinc-900/95 backdrop-blur-md rounded-2xl border border-zinc-700/50 shadow-2xl overflow-hidden transition-transform duration-200 ease-out"
           style={{
             transform: `translateX(${swipeOffset}px)`,
             opacity: isAnimating && Math.abs(swipeOffset) > 100 ? 0.7 : 1,

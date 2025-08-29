@@ -254,14 +254,15 @@ export default function VibeTunePage() {
   }, [safeTrendingSongs])
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <header className="flex items-center justify-between px-4 py-4 bg-black border-b border-zinc-800">
+    <div className="min-h-screen bg-black text-white pb-32">
+      <header className="sticky top-0 z-40 flex items-center justify-between px-4 py-4 bg-black/95 backdrop-blur-md border-b border-zinc-800">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-xs">YT</span>
+          <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
+            <span className="text-black font-bold text-xs">VT</span>
           </div>
-          <h1 className="text-xl font-normal text-white">Music</h1>
+          <h1 className="text-xl font-normal text-white">VibeTune</h1>
         </div>
+        {/* </CHANGE> */}
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -282,7 +283,7 @@ export default function VibeTunePage() {
         </div>
       </header>
 
-      <div className="px-4 pb-20">
+      <div className="px-4 pb-32">
         <div className="space-y-8">
           <section className="mt-6">
             <div className="flex items-center justify-between mb-4">

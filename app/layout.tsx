@@ -147,6 +147,24 @@ video, canvas {
   transform: translateZ(0);
   will-change: transform, opacity;
 }
+/* Added global styles for fixed navigation and miniplayer */
+.page-content {
+  padding-bottom: 8rem;
+}
+.fixed-navigation {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+}
+.fixed-miniplayer {
+  position: fixed;
+  bottom: 6rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 40;
+}
         `}</style>
       </head>
       <body>

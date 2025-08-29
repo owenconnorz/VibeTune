@@ -102,8 +102,8 @@ export function NavigationRouter() {
   const visibleItems = navigationItems
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-zinc-800 border-t border-zinc-700 z-50">
-      <div className="flex items-center justify-around py-1">
+    <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-md border-t border-zinc-700 z-50 shadow-2xl">
+      <div className="flex items-center justify-around py-2">
         {visibleItems.map((item) => {
           const isActive = activeRoute === item.path
           const IconComponent = isActive ? item.activeIcon : item.icon
@@ -112,12 +112,16 @@ export function NavigationRouter() {
             <button
               key={item.id}
               onClick={(e) => handleNavigation(item, e)}
-              className="flex flex-col items-center py-1 px-3 transition-colors duration-200"
+              className="flex flex-col items-center py-2 px-3 transition-all duration-200 hover:bg-zinc-800/50 rounded-lg"
             >
-              <div className={`mb-0.5 ${isActive ? "bg-yellow-600 rounded-full p-1.5" : ""}`}>
-                <IconComponent className={`w-4 h-4 ${isActive ? "text-black" : "text-gray-400 hover:text-gray-300"}`} />
+              <div
+                className={`mb-1 transition-all duration-200 ${isActive ? "bg-yellow-500 rounded-full p-2" : "p-2"}`}
+              >
+                <IconComponent className={`w-5 h-5 ${isActive ? "text-black" : "text-gray-400 hover:text-gray-300"}`} />
               </div>
-              <span className={`text-[10px] ${isActive ? "text-white font-medium" : "text-gray-400"}`}>
+              <span
+                className={`text-[10px] transition-colors duration-200 ${isActive ? "text-white font-medium" : "text-gray-400"}`}
+              >
                 {item.label}
               </span>
             </button>
