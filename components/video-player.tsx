@@ -1,10 +1,12 @@
 "use client"
-import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Settings, X } from "lucide-react"
+import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Settings, X, Minimize } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { useVideoPlayer } from "@/contexts/video-player-context"
+import { useEffect, useRef } from "react"
 
 export function VideoPlayer() {
+  const videoRef = useRef<HTMLVideoElement>(null)
   const {
     currentVideo,
     isPlaying,
@@ -22,6 +24,33 @@ export function VideoPlayer() {
     toggleFullscreen,
     stopVideo,
   } = useVideoPlayer()
+
+  useEffect(() => {
+    if (videoRef.current && currentVideo) {
+      const video = videoRef.current
+
+      // Set video source
+      if (currentVideo.videoUrl || currentVideo.url) {
+        video.src = currentVideo.videoUrl || currentVideo.url || ""
+      }
+
+      // Sync playback state
+      if (isPlaying && video.paused) {
+        video.play().catch(console.error)
+      } else if (!isPlaying && !video.paused) {
+        video.pause()
+      }
+
+      // Sync volume and mute
+      video.volume = volume
+      video.muted = isMuted
+
+      // Sync current time
+      if (Math.abs(video.currentTime - currentTime) > 1) {
+        video.currentTime = currentTime
+      }
+    }
+  }, [currentVideo, isPlaying, volume, isMuted, currentTime])
 
   if (!currentVideo || !isFullscreen) return null
 
@@ -44,6 +73,8 @@ export function VideoPlayer() {
     seekTo(newTime)
   }
 
+  const qualityOptions = ["Auto", "1080p", "720p", "480p", "360p"]
+
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col">
       {/* Exit button at top */}
@@ -61,29 +92,41 @@ export function VideoPlayer() {
         </Button>
       </div>
 
-      {/* Video area */}
       <div className="flex-1 flex items-center justify-center relative">
-        {currentVideo.thumbnail && (
-          <img
-            src={currentVideo.thumbnail || "/placeholder.svg"}
-            alt={currentVideo.title}
-            className="max-w-full max-h-full object-contain"
-          />
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          controls={false}
+          playsInline
+          crossOrigin="anonymous"
+          style={{
+            maxWidth: "100%",
+            maxHeight: "100%",
+          }}
+        >
+          <source src={currentVideo.videoUrl || currentVideo.url} type="video/mp4" />
+          <source src={currentVideo.videoUrl || currentVideo.url} type="video/webm" />
+          <source src={currentVideo.videoUrl || currentVideo.url} type="video/ogg" />
+          Your browser does not support the video tag.
+        </video>
+
+        {/* Loading overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+            <div className="text-center text-white">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4 mx-auto"></div>
+              <p className="text-lg">Loading video...</p>
+            </div>
+          </div>
         )}
 
-        {/* Mux Player placeholder */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-white">
-            <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-4 mx-auto">
-              {isPlaying ? <Pause className="w-10 h-10" /> : <Play className="w-10 h-10" />}
-            </div>
-            <h2 className="text-2xl font-bold mb-2">{currentVideo.title}</h2>
-            <p className="text-lg text-white/80">Powered by Mux Player</p>
-          </div>
+        {/* Video info overlay */}
+        <div className="absolute top-4 left-4 text-white">
+          <h2 className="text-xl font-bold mb-1">{currentVideo.title}</h2>
+          <p className="text-sm text-white/80">Powered by Mux Player • Adaptive Streaming</p>
         </div>
       </div>
 
-      {/* Fullscreen controls */}
       <div className="bg-gradient-to-t from-black/90 to-transparent p-6">
         {/* Progress bar */}
         <div className="mb-6">
@@ -95,7 +138,7 @@ export function VideoPlayer() {
                 max={duration || 100}
                 step={1}
                 onValueChange={handleSeek}
-                className="w-full"
+                className="w-full [&_[role=slider]]:bg-white [&_[role=slider]]:border-white"
               />
             </div>
             <span className="text-white text-sm w-12">{formatTime(duration)}</span>
@@ -105,12 +148,26 @@ export function VideoPlayer() {
         {/* Main controls */}
         <div className="flex items-center justify-center gap-6 mb-4">
           <Button
+            onClick={() => skipTime(-30)}
+            size="lg"
+            variant="ghost"
+            className="text-white hover:bg-white/20 p-3 rounded-full"
+            title="Skip back 30s"
+          >
+            <SkipBack className="w-6 h-6" />
+          </Button>
+
+          <Button
             onClick={() => skipTime(-10)}
             size="lg"
             variant="ghost"
             className="text-white hover:bg-white/20 p-3 rounded-full"
+            title="Skip back 10s"
           >
-            <SkipBack className="w-6 h-6" />
+            <div className="relative">
+              <SkipBack className="w-5 h-5" />
+              <span className="absolute -bottom-1 -right-1 text-xs">10</span>
+            </div>
           </Button>
 
           <Button
@@ -133,6 +190,20 @@ export function VideoPlayer() {
             size="lg"
             variant="ghost"
             className="text-white hover:bg-white/20 p-3 rounded-full"
+            title="Skip forward 10s"
+          >
+            <div className="relative">
+              <SkipForward className="w-5 h-5" />
+              <span className="absolute -bottom-1 -right-1 text-xs">10</span>
+            </div>
+          </Button>
+
+          <Button
+            onClick={() => skipTime(30)}
+            size="lg"
+            variant="ghost"
+            className="text-white hover:bg-white/20 p-3 rounded-full"
+            title="Skip forward 30s"
           >
             <SkipForward className="w-6 h-6" />
           </Button>
@@ -145,15 +216,33 @@ export function VideoPlayer() {
               {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
             </Button>
             <div className="w-24">
-              <Slider value={[isMuted ? 0 : volume * 100]} max={100} step={1} onValueChange={handleVolumeChange} />
+              <Slider
+                value={[isMuted ? 0 : volume * 100]}
+                max={100}
+                step={1}
+                onValueChange={handleVolumeChange}
+                className="[&_[role=slider]]:bg-white [&_[role=slider]]:border-white"
+              />
             </div>
+            <span className="text-white/60 text-sm">{Math.round(volume * 100)}%</span>
           </div>
 
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" className="text-white hover:bg-white/20 p-2" title="Playback Speed">
+              <span className="text-sm">1x</span>
+            </Button>
             <Button size="sm" variant="ghost" className="text-white hover:bg-white/20 p-2" title="Video Quality">
               <Settings className="w-5 h-5" />
             </Button>
-            <span className="text-white/60 text-sm">Mux Player • Adaptive Streaming</span>
+            <Button
+              onClick={toggleFullscreen}
+              size="sm"
+              variant="ghost"
+              className="text-white hover:bg-white/20 p-2"
+              title="Exit Fullscreen"
+            >
+              <Minimize className="w-5 h-5" />
+            </Button>
           </div>
         </div>
       </div>

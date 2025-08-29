@@ -113,7 +113,6 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
 
       let processedUrl = video.videoUrl
 
-      // Handle embedded links and various video formats
       if (video.videoUrl.includes("embed") || video.videoUrl.includes("iframe")) {
         console.log("[v0] Mux Player: Processing embedded link")
         // Extract direct video URL from embedded links
@@ -123,10 +122,14 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
         } else if (video.videoUrl.includes("vimeo.com/video/")) {
           const videoId = video.videoUrl.split("/video/")[1].split("?")[0]
           processedUrl = `https://vimeo.com/${videoId}`
+        } else if (video.videoUrl.includes("eporner.com/embed/")) {
+          // Handle Eporner embed URLs
+          const videoId = video.videoUrl.split("/embed/")[1].split("?")[0]
+          processedUrl = `https://www.eporner.com/hd-porn/${videoId}/`
+          console.log("[v0] Mux Player: Eporner embed detected, converted to:", processedUrl)
         }
       }
 
-      // Handle direct video file URLs
       if (processedUrl.endsWith(".mp4") || processedUrl.endsWith(".webm") || processedUrl.endsWith(".ogg")) {
         console.log("[v0] Mux Player: Direct video file detected")
         muxPlayer.setAttribute("src", processedUrl)
@@ -136,6 +139,13 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
       } else if (processedUrl.includes("vimeo.com")) {
         console.log("[v0] Mux Player: Vimeo URL detected, using as-is")
         muxPlayer.setAttribute("src", processedUrl)
+      } else if (processedUrl.includes("eporner.com")) {
+        console.log("[v0] Mux Player: Eporner URL detected")
+        // Eporner URLs can be used directly as they provide MP4 streams
+        muxPlayer.setAttribute("src", processedUrl)
+        muxPlayer.setAttribute("crossorigin", "anonymous")
+        muxPlayer.setAttribute("referrerpolicy", "no-referrer")
+        muxPlayer.setAttribute("allow", "autoplay; fullscreen; picture-in-picture")
       } else {
         console.log("[v0] Mux Player: Generic URL, attempting direct playback")
         muxPlayer.setAttribute("src", processedUrl)
@@ -190,12 +200,25 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
         try {
           muxPlayer.setAttribute("autoplay", "true")
           muxPlayer.setAttribute("muted", "true")
-          await new Promise((resolve) => setTimeout(resolve, 1000))
+          muxPlayer.setAttribute("preload", "auto")
+          await new Promise((resolve) => setTimeout(resolve, 1500))
           await muxPlayer.play()
           setIsPlaying(true)
           console.log("[v0] Mux Player: Fallback playback successful")
         } catch (fallbackError) {
           console.error("[v0] Mux Player: Fallback playback also failed:", fallbackError)
+          console.log("[v0] Mux Player: Attempting iframe fallback for embedded content")
+          if (video.videoUrl.includes("embed") || video.videoUrl.includes("eporner")) {
+            muxPlayer.setAttribute("src", video.videoUrl)
+            await new Promise((resolve) => setTimeout(resolve, 2000))
+            try {
+              await muxPlayer.play()
+              setIsPlaying(true)
+              console.log("[v0] Mux Player: Iframe fallback successful")
+            } catch (iframeError) {
+              console.error("[v0] Mux Player: All playback methods failed:", iframeError)
+            }
+          }
         }
       } finally {
         setIsLoading(false)
