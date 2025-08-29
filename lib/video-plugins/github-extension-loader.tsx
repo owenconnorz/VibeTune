@@ -14,6 +14,11 @@ interface GitHubExtension {
   cloudStreamProvider?: any
   fileSize?: number
   repositoryUrl?: string
+  downloadUrl?: string
+  type?: string
+  adult?: boolean
+  icon?: string
+  lastUpdated?: string
 }
 
 interface GitHubRepository {
@@ -34,6 +39,7 @@ interface ExtensionCode {
 
 import { CloudStreamExtensionParser } from "./cloudstream-extension-parser"
 import type { CloudStreamProvider } from "./cloudstream-compat"
+import { PluginUpdateChecker } from "@/lib/plugin-update-checker"
 
 class GitHubExtensionLoader {
   private cache = new Map<string, GitHubRepository>()
@@ -42,6 +48,7 @@ class GitHubExtensionLoader {
   private rateLimitReset = 0
   private requestCount = 0
   private readonly MAX_REQUESTS_PER_HOUR = 60 // GitHub API limit for unauthenticated requests
+  private updateChecker = PluginUpdateChecker.getInstance()
 
   async fetchRepositoryExtensions(repoUrl: string): Promise<GitHubExtension[]> {
     try {
@@ -59,7 +66,15 @@ class GitHubExtensionLoader {
         return cached?.extensions || []
       }
 
-      const extensions = await this.fetchCloudStreamExtensions(repoUrl)
+      let extensions: GitHubExtension[] = []
+
+      if (repoUrl.includes(".json") && repoUrl.includes("raw.githubusercontent.com")) {
+        console.log(`[v0] Detected CloudStream manifest URL: ${repoUrl}`)
+        extensions = await this.fetchCloudStreamExtensions(repoUrl)
+      } else {
+        console.log(`[v0] Treating as regular GitHub repository: ${repoUrl}`)
+        extensions = await this.fetchExtensionsFromRepository(repoUrl)
+      }
 
       // Cache the results
       this.cache.set(repoUrl, {
@@ -70,12 +85,45 @@ class GitHubExtensionLoader {
         lastUpdated: new Date(),
       })
 
+      extensions.forEach((extension) => {
+        this.updateChecker.registerPlugin({
+          id: extension.id,
+          name: extension.name,
+          version: extension.version || "1.0.0",
+          lastChecked: new Date(),
+          repositoryUrl: repoUrl,
+        })
+      })
+
       console.log(`[v0] Successfully loaded ${extensions.length} extensions from ${repoUrl}`)
       return extensions
     } catch (error) {
       console.error(`[v0] Failed to fetch extensions from ${repoUrl}:`, error)
       const cached = this.cache.get(repoUrl)
       return cached?.extensions || []
+    }
+  }
+
+  initializeUpdateChecking(addNotification: (notification: any) => void) {
+    console.log("[v0] Initializing plugin update checking")
+    this.updateChecker.setNotificationHandler(addNotification)
+    this.updateChecker.loadPlugins()
+    this.updateChecker.startChecking(60) // Check every hour
+  }
+
+  stopUpdateChecking() {
+    this.updateChecker.stopChecking()
+  }
+
+  async checkForUpdates() {
+    console.log("[v0] Manually checking for plugin updates")
+    // Force check all registered plugins
+    for (const [repoUrl] of this.cache) {
+      try {
+        await this.fetchRepositoryExtensions(repoUrl)
+      } catch (error) {
+        console.error("[v0] Failed to check updates for repository:", repoUrl, error)
+      }
     }
   }
 
@@ -150,49 +198,9 @@ class GitHubExtensionLoader {
     throw lastError || new Error("All retry attempts failed")
   }
 
-  private async fetchCloudStreamExtensions(repoUrl: string): Promise<GitHubExtension[]> {
+  private async fetchCloudStreamExtensions(manifestUrl: string): Promise<GitHubExtension[]> {
     try {
-      console.log(`[v0] Starting CloudStream extension fetch for: ${repoUrl}`)
-
-      // Check if URL is already a direct manifest URL
-      if (repoUrl.includes(".json")) {
-        console.log(`[v0] URL appears to be a direct manifest file: ${repoUrl}`)
-        return await this.parseCloudStreamManifest(repoUrl)
-      }
-
-      // Try to find CloudStream manifest files
-      const manifestUrls = [
-        `${repoUrl}/builds/XXX.json`,
-        `${repoUrl}/XXX.json`,
-        `${repoUrl}/manifest.json`,
-        `${repoUrl}/builds/manifest.json`,
-      ]
-
-      for (const manifestUrl of manifestUrls) {
-        try {
-          console.log(`[v0] Trying manifest URL: ${manifestUrl}`)
-          const extensions = await this.parseCloudStreamManifest(manifestUrl)
-          if (extensions.length > 0) {
-            console.log(`[v0] Found ${extensions.length} extensions from manifest: ${manifestUrl}`)
-            return extensions
-          }
-        } catch (error) {
-          console.log(`[v0] Manifest not found at: ${manifestUrl}`)
-          continue
-        }
-      }
-
-      console.log(`[v0] No CloudStream manifest found, trying repository browsing`)
-      return await this.fetchExtensionsFromRepository(repoUrl)
-    } catch (error) {
-      console.error(`[v0] Failed to fetch CloudStream extensions:`, error)
-      return []
-    }
-  }
-
-  private async parseCloudStreamManifest(manifestUrl: string): Promise<GitHubExtension[]> {
-    try {
-      console.log(`[v0] Parsing CloudStream manifest: ${manifestUrl}`)
+      console.log(`[v0] Fetching CloudStream manifest from: ${manifestUrl}`)
 
       const response = await this.fetchWithRetry(manifestUrl)
       if (!response.ok) {
@@ -200,92 +208,85 @@ class GitHubExtensionLoader {
       }
 
       const manifest = await response.json()
-      console.log(`[v0] Manifest data:`, manifest)
+      console.log(`[v0] CloudStream manifest loaded:`, manifest)
 
       const extensions: GitHubExtension[] = []
 
-      // Check if this is a plugin list (contains array of plugins)
-      if (Array.isArray(manifest)) {
-        console.log(`[v0] Manifest is a plugin list with ${manifest.length} plugins`)
-        for (const plugin of manifest) {
-          const extension = this.createExtensionFromPlugin(plugin, manifestUrl)
-          if (extension) {
-            extensions.push(extension)
-          }
-        }
-        return extensions
-      }
+      // Check if manifest has plugins list
+      if (manifest.plugins && Array.isArray(manifest.plugins)) {
+        console.log(`[v0] Found ${manifest.plugins.length} plugins in manifest`)
 
-      // Check if this is a main manifest with pluginLists
-      if (manifest.pluginLists && Array.isArray(manifest.pluginLists)) {
-        console.log(`[v0] Manifest has ${manifest.pluginLists.length} plugin lists`)
-
-        for (const pluginListUrl of manifest.pluginLists) {
+        for (const pluginUrl of manifest.plugins) {
           try {
-            console.log(`[v0] Fetching plugin list: ${pluginListUrl}`)
+            console.log(`[v0] Fetching plugin list from: ${pluginUrl}`)
+            const pluginResponse = await this.fetchWithRetry(pluginUrl)
 
-            // Convert relative URLs to absolute
-            const absoluteUrl = pluginListUrl.startsWith("http")
-              ? pluginListUrl
-              : `${manifestUrl.substring(0, manifestUrl.lastIndexOf("/"))}/${pluginListUrl}`
-
-            const pluginResponse = await this.fetchWithRetry(absoluteUrl)
             if (pluginResponse.ok) {
-              const plugins = await pluginResponse.json()
-              console.log(`[v0] Plugin list contains ${plugins.length} plugins`)
+              const pluginList = await pluginResponse.json()
+              console.log(`[v0] Plugin list loaded with ${pluginList.length || 0} items`)
 
-              for (const plugin of plugins) {
-                const extension = this.createExtensionFromPlugin(plugin, manifestUrl)
-                if (extension) {
-                  extensions.push(extension)
+              if (Array.isArray(pluginList)) {
+                for (const plugin of pluginList) {
+                  const extension = this.createCloudStreamExtension(plugin, manifestUrl)
+                  if (extension) {
+                    extensions.push(extension)
+                  }
                 }
               }
             }
           } catch (error) {
-            console.error(`[v0] Failed to fetch plugin list ${pluginListUrl}:`, error)
+            console.error(`[v0] Failed to fetch plugin list from ${pluginUrl}:`, error)
           }
+        }
+      } else {
+        // Try to parse as single extension manifest
+        const extension = this.createCloudStreamExtension(manifest, manifestUrl)
+        if (extension) {
+          extensions.push(extension)
         }
       }
 
-      console.log(`[v0] Total extensions parsed from manifest: ${extensions.length}`)
+      console.log(`[v0] Created ${extensions.length} CloudStream extensions`)
       return extensions
     } catch (error) {
       console.error(`[v0] Failed to parse CloudStream manifest:`, error)
-      throw error
+      return []
     }
   }
 
-  private createExtensionFromPlugin(plugin: any, manifestUrl: string): GitHubExtension | null {
+  private createCloudStreamExtension(plugin: any, manifestUrl: string): GitHubExtension | null {
     try {
-      console.log(`[v0] Creating extension from plugin:`, plugin.name || plugin.internalName)
-
-      const extension: GitHubExtension = {
-        id: `cloudstream_${plugin.internalName || plugin.name}`.toLowerCase().replace(/[^a-z0-9]/g, "_"),
-        name: plugin.name || plugin.internalName || "Unknown Extension",
-        version: plugin.version || "1.0.0",
-        description: plugin.description || "No description available",
-        author: Array.isArray(plugin.authors) ? plugin.authors.join(", ") : plugin.authors || "Unknown",
-        url: plugin.url || "",
-        iconUrl: plugin.iconUrl || "",
-        language: plugin.language || "en",
-        status: plugin.status === 1 ? "active" : "inactive",
-        sourceCode: "",
-        apiEndpoints: [],
-        searchTypes: plugin.tvTypes
-          ? plugin.tvTypes.map((type: string) => ({
-              value: type.toLowerCase(),
-              label: type,
-            }))
-          : [],
-        cloudStreamProvider: null,
-        fileSize: plugin.fileSize || 0,
-        repositoryUrl: plugin.repositoryUrl || manifestUrl,
+      if (!plugin || typeof plugin !== "object") {
+        return null
       }
 
-      console.log(`[v0] Created extension: ${extension.name} (${extension.status})`)
+      const name = plugin.name || plugin.displayName || plugin.id || "Unknown Extension"
+      const description = plugin.description || plugin.summary || "CloudStream extension"
+      const version = plugin.version || "1.0.0"
+      const author = plugin.author || plugin.authors?.[0] || "Unknown"
+
+      const extension: GitHubExtension = {
+        id: plugin.id || name.toLowerCase().replace(/\s+/g, "_"),
+        name,
+        description,
+        version,
+        author,
+        url: plugin.url || manifestUrl,
+        downloadUrl: plugin.url || manifestUrl,
+        type: "cloudstream",
+        language: plugin.language || "en",
+        status: plugin.status || "Working",
+        adult: plugin.adult || false,
+        icon: plugin.iconUrl || this.generateColoredIcon(name),
+        lastUpdated: new Date().toISOString(),
+        size: plugin.size || 0,
+        cloudStreamProvider: plugin, // Store the original plugin data
+      }
+
+      console.log(`[v0] Created CloudStream extension: ${extension.name}`)
       return extension
     } catch (error) {
-      console.error(`[v0] Failed to create extension from plugin:`, error)
+      console.error(`[v0] Failed to create CloudStream extension:`, error)
       return null
     }
   }
@@ -411,6 +412,11 @@ class GitHubExtensionLoader {
         cloudStreamProvider: metadata.cloudStreamProvider,
         fileSize: item.size || 0,
         repositoryUrl: repoUrl,
+        downloadUrl: item.download_url,
+        type: "cloudstream",
+        adult: metadata.adult || false,
+        icon: metadata.icon || this.generateColoredIcon(metadata.name),
+        lastUpdated: metadata.lastUpdated || new Date().toISOString(),
       }
 
       console.log(`[v0] Created extension object:`, extension.name)
@@ -512,6 +518,7 @@ class GitHubExtensionLoader {
 
   clearCache(): void {
     this.cache.clear()
+    this.updateChecker.stopChecking()
   }
 
   async downloadExtensionCode(extension: GitHubExtension): Promise<string | null> {
@@ -1093,12 +1100,20 @@ if (typeof module !== 'undefined' && module.exports) {
       apiEndpoints: [],
       searchTypes: [],
       cloudStreamProvider: null,
+      adult: false,
+      icon: null,
+      lastUpdated: null,
     }
   }
 
   private isCloudStreamExtensionFile(fileName: string): boolean {
     // Placeholder for checking if a file is a CloudStream extension
     return fileName.endsWith(".cs3") || fileName.endsWith(".js")
+  }
+
+  private extractSearchTypes(sourceCode: string): Array<{ value: string; label: string }> {
+    // Placeholder for extracting search types from source code
+    return []
   }
 }
 

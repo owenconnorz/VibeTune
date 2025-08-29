@@ -14,11 +14,13 @@ import { LikedSongsProvider } from "@/contexts/liked-songs-context"
 import { RefreshProvider } from "@/contexts/refresh-context"
 import { SettingsProvider } from "@/contexts/settings-context"
 import { DownloadProvider } from "@/contexts/download-context"
+import { NotificationsProvider } from "@/contexts/notifications-context"
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration"
 import { DiscordRPCIntegration } from "@/components/discord-rpc-integration"
 import { AgeVerificationModal } from "@/components/age-verification-modal"
 import { PageRouter } from "@/components/page-router"
 import { NavigationRouter } from "@/components/navigation-router"
+import { RenderOptimizationProvider } from "@/contexts/render-optimization-context"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -48,27 +50,31 @@ const CombinedProviders = ({ children }: { children: React.ReactNode }) => (
   <AuthProvider>
     <SyncProvider>
       <ListeningHistoryProvider>
-        <AudioPlayerProvider>
-          <VideoPlayerProvider>
-            <PlaylistProvider>
-              <LikedSongsProvider>
-                <DownloadProvider>
-                  <ThemeProvider>
-                    <RefreshProvider>
-                      <UpdateProvider>
-                        <SettingsProvider>
-                          <DiscordRPCIntegration />
-                          <AgeVerificationModal />
-                          {children}
-                        </SettingsProvider>
-                      </UpdateProvider>
-                    </RefreshProvider>
-                  </ThemeProvider>
-                </DownloadProvider>
-              </LikedSongsProvider>
-            </PlaylistProvider>
-          </VideoPlayerProvider>
-        </AudioPlayerProvider>
+        <RenderOptimizationProvider>
+          <AudioPlayerProvider>
+            <VideoPlayerProvider>
+              <PlaylistProvider>
+                <LikedSongsProvider>
+                  <DownloadProvider>
+                    <ThemeProvider>
+                      <RefreshProvider>
+                        <UpdateProvider>
+                          <SettingsProvider>
+                            <NotificationsProvider>
+                              <DiscordRPCIntegration />
+                              <AgeVerificationModal />
+                              {children}
+                            </NotificationsProvider>
+                          </SettingsProvider>
+                        </UpdateProvider>
+                      </RefreshProvider>
+                    </ThemeProvider>
+                  </DownloadProvider>
+                </LikedSongsProvider>
+              </PlaylistProvider>
+            </VideoPlayerProvider>
+          </AudioPlayerProvider>
+        </RenderOptimizationProvider>
       </ListeningHistoryProvider>
     </SyncProvider>
   </AuthProvider>
@@ -87,22 +93,59 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="VibeTune" />
+        <meta name="color-scheme" content="dark light" />
+        <meta name="supported-color-schemes" content="dark light" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-touch-fullscreen" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta httpEquiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+        <meta name="renderer" content="webkit" />
+        <meta name="force-rendering" content="webkit" />
         <meta
           name="permissions-policy"
-          content="microphone=(), camera=(), geolocation=(), notifications=(self), persistent-storage=(self), background-sync=(self)"
+          content="microphone=(), camera=(), geolocation=(), notifications=(self), persistent-storage=(self), background-sync=(self), accelerometer=(self), gyroscope=(self)"
         />
+        <link rel="preload" as="style" href="/globals.css" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+        <link rel="dns-prefetch" href="https://www.googleapis.com" />
+        <link rel="dns-prefetch" href="https://i.ytimg.com" />
+        <link rel="dns-prefetch" href="https://raw.githubusercontent.com" />
+        <link rel="dns-prefetch" href="https://api.github.com" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
         <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://www.googleapis.com" />
-        <link rel="dns-prefetch" href="https://i.ytimg.com" />
         <style>{`
 html {
   font-family: ${GeistSans.style.fontFamily};
   --font-sans: ${GeistSans.variable};
   --font-mono: ${GeistMono.variable};
+}
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+video, canvas {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.video-optimized {
+  contain: layout style paint;
+  transform: translateZ(0);
+  will-change: transform, opacity;
 }
         `}</style>
       </head>

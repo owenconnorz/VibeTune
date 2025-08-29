@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useVideoPlayer } from "@/contexts/video-player-context"
+import { useRenderOptimization } from "@/contexts/render-optimization-context"
 import { useLikedSongs } from "@/contexts/liked-songs-context"
 import { usePlaylist } from "@/contexts/playlist-context"
 import { useDownloads } from "@/contexts/download-context"
@@ -46,9 +47,19 @@ export default function VideosPage() {
   const [bannerVideos, setBannerVideos] = useState<VideoSource[]>([])
 
   const { playVideo } = useVideoPlayer()
+  const { setOptimizeForVideo, renderQuality, refreshRate, isHighRefreshRate } = useRenderOptimization()
   const { isLiked, toggleLike } = useLikedSongs()
   const { addToDownloads } = useDownloads()
   const { addToPlaylist } = usePlaylist()
+
+  useEffect(() => {
+    setOptimizeForVideo(true)
+    console.log(`[v0] Video page optimized for ${refreshRate}Hz display with ${renderQuality} quality`)
+
+    return () => {
+      setOptimizeForVideo(false)
+    }
+  }, [setOptimizeForVideo, refreshRate, renderQuality])
 
   const getProviderCategories = (extensionId: string): string[] => {
     const categoryMap: Record<string, string[]> = {
@@ -405,6 +416,8 @@ export default function VideosPage() {
     }
 
     console.log("[v0] Video track for playback:", videoTrack)
+    console.log(`[v0] Playing video with ${renderQuality} quality optimization for ${refreshRate}Hz display`)
+
     playVideo(videoTrack)
     setShowVideoDetail(false)
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -428,9 +441,9 @@ export default function VideosPage() {
   const currentBannerVideo = bannerVideos[currentBannerIndex]
 
   return (
-    <div className="min-h-screen bg-black text-white pb-20">
+    <div className={`min-h-screen bg-black text-white pb-20 ${isHighRefreshRate ? "video-optimized" : ""}`}>
       {showVideoDetail && selectedVideo && (
-        <div className="fixed inset-0 bg-black z-50 overflow-y-auto">
+        <div className="fixed inset-0 bg-black z-50 overflow-y-auto video-optimized">
           {/* Header */}
           <div className="flex items-center justify-between p-4">
             <Button
@@ -452,11 +465,14 @@ export default function VideosPage() {
           </div>
 
           {/* Video poster */}
-          <div className="relative aspect-video mx-4 rounded-lg overflow-hidden">
+          <div className="relative aspect-video mx-4 rounded-lg overflow-hidden video-optimized">
             <img
               src={selectedVideo.thumbnail || "/video-thumbnail.png"}
               alt={selectedVideo.title}
               className="w-full h-full object-cover"
+              style={{
+                imageRendering: renderQuality === "ultra" ? "-webkit-optimize-contrast" : "auto",
+              }}
               onError={(e) => {
                 e.currentTarget.src = "/video-thumbnail.png"
               }}
@@ -510,21 +526,25 @@ export default function VideosPage() {
             </div>
 
             {/* Related videos */}
-            <div className="overflow-x-auto scrollbar-hide">
+            <div className="overflow-x-auto scrollbar-hide video-optimized">
               <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
                 {videos.slice(0, 6).map((video, index) => (
                   <div key={`related_${video.source}_${video.id}_${index}`} className="flex-shrink-0 w-40">
                     <div
-                      className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer"
+                      className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer video-optimized"
                       onClick={() => {
                         console.log("[v0] Related video thumbnail clicked:", video.title)
                         handleVideoClick(video)
                       }}
                     >
                       <img
-                        src={video.thumbnail || "/video-thumbnail.png"}
+                        src={video.thumbnail || "/placeholder.svg"}
                         alt={video.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover thumbnail"
+                        style={{
+                          imageRendering: renderQuality === "low" ? "pixelated" : "auto",
+                          transform: renderQuality === "low" ? "scale(0.9)" : "none",
+                        }}
                         onError={(e) => {
                           e.currentTarget.src = "/video-thumbnail.png"
                         }}
@@ -627,12 +647,16 @@ export default function VideosPage() {
           </div>
 
           {currentBannerVideo && (
-            <div className="relative h-64 md:h-80 overflow-hidden">
+            <div className="relative h-64 md:h-80 overflow-hidden video-optimized">
               <div className="absolute inset-0">
                 <img
                   src={currentBannerVideo.thumbnail || "/video-thumbnail.png"}
                   alt={currentBannerVideo.title}
                   className="w-full h-full object-cover"
+                  style={{
+                    imageRendering: renderQuality === "ultra" ? "-webkit-optimize-contrast" : "auto",
+                    filter: renderQuality === "ultra" ? "contrast(1.1) saturate(1.1)" : "none",
+                  }}
                   onError={(e) => {
                     e.currentTarget.src = "/video-thumbnail.png"
                   }}
@@ -802,7 +826,7 @@ export default function VideosPage() {
                         <h2 className="text-xl font-medium text-white">{section.title}</h2>
                         <ChevronRight className="w-5 h-5 text-zinc-400" />
                       </div>
-                      <div className="overflow-x-auto scrollbar-hide">
+                      <div className="overflow-x-auto scrollbar-hide video-optimized">
                         <div className="flex gap-3 px-4 pb-2" style={{ width: "max-content" }}>
                           {section.videos.map((video, index) => (
                             <div
@@ -810,7 +834,7 @@ export default function VideosPage() {
                               className="flex-shrink-0 w-48"
                             >
                               <div
-                                className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer"
+                                className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer video-optimized"
                                 onClick={() => {
                                   console.log("[v0] Section video thumbnail clicked:", video.title)
                                   handleVideoClick(video)
@@ -819,7 +843,11 @@ export default function VideosPage() {
                                 <img
                                   src={video.thumbnail || "/placeholder.svg"}
                                   alt={video.title}
-                                  className="w-full h-full object-cover"
+                                  className="w-full h-full object-cover thumbnail"
+                                  style={{
+                                    imageRendering: renderQuality === "low" ? "pixelated" : "auto",
+                                    transform: renderQuality === "low" ? "scale(0.9)" : "none",
+                                  }}
                                   onError={(e) => {
                                     e.currentTarget.src = "/video-thumbnail.png"
                                   }}

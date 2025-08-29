@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useRef, useEffect } from "react"
+import { useRenderOptimization } from "./render-optimization-context"
 
 interface VideoTrack {
   id: string
@@ -34,6 +35,44 @@ interface VideoPlayerContextType {
 
 const VideoPlayerContext = createContext<VideoPlayerContextType | undefined>(undefined)
 
+interface MuxPlayerElement extends HTMLElement {
+  play(): Promise<void>
+  pause(): void
+  currentTime: number
+  duration: number
+  volume: number
+  muted: boolean
+  playbackRate: number
+  addEventListener(type: string, listener: EventListener): void
+  removeEventListener(type: string, listener: EventListener): void
+  requestFullscreen(): Promise<void>
+}
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      "mux-player": React.DetailedHTMLProps<React.HTMLAttributes<MuxPlayerElement>, MuxPlayerElement> & {
+        "playback-id"?: string
+        "stream-type"?: string
+        src?: string
+        poster?: string
+        controls?: boolean
+        autoplay?: boolean
+        muted?: boolean
+        loop?: boolean
+        preload?: string
+        crossorigin?: string
+        playsinline?: boolean
+        "webkit-playsinline"?: boolean
+        "prefer-mse"?: boolean
+        "disable-tracking"?: boolean
+        debug?: boolean
+        ref?: React.RefObject<MuxPlayerElement>
+      }
+    }
+  }
+}
+
 export function VideoPlayerProvider({ children }: { children: React.ReactNode }) {
   const [currentVideo, setCurrentVideo] = useState<VideoTrack | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -44,20 +83,62 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
   const [isMuted, setIsMuted] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
 
-  const videoRef = useRef<HTMLVideoElement>(null)
+  const videoRef = useRef<MuxPlayerElement>(null)
+  const { optimizeForVideo, setOptimizeForVideo, renderQuality, refreshRate } = useRenderOptimization()
+
+  useEffect(() => {
+    const script = document.createElement("script")
+    script.src = "https://cdn.jsdelivr.net/npm/@mux/mux-player@2/dist/index.js"
+    script.type = "module"
+    document.head.appendChild(script)
+
+    return () => {
+      if (document.head.contains(script)) {
+        document.head.removeChild(script)
+      }
+    }
+  }, [])
 
   const playVideo = async (video: VideoTrack) => {
-    console.log("[v0] Video player: Playing video:", video.title)
+    console.log("[v0] Mux Player: Playing video:", video.title)
     setCurrentVideo(video)
     setIsLoading(true)
 
+    setOptimizeForVideo(true)
+
     if (videoRef.current) {
-      videoRef.current.src = video.videoUrl
+      const muxPlayer = videoRef.current
+
+      muxPlayer.setAttribute("src", video.videoUrl)
+
+      switch (renderQuality) {
+        case "ultra":
+          muxPlayer.style.filter = "contrast(1.1) saturate(1.1) brightness(1.05)"
+          muxPlayer.setAttribute("prefer-mse", "true")
+          break
+        case "high":
+          muxPlayer.style.filter = "contrast(1.05) saturate(1.05)"
+          muxPlayer.setAttribute("prefer-mse", "true")
+          break
+        case "medium":
+          muxPlayer.style.filter = "none"
+          break
+        case "low":
+          muxPlayer.style.filter = "contrast(0.95) saturate(0.95)"
+          break
+      }
+
+      if (refreshRate > 60) {
+        muxPlayer.style.willChange = "transform, opacity"
+        muxPlayer.style.transform = "translateZ(0)"
+        muxPlayer.setAttribute("debug", "false")
+      }
+
       try {
-        await videoRef.current.play()
+        await muxPlayer.play()
         setIsPlaying(true)
       } catch (error) {
-        console.error("[v0] Video player: Error playing video:", error)
+        console.error("[v0] Mux Player: Error playing video:", error)
       } finally {
         setIsLoading(false)
       }
@@ -77,7 +158,7 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
         await videoRef.current.play()
         setIsPlaying(true)
       } catch (error) {
-        console.error("[v0] Video player: Error resuming video:", error)
+        console.error("[v0] Mux Player: Error resuming video:", error)
       }
     }
   }
@@ -89,6 +170,7 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
       setIsPlaying(false)
       setCurrentTime(0)
     }
+    setOptimizeForVideo(false)
   }
 
   const seekTo = (time: number) => {
@@ -123,32 +205,44 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
   }
 
   useEffect(() => {
-    const video = videoRef.current
-    if (!video) return
+    const muxPlayer = videoRef.current
+    if (!muxPlayer) return
 
-    const handleTimeUpdate = () => setCurrentTime(video.currentTime)
-    const handleDurationChange = () => setDuration(video.duration)
+    muxPlayer.setAttribute("playsinline", "true")
+    muxPlayer.setAttribute("webkit-playsinline", "true")
+    muxPlayer.setAttribute("crossorigin", "anonymous")
+    muxPlayer.setAttribute("disable-tracking", "true")
+    muxPlayer.setAttribute("prefer-mse", "true")
+
+    muxPlayer.classList.add("video-optimized")
+    if (optimizeForVideo) {
+      muxPlayer.classList.add("cloudstream-optimized")
+    }
+
+    const handleTimeUpdate = () => setCurrentTime(muxPlayer.currentTime)
+    const handleDurationChange = () => setDuration(muxPlayer.duration)
     const handleLoadStart = () => setIsLoading(true)
     const handleCanPlay = () => setIsLoading(false)
     const handleEnded = () => {
       setIsPlaying(false)
       setCurrentTime(0)
+      setOptimizeForVideo(false)
     }
 
-    video.addEventListener("timeupdate", handleTimeUpdate)
-    video.addEventListener("durationchange", handleDurationChange)
-    video.addEventListener("loadstart", handleLoadStart)
-    video.addEventListener("canplay", handleCanPlay)
-    video.addEventListener("ended", handleEnded)
+    muxPlayer.addEventListener("timeupdate", handleTimeUpdate)
+    muxPlayer.addEventListener("durationchange", handleDurationChange)
+    muxPlayer.addEventListener("loadstart", handleLoadStart)
+    muxPlayer.addEventListener("canplay", handleCanPlay)
+    muxPlayer.addEventListener("ended", handleEnded)
 
     return () => {
-      video.removeEventListener("timeupdate", handleTimeUpdate)
-      video.removeEventListener("durationchange", handleDurationChange)
-      video.removeEventListener("loadstart", handleLoadStart)
-      video.removeEventListener("canplay", handleCanPlay)
-      video.removeEventListener("ended", handleEnded)
+      muxPlayer.removeEventListener("timeupdate", handleTimeUpdate)
+      muxPlayer.removeEventListener("durationchange", handleDurationChange)
+      muxPlayer.removeEventListener("loadstart", handleLoadStart)
+      muxPlayer.removeEventListener("canplay", handleCanPlay)
+      muxPlayer.removeEventListener("ended", handleEnded)
     }
-  }, [])
+  }, [optimizeForVideo, setOptimizeForVideo])
 
   return (
     <VideoPlayerContext.Provider
@@ -172,7 +266,17 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
       }}
     >
       {children}
-      <video ref={videoRef} className="hidden" controls={false} preload="metadata" />
+      <mux-player
+        ref={videoRef}
+        className="hidden video-optimized"
+        controls={false}
+        preload="metadata"
+        playsinline
+        webkit-playsinline="true"
+        crossorigin="anonymous"
+        disable-tracking="true"
+        prefer-mse="true"
+      />
     </VideoPlayerContext.Provider>
   )
 }
