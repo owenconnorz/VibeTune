@@ -104,6 +104,7 @@ export function VideoPlayerProvider({ children }: { children: React.ReactNode })
     setCurrentVideo(video)
     setIsLoading(true)
 
+    setIsFullscreen(true)
     setOptimizeForVideo(true)
 
     if (videoRef.current) {
