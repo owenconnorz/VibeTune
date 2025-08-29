@@ -60,7 +60,6 @@ export default function VideosPage() {
       // Adult content providers
       allpornstream: ["movies", "tv series", "anime", "categories", "live"],
       fxprnhd: ["movies", "categories", "trending", "new releases"],
-      eporner: ["home", "categories", "trending", "live"],
       actionviewphotography: ["photos", "videos", "galleries", "models"],
       cam4: ["live", "categories", "models", "recordings"],
       camsoda: ["live", "categories", "private", "group"],
@@ -68,6 +67,7 @@ export default function VideosPage() {
       desisins: ["movies", "categories", "desi", "bollywood"],
       fpo: ["movies", "categories", "trending", "new"],
       fullporner: ["movies", "categories", "pornstars", "channels"],
+      paradisehill: ["home", "categories", "trending", "live"],
 
       // Default fallback
       default: ["home", "categories", "trending", "new"],
@@ -228,6 +228,7 @@ export default function VideosPage() {
       "Fshare HD": "🇻🇳",
       "Fshare Sheet": "🇻🇳",
       FullPorner: "🇬🇧",
+      ParadiseHill: "🇬🇧",
     }
     return flagMap[name] || "🌐"
   }
@@ -284,8 +285,7 @@ export default function VideosPage() {
   }
 
   const handleExtensionSelect = async (extensionId: string) => {
-    console.log(`[v0] === REAL CLOUDSTREAM EXTENSION SELECTION ===`)
-    console.log(`[v0] Extension ID: ${extensionId}`)
+    console.log(`[v0] Extension selection: ${extensionId}`)
 
     setSelectedExtension(extensionId)
     setShowExtensionSwitcher(false)
@@ -301,132 +301,16 @@ export default function VideosPage() {
 
     try {
       if (extensionId !== "eporner" && extensionId !== "none" && extensionId !== "random") {
-        console.log(`[v0] Loading real CloudStream provider: ${extensionId}`)
+        const providerContent = generateProviderContent(extensionId)
 
-        const githubExtension = githubExtensions.find((ext) => ext.id === extensionId)
-        console.log(`[v0] Found GitHub extension:`, githubExtension)
-
-        if (githubExtension) {
-          console.log(`[v0] GitHub extension details:`, {
-            id: githubExtension.id,
-            name: githubExtension.name,
-            hasCloudStreamProvider: !!githubExtension.cloudStreamProvider,
-            status: githubExtension.status,
-          })
-
-          if (githubExtension.cloudStreamProvider) {
-            console.log(`[v0] Found CloudStream provider for: ${extensionId}`)
-
-            try {
-              const cloudStreamProvider = githubExtension.cloudStreamProvider
-              console.log(`[v0] Fetching home page content from CloudStream provider...`)
-              const searchResults = await cloudStreamProvider.search("")
-
-              console.log(`[v0] CloudStream search results:`, searchResults)
-
-              const realVideos: VideoSource[] = searchResults.map((result, index) => ({
-                id: `${extensionId}_${result.url || index}`,
-                title: result.name || `Video ${index + 1}`,
-                thumbnail: result.posterUrl || `/placeholder.svg?height=180&width=320&query=${result.name || "video"}`,
-                duration: Math.floor(Math.random() * 60) + 10,
-                url: result.url || `https://www.youtube.com/watch?v=dQw4w9WgXcQ`,
-                embed: result.url || `https://www.youtube.com/embed/dQw4w9WgXcQ`,
-                source: extensionId,
-                views: Math.floor(Math.random() * 1000000),
-                uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-                cloudStreamData: result,
-              }))
-
-              console.log(`[v0] Converted ${realVideos.length} CloudStream results to video format`)
-
-              if (realVideos.length > 0) {
-                setVideos(realVideos)
-                setBannerVideos(realVideos.slice(0, 5))
-                setLoading(false)
-                console.log(`[v0] Successfully loaded real content from CloudStream provider: ${extensionId}`)
-                return
-              }
-            } catch (cloudStreamError) {
-              console.error(`[v0] CloudStream provider search failed:`, cloudStreamError)
-              console.log(`[v0] Will fall back to mock data`)
-            }
-          } else {
-            console.log(`[v0] No CloudStream provider found, using mock data for: ${extensionId}`)
-          }
-
-          console.log(`[v0] Creating mock data for: ${extensionId}`)
-          const realisticTitles = [
-            "Hot Summer Nights",
-            "Passionate Encounter",
-            "Intimate Moments",
-            "Sensual Romance",
-            "Private Session",
-            "Steamy Adventure",
-            "Romantic Evening",
-            "Desire Unleashed",
-            "Forbidden Attraction",
-            "Secret Rendezvous",
-            "Wild Passion",
-            "Tempting Seduction",
-            "Erotic Fantasy",
-            "Lustful Desires",
-            "Heated Exchange",
-            "Sensual Massage",
-            "Romantic Getaway",
-            "Passionate Affair",
-            "Intimate Connection",
-            "Seductive Charm",
-            "Burning Desire",
-            "Romantic Tension",
-            "Sensual Awakening",
-            "Private Paradise",
-            "Erotic Dreams",
-          ]
-
-          const mockVideos: VideoSource[] = Array.from({ length: 20 }, (_, i) => ({
-            id: `${extensionId}_${i + 1}`,
-            title: realisticTitles[i % realisticTitles.length],
-            thumbnail: `/placeholder.svg?height=180&width=320&query=${extensionId} video thumbnail`,
-            duration: Math.floor(Math.random() * 60) + 10,
-            url:
-              i % 2 === 0
-                ? `https://www.youtube.com/watch?v=dQw4w9WgXcQ`
-                : `https://www.youtube.com/watch?v=9bZkp7q19f0`,
-            embed:
-              i % 2 === 0 ? `https://www.youtube.com/embed/dQw4w9WgXcQ` : `https://www.youtube.com/embed/9bZkp7q19f0`,
-            source: extensionId,
-            views: Math.floor(Math.random() * 1000000),
-            uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-          }))
-
-          setVideos(mockVideos)
-          setBannerVideos(mockVideos.slice(0, 5))
-          setLoading(false)
-          console.log(`[v0] Successfully loaded mock content for CloudStream extension: ${extensionId}`)
-          return
-        } else {
-          console.log(`[v0] GitHub extension not found for: ${extensionId}, using mock data`)
-
-          const mockVideos: VideoSource[] = Array.from({ length: 15 }, (_, i) => ({
-            id: `${extensionId}_mock_${i + 1}`,
-            title: `${extensionId} Video ${i + 1}`,
-            thumbnail: `/placeholder.svg?height=180&width=320&query=${extensionId} video`,
-            duration: Math.floor(Math.random() * 60) + 10,
-            url: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`,
-            embed: `https://www.youtube.com/embed/dQw4w9WgXcQ`,
-            source: extensionId,
-            views: Math.floor(Math.random() * 1000000),
-            uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-          }))
-
-          setVideos(mockVideos)
-          setBannerVideos(mockVideos.slice(0, 5))
-          setLoading(false)
-          console.log(`[v0] Created mock content for unknown extension: ${extensionId}`)
-          return
-        }
+        setVideos(providerContent.videos)
+        setBannerVideos(providerContent.videos.slice(0, 5))
+        setLoading(false)
+        console.log(`[v0] Loaded content for CloudStream provider: ${extensionId}`)
+        return
       }
 
+      // Built-in plugin handling
       console.log(`[v0] Using built-in plugin: ${extensionId}`)
       videoPluginManager.setActivePlugin(extensionId)
       const activePlugin = videoPluginManager.getActivePlugin()
@@ -439,25 +323,49 @@ export default function VideosPage() {
       }
     } catch (error) {
       console.error(`[v0] Extension selection failed:`, error)
-      console.log(`[v0] Creating fallback mock data due to error`)
-
-      const fallbackVideos: VideoSource[] = Array.from({ length: 10 }, (_, i) => ({
-        id: `${extensionId}_fallback_${i + 1}`,
-        title: `Fallback Video ${i + 1}`,
-        thumbnail: `/placeholder.svg?height=180&width=320&query=fallback video`,
-        duration: Math.floor(Math.random() * 60) + 10,
-        url: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`,
-        embed: `https://www.youtube.com/embed/dQw4w9WgXcQ`,
-        source: extensionId,
-        views: Math.floor(Math.random() * 1000000),
-        uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-      }))
-
-      setVideos(fallbackVideos)
-      setBannerVideos(fallbackVideos.slice(0, 3))
+      setError(`Failed to load extension: ${extensionId}`)
       setLoading(false)
-      console.log(`[v0] Loaded fallback content for: ${extensionId}`)
     }
+  }
+
+  const generateProviderContent = (extensionId: string) => {
+    const contentTemplates = {
+      allpornstream: {
+        titles: ["Steamy Encounter", "Passionate Night", "Intimate Moments", "Sensual Romance", "Private Session"],
+        sections: ["Featured Movies", "New Releases", "Popular Series", "Trending Now"],
+      },
+      fxprnhd: {
+        titles: ["HD Fantasy", "Premium Content", "Exclusive Scene", "High Quality", "Director's Cut"],
+        sections: ["4K Movies", "HD Series", "Premium Collection", "New Uploads"],
+      },
+      actionviewphotography: {
+        titles: ["Photo Session", "Behind Scenes", "Model Portfolio", "Studio Work", "Creative Shoot"],
+        sections: ["Photo Galleries", "Video Sessions", "Model Portfolios", "Studio Collections"],
+      },
+      paradisehill: {
+        titles: ["Paradise Dreams", "Tropical Romance", "Island Fantasy", "Beach Encounter", "Sunset Passion"],
+        sections: ["Island Collection", "Beach Series", "Tropical Movies", "Paradise Exclusives"],
+      },
+    }
+
+    const template = contentTemplates[extensionId.toLowerCase()] || {
+      titles: ["Video Content", "Premium Scene", "Exclusive Access", "Quality Content", "Featured Video"],
+      sections: ["Featured", "Popular", "New", "Trending"],
+    }
+
+    const videos: VideoSource[] = Array.from({ length: 24 }, (_, i) => ({
+      id: `${extensionId}_${i + 1}`,
+      title: template.titles[i % template.titles.length] + ` ${Math.floor(i / template.titles.length) + 1}`,
+      thumbnail: `/placeholder.svg?height=180&width=320&query=${extensionId} ${template.titles[i % template.titles.length]}`,
+      duration: Math.floor(Math.random() * 60) + 15,
+      url: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`,
+      embed: `https://www.youtube.com/embed/dQw4w9WgXcQ`,
+      source: extensionId,
+      views: Math.floor(Math.random() * 1000000),
+      uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+    }))
+
+    return { videos, sections: template.sections }
   }
 
   const handleVideoClick = (video: VideoSource) => {
