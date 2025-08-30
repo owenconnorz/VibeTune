@@ -245,7 +245,7 @@ export class YouTubeDataAPI {
 
 // Factory function to create YouTube API instance
 export function createYouTubeAPI(): YouTubeDataAPI {
-  const apiKey = process.env.YOUTUBE_API_KEY
+  const apiKey = process.env.YOUTUBE_API_KEY || "AIzaSyBIQVGnXO2T7smsxf6q_MWxMD1sQzek1Nc"
   if (!apiKey) {
     throw new Error("YOUTUBE_API_KEY environment variable is required")
   }
@@ -323,11 +323,6 @@ export class MusicAPIWrapper {
   }
 }
 
-export function createMusicAPI(): MusicAPIWrapper {
-  const youtubeAPI = createYouTubeDataAPI()
-  return new MusicAPIWrapper(youtubeAPI)
-}
-
 // Fallback data for when API fails
 export const fallbackMusicData: YouTubeVideo[] = [
   {
@@ -371,3 +366,8 @@ export const fallbackMusicData: YouTubeVideo[] = [
     url: "https://www.youtube.com/watch?v=VF-r5TtlT9w",
   },
 ]
+
+export function createMusicAPI(): MusicAPIWrapper {
+  const youtubeAPI = createYouTubeDataAPI()
+  return new MusicAPIWrapper(youtubeAPI)
+}

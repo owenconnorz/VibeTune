@@ -2,19 +2,17 @@
 import { useEffect, useState, useCallback } from "react"
 import type React from "react"
 
-import { ArrowLeft, Upload, Palette, Video, Music, Sparkles } from "lucide-react"
+import { ArrowLeft, Upload, Palette, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
-import { useAudioPlayer } from "@/contexts/audio-player-context"
 
 export default function AppearanceSettingsPage() {
   const router = useRouter()
   const { user } = useAuth()
-  const { state, setVideoMode } = useAudioPlayer()
 
   const [profileSettings, setProfileSettings] = useState({
     useCustomPicture: false,
@@ -70,10 +68,6 @@ export default function AppearanceSettingsPage() {
     }
     setProfileSettings(newSettings)
     localStorage.setItem("vibetuneProfileSettings", JSON.stringify(newSettings))
-  }
-
-  const handleVideoModeToggle = (enabled: boolean) => {
-    setVideoMode(enabled)
   }
 
   const handleCanvasModeToggle = (enabled: boolean) => {
@@ -158,33 +152,16 @@ export default function AppearanceSettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Media Player Settings */}
+        {/* Visual Effects Settings */}
         <Card className="bg-zinc-800 border-zinc-700">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
-              <Video className="w-5 h-5" />
-              Media Player
+              <Sparkles className="w-5 h-5" />
+              Visual Effects
             </CardTitle>
-            <CardDescription className="text-gray-400">Configure how media is displayed</CardDescription>
+            <CardDescription className="text-gray-400">Configure visual enhancements</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
-                  {state.isVideoMode ? (
-                    <Video className="w-5 h-5 text-blue-400" />
-                  ) : (
-                    <Music className="w-5 h-5 text-green-400" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-white font-medium">Video Mode</p>
-                  <p className="text-gray-400 text-sm">Show porn when available</p>
-                </div>
-              </div>
-              <Switch checked={state.isVideoMode} onCheckedChange={handleVideoModeToggle} />
-            </div>
-
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">

@@ -1,18 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import {
-  ArrowLeft,
-  Play,
-  Volume2,
-  Repeat,
-  Shuffle,
-  SkipForward,
-  Music,
-  Video,
-  Headphones,
-  Wifi,
-  Settings,
-} from "lucide-react"
+import { ArrowLeft, Play, Volume2, Repeat, Shuffle, SkipForward, Headphones, Wifi, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
@@ -24,7 +12,7 @@ import { useSettings } from "@/contexts/settings-context"
 
 export default function PlayerAudioSettingsPage() {
   const router = useRouter()
-  const { state, setVolume, setVideoMode } = useAudioPlayer()
+  const { state, setVolume } = useAudioPlayer()
   const { youtubeSettings, setYoutubeSettings } = useSettings()
 
   const safeYoutubeSettings = youtubeSettings || {
@@ -134,7 +122,7 @@ export default function PlayerAudioSettingsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
-                  <Music className="w-5 h-5 text-green-400" />
+                  <Headphones className="w-5 h-5 text-green-400" />
                 </div>
                 <div>
                   <p className="text-white font-medium">Prefer Opus Audio</p>
@@ -163,44 +151,10 @@ export default function PlayerAudioSettingsPage() {
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
-                  <Video className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Show Videos</p>
-                  <p className="text-gray-400 text-sm">Allow video content when available</p>
-                </div>
-              </div>
-              <Switch
-                checked={safeYoutubeSettings.showVideos}
-                onCheckedChange={(checked) => safeSetYoutubeSettings({ showVideos: checked })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
-                  <Play className="w-5 h-5 text-red-400" />
-                </div>
-                <div>
-                  <p className="text-white font-medium">Prefer Videos</p>
-                  <p className="text-gray-400 text-sm">Prioritize video streams over audio-only</p>
-                </div>
-              </div>
-              <Switch
-                checked={safeYoutubeSettings.preferVideos}
-                onCheckedChange={(checked) => safeSetYoutubeSettings({ preferVideos: checked })}
-                disabled={!safeYoutubeSettings.showVideos}
-              />
-            </div>
-
             <div className="text-xs text-gray-400 space-y-1 pt-2 border-t border-zinc-700">
               <p>• High quality audio uses more bandwidth but provides better sound</p>
               <p>• Opus format is more efficient than AAC at the same bitrate</p>
               <p>• Adaptive quality automatically adjusts based on your connection</p>
-              <p>• Video options require "Show Videos" to be enabled</p>
             </div>
           </CardContent>
         </Card>
@@ -349,41 +303,6 @@ export default function PlayerAudioSettingsPage() {
                 checked={audioSettings.gaplessPlayback}
                 onCheckedChange={(checked) => saveAudioSettings({ ...audioSettings, gaplessPlayback: checked })}
               />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Media Display */}
-        <Card className="bg-zinc-800 border-zinc-700">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Video className="w-5 h-5" />
-              Media Display
-            </CardTitle>
-            <CardDescription className="text-gray-400">Choose how media is displayed</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-zinc-700 rounded-lg flex items-center justify-center">
-                  {state.isVideoMode ? (
-                    <Video className="w-5 h-5 text-blue-400" />
-                  ) : (
-                    <Music className="w-5 h-5 text-green-400" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-white font-medium">Video Mode</p>
-                  <p className="text-gray-400 text-sm">Show video content when available</p>
-                </div>
-              </div>
-              <Switch checked={state.isVideoMode} onCheckedChange={setVideoMode} />
-            </div>
-
-            <div className="text-xs text-gray-400 space-y-1 pt-2 border-t border-zinc-700">
-              <p>• Video mode shows video content when available</p>
-              <p>• Audio mode shows album artwork and visualizations</p>
-              <p>• You can toggle between modes anytime during playback</p>
             </div>
           </CardContent>
         </Card>

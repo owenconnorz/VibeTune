@@ -208,34 +208,46 @@ class GitHubExtensionLoader {
 
   private async fetchCloudStreamExtensions(manifestUrl: string): Promise<GitHubExtension[]> {
     try {
+      console.log(`[v0] ===== CLOUDSTREAM EXTENSION LOADING START =====`)
       console.log(`[v0] Fetching CloudStream manifest from: ${manifestUrl}`)
 
       const response = await this.fetchWithRetry(manifestUrl)
       if (!response.ok) {
+        console.error(`[v0] Failed to fetch manifest: ${response.status} ${response.statusText}`)
         throw new Error(`Failed to fetch manifest: ${response.status}`)
       }
 
       const manifest = await response.json()
-      console.log(`[v0] CloudStream manifest loaded:`, manifest)
+      console.log(`[v0] CloudStream manifest loaded successfully`)
       console.log(`[v0] Manifest type:`, Array.isArray(manifest) ? "array" : typeof manifest)
+      console.log(`[v0] Manifest length:`, Array.isArray(manifest) ? manifest.length : "N/A")
       console.log(`[v0] Manifest keys:`, Object.keys(manifest || {}))
+      console.log(`[v0] Full manifest structure:`, JSON.stringify(manifest, null, 2))
 
       const extensions: GitHubExtension[] = []
 
       if (Array.isArray(manifest)) {
+        console.log(`[v0] ===== PROCESSING DIRECT PLUGIN ARRAY =====`)
         console.log(`[v0] Processing direct plugin array with ${manifest.length} plugins`)
 
-        for (const plugin of manifest) {
-          console.log(`[v0] Processing plugin:`, plugin.name || plugin.displayName || "Unknown")
+        for (let i = 0; i < manifest.length; i++) {
+          const plugin = manifest[i]
+          console.log(`[v0] --- Processing plugin ${i + 1}/${manifest.length} ---`)
+          console.log(`[v0] Plugin name:`, plugin.name || plugin.displayName || "Unknown")
+          console.log(`[v0] Plugin data:`, JSON.stringify(plugin, null, 2))
+
           const extension = this.createCloudStreamExtension(plugin, manifestUrl)
           if (extension) {
             extensions.push(extension)
-            console.log(`[v0] Successfully created extension: ${extension.name}`)
+            console.log(`[v0] ✓ Successfully created extension: ${extension.name} (ID: ${extension.id})`)
+          } else {
+            console.error(`[v0] ✗ Failed to create extension for plugin:`, plugin.name || "Unknown")
           }
         }
       }
       // Check if manifest has plugins list (original logic)
       else if (manifest.plugins && Array.isArray(manifest.plugins)) {
+        console.log(`[v0] ===== PROCESSING MANIFEST WITH PLUGINS LIST =====`)
         console.log(`[v0] Found ${manifest.plugins.length} plugins in manifest`)
 
         for (const pluginUrl of manifest.plugins) {
@@ -262,29 +274,43 @@ class GitHubExtensionLoader {
         }
       } else {
         // Try to parse as single extension manifest
+        console.log(`[v0] ===== PROCESSING SINGLE EXTENSION MANIFEST =====`)
         console.log(`[v0] Attempting to parse as single extension manifest`)
+        console.log(`[v0] Single manifest data:`, JSON.stringify(manifest, null, 2))
+
         const extension = this.createCloudStreamExtension(manifest, manifestUrl)
         if (extension) {
           extensions.push(extension)
-          console.log(`[v0] Created single extension: ${extension.name}`)
+          console.log(`[v0] ✓ Created single extension: ${extension.name} (ID: ${extension.id})`)
+        } else {
+          console.error(`[v0] ✗ Failed to create single extension from manifest`)
         }
       }
 
-      console.log(`[v0] Created ${extensions.length} CloudStream extensions`)
+      console.log(`[v0] ===== CLOUDSTREAM EXTENSION LOADING COMPLETE =====`)
+      console.log(`[v0] Total extensions created: ${extensions.length}`)
+      extensions.forEach((ext, i) => {
+        console.log(`[v0] Extension ${i + 1}: ${ext.name} (${ext.id}) - ${ext.status}`)
+      })
+
       return extensions
     } catch (error) {
+      console.error(`[v0] ===== CLOUDSTREAM EXTENSION LOADING FAILED =====`)
       console.error(`[v0] Failed to parse CloudStream manifest:`, error)
       console.error(`[v0] Error details:`, error.message, error.stack)
+      console.error(`[v0] Manifest URL:`, manifestUrl)
       return []
     }
   }
 
   private createCloudStreamExtension(plugin: any, manifestUrl: string): GitHubExtension | null {
     try {
-      console.log(`[v0] Creating extension from plugin:`, plugin)
+      console.log(`[v0] --- Creating extension from plugin ---`)
+      console.log(`[v0] Plugin type:`, typeof plugin)
+      console.log(`[v0] Plugin keys:`, Object.keys(plugin || {}))
 
       if (!plugin || typeof plugin !== "object") {
-        console.log(`[v0] Invalid plugin object:`, plugin)
+        console.error(`[v0] Invalid plugin object:`, plugin)
         return null
       }
 
@@ -296,6 +322,15 @@ class GitHubExtensionLoader {
       const language = plugin.language || plugin.locale || "en"
       const adult = plugin.adult || plugin.nsfw || plugin.mature || false
       const status = plugin.status || plugin.state || "Working"
+
+      console.log(`[v0] Extracted plugin properties:`)
+      console.log(`[v0] - Name: ${name}`)
+      console.log(`[v0] - Description: ${description}`)
+      console.log(`[v0] - Version: ${version}`)
+      console.log(`[v0] - Author: ${author}`)
+      console.log(`[v0] - Language: ${language}`)
+      console.log(`[v0] - Adult: ${adult}`)
+      console.log(`[v0] - Status: ${status}`)
 
       const extension: GitHubExtension = {
         id:
@@ -320,10 +355,10 @@ class GitHubExtensionLoader {
         cloudStreamProvider: plugin, // Store the original plugin data
       }
 
-      console.log(`[v0] Successfully created CloudStream extension: ${extension.name} (ID: ${extension.id})`)
+      console.log(`[v0] ✓ Successfully created CloudStream extension: ${extension.name} (ID: ${extension.id})`)
       return extension
     } catch (error) {
-      console.error(`[v0] Failed to create CloudStream extension:`, error)
+      console.error(`[v0] ✗ Failed to create CloudStream extension:`, error)
       console.error(`[v0] Plugin data:`, plugin)
       return null
     }
