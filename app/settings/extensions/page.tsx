@@ -108,13 +108,47 @@ export default function ExtensionsPage() {
       const { githubExtensionLoader } = await import("@/lib/video-plugins/github-extension-loader")
       console.log("[v0] GitHub extension loader imported successfully")
 
-      console.log("[v0] ==> CALLING fetchRepositoryExtensions")
+      console.log("[v0] ==> CALLING fetchRepositoryExtensions WITH ENHANCED LOGGING")
+      console.log("[v0] Repository URL being processed:", newRepoUrl)
+      console.log("[v0] Expected CloudStream manifest format check starting...")
+
       const extensions = await githubExtensionLoader.fetchRepositoryExtensions(newRepoUrl)
+
       console.log("[v0] ==> FETCH COMPLETE - Extensions found:", extensions.length)
-      console.log(
-        "[v0] Extension details:",
-        extensions.map((ext) => ({ name: ext.name, url: ext.url })),
-      )
+      console.log("[v0] ==> RAW EXTENSION DATA DUMP:")
+      extensions.forEach((ext, index) => {
+        console.log(`[v0] Extension ${index + 1}:`, {
+          name: ext.name,
+          url: ext.url,
+          description: ext.description,
+          version: ext.version,
+          type: ext.type,
+          language: ext.language,
+          fullObject: ext,
+        })
+      })
+
+      if (extensions.length === 0) {
+        console.log("[v0] ==> ZERO EXTENSIONS FOUND - INVESTIGATING MANIFEST STRUCTURE")
+        console.log("[v0] Attempting direct manifest fetch for analysis...")
+        try {
+          const directResponse = await fetch(newRepoUrl)
+          const manifestText = await directResponse.text()
+          console.log("[v0] ==> DIRECT MANIFEST CONTENT:")
+          console.log(manifestText.substring(0, 1000) + (manifestText.length > 1000 ? "..." : ""))
+
+          const manifestJson = JSON.parse(manifestText)
+          console.log("[v0] ==> PARSED MANIFEST STRUCTURE:")
+          console.log("Keys:", Object.keys(manifestJson))
+          console.log("Is Array:", Array.isArray(manifestJson))
+          if (Array.isArray(manifestJson)) {
+            console.log("Array length:", manifestJson.length)
+            console.log("First item keys:", manifestJson[0] ? Object.keys(manifestJson[0]) : "No items")
+          }
+        } catch (manifestError) {
+          console.error("[v0] Failed to analyze manifest directly:", manifestError)
+        }
+      }
 
       const newRepo: Repository = {
         id: Date.now().toString(),
@@ -139,7 +173,7 @@ export default function ExtensionsPage() {
         console.log("[v0] GitHub extensions loaded into plugin manager")
       } else {
         console.warn("[v0] ==> NO EXTENSIONS FOUND IN REPOSITORY:", newRepoUrl)
-        toast.error("Repository added but no extensions found")
+        toast.error("Repository added but no extensions found - check console for manifest analysis")
       }
     } catch (error) {
       console.error("[v0] ==> REPOSITORY ADD FAILED:", error)
@@ -176,10 +210,25 @@ export default function ExtensionsPage() {
       const { githubExtensionLoader } = await import("@/lib/video-plugins/github-extension-loader")
       console.log("[v0] GitHub extension loader imported for repository view")
 
-      console.log("[v0] ==> CALLING fetchRepositoryExtensions FOR DETAIL VIEW")
+      console.log("[v0] ==> CALLING fetchRepositoryExtensions FOR DETAIL VIEW WITH ENHANCED LOGGING")
+      console.log("[v0] Repository being analyzed:", repo.url)
+
       const extensions = await githubExtensionLoader.fetchRepositoryExtensions(repo.url)
+
       console.log("[v0] ==> DETAIL VIEW FETCH COMPLETE - Extensions loaded:", extensions.length)
-      console.log("[v0] Raw extensions data:", extensions)
+      console.log("[v0] ==> DETAILED EXTENSION ANALYSIS:")
+      extensions.forEach((ext, index) => {
+        console.log(`[v0] Detail Extension ${index + 1}:`, {
+          name: ext.name || `Unnamed Extension ${index + 1}`,
+          description: ext.description || "No description",
+          version: ext.version || "Unknown version",
+          url: ext.url,
+          type: ext.type || "Unknown type",
+          language: ext.language || "Unknown language",
+          hasIcon: !!ext.icon,
+          allProperties: Object.keys(ext),
+        })
+      })
 
       const formattedExtensions: Extension[] = extensions.map((ext, index) => {
         console.log("[v0] Processing extension for display:", ext.name || `Extension ${index + 1}`, ext)
@@ -188,7 +237,7 @@ export default function ExtensionsPage() {
           name: ext.name || `Extension ${index + 1}`,
           description: ext.description || ext.name || "No description available",
           version: ext.version || "v1.0",
-          language: "English",
+          language: ext.language || "English",
           size: `${Math.floor(Math.random() * 50) + 10} kB`,
           rating: Math.floor(Math.random() * 5),
           ageRating: "18+",

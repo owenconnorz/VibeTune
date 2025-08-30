@@ -452,21 +452,22 @@ export default function VideosPage() {
       artist: video.source || "Video",
       thumbnail: video.thumbnail,
       duration: video.duration,
-      videoUrl: videoUrl,
-      url: videoUrl,
+      videoUrl: videoUrl, // Mux player expects videoUrl field
+      url: videoUrl, // Keep for compatibility
       source: video.source,
     }
 
-    console.log("[v0] Video track for playback:", videoTrack)
-    console.log("[v0] Video URL being passed to player:", videoUrl)
-    console.log(`[v0] Playing video with ${renderQuality} quality optimization for ${refreshRate}Hz display`)
+    console.log("[v0] Video track for Mux player:", videoTrack)
+    console.log("[v0] Video URL being passed to Mux player:", videoUrl)
+    console.log(`[v0] Triggering Mux player with ${renderQuality} quality optimization for ${refreshRate}Hz display`)
 
+    console.log("[v0] Calling playVideo function from video player context...")
     playVideo(videoTrack)
 
     setShowVideoDetail(false)
     window.scrollTo({ top: 0, behavior: "smooth" })
 
-    console.log("[v0] === DIRECT FULLSCREEN VIDEO PLAYBACK INITIATED ===")
+    console.log("[v0] === MUX PLAYER FULLSCREEN PLAYBACK INITIATED ===")
   }
 
   const handlePlanToWatch = (video: VideoSource) => {
