@@ -21,6 +21,7 @@ import { AgeVerificationModal } from "@/components/age-verification-modal"
 import { PageRouter } from "@/components/page-router"
 import { NavigationRouter } from "@/components/navigation-router"
 import { RenderOptimizationProvider } from "@/contexts/render-optimization-context"
+import { VideoPlayer } from "@/components/video-player"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -171,6 +172,7 @@ video, canvas {
           <PageRouter>
             {children}
             <NavigationRouter />
+            <VideoPlayer />
           </PageRouter>
         </CombinedProviders>
       </body>
