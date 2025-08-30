@@ -12,6 +12,7 @@ import {
   Palette,
   ChevronRight,
   Puzzle,
+  Terminal,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -61,6 +62,12 @@ export default function SettingsPage() {
         title: "Extensions",
         icon: Puzzle,
         description: "Manage video plugins and repositories",
+      },
+      {
+        id: "logcat",
+        title: "Log Cat",
+        icon: Terminal,
+        description: "Real-time debugging and system logs",
       },
       {
         id: "player",

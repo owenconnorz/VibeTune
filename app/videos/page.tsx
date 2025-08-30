@@ -392,13 +392,24 @@ export default function VideosPage() {
       sections: ["Featured", "Popular", "New", "Trending"],
     }
 
+    const playableVideoUrls = [
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+    ]
+
     const videos: VideoSource[] = Array.from({ length: 24 }, (_, i) => ({
       id: `${extensionId}_${i + 1}`,
       title: template.titles[i % template.titles.length] + ` ${Math.floor(i / template.titles.length) + 1}`,
       thumbnail: `/placeholder.svg?height=180&width=320&query=${extensionId} ${template.titles[i % template.titles.length]}`,
       duration: Math.floor(Math.random() * 60) + 15,
-      url: `https://www.youtube.com/watch?v=dQw4w9WgXcQ`,
-      embed: `https://www.youtube.com/embed/dQw4w9WgXcQ`,
+      url: playableVideoUrls[i % playableVideoUrls.length],
+      embed: playableVideoUrls[i % playableVideoUrls.length],
       source: extensionId,
       views: Math.floor(Math.random() * 1000000),
       uploadDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
@@ -412,6 +423,8 @@ export default function VideosPage() {
     console.log("[v0] Video clicked:", video.title)
     console.log("[v0] Video ID:", video.id)
     console.log("[v0] Video source:", video.source)
+    console.log("[v0] Video URL:", video.url)
+    console.log("[v0] Video embed:", video.embed)
     console.log("[v0] Opening video detail modal...")
 
     setSelectedVideo(video)
@@ -440,22 +453,15 @@ export default function VideosPage() {
       thumbnail: video.thumbnail,
       duration: video.duration,
       videoUrl: videoUrl,
+      url: videoUrl,
       source: video.source,
     }
 
     console.log("[v0] Video track for playback:", videoTrack)
+    console.log("[v0] Video URL being passed to player:", videoUrl)
     console.log(`[v0] Playing video with ${renderQuality} quality optimization for ${refreshRate}Hz display`)
 
     playVideo(videoTrack)
-
-    setTimeout(() => {
-      const muxPlayer = document.querySelector("mux-player") as any
-      if (muxPlayer && muxPlayer.requestFullscreen) {
-        muxPlayer.requestFullscreen().catch((error: any) => {
-          console.log("[v0] Fullscreen request failed:", error)
-        })
-      }
-    }, 500)
 
     setShowVideoDetail(false)
     window.scrollTo({ top: 0, behavior: "smooth" })
