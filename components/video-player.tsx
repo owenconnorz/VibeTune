@@ -3,10 +3,13 @@ import { Play, Pause, Volume2, VolumeX, SkipBack, SkipForward, Settings, X, Mini
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { useVideoPlayer } from "@/contexts/video-player-context"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 export function VideoPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [showControls, setShowControls] = useState(true)
+  const [controlsTimeout, setControlsTimeout] = useState<NodeJS.Timeout | null>(null)
+
   const {
     currentVideo,
     isPlaying,
@@ -29,10 +32,42 @@ export function VideoPlayer() {
     if (videoRef.current && currentVideo) {
       const video = videoRef.current
 
+      console.log("[v0] HTML5 Video Player: Setting up video element")
+      console.log("[v0] Video URL:", currentVideo.videoUrl || currentVideo.url)
+
       // Set video source
       if (currentVideo.videoUrl || currentVideo.url) {
         video.src = currentVideo.videoUrl || currentVideo.url || ""
+        video.load() // Ensure video loads properly
       }
+
+      // Add event listeners for HTML5 video
+      const handleLoadedData = () => {
+        console.log("[v0] HTML5 Video: Video loaded and ready to play")
+        if (isPlaying) {
+          video.play().catch(console.error)
+        }
+      }
+
+      const handleTimeUpdate = () => {
+        // Update context with current time from video element
+        if (Math.abs(video.currentTime - currentTime) > 1) {
+          seekTo(video.currentTime)
+        }
+      }
+
+      const handleLoadedMetadata = () => {
+        console.log("[v0] HTML5 Video: Metadata loaded, duration:", video.duration)
+      }
+
+      const handleError = (e: Event) => {
+        console.error("[v0] HTML5 Video Error:", e)
+      }
+
+      video.addEventListener("loadeddata", handleLoadedData)
+      video.addEventListener("timeupdate", handleTimeUpdate)
+      video.addEventListener("loadedmetadata", handleLoadedMetadata)
+      video.addEventListener("error", handleError)
 
       // Sync playback state
       if (isPlaying && video.paused) {
@@ -45,12 +80,33 @@ export function VideoPlayer() {
       video.volume = volume
       video.muted = isMuted
 
-      // Sync current time
-      if (Math.abs(video.currentTime - currentTime) > 1) {
-        video.currentTime = currentTime
+      return () => {
+        video.removeEventListener("loadeddata", handleLoadedData)
+        video.removeEventListener("timeupdate", handleTimeUpdate)
+        video.removeEventListener("loadedmetadata", handleLoadedMetadata)
+        video.removeEventListener("error", handleError)
       }
     }
-  }, [currentVideo, isPlaying, volume, isMuted, currentTime])
+  }, [currentVideo, isPlaying, volume, isMuted])
+
+  const handleMouseMove = () => {
+    setShowControls(true)
+    if (controlsTimeout) {
+      clearTimeout(controlsTimeout)
+    }
+    const timeout = setTimeout(() => {
+      setShowControls(false)
+    }, 3000)
+    setControlsTimeout(timeout)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (controlsTimeout) {
+        clearTimeout(controlsTimeout)
+      }
+    }
+  }, [controlsTimeout])
 
   if (!currentVideo || !isFullscreen) return null
 
@@ -61,24 +117,48 @@ export function VideoPlayer() {
   }
 
   const handleSeek = (value: number[]) => {
-    seekTo(value[0])
+    if (videoRef.current) {
+      videoRef.current.currentTime = value[0]
+      seekTo(value[0])
+    }
   }
 
   const handleVolumeChange = (value: number[]) => {
-    setVolume(value[0] / 100)
+    const newVolume = value[0] / 100
+    setVolume(newVolume)
+    if (videoRef.current) {
+      videoRef.current.volume = newVolume
+    }
   }
 
   const skipTime = (seconds: number) => {
-    const newTime = Math.max(0, Math.min(duration, currentTime + seconds))
-    seekTo(newTime)
+    if (videoRef.current) {
+      const newTime = Math.max(
+        0,
+        Math.min(videoRef.current.duration || duration, videoRef.current.currentTime + seconds),
+      )
+      videoRef.current.currentTime = newTime
+      seekTo(newTime)
+    }
   }
 
-  const qualityOptions = ["Auto", "1080p", "720p", "480p", "360p"]
-
   return (
-    <div className="fixed inset-0 bg-black z-[100] flex flex-col">
+    <div
+      className="fixed inset-0 bg-black z-[100] flex flex-col cursor-none"
+      onMouseMove={handleMouseMove}
+      onClick={() => setShowControls(!showControls)}
+    >
+      <div
+        className={`absolute top-4 left-4 text-white transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"}`}
+      >
+        <h2 className="text-xl font-bold mb-1">{currentVideo.title}</h2>
+        <p className="text-sm text-white/80">HTML5 Video Player • Direct Playback</p>
+      </div>
+
       {/* Exit button at top */}
-      <div className="absolute top-4 right-4 z-10">
+      <div
+        className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"}`}
+      >
         <Button
           onClick={() => {
             toggleFullscreen()
@@ -99,6 +179,7 @@ export function VideoPlayer() {
           controls={false}
           playsInline
           crossOrigin="anonymous"
+          preload="metadata"
           style={{
             maxWidth: "100%",
             maxHeight: "100%",
@@ -120,28 +201,36 @@ export function VideoPlayer() {
           </div>
         )}
 
-        {/* Video info overlay */}
-        <div className="absolute top-4 left-4 text-white">
-          <h2 className="text-xl font-bold mb-1">{currentVideo.title}</h2>
-          <p className="text-sm text-white/80">Powered by Mux Player • Adaptive Streaming</p>
-        </div>
+        {!isPlaying && !isLoading && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Button
+              onClick={resumeVideo}
+              size="lg"
+              className="bg-white/20 text-white hover:bg-white/30 w-20 h-20 rounded-full p-0 backdrop-blur-sm"
+            >
+              <Play className="w-10 h-10" />
+            </Button>
+          </div>
+        )}
       </div>
 
-      <div className="bg-gradient-to-t from-black/90 to-transparent p-6">
+      <div
+        className={`bg-gradient-to-t from-black/90 to-transparent p-6 transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0"}`}
+      >
         {/* Progress bar */}
         <div className="mb-6">
           <div className="flex items-center gap-4 mb-2">
-            <span className="text-white text-sm w-12">{formatTime(currentTime)}</span>
+            <span className="text-white text-sm w-12">{formatTime(videoRef.current?.currentTime || currentTime)}</span>
             <div className="flex-1">
               <Slider
-                value={[currentTime]}
-                max={duration || 100}
+                value={[videoRef.current?.currentTime || currentTime]}
+                max={videoRef.current?.duration || duration || 100}
                 step={1}
                 onValueChange={handleSeek}
                 className="w-full [&_[role=slider]]:bg-white [&_[role=slider]]:border-white"
               />
             </div>
-            <span className="text-white text-sm w-12">{formatTime(duration)}</span>
+            <span className="text-white text-sm w-12">{formatTime(videoRef.current?.duration || duration)}</span>
           </div>
         </div>
 
