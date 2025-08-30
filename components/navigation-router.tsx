@@ -79,22 +79,25 @@ export function NavigationRouter() {
   const router = useRouter()
   const pathname = usePathname()
   const [activeRoute, setActiveRoute] = useState(pathname)
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   useEffect(() => {
     setActiveRoute(pathname)
+    setIsTransitioning(false)
   }, [pathname])
 
-  const handleNavigation = (item: NavigationItem, event: React.MouseEvent) => {
+  const handleNavigation = async (item: NavigationItem, event: React.MouseEvent) => {
     event.preventDefault()
 
-    // Don't navigate if already on the same route
     if (activeRoute === item.path) return
 
-    // Update browser history and navigate
+    setIsTransitioning(true)
+
+    await new Promise((resolve) => setTimeout(resolve, 150))
+
     setActiveRoute(item.path)
     router.push(item.path)
 
-    // Update document title
     const pageTitle = item.label === "Home" ? "VibeTune Music App" : `${item.label} - VibeTune`
     document.title = pageTitle
   }
@@ -102,7 +105,10 @@ export function NavigationRouter() {
   const visibleItems = navigationItems
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-md border-t border-zinc-700 z-50 shadow-2xl">
+    <nav className="fixed bottom-0 left-0 right-0 bg-zinc-900/95 backdrop-blur-xl border-t border-zinc-700 z-50 shadow-2xl">
+      {isTransitioning && (
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-yellow-500 to-orange-500 animate-pulse" />
+      )}
       <div className="flex items-center justify-around py-2">
         {visibleItems.map((item) => {
           const isActive = activeRoute === item.path
@@ -112,15 +118,26 @@ export function NavigationRouter() {
             <button
               key={item.id}
               onClick={(e) => handleNavigation(item, e)}
-              className="flex flex-col items-center py-2 px-3 transition-all duration-200 hover:bg-zinc-800/50 rounded-lg"
+              className="flex flex-col items-center py-2 px-3 transition-all duration-300 ease-out hover:bg-zinc-800/50 rounded-lg hover:scale-105 active:scale-95"
+              disabled={isTransitioning}
             >
               <div
-                className={`mb-1 transition-all duration-200 ${isActive ? "bg-yellow-500 rounded-full p-2" : "p-2"}`}
+                className={`mb-1 transition-all duration-300 ease-out ${
+                  isActive
+                    ? "bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full p-2 shadow-lg shadow-yellow-500/25"
+                    : "p-2 hover:bg-zinc-700/50 rounded-lg"
+                }`}
               >
-                <IconComponent className={`w-5 h-5 ${isActive ? "text-black" : "text-gray-400 hover:text-gray-300"}`} />
+                <IconComponent
+                  className={`w-5 h-5 transition-all duration-300 ${
+                    isActive ? "text-black" : "text-gray-400 hover:text-gray-300"
+                  }`}
+                />
               </div>
               <span
-                className={`text-[10px] transition-colors duration-200 ${isActive ? "text-white font-medium" : "text-gray-400"}`}
+                className={`text-[10px] transition-all duration-300 font-medium ${
+                  isActive ? "text-white" : "text-gray-400 hover:text-gray-300"
+                }`}
               >
                 {item.label}
               </span>

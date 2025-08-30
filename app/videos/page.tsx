@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Search, Play, Settings, X, ChevronRight, Bookmark, Info, ArrowLeft } from "lucide-react"
+import { Search, Play, Settings, X, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -46,11 +46,22 @@ export default function VideosPage() {
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0)
   const [bannerVideos, setBannerVideos] = useState<VideoSource[]>([])
 
+  const [isPageLoading, setIsPageLoading] = useState(true)
+  const [pageTransition, setPageTransition] = useState(false)
+
   const { playVideo } = useVideoPlayer()
   const { setOptimizeForVideo, renderQuality, refreshRate, isHighRefreshRate } = useRenderOptimization()
   const { isLiked, toggleLike } = useLikedSongs()
   const { addToDownloads } = useDownloads()
   const { addToPlaylist } = usePlaylist()
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsPageLoading(false)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     setOptimizeForVideo(true)
@@ -425,12 +436,9 @@ export default function VideosPage() {
     console.log("[v0] Video source:", video.source)
     console.log("[v0] Video URL:", video.url)
     console.log("[v0] Video embed:", video.embed)
-    console.log("[v0] Opening video detail modal...")
 
-    setSelectedVideo(video)
-    setShowVideoDetail(true)
-
-    console.log("[v0] Video detail modal should now be visible")
+    console.log("[v0] Triggering direct video playback...")
+    handlePlayVideo(video)
   }
 
   const handlePlayVideo = (video: VideoSource) => {
@@ -464,7 +472,6 @@ export default function VideosPage() {
     console.log("[v0] Calling playVideo function from video player context...")
     playVideo(videoTrack)
 
-    setShowVideoDetail(false)
     window.scrollTo({ top: 0, behavior: "smooth" })
 
     console.log("[v0] === MUX PLAYER FULLSCREEN PLAYBACK INITIATED ===")
@@ -485,138 +492,27 @@ export default function VideosPage() {
   const selectedExtensionName = availableExtensions.find((ext) => ext.id === selectedExtension)?.name || "Eporner"
   const currentBannerVideo = bannerVideos[currentBannerIndex]
 
-  return (
-    <div className={`min-h-screen bg-black text-white pb-20 ${isHighRefreshRate ? "video-optimized" : ""}`}>
-      {showVideoDetail && selectedVideo && (
-        <div className="fixed inset-0 bg-black z-50 overflow-y-auto video-optimized">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4">
-            <Button
-              onClick={() => setShowVideoDetail(false)}
-              size="sm"
-              variant="ghost"
-              className="p-2 h-10 w-10 text-white hover:bg-zinc-800"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex items-center gap-4">
-              <Button size="sm" variant="ghost" className="p-2 h-10 w-10 text-white hover:bg-zinc-800">
-                <Search className="w-5 h-5" />
-              </Button>
-              <Button size="sm" variant="ghost" className="p-2 h-10 w-10 text-white hover:bg-zinc-800">
-                <Settings className="w-5 h-5" />
-              </Button>
-            </div>
+  if (isPageLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center mx-auto animate-pulse">
+            <Play className="w-8 h-8 text-white" />
           </div>
-
-          {/* Video poster */}
-          <div className="relative aspect-video mx-4 rounded-lg overflow-hidden video-optimized">
-            <img
-              src={selectedVideo.thumbnail || "/video-thumbnail.png"}
-              alt={selectedVideo.title}
-              className="w-full h-full object-cover"
-              style={{
-                imageRendering: renderQuality === "ultra" ? "-webkit-optimize-contrast" : "auto",
-              }}
-              onError={(e) => {
-                e.currentTarget.src = "/video-thumbnail.png"
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
-          </div>
-
-          {/* Video title and actions */}
-          <div className="p-4 space-y-4">
-            <h1 className="text-xl font-bold text-white leading-tight">{selectedVideo.title}</h1>
-
-            {/* Action buttons */}
-            <div className="flex items-center justify-center gap-8">
-              <button
-                onClick={() => handlePlanToWatch(selectedVideo)}
-                className="flex flex-col items-center gap-2 text-white"
-              >
-                <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center">
-                  <Bookmark className="w-6 h-6" />
-                </div>
-                <span className="text-sm">Plan to Watch</span>
-              </button>
-
-              <Button
-                onClick={() => handlePlayVideo(selectedVideo)}
-                className="bg-white text-black hover:bg-zinc-200 font-semibold px-8 py-3 rounded-full"
-              >
-                <Play className="w-5 h-5 mr-2" />
-                Play
-              </Button>
-
-              <button className="flex flex-col items-center gap-2 text-white">
-                <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center">
-                  <Info className="w-6 h-6" />
-                </div>
-                <span className="text-sm">Info</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Content sections */}
-          <div className="space-y-6 px-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-white">Plan to Watch</h2>
-              <ChevronRight className="w-5 h-5 text-zinc-400" />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-white">Continue from: {selectedExtensionName}</h2>
-              <ChevronRight className="w-5 h-5 text-zinc-400" />
-            </div>
-
-            {/* Related videos */}
-            <div className="overflow-x-auto scrollbar-hide video-optimized">
-              <div className="flex gap-3 pb-2" style={{ width: "max-content" }}>
-                {videos.slice(0, 6).map((video, index) => (
-                  <div key={`related_${video.source}_${video.id}_${index}`} className="flex-shrink-0 w-40">
-                    <div
-                      className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer video-optimized"
-                      onClick={() => {
-                        console.log("[v0] Related video thumbnail clicked:", video.title)
-                        handleVideoClick(video)
-                      }}
-                    >
-                      <img
-                        src={video.thumbnail || "/placeholder.svg"}
-                        alt={video.title}
-                        className="w-full h-full object-cover thumbnail"
-                        style={{
-                          imageRendering: renderQuality === "low" ? "pixelated" : "auto",
-                          transform: renderQuality === "low" ? "scale(0.9)" : "none",
-                        }}
-                        onError={(e) => {
-                          e.currentTarget.src = "/video-thumbnail.png"
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <div className="bg-white/20 rounded-full p-2">
-                          <Play className="w-6 h-6 text-white" />
-                        </div>
-                      </div>
-                      <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-                        {video.duration}m
-                      </div>
-                    </div>
-                    <div className="mt-2">
-                      <p className="text-sm text-white font-medium line-clamp-2 leading-tight">{video.title}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          <div className="text-xl font-normal text-white">Loading Videos</div>
+          <div className="w-8 h-8 border-2 border-red-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
-      )}
+      </div>
+    )
+  }
 
+  return (
+    <div
+      className={`min-h-screen bg-black text-white pb-20 transition-all duration-300 ${pageTransition ? "opacity-50 scale-95" : "opacity-100 scale-100"} ${isHighRefreshRate ? "video-optimized" : ""}`}
+    >
       {!showVideoDetail && (
         <>
-          <div className="sticky top-0 bg-black/95 backdrop-blur-sm z-40">
+          <div className="sticky top-0 bg-black/95 backdrop-blur-xl z-40 transition-all duration-300">
             <div className="flex items-center justify-between p-4">
               <h1 className="text-xl font-medium">Videos</h1>
               <div className="flex items-center gap-4">
@@ -624,7 +520,7 @@ export default function VideosPage() {
                   onClick={() => setShowSearch(true)}
                   size="sm"
                   variant="ghost"
-                  className="p-2 h-10 w-10 text-white hover:bg-zinc-800"
+                  className="p-2 h-10 w-10 text-white hover:bg-zinc-800 transition-all duration-200 hover:scale-110 active:scale-95"
                 >
                   <Search className="w-5 h-5" />
                 </Button>
@@ -632,7 +528,7 @@ export default function VideosPage() {
                   onClick={() => setShowExtensionSwitcher(true)}
                   size="sm"
                   variant="ghost"
-                  className="p-2 h-10 w-10 text-white hover:bg-zinc-800"
+                  className="p-2 h-10 w-10 text-white hover:bg-zinc-800 transition-all duration-200 hover:scale-110 active:scale-95"
                 >
                   <Settings className="w-5 h-5" />
                 </Button>
@@ -642,7 +538,7 @@ export default function VideosPage() {
             <div className="px-4 pb-4">
               <Button
                 onClick={() => setShowExtensionSwitcher(true)}
-                className="w-full bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 justify-between h-12"
+                className="w-full bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 justify-between h-12 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                 variant="outline"
               >
                 <div className="flex items-center gap-3">
@@ -678,9 +574,9 @@ export default function VideosPage() {
                       console.log(`[v0] Category selected: ${category}`)
                       setActiveCategory(category)
                     }}
-                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 hover:scale-105 active:scale-95 ${
                       activeCategory === category
-                        ? "bg-orange-500 text-white"
+                        ? "bg-orange-500 text-white shadow-lg shadow-orange-500/25"
                         : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                     }`}
                   >
@@ -860,77 +756,62 @@ export default function VideosPage() {
               </div>
             </div>
           )}
+        </>
+      )}
 
-          <div className="space-y-6">
-            {loading && videos.length === 0 ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      {videoSections.map(
+        (section, sectionIndex) =>
+          section.videos.length > 0 && (
+            <div
+              key={section.title}
+              className="space-y-3 animate-in fade-in slide-in-from-bottom duration-500"
+              style={{ animationDelay: `${sectionIndex * 100}ms` }}
+            >
+              <div className="flex items-center justify-between px-4">
+                <h2 className="text-xl font-medium text-white">{section.title}</h2>
+                <ChevronRight className="w-5 h-5 text-zinc-400" />
               </div>
-            ) : error ? (
-              <div className="p-4">
-                <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
-                  <p className="text-red-200">{error}</p>
-                </div>
-              </div>
-            ) : (
-              videoSections.map(
-                (section, sectionIndex) =>
-                  section.videos.length > 0 && (
-                    <div key={section.title} className="space-y-3">
-                      <div className="flex items-center justify-between px-4">
-                        <h2 className="text-xl font-medium text-white">{section.title}</h2>
-                        <ChevronRight className="w-5 h-5 text-zinc-400" />
-                      </div>
-                      <div className="overflow-x-auto scrollbar-hide video-optimized">
-                        <div className="flex gap-3 px-4 pb-2" style={{ width: "max-content" }}>
-                          {section.videos.map((video, index) => (
-                            <div
-                              key={`${video.source}_${video.id}_${sectionIndex}_${index}`}
-                              className="flex-shrink-0 w-48"
-                            >
-                              <div
-                                className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer video-optimized"
-                                onClick={() => {
-                                  console.log("[v0] Section video thumbnail clicked:", video.title)
-                                  handleVideoClick(video)
-                                }}
-                              >
-                                <img
-                                  src={video.thumbnail || "/placeholder.svg"}
-                                  alt={video.title}
-                                  className="w-full h-full object-cover thumbnail"
-                                  style={{
-                                    imageRendering: renderQuality === "low" ? "pixelated" : "auto",
-                                    transform: renderQuality === "low" ? "scale(0.9)" : "none",
-                                  }}
-                                  onError={(e) => {
-                                    e.currentTarget.src = "/video-thumbnail.png"
-                                  }}
-                                />
-                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <div className="bg-white/20 rounded-full p-2">
-                                    <Play className="w-6 h-6 text-white" />
-                                  </div>
-                                </div>
-                                <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-                                  {video.duration}m
-                                </div>
-                              </div>
-                              <div className="mt-2 space-y-1">
-                                <h3 className="text-sm font-medium text-white line-clamp-2 leading-tight">
-                                  {video.title}
-                                </h3>
-                              </div>
-                            </div>
-                          ))}
+              <div className="overflow-x-auto scrollbar-hide video-optimized">
+                <div className="flex gap-3 px-4 pb-2" style={{ width: "max-content" }}>
+                  {section.videos.map((video, index) => (
+                    <div key={`${video.source}_${video.id}_${sectionIndex}_${index}`} className="flex-shrink-0 w-48">
+                      <div
+                        className="relative aspect-video rounded-lg overflow-hidden group cursor-pointer video-optimized"
+                        onClick={() => {
+                          console.log("[v0] Section video thumbnail clicked:", video.title)
+                          handleVideoClick(video)
+                        }}
+                      >
+                        <img
+                          src={video.thumbnail || "/placeholder.svg"}
+                          alt={video.title}
+                          className="w-full h-full object-cover thumbnail"
+                          style={{
+                            imageRendering: renderQuality === "low" ? "pixelated" : "auto",
+                            transform: renderQuality === "low" ? "scale(0.9)" : "none",
+                          }}
+                          onError={(e) => {
+                            e.currentTarget.src = "/video-thumbnail.png"
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="bg-white/20 rounded-full p-2">
+                            <Play className="w-6 h-6 text-white" />
+                          </div>
+                        </div>
+                        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+                          {video.duration}m
                         </div>
                       </div>
+                      <div className="mt-2 space-y-1">
+                        <h3 className="text-sm font-medium text-white line-clamp-2 leading-tight">{video.title}</h3>
+                      </div>
                     </div>
-                  ),
-              )
-            )}
-          </div>
-        </>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ),
       )}
 
       <VideoPlayer />

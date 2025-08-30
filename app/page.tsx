@@ -17,7 +17,7 @@ import { NavigationRouter } from "@/components/navigation-router"
 
 const MemoizedSongItem = React.memo(({ song, onPlay, trendingSongs }: any) => (
   <div
-    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-2 transition-colors"
+    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-2 transition-all duration-200 ease-out"
     onClick={() => onPlay(song, trendingSongs)}
   >
     <OptimizedImage
@@ -44,11 +44,11 @@ const MusicCard = React.memo(({ song, onPlay, songList }: any) => (
         alt={`${song.title} thumbnail`}
         width={160}
         height={160}
-        className="w-full h-40 object-cover transition-transform group-hover:scale-105"
+        className="w-full h-40 object-cover transition-all duration-300 ease-out group-hover:scale-105"
       />
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300" />
+      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+        <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
           <Play className="w-4 h-4 text-black fill-black" />
         </div>
       </div>
@@ -60,7 +60,7 @@ const MusicCard = React.memo(({ song, onPlay, songList }: any) => (
 
 const CategoryItem = React.memo(({ category, onClick, flag }: any) => (
   <div
-    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-colors"
+    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
     onClick={onClick}
   >
     <span className="text-lg flex-shrink-0">{flag || "🎵"}</span>
@@ -71,6 +71,9 @@ const CategoryItem = React.memo(({ category, onClick, flag }: any) => (
 ))
 
 export default function VibeTunePage() {
+  const [isPageLoading, setIsPageLoading] = useState(true)
+  const [pageTransition, setPageTransition] = useState(false)
+
   const [profileSettings, setProfileSettings] = useState({
     useCustomPicture: false,
     customPictureUrl: null as string | null,
@@ -123,6 +126,15 @@ export default function VibeTunePage() {
     [newReleasesSongs],
   )
 
+  const handlePlaySong = useCallback(
+    (song: any, songList: any) => {
+      const track = convertToTrack(song)
+      playTrack(track)
+      playQueue(songList.slice(songList.indexOf(song) + 1).map(convertToTrack))
+    },
+    [convertToTrack, playTrack, playQueue],
+  )
+
   useEffect(() => {
     if (safeTrendingSongs.length > 0 && !state.currentTrack && !trendingLoading) {
       const firstTrack = convertToTrack(safeTrendingSongs[0])
@@ -143,26 +155,36 @@ export default function VibeTunePage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      // prefetchPopularGenres()
-    }, 3000)
+      setIsPageLoading(false)
+    }, 300)
 
     return () => clearTimeout(timer)
   }, [])
 
-  const handlePlaySong = useCallback(
-    (song: any, songList: any[]) => {
-      const tracks = songList.map(convertToTrack)
-      const startIndex = songList.findIndex((s) => s.id === song.id)
-      playQueue(tracks, startIndex)
-    },
-    [convertToTrack, playQueue],
-  )
+  const handleSearchClick = useCallback(() => {
+    setPageTransition(true)
+    setTimeout(() => router.push("/search"), 150)
+  }, [router])
 
-  const handleSearchClick = useCallback(() => router.push("/search"), [router])
-  const handleSettingsClick = useCallback(() => router.push("/settings"), [router])
-  const handleLibraryClick = useCallback(() => router.push("/library"), [router])
-  const handleExploreClick = useCallback(() => router.push("/explore"), [router])
-  const handleVideosClick = useCallback(() => router.push("/videos"), [router])
+  const handleSettingsClick = useCallback(() => {
+    setPageTransition(true)
+    setTimeout(() => router.push("/settings"), 150)
+  }, [router])
+
+  const handleLibraryClick = useCallback(() => {
+    setPageTransition(true)
+    setTimeout(() => router.push("/library"), 150)
+  }, [router])
+
+  const handleExploreClick = useCallback(() => {
+    setPageTransition(true)
+    setTimeout(() => router.push("/explore"), 150)
+  }, [router])
+
+  const handleVideosClick = useCallback(() => {
+    setPageTransition(true)
+    setTimeout(() => router.push("/videos"), 150)
+  }, [router])
 
   const userContent = useMemo(() => {
     if (!user || (syncData.playlists.length === 0 && syncData.likedSongs.length === 0)) {
@@ -253,9 +275,25 @@ export default function VibeTunePage() {
     return safeTrendingSongs.slice(0, 8)
   }, [safeTrendingSongs])
 
+  if (isPageLoading) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center mx-auto animate-pulse">
+            <span className="text-black font-bold text-lg">VT</span>
+          </div>
+          <div className="text-xl font-normal text-white">VibeTune</div>
+          <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-black text-white">
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4 bg-black/95 backdrop-blur-xl border-b border-zinc-800/50 shadow-lg">
+    <div
+      className={`min-h-screen bg-black text-white transition-all duration-300 ${pageTransition ? "opacity-50 scale-95" : "opacity-100 scale-100"}`}
+    >
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4 bg-black/95 backdrop-blur-xl border-b border-zinc-800/50 shadow-lg transition-all duration-300">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
             <span className="text-black font-bold text-xs">VT</span>
@@ -266,16 +304,16 @@ export default function VibeTunePage() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-400 hover:text-white hover:bg-zinc-800 w-8 h-8"
-            onClick={() => router.push("/search")}
+            className="text-gray-400 hover:text-white hover:bg-zinc-800 w-8 h-8 transition-all duration-200 hover:scale-110 active:scale-95"
+            onClick={handleSearchClick}
           >
             <Search className="w-4 h-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-400 hover:text-white hover:bg-zinc-800 w-8 h-8"
-            onClick={() => router.push("/settings")}
+            className="text-gray-400 hover:text-white hover:bg-zinc-800 w-8 h-8 transition-all duration-200 hover:scale-110 active:scale-95"
+            onClick={handleSettingsClick}
           >
             <Settings className="w-4 h-4" />
           </Button>
@@ -289,8 +327,8 @@ export default function VibeTunePage() {
               <h2 className="text-xl font-bold text-white">Quick picks</h2>
               <Button
                 variant="ghost"
-                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium"
-                onClick={() => router.push("/explore")}
+                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
+                onClick={handleExploreClick}
               >
                 Show all
               </Button>
@@ -298,7 +336,7 @@ export default function VibeTunePage() {
             {trendingError ? (
               <ErrorMessage message={trendingError} onRetry={refetchTrending} />
             ) : (
-              <div className="flex gap-4 overflow-x-auto pb-4">
+              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                 {trendingLoading
                   ? Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="flex-shrink-0 w-40">
@@ -319,8 +357,8 @@ export default function VibeTunePage() {
               <h2 className="text-xl font-bold text-white">Mixed for you</h2>
               <Button
                 variant="ghost"
-                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium"
-                onClick={() => router.push("/explore")}
+                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
+                onClick={handleExploreClick}
               >
                 Show all
               </Button>
@@ -328,7 +366,7 @@ export default function VibeTunePage() {
             {mixedError ? (
               <ErrorMessage message={mixedError} onRetry={() => window.location.reload()} />
             ) : (
-              <div className="flex gap-4 overflow-x-auto pb-4">
+              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                 {mixedLoading
                   ? Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="flex-shrink-0 w-40">
@@ -351,8 +389,8 @@ export default function VibeTunePage() {
               <h2 className="text-xl font-bold text-white">New releases for you</h2>
               <Button
                 variant="ghost"
-                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium"
-                onClick={() => router.push("/explore")}
+                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
+                onClick={handleExploreClick}
               >
                 Show all
               </Button>
@@ -360,7 +398,7 @@ export default function VibeTunePage() {
             {newReleasesError ? (
               <ErrorMessage message={newReleasesError} onRetry={refetchNewReleases} />
             ) : (
-              <div className="flex gap-4 overflow-x-auto pb-4">
+              <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                 {newReleasesLoading
                   ? Array.from({ length: 4 }).map((_, i) => (
                       <div key={i} className="flex-shrink-0 w-40">
@@ -418,8 +456,8 @@ export default function VibeTunePage() {
               <div className="space-y-1">
                 {syncData.likedSongs.length > 0 && (
                   <div
-                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-colors"
-                    onClick={() => router.push("/library")}
+                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
+                    onClick={handleLibraryClick}
                   >
                     <span className="text-lg flex-shrink-0">❤️</span>
                     <div className="flex-1 min-w-0">
@@ -431,8 +469,8 @@ export default function VibeTunePage() {
                 {syncData.playlists.slice(0, 5).map((playlist) => (
                   <div
                     key={playlist.id}
-                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-colors"
-                    onClick={() => router.push("/library")}
+                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
+                    onClick={handleLibraryClick}
                   >
                     <OptimizedImage
                       src={playlist.thumbnail}
