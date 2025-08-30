@@ -630,16 +630,23 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   }, [])
 
   const extractYouTubeVideoId = useCallback((url: string): string | null => {
+    if (!url) return null
+
     const patterns = [
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
       /youtube\.com\/v\/([^&\n?#]+)/,
+      /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
     ]
 
     for (const pattern of patterns) {
       const match = url.match(pattern)
-      if (match) return match[1]
+      if (match && match[1]) {
+        console.log("[v0] Extracted YouTube video ID:", match[1], "from URL:", url)
+        return match[1]
+      }
     }
 
+    console.log("[v0] Could not extract YouTube video ID from URL:", url)
     return null
   }, [])
 
@@ -929,34 +936,41 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     }
   }, [state.duration, state.currentTime, state.currentTrack, state.isPlaying, state.playbackRate])
 
-  const playTrack = (track: Track) => {
-    console.log(
-      "[v0] Playing track:",
-      track.title,
-      "Audio URL:",
-      track.audioUrl || "None",
-      "Video URL:",
-      track.videoUrl || "None",
-    )
+  const playTrack = useCallback(
+    (track: Track) => {
+      console.log("[v0] Playing track:", track.title, "Audio URL:", track.audioUrl, "Video URL:", track.videoUrl)
 
-    dispatch({ type: "SET_QUEUE", payload: { tracks: [track], startIndex: 0 } })
+      if (!track.isVideo && !track.videoUrl) {
+        console.log("[v0] Disabling video mode for audio track:", track.title)
+        dispatch({ type: "SET_VIDEO_MODE", payload: false })
+      }
 
-    const hasPlayableUrl = track.audioUrl || track.videoUrl || track.url
-    if (hasPlayableUrl) {
-      dispatch({ type: "PLAY" })
-    } else {
-      console.log("[v0] Track has no playable URL, showing info only")
-      dispatch({ type: "PAUSE" })
-    }
+      dispatch({ type: "SET_TRACK", payload: track })
+      dispatch({ type: "SET_LOADING", payload: true })
+      dispatch({ type: "SET_ERROR", payload: null })
 
-    if (track.isVideo || track.videoUrl) {
-      console.log("[v0] Auto-enabling video mode for video track:", track.title)
-      setVideoMode(true)
-    } else {
-      console.log("[v0] Disabling video mode for audio track:", track.title)
-      setVideoMode(false)
-    }
-  }
+      const hasYouTubeUrl = track.url && (track.url.includes("youtube.com") || track.url.includes("youtu.be"))
+      if (hasYouTubeUrl && !track.isVideo) {
+        console.log("[v0] Using YouTube player for music track:", track.title)
+        dispatch({ type: "SET_PLAYER_TYPE", payload: "youtube" })
+
+        // Extract YouTube video ID and load in YouTube player
+        const videoId = extractYouTubeVideoId(track.url!)
+        if (videoId && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+          console.log("[v0] Loading YouTube video ID for music:", videoId)
+          youtubePlayerRef.current.cueVideoById(videoId)
+        }
+      } else if (track.audioUrl || track.url) {
+        console.log("[v0] Using native audio player for track:", track.title)
+        dispatch({ type: "SET_PLAYER_TYPE", payload: "native" })
+      } else {
+        console.log("[v0] Track has no playable URL, showing info only")
+        dispatch({ type: "SET_LOADING", payload: false })
+        dispatch({ type: "SET_ERROR", payload: null })
+      }
+    },
+    [extractYouTubeVideoId],
+  )
 
   const playQueue = (tracks: Track[], startIndex = 0) => {
     const startingTrack = tracks[startIndex]

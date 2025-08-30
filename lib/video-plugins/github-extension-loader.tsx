@@ -273,17 +273,54 @@ class GitHubExtensionLoader {
           }
         }
       } else {
-        // Try to parse as single extension manifest
         console.log(`[v0] ===== PROCESSING SINGLE EXTENSION MANIFEST =====`)
         console.log(`[v0] Attempting to parse as single extension manifest`)
         console.log(`[v0] Single manifest data:`, JSON.stringify(manifest, null, 2))
 
-        const extension = this.createCloudStreamExtension(manifest, manifestUrl)
-        if (extension) {
-          extensions.push(extension)
-          console.log(`[v0] ✓ Created single extension: ${extension.name} (ID: ${extension.id})`)
-        } else {
-          console.error(`[v0] ✗ Failed to create single extension from manifest`)
+        // Check for various array structures that might contain multiple providers
+        const possibleArrays = [
+          manifest.providers,
+          manifest.extensions,
+          manifest.sources,
+          manifest.plugins,
+          manifest.items,
+          manifest.data,
+          manifest.list,
+        ]
+
+        let foundProviders = false
+        for (const arrayField of possibleArrays) {
+          if (Array.isArray(arrayField) && arrayField.length > 0) {
+            console.log(`[v0] Found provider array with ${arrayField.length} items`)
+            foundProviders = true
+
+            for (let i = 0; i < arrayField.length; i++) {
+              const provider = arrayField[i]
+              console.log(
+                `[v0] Processing provider ${i + 1}/${arrayField.length}:`,
+                provider.name || provider.displayName || `Provider ${i + 1}`,
+              )
+
+              const extension = this.createCloudStreamExtension(provider, manifestUrl)
+              if (extension) {
+                extensions.push(extension)
+                console.log(`[v0] ✓ Created provider extension: ${extension.name} (ID: ${extension.id})`)
+              }
+            }
+            break // Use the first valid array found
+          }
+        }
+
+        // If no arrays found, try to parse the manifest itself as a single provider
+        if (!foundProviders) {
+          console.log(`[v0] No provider arrays found, treating manifest as single provider`)
+          const extension = this.createCloudStreamExtension(manifest, manifestUrl)
+          if (extension) {
+            extensions.push(extension)
+            console.log(`[v0] ✓ Created single extension: ${extension.name} (ID: ${extension.id})`)
+          } else {
+            console.error(`[v0] ✗ Failed to create single extension from manifest`)
+          }
         }
       }
 
@@ -296,9 +333,7 @@ class GitHubExtensionLoader {
       return extensions
     } catch (error) {
       console.error(`[v0] ===== CLOUDSTREAM EXTENSION LOADING FAILED =====`)
-      console.error(`[v0] Failed to parse CloudStream manifest:`, error)
-      console.error(`[v0] Error details:`, error.message, error.stack)
-      console.error(`[v0] Manifest URL:`, manifestUrl)
+      console.error(`[v0] Error details:`, error)
       return []
     }
   }
@@ -314,14 +349,30 @@ class GitHubExtensionLoader {
         return null
       }
 
-      const name = plugin.name || plugin.displayName || plugin.id || plugin.title || "Unknown Extension"
-      const description = plugin.description || plugin.summary || plugin.about || `CloudStream extension: ${name}`
-      const version = plugin.version || plugin.versionName || "1.0.0"
-      const author = plugin.author || plugin.authors?.[0] || plugin.developer || "CloudStream Community"
-      const iconUrl = plugin.iconUrl || plugin.icon || plugin.logo
-      const language = plugin.language || plugin.locale || "en"
-      const adult = plugin.adult || plugin.nsfw || plugin.mature || false
-      const status = plugin.status || plugin.state || "Working"
+      const name =
+        plugin.name ||
+        plugin.displayName ||
+        plugin.id ||
+        plugin.title ||
+        plugin.providerName ||
+        plugin.sourceName ||
+        "Unknown Extension"
+
+      const description =
+        plugin.description || plugin.summary || plugin.about || plugin.info || `CloudStream provider: ${name}`
+
+      const version = plugin.version || plugin.versionName || plugin.versionCode || "1.0.0"
+
+      const author =
+        plugin.author || plugin.authors?.[0] || plugin.developer || plugin.creator || "CloudStream Community"
+
+      const iconUrl = plugin.iconUrl || plugin.icon || plugin.logo || plugin.image || plugin.thumbnail
+
+      const language = plugin.language || plugin.locale || plugin.lang || "en"
+
+      const adult = plugin.adult || plugin.nsfw || plugin.mature || plugin.isAdult || false
+
+      const status = plugin.status || plugin.state || plugin.working || "Working"
 
       console.log(`[v0] Extracted plugin properties:`)
       console.log(`[v0] - Name: ${name}`)
@@ -343,15 +394,15 @@ class GitHubExtensionLoader {
         description,
         version,
         author,
-        url: plugin.url || plugin.sourceUrl || manifestUrl,
-        downloadUrl: plugin.url || plugin.sourceUrl || manifestUrl,
+        url: plugin.url || plugin.sourceUrl || plugin.downloadUrl || manifestUrl,
+        downloadUrl: plugin.url || plugin.sourceUrl || plugin.downloadUrl || manifestUrl,
         type: "cloudstream",
         language,
         status,
         adult,
         icon: iconUrl || this.generateColoredIcon(name),
-        lastUpdated: plugin.lastUpdated || new Date().toISOString(),
-        size: plugin.size || 0,
+        lastUpdated: plugin.lastUpdated || plugin.updated || new Date().toISOString(),
+        size: plugin.size || plugin.fileSize || 0,
         cloudStreamProvider: plugin, // Store the original plugin data
       }
 
