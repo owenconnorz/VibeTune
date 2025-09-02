@@ -1,30 +1,8 @@
-# VibeTune music app
+##vibetune 
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+https://v0-open-tune-music-d3vx80vu2-owencz1998s-projects.vercel.app/
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/owencz1998s-projects/v0-open-tune-music-app)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/vE1M4v5M4Il)
+music and cloudstream plugin system
+far from completion but feel free to help 
 
-## Overview
-
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
-
-## Deployment
-
-Your project is live at:
-
-**[https://vercel.com/owencz1998s-projects/v0-open-tune-music-app](https://vercel.com/owencz1998s-projects/v0-open-tune-music-app)**
-
-## Build your app
-
-Continue building your app on:
-
-**[https://v0.app/chat/projects/vE1M4v5M4Il](https://v0.app/chat/projects/vE1M4v5M4Il)**
-
-## How It Works
-
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+##warning 18+ videos show on videos page will be removed when the app is ready!!
