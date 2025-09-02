@@ -1,3 +1,5 @@
+import { PipedClient, type PipedStreamResponse, type SourceMap } from "./piped-client"
+
 export interface PipedVideo {
   id: string
   title: string
@@ -8,6 +10,8 @@ export interface PipedVideo {
   audioUrl?: string
   views?: string
   publishedAt?: string
+  sourceMap?: SourceMap
+  quality?: "high" | "medium" | "low"
 }
 
 export interface PipedSearchResponse {
@@ -17,55 +21,48 @@ export interface PipedSearchResponse {
 }
 
 export class PipedAPI {
-  private baseUrl = "https://pipedapi.kavin.rocks"
-  private fallbackInstances = [
-    "https://piped-api.garudalinux.org",
-    "https://pipedapi.rivo.lol",
-    "https://piped-api.lunar.icu",
-    "https://api-piped.mha.fi",
-    "https://pipedapi.esmailelbob.xyz",
-    "https://pipedapi.privacy.com.de",
-    "https://api.piped.projectsegfau.lt",
-  ]
+  private client: PipedClient
+  private cache = new Map<string, { data: any; timestamp: number }>()
+  private readonly CACHE_DURATION = 10 * 60 * 1000 // 10 minutes
 
-  private async makeRequest(endpoint: string, params?: Record<string, string>): Promise<any> {
-    const instances = [this.baseUrl, ...this.fallbackInstances]
-
-    for (const instance of instances) {
-      try {
-        const url = new URL(`${instance}${endpoint}`)
-
-        if (params) {
-          Object.entries(params).forEach(([key, value]) => {
-            url.searchParams.append(key, value)
-          })
-        }
-
-        console.log("[v0] Piped API request:", url.toString())
-
-        const response = await fetch(url.toString(), {
-          headers: {
-            Accept: "application/json",
-            "User-Agent": "VibeTune/1.0",
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-        }
-
-        const data = await response.json()
-        return data
-      } catch (error) {
-        console.warn(`[v0] Piped instance ${instance} failed:`, error)
-        continue
-      }
-    }
-
-    throw new Error("All Piped instances failed")
+  constructor() {
+    this.client = new PipedClient()
   }
 
-  private parseVideo(item: any): PipedVideo {
+  private async makeRequest(endpoint: string, params?: Record<string, string>): Promise<any> {
+    const cacheKey = `${endpoint}?${new URLSearchParams(params).toString()}`
+
+    // Check cache first
+    const cached = this.cache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      console.log("[v0] Piped cache hit:", cacheKey)
+      return cached.data
+    }
+
+    try {
+      let result: any
+
+      if (endpoint === "/search") {
+        result = await this.client.search(params?.q || "", params?.filter as any)
+      } else if (endpoint === "/trending") {
+        result = await this.client.trending()
+      } else if (endpoint.startsWith("/streams/")) {
+        const videoId = endpoint.replace("/streams/", "")
+        result = await this.client.streams(videoId)
+      } else {
+        throw new Error(`Unsupported endpoint: ${endpoint}`)
+      }
+
+      // Cache successful response
+      this.cache.set(cacheKey, { data: result, timestamp: Date.now() })
+      return result
+    } catch (error) {
+      console.error(`[v0] Piped API request failed for ${endpoint}:`, error)
+      throw error
+    }
+  }
+
+  private parseVideo(item: any, streamData?: PipedStreamResponse): PipedVideo {
     const videoId = item.url?.replace("/watch?v=", "") || item.id
 
     // Extract artist and title from video title
@@ -89,14 +86,25 @@ export class PipedAPI {
     title = title.replace(/\s*\[Official.*?\]$/i, "")
     title = title.replace(/\s*- Official.*$/i, "")
 
+    let sourceMap: SourceMap | undefined
+    let audioUrl: string | undefined
+
+    if (streamData) {
+      sourceMap = PipedClient.toSourceMap(streamData)
+      // Prefer M4A high quality, fallback to WebM
+      audioUrl = sourceMap.m4a.high || sourceMap.weba.high || undefined
+    }
+
     return {
       id: videoId,
       title,
       artist,
-      duration: this.formatDuration(item.duration || 210),
+      duration: this.formatDuration(item.duration || streamData?.duration || 210),
       thumbnail: item.thumbnail || item.thumbnailUrl || "/placeholder.svg?height=180&width=320",
       url: `https://www.youtube.com/watch?v=${videoId}`,
-      audioUrl: item.audioStreams?.[0]?.url || undefined,
+      audioUrl,
+      sourceMap,
+      quality: "high",
       views: item.views?.toString(),
       publishedAt: item.uploadedDate || item.publishedText,
     }
@@ -115,27 +123,28 @@ export class PipedAPI {
 
   async search(query: string, maxResults = 20): Promise<PipedSearchResponse> {
     try {
+      console.log(`[v0] Searching Piped API for: ${query}`)
       const data = await this.makeRequest("/search", {
-        q: query + " music",
+        q: query,
         filter: "videos",
       })
 
       if (!data.items || data.items.length === 0) {
+        console.log("[v0] No search results found")
         return { videos: [], totalResults: 0 }
       }
 
-      // Get detailed info for each video including audio streams
+      const rankedResults = PipedClient.rankResults(data.items, { title: query, artist: "" })
+
+      // Get detailed info for top results with stream data
       const videos = await Promise.all(
-        data.items.slice(0, maxResults).map(async (item: any) => {
+        rankedResults.slice(0, Math.min(maxResults, 5)).map(async (item: any) => {
           try {
             const videoId = item.url?.replace("/watch?v=", "") || item.id
+            console.log(`[v0] Fetching streams for video: ${videoId}`)
             const streamData = await this.makeRequest(`/streams/${videoId}`)
 
-            return this.parseVideo({
-              ...item,
-              audioStreams: streamData.audioStreams,
-              duration: streamData.duration,
-            })
+            return this.parseVideo(item, streamData)
           } catch (error) {
             console.warn(`[v0] Failed to get streams for video ${item.id}:`, error)
             return this.parseVideo(item)
@@ -143,8 +152,11 @@ export class PipedAPI {
         }),
       )
 
+      const validVideos = videos.filter((v) => v !== null)
+      console.log(`[v0] Successfully found ${validVideos.length} songs for query: ${query}`)
+
       return {
-        videos: videos.filter((v) => v !== null),
+        videos: validVideos,
         totalResults: data.items.length,
       }
     } catch (error) {
@@ -155,35 +167,39 @@ export class PipedAPI {
 
   async getTrending(maxResults = 20): Promise<PipedSearchResponse> {
     try {
-      const data = await this.makeRequest("/trending", {
-        region: "US",
-      })
+      console.log("[v0] Fetching trending from Piped API")
+      const data = await this.makeRequest("/trending")
 
       if (!data || data.length === 0) {
         return { videos: [], totalResults: 0 }
       }
 
-      // Filter for music videos and get detailed info
+      // Filter for music videos with better detection
       const musicVideos = data
-        .filter(
-          (item: any) =>
-            item.title?.toLowerCase().includes("music") ||
-            item.uploaderName?.toLowerCase().includes("music") ||
-            item.title?.match(/\b(song|album|track|music|official|video)\b/i),
-        )
+        .filter((item: any) => {
+          const title = item.title?.toLowerCase() || ""
+          const uploader = item.uploaderName?.toLowerCase() || item.uploader?.toLowerCase() || ""
+
+          return (
+            title.includes("music") ||
+            title.includes("song") ||
+            title.includes("official") ||
+            uploader.includes("music") ||
+            uploader.includes("records") ||
+            uploader.includes("entertainment") ||
+            title.match(/\b(album|track|single|remix|cover)\b/i)
+          )
+        })
         .slice(0, maxResults)
 
+      // Get stream data for music videos
       const videos = await Promise.all(
-        musicVideos.map(async (item: any) => {
+        musicVideos.slice(0, Math.min(maxResults, 5)).map(async (item: any) => {
           try {
             const videoId = item.url?.replace("/watch?v=", "") || item.id
             const streamData = await this.makeRequest(`/streams/${videoId}`)
 
-            return this.parseVideo({
-              ...item,
-              audioStreams: streamData.audioStreams,
-              duration: streamData.duration,
-            })
+            return this.parseVideo(item, streamData)
           } catch (error) {
             console.warn(`[v0] Failed to get streams for trending video ${item.id}:`, error)
             return this.parseVideo(item)
@@ -191,8 +207,11 @@ export class PipedAPI {
         }),
       )
 
+      const validVideos = videos.filter((v) => v !== null)
+      console.log(`[v0] Got trending music: ${validVideos.length} songs`)
+
       return {
-        videos: videos.filter((v) => v !== null),
+        videos: validVideos,
         totalResults: musicVideos.length,
       }
     } catch (error) {
@@ -262,9 +281,15 @@ export interface MusicSearchResult {
 
 export class MusicAPIWrapper {
   private pipedAPI: PipedAPI
+  private preferredQuality: "high" | "medium" | "low" = "high"
 
   constructor(pipedAPI: PipedAPI) {
     this.pipedAPI = pipedAPI
+  }
+
+  setQuality(quality: "high" | "medium" | "low") {
+    this.preferredQuality = quality
+    console.log(`[v0] Audio quality set to: ${quality}`)
   }
 
   async search(query: string, maxResults = 20): Promise<MusicSearchResult> {
@@ -273,6 +298,7 @@ export class MusicAPIWrapper {
       return {
         tracks: result.videos.map((video) => ({
           ...video,
+          audioUrl: this.selectAudioUrl(video),
           source: "piped",
         })),
         totalResults: result.totalResults,
@@ -295,6 +321,7 @@ export class MusicAPIWrapper {
       return {
         tracks: result.videos.map((video) => ({
           ...video,
+          audioUrl: this.selectAudioUrl(video),
           source: "piped",
         })),
         totalResults: result.totalResults,
@@ -310,9 +337,34 @@ export class MusicAPIWrapper {
       }
     }
   }
+
+  private selectAudioUrl(video: PipedVideo): string | undefined {
+    if (!video.sourceMap) {
+      return video.audioUrl
+    }
+
+    const { m4a, weba } = video.sourceMap
+
+    // Prefer M4A format, fallback to WebM
+    switch (this.preferredQuality) {
+      case "high":
+        return m4a.high || weba.high || m4a.medium || weba.medium
+      case "medium":
+        return m4a.medium || weba.medium || m4a.high || weba.high
+      case "low":
+        return m4a.low || weba.low || m4a.medium || weba.medium
+      default:
+        return m4a.high || weba.high
+    }
+  }
 }
 
-// Fallback data for when API fails
+// Factory function to create Music API instance
+export function createMusicAPI(): MusicAPIWrapper {
+  const pipedAPI = createPipedAPI()
+  return new MusicAPIWrapper(pipedAPI)
+}
+
 export const fallbackMusicData: PipedVideo[] = [
   {
     id: "fallback-1",
@@ -360,8 +412,3 @@ export const fallbackMusicData: PipedVideo[] = [
     audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
   },
 ]
-
-export function createMusicAPI(): MusicAPIWrapper {
-  const pipedAPI = createPipedAPI()
-  return new MusicAPIWrapper(pipedAPI)
-}
