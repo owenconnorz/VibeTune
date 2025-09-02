@@ -19,9 +19,13 @@ export interface PipedSearchResponse {
 export class PipedAPI {
   private baseUrl = "https://pipedapi.kavin.rocks"
   private fallbackInstances = [
-    "https://api.piped.video",
-    "https://pipedapi.adminforge.de",
-    "https://api.piped.privacydev.net",
+    "https://piped-api.garudalinux.org",
+    "https://pipedapi.rivo.lol",
+    "https://piped-api.lunar.icu",
+    "https://api-piped.mha.fi",
+    "https://pipedapi.esmailelbob.xyz",
+    "https://pipedapi.privacy.com.de",
+    "https://api.piped.projectsegfau.lt",
   ]
 
   private async makeRequest(endpoint: string, params?: Record<string, string>): Promise<any> {
