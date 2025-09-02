@@ -5,7 +5,7 @@ import { ArrowLeft, Play, MoreVertical, User, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
-import { createMusicAPI } from "@/lib/youtube-data-api"
+import { createPipedAPI } from "@/lib/piped-api"
 
 interface Song {
   id: string
@@ -40,15 +40,15 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
     try {
       console.log("[v0] Loading songs for artist:", artistName)
 
-      const musicAPI = createMusicAPI()
-      const results = await musicAPI.search(artistName, 20)
+      const pipedAPI = createPipedAPI()
+      const results = await pipedAPI.search(artistName, 20)
 
-      const artistSongs = results.tracks.map((track) => ({
-        id: track.id,
-        title: track.title || "Unknown Title",
-        artist: track.artist || artistName,
-        thumbnail: track.thumbnail,
-        duration: track.duration,
+      const artistSongs = results.videos.map((video) => ({
+        id: video.id,
+        title: video.title || "Unknown Title",
+        artist: video.artist || artistName,
+        thumbnail: video.thumbnail,
+        duration: video.duration,
       }))
 
       console.log("[v0] Loaded", artistSongs.length, "songs for artist")

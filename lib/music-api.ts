@@ -1,7 +1,7 @@
-import { createYouTubeDataAPI } from "./youtube-data-api"
+import { createMusicAPI } from "./piped-api"
 
-// Re-export the YouTube Data API as createMusicAPI for backward compatibility
-export const createMusicAPI = createYouTubeDataAPI
+// Re-export the Piped API as createMusicAPI for backward compatibility
+export { createMusicAPI }
 
-// Re-export the YouTubeDataAPI class as MusicAPI for backward compatibility
-export { YouTubeDataAPI as MusicAPI } from "./youtube-data-api"
+// Re-export the PipedAPI class as MusicAPI for backward compatibility
+export { PipedAPI as MusicAPI } from "./piped-api"

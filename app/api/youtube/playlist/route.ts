@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createMusicAPI } from "@/lib/youtube-data-api"
+import { createPipedAPI } from "@/lib/piped-api"
 
 export const runtime = "edge"
 
@@ -13,17 +13,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Playlist ID is required" }, { status: 400 })
     }
 
-    const musicAPI = createMusicAPI()
-    const results = await musicAPI.getTrending(maxResults || 20)
+    const pipedAPI = createPipedAPI()
+    const results = await pipedAPI.getPlaylist(playlistId, maxResults || 20)
 
-    const videos = results.tracks.map((track) => ({
-      id: track.id,
-      title: track.title,
-      channelTitle: track.artist,
-      thumbnail: track.thumbnail,
-      duration: track.duration,
-      viewCount: "1000000",
-      publishedAt: new Date().toISOString(),
+    const videos = results.videos.map((video) => ({
+      id: video.id,
+      title: video.title,
+      channelTitle: video.artist,
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+      viewCount: video.views || "1000000",
+      publishedAt: video.publishedAt || new Date().toISOString(),
     }))
 
     return NextResponse.json(videos, {

@@ -1,4 +1,4 @@
-import { createYouTubeDataAPI } from "@/lib/youtube-data-api"
+import { createPipedAPI } from "@/lib/piped-api"
 
 export interface Song {
   id: string
@@ -12,10 +12,9 @@ export interface Song {
 
 export async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
   try {
-    console.log("[v0] Fetching trending music from YouTube API")
-    const youtubeAPI = createYouTubeDataAPI()
+    console.log("[v0] Fetching trending music from Piped API")
+    const pipedAPI = createPipedAPI()
 
-    // Use multiple trending queries to get diverse results
     const trendingQueries = [
       "trending music 2024",
       "popular songs now",
@@ -28,48 +27,66 @@ export async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
 
     for (const query of trendingQueries) {
       try {
-        const results = await youtubeAPI.search(query, Math.ceil(maxResults / trendingQueries.length))
-        if (results && results.length > 0) {
-          allSongs.push(...results)
+        const results = await pipedAPI.search(query, Math.ceil(maxResults / trendingQueries.length))
+        if (results.videos && results.videos.length > 0) {
+          allSongs.push(
+            ...results.videos.map((video) => ({
+              id: video.id,
+              title: video.title,
+              artist: video.artist,
+              thumbnail: video.thumbnail,
+              duration: video.duration,
+              url: video.url,
+              audioUrl: video.audioUrl,
+            })),
+          )
         }
       } catch (error) {
         console.warn(`[v0] Failed to fetch trending for "${query}":`, error)
       }
     }
 
-    // Remove duplicates and limit results
     const uniqueSongs = allSongs
       .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
       .slice(0, maxResults)
 
-    console.log(`[v0] Successfully fetched ${uniqueSongs.length} trending songs from YouTube API`)
+    console.log(`[v0] Successfully fetched ${uniqueSongs.length} trending songs from Piped API`)
     return uniqueSongs
   } catch (error) {
-    console.error("[v0] YouTube API trending fetch failed:", error)
+    console.error("[v0] Piped API trending fetch failed:", error)
     throw error
   }
 }
 
 export async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
   try {
-    console.log(`[v0] Searching YouTube API for: "${query}"`)
-    const youtubeAPI = createYouTubeDataAPI()
+    console.log(`[v0] Searching Piped API for: "${query}"`)
+    const pipedAPI = createPipedAPI()
 
-    // Enhance search query for better music results
     const musicQuery =
       query.includes("music") || query.includes("song") || query.includes("artist") ? query : `${query} music`
 
-    const results = await youtubeAPI.search(musicQuery, maxResults)
+    const results = await pipedAPI.search(musicQuery, maxResults)
 
-    if (results && results.length > 0) {
-      console.log(`[v0] Successfully found ${results.length} songs for "${query}"`)
-      return results
+    if (results.videos && results.videos.length > 0) {
+      const songs = results.videos.map((video) => ({
+        id: video.id,
+        title: video.title,
+        artist: video.artist,
+        thumbnail: video.thumbnail,
+        duration: video.duration,
+        url: video.url,
+        audioUrl: video.audioUrl,
+      }))
+
+      console.log(`[v0] Successfully found ${songs.length} songs for "${query}"`)
+      return songs
     } else {
       console.warn(`[v0] No results found for "${query}"`)
       return []
     }
   } catch (error) {
-    console.error(`[v0] YouTube API search failed for "${query}":`, error)
+    console.error(`[v0] Piped API search failed for "${query}":`, error)
     throw error
   }
 }
@@ -77,9 +94,8 @@ export async function searchMusic(query: string, maxResults = 10): Promise<Song[
 export async function getArtistSongs(artistName: string, maxResults = 15): Promise<Song[]> {
   try {
     console.log(`[v0] Fetching songs for artist: ${artistName}`)
-    const youtubeAPI = createYouTubeDataAPI()
+    const pipedAPI = createPipedAPI()
 
-    // Search for artist's popular songs
     const artistQueries = [
       `${artistName} greatest hits`,
       `${artistName} popular songs`,
@@ -91,16 +107,25 @@ export async function getArtistSongs(artistName: string, maxResults = 15): Promi
 
     for (const query of artistQueries) {
       try {
-        const results = await youtubeAPI.search(query, Math.ceil(maxResults / artistQueries.length))
-        if (results && results.length > 0) {
-          allSongs.push(...results)
+        const results = await pipedAPI.search(query, Math.ceil(maxResults / artistQueries.length))
+        if (results.videos && results.videos.length > 0) {
+          allSongs.push(
+            ...results.videos.map((video) => ({
+              id: video.id,
+              title: video.title,
+              artist: video.artist,
+              thumbnail: video.thumbnail,
+              duration: video.duration,
+              url: video.url,
+              audioUrl: video.audioUrl,
+            })),
+          )
         }
       } catch (error) {
         console.warn(`[v0] Failed to fetch artist songs for "${query}":`, error)
       }
     }
 
-    // Remove duplicates and limit results
     const uniqueSongs = allSongs
       .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
       .slice(0, maxResults)
@@ -116,13 +141,23 @@ export async function getArtistSongs(artistName: string, maxResults = 15): Promi
 export async function getPlaylistSongs(playlistId: string): Promise<Song[]> {
   try {
     console.log(`[v0] Fetching playlist songs for ID: ${playlistId}`)
-    const youtubeAPI = createYouTubeDataAPI()
+    const pipedAPI = createPipedAPI()
 
-    const results = await youtubeAPI.getPlaylist(playlistId)
+    const results = await pipedAPI.getPlaylist(playlistId)
 
-    if (results && results.length > 0) {
-      console.log(`[v0] Successfully fetched ${results.length} songs from playlist`)
-      return results
+    if (results.videos && results.videos.length > 0) {
+      const songs = results.videos.map((video) => ({
+        id: video.id,
+        title: video.title,
+        artist: video.artist,
+        thumbnail: video.thumbnail,
+        duration: video.duration,
+        url: video.url,
+        audioUrl: video.audioUrl,
+      }))
+
+      console.log(`[v0] Successfully fetched ${songs.length} songs from playlist`)
+      return songs
     } else {
       console.warn(`[v0] No songs found in playlist ${playlistId}`)
       return []
@@ -158,9 +193,8 @@ export async function searchMusicEnhanced(
 
   try {
     console.log(`[v0] Enhanced search for: "${query}" with options:`, options)
-    const youtubeAPI = createYouTubeDataAPI()
+    const pipedAPI = createPipedAPI()
 
-    // Build enhanced search queries
     const searchQueries: string[] = [query]
 
     if (includeArtist && !query.includes("artist")) {
@@ -175,21 +209,28 @@ export async function searchMusicEnhanced(
 
     for (const searchQuery of searchQueries) {
       try {
-        const results = await youtubeAPI.search(searchQuery, Math.ceil(maxResults / searchQueries.length))
-        if (results && results.length > 0) {
-          allResults.push(...results)
+        const results = await pipedAPI.search(searchQuery, Math.ceil(maxResults / searchQueries.length))
+        if (results.videos && results.videos.length > 0) {
+          allResults.push(
+            ...results.videos.map((video) => ({
+              id: video.id,
+              title: video.title,
+              artist: video.artist,
+              thumbnail: video.thumbnail,
+              duration: video.duration,
+              url: video.url,
+              audioUrl: video.audioUrl,
+            })),
+          )
         }
       } catch (error) {
         console.warn(`[v0] Enhanced search failed for "${searchQuery}":`, error)
       }
     }
 
-    // Remove duplicates and sort results
     let uniqueResults = allResults.filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
 
-    // Apply sorting (basic implementation since YouTube API handles most sorting)
     if (sortBy === "date") {
-      // YouTube API already sorts by date when requested
       uniqueResults = uniqueResults.reverse()
     }
 

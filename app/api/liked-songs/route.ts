@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { createMusicAPI } from "@/lib/youtube-data-api"
+import { createPipedAPI } from "@/lib/piped-api"
 
 export async function GET() {
   try {
-    // Get user from session
     const cookieStore = cookies()
     const authToken = cookieStore.get("auth-token")
 
@@ -12,19 +11,17 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const user = JSON.parse(authToken.value)
+    const pipedAPI = createPipedAPI()
+    const results = await pipedAPI.getTrending(10)
 
-    const musicAPI = createMusicAPI()
-    const results = await musicAPI.getTrending(10)
-
-    const likedSongs = results.tracks.map((track) => ({
-      id: track.id,
-      title: track.title,
-      channelTitle: track.artist,
-      thumbnail: track.thumbnail,
-      duration: track.duration,
-      viewCount: "1000000",
-      publishedAt: new Date().toISOString(),
+    const likedSongs = results.videos.map((video) => ({
+      id: video.id,
+      title: video.title,
+      channelTitle: video.artist,
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+      viewCount: video.views || "1000000",
+      publishedAt: video.publishedAt || new Date().toISOString(),
     }))
 
     return NextResponse.json({ songs: likedSongs })

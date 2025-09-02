@@ -39,27 +39,22 @@ export class PipedAPI {
       return cached.data
     }
 
-    try {
-      let result: any
+    let result: any
 
-      if (endpoint === "/search") {
-        result = await this.client.search(params?.q || "", params?.filter as any)
-      } else if (endpoint === "/trending") {
-        result = await this.client.trending()
-      } else if (endpoint.startsWith("/streams/")) {
-        const videoId = endpoint.replace("/streams/", "")
-        result = await this.client.streams(videoId)
-      } else {
-        throw new Error(`Unsupported endpoint: ${endpoint}`)
-      }
-
-      // Cache successful response
-      this.cache.set(cacheKey, { data: result, timestamp: Date.now() })
-      return result
-    } catch (error) {
-      console.error(`[v0] Piped API request failed for ${endpoint}:`, error)
-      throw error
+    if (endpoint === "/search") {
+      result = await this.client.search(params?.q || "", params?.filter as any)
+    } else if (endpoint === "/trending") {
+      result = await this.client.trending()
+    } else if (endpoint.startsWith("/streams/")) {
+      const videoId = endpoint.replace("/streams/", "")
+      result = await this.client.streams(videoId)
+    } else {
+      throw new Error(`Unsupported endpoint: ${endpoint}`)
     }
+
+    // Cache successful response
+    this.cache.set(cacheKey, { data: result, timestamp: Date.now() })
+    return result
   }
 
   private parseVideo(item: any, streamData?: PipedStreamResponse): PipedVideo {
@@ -122,101 +117,91 @@ export class PipedAPI {
   }
 
   async search(query: string, maxResults = 20): Promise<PipedSearchResponse> {
-    try {
-      console.log(`[v0] Searching Piped API for: ${query}`)
-      const data = await this.makeRequest("/search", {
-        q: query,
-        filter: "videos",
-      })
+    console.log(`[v0] Searching Piped API for: ${query}`)
+    const data = await this.makeRequest("/search", {
+      q: query,
+      filter: "videos",
+    })
 
-      if (!data.items || data.items.length === 0) {
-        console.log("[v0] No search results found")
-        return { videos: [], totalResults: 0 }
-      }
+    if (!data.items || data.items.length === 0) {
+      console.log("[v0] No search results found")
+      return { videos: [], totalResults: 0 }
+    }
 
-      const rankedResults = PipedClient.rankResults(data.items, { title: query, artist: "" })
+    const rankedResults = PipedClient.rankResults(data.items, { title: query, artist: "" })
 
-      // Get detailed info for top results with stream data
-      const videos = await Promise.all(
-        rankedResults.slice(0, Math.min(maxResults, 5)).map(async (item: any) => {
-          try {
-            const videoId = item.url?.replace("/watch?v=", "") || item.id
-            console.log(`[v0] Fetching streams for video: ${videoId}`)
-            const streamData = await this.makeRequest(`/streams/${videoId}`)
+    // Get detailed info for top results with stream data
+    const videos = await Promise.all(
+      rankedResults.slice(0, Math.min(maxResults, 5)).map(async (item: any) => {
+        try {
+          const videoId = item.url?.replace("/watch?v=", "") || item.id
+          console.log(`[v0] Fetching streams for video: ${videoId}`)
+          const streamData = await this.makeRequest(`/streams/${videoId}`)
 
-            return this.parseVideo(item, streamData)
-          } catch (error) {
-            console.warn(`[v0] Failed to get streams for video ${item.id}:`, error)
-            return this.parseVideo(item)
-          }
-        }),
-      )
+          return this.parseVideo(item, streamData)
+        } catch (error) {
+          console.warn(`[v0] Failed to get streams for video ${item.id}:`, error)
+          return this.parseVideo(item)
+        }
+      }),
+    )
 
-      const validVideos = videos.filter((v) => v !== null)
-      console.log(`[v0] Successfully found ${validVideos.length} songs for query: ${query}`)
+    const validVideos = videos.filter((v) => v !== null)
+    console.log(`[v0] Successfully found ${validVideos.length} songs for query: ${query}`)
 
-      return {
-        videos: validVideos,
-        totalResults: data.items.length,
-      }
-    } catch (error) {
-      console.error("[v0] Piped search failed:", error)
-      throw error
+    return {
+      videos: validVideos,
+      totalResults: data.items.length,
     }
   }
 
   async getTrending(maxResults = 20): Promise<PipedSearchResponse> {
-    try {
-      console.log("[v0] Fetching trending from Piped API")
-      const data = await this.makeRequest("/trending")
+    console.log("[v0] Fetching trending from Piped API")
+    const data = await this.makeRequest("/trending")
 
-      if (!data || data.length === 0) {
-        return { videos: [], totalResults: 0 }
-      }
+    if (!data || data.length === 0) {
+      return { videos: [], totalResults: 0 }
+    }
 
-      // Filter for music videos with better detection
-      const musicVideos = data
-        .filter((item: any) => {
-          const title = item.title?.toLowerCase() || ""
-          const uploader = item.uploaderName?.toLowerCase() || item.uploader?.toLowerCase() || ""
+    // Filter for music videos with better detection
+    const musicVideos = data
+      .filter((item: any) => {
+        const title = item.title?.toLowerCase() || ""
+        const uploader = item.uploaderName?.toLowerCase() || item.uploader?.toLowerCase() || ""
 
-          return (
-            title.includes("music") ||
-            title.includes("song") ||
-            title.includes("official") ||
-            uploader.includes("music") ||
-            uploader.includes("records") ||
-            uploader.includes("entertainment") ||
-            title.match(/\b(album|track|single|remix|cover)\b/i)
-          )
-        })
-        .slice(0, maxResults)
+        return (
+          title.includes("music") ||
+          title.includes("song") ||
+          title.includes("official") ||
+          uploader.includes("music") ||
+          uploader.includes("records") ||
+          uploader.includes("entertainment") ||
+          title.match(/\b(album|track|single|remix|cover)\b/i)
+        )
+      })
+      .slice(0, maxResults)
 
-      // Get stream data for music videos
-      const videos = await Promise.all(
-        musicVideos.slice(0, Math.min(maxResults, 5)).map(async (item: any) => {
-          try {
-            const videoId = item.url?.replace("/watch?v=", "") || item.id
-            const streamData = await this.makeRequest(`/streams/${videoId}`)
+    // Get stream data for music videos
+    const videos = await Promise.all(
+      musicVideos.slice(0, Math.min(maxResults, 5)).map(async (item: any) => {
+        try {
+          const videoId = item.url?.replace("/watch?v=", "") || item.id
+          const streamData = await this.makeRequest(`/streams/${videoId}`)
 
-            return this.parseVideo(item, streamData)
-          } catch (error) {
-            console.warn(`[v0] Failed to get streams for trending video ${item.id}:`, error)
-            return this.parseVideo(item)
-          }
-        }),
-      )
+          return this.parseVideo(item, streamData)
+        } catch (error) {
+          console.warn(`[v0] Failed to get streams for trending video ${item.id}:`, error)
+          return this.parseVideo(item)
+        }
+      }),
+    )
 
-      const validVideos = videos.filter((v) => v !== null)
-      console.log(`[v0] Got trending music: ${validVideos.length} songs`)
+    const validVideos = videos.filter((v) => v !== null)
+    console.log(`[v0] Got trending music: ${validVideos.length} songs`)
 
-      return {
-        videos: validVideos,
-        totalResults: musicVideos.length,
-      }
-    } catch (error) {
-      console.error("[v0] Piped trending failed:", error)
-      throw error
+    return {
+      videos: validVideos,
+      totalResults: musicVideos.length,
     }
   }
 
@@ -293,48 +278,26 @@ export class MusicAPIWrapper {
   }
 
   async search(query: string, maxResults = 20): Promise<MusicSearchResult> {
-    try {
-      const result = await this.pipedAPI.search(query, maxResults)
-      return {
-        tracks: result.videos.map((video) => ({
-          ...video,
-          audioUrl: this.selectAudioUrl(video),
-          source: "piped",
-        })),
-        totalResults: result.totalResults,
-      }
-    } catch (error) {
-      console.error("[v0] Piped API search failed, using fallback:", error)
-      return {
-        tracks: fallbackMusicData.slice(0, maxResults).map((video) => ({
-          ...video,
-          source: "fallback",
-        })),
-        totalResults: fallbackMusicData.length,
-      }
+    const result = await this.pipedAPI.search(query, maxResults)
+    return {
+      tracks: result.videos.map((video) => ({
+        ...video,
+        audioUrl: this.selectAudioUrl(video),
+        source: "piped",
+      })),
+      totalResults: result.totalResults,
     }
   }
 
   async getTrending(maxResults = 20): Promise<MusicSearchResult> {
-    try {
-      const result = await this.pipedAPI.getTrending(maxResults)
-      return {
-        tracks: result.videos.map((video) => ({
-          ...video,
-          audioUrl: this.selectAudioUrl(video),
-          source: "piped",
-        })),
-        totalResults: result.totalResults,
-      }
-    } catch (error) {
-      console.error("[v0] Piped API trending failed, using fallback:", error)
-      return {
-        tracks: fallbackMusicData.slice(0, maxResults).map((video) => ({
-          ...video,
-          source: "fallback",
-        })),
-        totalResults: fallbackMusicData.length,
-      }
+    const result = await this.pipedAPI.getTrending(maxResults)
+    return {
+      tracks: result.videos.map((video) => ({
+        ...video,
+        audioUrl: this.selectAudioUrl(video),
+        source: "piped",
+      })),
+      totalResults: result.totalResults,
     }
   }
 
@@ -364,51 +327,3 @@ export function createMusicAPI(): MusicAPIWrapper {
   const pipedAPI = createPipedAPI()
   return new MusicAPIWrapper(pipedAPI)
 }
-
-export const fallbackMusicData: PipedVideo[] = [
-  {
-    id: "fallback-1",
-    title: "Shape of You",
-    artist: "Ed Sheeran",
-    duration: "3:53",
-    thumbnail: "/ed-sheeran-shape-of-you.png",
-    url: "https://www.youtube.com/watch?v=JGwWNGJdvx8",
-    audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-  },
-  {
-    id: "fallback-2",
-    title: "Blinding Lights",
-    artist: "The Weeknd",
-    duration: "3:20",
-    thumbnail: "/weeknd-blinding-lights.png",
-    url: "https://www.youtube.com/watch?v=4NRXx6U8ABQ",
-    audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-  },
-  {
-    id: "fallback-3",
-    title: "Anti-Hero",
-    artist: "Taylor Swift",
-    duration: "3:20",
-    thumbnail: "/taylor-swift-anti-hero.png",
-    url: "https://www.youtube.com/watch?v=b1kbLWvqugk",
-    audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-  },
-  {
-    id: "fallback-4",
-    title: "As It Was",
-    artist: "Harry Styles",
-    duration: "2:47",
-    thumbnail: "/harry-styles-as-it-was.png",
-    url: "https://www.youtube.com/watch?v=H5v3kku4y6Q",
-    audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-  },
-  {
-    id: "fallback-5",
-    title: "Bad Habit",
-    artist: "Steve Lacy",
-    duration: "3:51",
-    thumbnail: "/steve-lacy-bad-habit.png",
-    url: "https://www.youtube.com/watch?v=VF-r5TtlT9w",
-    audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-  },
-]

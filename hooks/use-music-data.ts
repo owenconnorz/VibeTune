@@ -14,121 +14,58 @@ export interface Song {
 
 async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
   console.log("[v0] Fetching trending music from server-side Piped API")
-  try {
-    const response = await fetch(`/api/piped/trending?maxResults=${maxResults}`)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-
-    const data = await response.json()
-    console.log("[v0] Server-side Piped API trending response:", data.source, data.songs?.length || 0, "songs")
-
-    if (data.songs && data.songs.length > 0) {
-      return data.songs.map((song: any) => ({
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        thumbnail: song.thumbnail,
-        duration: song.duration,
-        url: song.url,
-        audioUrl: song.audioUrl,
-      }))
-    }
-
-    return getFallbackSongs().slice(0, maxResults)
-  } catch (error) {
-    console.error("[v0] Server-side Piped API trending failed:", error)
-    console.log("[v0] Using fallback trending music data")
-    return getFallbackSongs().slice(0, maxResults)
+  const response = await fetch(`/api/piped/trending?maxResults=${maxResults}`)
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
   }
+
+  const data = await response.json()
+  console.log("[v0] Server-side Piped API trending response:", data.source, data.songs?.length || 0, "songs")
+
+  if (data.songs && data.songs.length > 0) {
+    return data.songs.map((song: any) => ({
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      thumbnail: song.thumbnail,
+      duration: song.duration,
+      url: song.url,
+      audioUrl: song.audioUrl,
+    }))
+  }
+
+  throw new Error("No trending songs available from Piped API")
 }
 
 async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
   console.log("[v0] Searching server-side Piped API for:", query)
-  try {
-    const response = await fetch(`/api/piped/search?q=${encodeURIComponent(query)}&maxResults=${maxResults}`)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-
-    const data = await response.json()
-    console.log("[v0] Server-side Piped API search response:", data.source, data.songs?.length || 0, "songs")
-
-    if (data.songs && data.songs.length > 0) {
-      return data.songs.map((song: any) => ({
-        id: song.id,
-        title: song.title,
-        artist: song.artist,
-        thumbnail: song.thumbnail,
-        duration: song.duration,
-        url: song.url,
-        audioUrl: song.audioUrl,
-      }))
-    }
-
-    return getFallbackSongs().slice(0, maxResults)
-  } catch (error) {
-    console.error("[v0] Server-side Piped API search failed for query:", query, error)
-    console.log("[v0] Using fallback music data for search")
-    return getFallbackSongs().slice(0, maxResults)
+  const response = await fetch(`/api/piped/search?q=${encodeURIComponent(query)}&maxResults=${maxResults}`)
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
   }
-}
 
-function getFallbackSongs(): Song[] {
-  return [
-    {
-      id: "fallback-1",
-      title: "Shape of You",
-      artist: "Ed Sheeran",
-      duration: "3:53",
-      thumbnail: "/ed-sheeran-shape-of-you.png",
-      url: "https://www.youtube.com/watch?v=JGwWNGJdvx8",
-      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-    },
-    {
-      id: "fallback-2",
-      title: "Blinding Lights",
-      artist: "The Weeknd",
-      duration: "3:20",
-      thumbnail: "/weeknd-blinding-lights.png",
-      url: "https://www.youtube.com/watch?v=4NRXx6U8ABQ",
-      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
-    },
-    {
-      id: "fallback-3",
-      title: "Anti-Hero",
-      artist: "Taylor Swift",
-      duration: "3:20",
-      thumbnail: "/taylor-swift-anti-hero.png",
-      url: "https://www.youtube.com/watch?v=b1kbLWvqugk",
-      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
-    },
-    {
-      id: "fallback-4",
-      title: "As It Was",
-      artist: "Harry Styles",
-      duration: "2:47",
-      thumbnail: "/harry-styles-as-it-was.png",
-      url: "https://www.youtube.com/watch?v=H5v3kku4y6Q",
-      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
-    },
-    {
-      id: "fallback-5",
-      title: "Bad Habit",
-      artist: "Steve Lacy",
-      duration: "3:51",
-      thumbnail: "/steve-lacy-bad-habit.png",
-      url: "https://www.youtube.com/watch?v=VF-r5TtlT9w",
-      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
-    },
-  ]
+  const data = await response.json()
+  console.log("[v0] Server-side Piped API search response:", data.source, data.songs?.length || 0, "songs")
+
+  if (data.songs && data.songs.length > 0) {
+    return data.songs.map((song: any) => ({
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      thumbnail: song.thumbnail,
+      duration: song.duration,
+      url: song.url,
+      audioUrl: song.audioUrl,
+    }))
+  }
+
+  return []
 }
 
 export function useTrendingMusic() {
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [source, setSource] = useState<"api" | "fallback">("api")
 
   const loadTrendingMusic = useCallback(async (forceRefresh = false) => {
     try {
@@ -138,29 +75,12 @@ export function useTrendingMusic() {
       console.log("[v0] Loading trending music from server-side Piped API")
       const trendingSongs = await fetchTrendingMusic(25)
 
-      if (trendingSongs && trendingSongs.length > 0) {
-        const isUsingFallback = trendingSongs.some((song) => song.audioUrl?.includes("soundhelix.com"))
-        console.log(
-          "[v0] Got trending music:",
-          trendingSongs.length,
-          "songs",
-          isUsingFallback ? "(fallback data)" : "(server-side Piped API)",
-        )
-        setSongs(trendingSongs)
-        setSource(isUsingFallback ? "fallback" : "server-side Piped API")
-      } else {
-        const fallbackSongs = getFallbackSongs()
-        setSongs(fallbackSongs)
-        setSource("fallback")
-        console.log("[v0] Using fallback trending music:", fallbackSongs.length, "songs")
-      }
+      console.log("[v0] Got trending music:", trendingSongs.length, "songs from Piped API")
+      setSongs(trendingSongs)
     } catch (err) {
       console.error("[v0] Trending music failed:", err)
-      const fallbackSongs = getFallbackSongs()
-      setSongs(fallbackSongs)
-      setSource("fallback")
-      setError(null) // Clear error since we have fallback data
-      console.log("[v0] Using fallback trending music after error:", fallbackSongs.length, "songs")
+      setError(err.message || "Failed to load trending music")
+      setSongs([])
     } finally {
       setLoading(false)
     }
@@ -170,14 +90,13 @@ export function useTrendingMusic() {
     loadTrendingMusic(false)
   }, [loadTrendingMusic])
 
-  return { songs, loading, error, source, refetch: () => loadTrendingMusic(true) }
+  return { songs, loading, error, refetch: () => loadTrendingMusic(true) }
 }
 
 export function useSearchMusic(query: string, enabled = false) {
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [source, setSource] = useState<"api" | "fallback">("api")
 
   useEffect(() => {
     if (!enabled || !query.trim()) {
@@ -193,18 +112,11 @@ export function useSearchMusic(query: string, enabled = false) {
         console.log(`[v0] Searching server-side Piped API for: "${query}"`)
         const results = await searchMusic(query, 15)
 
-        if (results && results.length > 0) {
-          setSongs(results)
-          setSource("server-side Piped API")
-        } else {
-          setSongs([])
-          setSource("server-side Piped API")
-        }
+        setSongs(results)
       } catch (err) {
         console.error(`[v0] Server-side Piped API search failed for "${query}":`, err)
-        setError("Server-side Piped API search failed. Please try again.")
+        setError(err.message || "Search failed")
         setSongs([])
-        setSource("error")
       } finally {
         setLoading(false)
       }
@@ -214,14 +126,13 @@ export function useSearchMusic(query: string, enabled = false) {
     return () => clearTimeout(debounceTimer)
   }, [query, enabled])
 
-  return { songs, loading, error, source }
+  return { songs, loading, error }
 }
 
 export function useMoodPlaylist(queries: string[]) {
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [source, setSource] = useState<"api" | "fallback">("api")
 
   const memoizedQueries = useMemo(() => queries, [queries.join(",")])
 
@@ -249,29 +160,12 @@ export function useMoodPlaylist(queries: string[]) {
           .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
           .slice(0, 15)
 
-        if (uniqueSongs.length > 0) {
-          const isUsingFallback = uniqueSongs.some((song) => song.audioUrl?.includes("soundhelix.com"))
-          console.log(
-            "[v0] Got mood playlist:",
-            uniqueSongs.length,
-            "songs",
-            isUsingFallback ? "(fallback data)" : "(server-side Piped API)",
-          )
-          setSongs(uniqueSongs)
-          setSource(isUsingFallback ? "fallback" : "server-side Piped API")
-        } else {
-          const fallbackSongs = getFallbackSongs().slice(0, 15)
-          setSongs(fallbackSongs)
-          setSource("fallback")
-          console.log("[v0] Using fallback mood playlist:", fallbackSongs.length, "songs")
-        }
+        console.log("[v0] Got mood playlist:", uniqueSongs.length, "songs from Piped API")
+        setSongs(uniqueSongs)
       } catch (err) {
         console.error("[v0] Mood playlist failed:", err)
-        const fallbackSongs = getFallbackSongs().slice(0, 15)
-        setSongs(fallbackSongs)
-        setSource("fallback")
-        setError(null) // Clear error since we have fallback data
-        console.log("[v0] Using fallback mood playlist after error:", fallbackSongs.length, "songs")
+        setError(err.message || "Failed to load mood playlist")
+        setSongs([])
       } finally {
         setLoading(false)
       }
@@ -285,14 +179,13 @@ export function useMoodPlaylist(queries: string[]) {
     }
   }, [loadMoodPlaylist, memoizedQueries])
 
-  return { songs, loading, error, source, refetch: () => loadMoodPlaylist(true) }
+  return { songs, loading, error, refetch: () => loadMoodPlaylist(true) }
 }
 
 export function useNewReleases() {
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [source, setSource] = useState<"api" | "fallback">("api")
 
   const loadNewReleases = useCallback(async (forceRefresh = false) => {
     try {
@@ -325,29 +218,12 @@ export function useNewReleases() {
         .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
         .slice(0, 12)
 
-      if (uniqueSongs.length > 0) {
-        const isUsingFallback = uniqueSongs.some((song) => song.audioUrl?.includes("soundhelix.com"))
-        console.log(
-          "[v0] Got new releases:",
-          uniqueSongs.length,
-          "songs",
-          isUsingFallback ? "(fallback data)" : "(server-side Piped API)",
-        )
-        setSongs(uniqueSongs)
-        setSource(isUsingFallback ? "fallback" : "server-side Piped API")
-      } else {
-        const fallbackSongs = getFallbackSongs().slice(0, 12)
-        setSongs(fallbackSongs)
-        setSource("fallback")
-        console.log("[v0] Using fallback new releases:", fallbackSongs.length, "songs")
-      }
+      console.log("[v0] Got new releases:", uniqueSongs.length, "songs from Piped API")
+      setSongs(uniqueSongs)
     } catch (err) {
       console.error("[v0] New releases failed:", err)
-      const fallbackSongs = getFallbackSongs().slice(0, 12)
-      setSongs(fallbackSongs)
-      setSource("fallback")
-      setError(null) // Clear error since we have fallback data
-      console.log("[v0] Using fallback new releases after error:", fallbackSongs.length, "songs")
+      setError(err.message || "Failed to load new releases")
+      setSongs([])
     } finally {
       setLoading(false)
     }
@@ -357,5 +233,5 @@ export function useNewReleases() {
     loadNewReleases(false)
   }, [loadNewReleases])
 
-  return { songs, loading, error, source, refetch: () => loadNewReleases(true) }
+  return { songs, loading, error, refetch: () => loadNewReleases(true) }
 }

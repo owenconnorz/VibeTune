@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createMusicAPI } from "@/lib/youtube-data-api"
+import { createPipedAPI } from "@/lib/piped-api"
 
 export const runtime = "edge"
 
@@ -13,17 +13,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
     }
 
-    const musicAPI = createMusicAPI()
-    const results = await musicAPI.search(query, maxResults)
+    const pipedAPI = createPipedAPI()
+    const results = await pipedAPI.search(query, maxResults)
 
-    const videos = results.tracks.map((track) => ({
-      id: track.id,
-      title: track.title,
-      channelTitle: track.artist,
-      thumbnail: track.thumbnail,
-      duration: track.duration,
-      viewCount: "1000000",
-      publishedAt: new Date().toISOString(),
+    const videos = results.videos.map((video) => ({
+      id: video.id,
+      title: video.title,
+      channelTitle: video.artist,
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+      viewCount: video.views || "1000000",
+      publishedAt: video.publishedAt || new Date().toISOString(),
     }))
 
     return NextResponse.json(
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       },
     )
   } catch (error) {
-    console.error("[v0] Music search API error:", error)
-    return NextResponse.json({ error: "Failed to search music" }, { status: 500 })
+    console.error("[v0] Piped search API error:", error)
+    return NextResponse.json({ error: "Failed to search videos" }, { status: 500 })
   }
 }
