@@ -75,6 +75,7 @@ export class PipedClient {
     }
 
     const query = params ? `?${new URLSearchParams(params).toString()}` : ""
+    const errors: string[] = []
 
     for (const instance of this.instances) {
       try {
@@ -90,10 +91,14 @@ export class PipedClient {
         })
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
 
         const data = await response.json()
+
+        if (!data || (Array.isArray(data) && data.length === 0)) {
+          throw new Error("Empty response from Piped instance")
+        }
 
         // Cache successful response
         this.cache.set(cacheKey, { data, timestamp: Date.now() })
@@ -101,27 +106,62 @@ export class PipedClient {
 
         return data
       } catch (error) {
-        console.log(`[v0] Piped instance ${instance} failed:`, error)
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        errors.push(`${instance}: ${errorMsg}`)
+        console.log(`[v0] Piped instance ${instance} failed:`, errorMsg)
         continue
       }
     }
 
-    throw new Error("All Piped instances failed")
+    throw new Error(`All Piped instances failed: ${errors.join("; ")}`)
   }
 
   async search(query: string, filter: "videos" | "music_songs" = "videos"): Promise<PipedSearchResult> {
-    return this.fetchWithFallback<PipedSearchResult>("/search", {
-      q: `${query} music`,
-      filter,
-    })
+    try {
+      const result = await this.fetchWithFallback<any>("/search", {
+        q: `${query} music`,
+        filter,
+      })
+
+      if (result.items && Array.isArray(result.items)) {
+        return { items: result.items }
+      } else if (Array.isArray(result)) {
+        return { items: result }
+      } else {
+        throw new Error("Invalid search response format")
+      }
+    } catch (error) {
+      console.error("[v0] Piped search failed:", error)
+      throw error
+    }
   }
 
   async streams(videoId: string): Promise<PipedStreamResponse> {
-    return this.fetchWithFallback<PipedStreamResponse>(`/streams/${videoId}`)
+    try {
+      return await this.fetchWithFallback<PipedStreamResponse>(`/streams/${videoId}`)
+    } catch (error) {
+      console.error(`[v0] Piped streams failed for ${videoId}:`, error)
+      throw error
+    }
   }
 
-  async trending(): Promise<PipedSearchResult> {
-    return this.fetchWithFallback<PipedSearchResult>("/trending")
+  async trending(): Promise<any> {
+    try {
+      const result = await this.fetchWithFallback<any>("/trending")
+
+      if (Array.isArray(result)) {
+        return result
+      } else if (result.items && Array.isArray(result.items)) {
+        return result.items
+      } else if (result.data && Array.isArray(result.data)) {
+        return result.data
+      } else {
+        throw new Error("Invalid trending response format")
+      }
+    } catch (error) {
+      console.error("[v0] Piped trending failed:", error)
+      throw error
+    }
   }
 
   // Convert Piped stream response to source map with quality levels

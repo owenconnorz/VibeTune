@@ -156,52 +156,64 @@ export class PipedAPI {
   }
 
   async getTrending(maxResults = 20): Promise<PipedSearchResponse> {
-    console.log("[v0] Fetching trending from Piped API")
-    const data = await this.makeRequest("/trending")
+    try {
+      console.log("[v0] Fetching trending from Piped API")
+      const data = await this.makeRequest("/trending")
 
-    if (!data || data.length === 0) {
-      return { videos: [], totalResults: 0 }
-    }
+      if (!data || (Array.isArray(data) && data.length === 0)) {
+        console.log("[v0] No trending data available")
+        return { videos: [], totalResults: 0 }
+      }
 
-    // Filter for music videos with better detection
-    const musicVideos = data
-      .filter((item: any) => {
-        const title = item.title?.toLowerCase() || ""
-        const uploader = item.uploaderName?.toLowerCase() || item.uploader?.toLowerCase() || ""
+      const trendingItems = Array.isArray(data) ? data : data.items || []
 
-        return (
-          title.includes("music") ||
-          title.includes("song") ||
-          title.includes("official") ||
-          uploader.includes("music") ||
-          uploader.includes("records") ||
-          uploader.includes("entertainment") ||
-          title.match(/\b(album|track|single|remix|cover)\b/i)
-        )
-      })
-      .slice(0, maxResults)
+      // Filter for music videos with better detection
+      const musicVideos = trendingItems
+        .filter((item: any) => {
+          const title = item.title?.toLowerCase() || ""
+          const uploader = item.uploaderName?.toLowerCase() || item.uploader?.toLowerCase() || ""
 
-    // Get stream data for music videos
-    const videos = await Promise.all(
-      musicVideos.slice(0, Math.min(maxResults, 5)).map(async (item: any) => {
-        try {
-          const videoId = item.url?.replace("/watch?v=", "") || item.id
-          const streamData = await this.makeRequest(`/streams/${videoId}`)
+          return (
+            title.includes("music") ||
+            title.includes("song") ||
+            title.includes("official") ||
+            uploader.includes("music") ||
+            uploader.includes("records") ||
+            uploader.includes("entertainment") ||
+            title.match(/\b(album|track|single|remix|cover)\b/i)
+          )
+        })
+        .slice(0, maxResults)
 
-          return this.parseVideo(item, streamData)
-        } catch (error) {
-          console.warn(`[v0] Failed to get streams for trending video ${item.id}:`, error)
-          return this.parseVideo(item)
-        }
-      }),
-    )
+      if (musicVideos.length === 0) {
+        console.log("[v0] No music videos found in trending")
+        return { videos: [], totalResults: 0 }
+      }
 
-    const validVideos = videos.filter((v) => v !== null)
-    console.log(`[v0] Got trending music: ${validVideos.length} songs`)
+      const videos = await Promise.all(
+        musicVideos.slice(0, Math.min(maxResults, 3)).map(async (item: any) => {
+          try {
+            const videoId = item.url?.replace("/watch?v=", "") || item.id
+            const streamData = await this.makeRequest(`/streams/${videoId}`)
 
-    return {
-      videos: validVideos,
-      totalResults: musicVideos.length,
+            return this.parseVideo(item, streamData)
+          } catch (error) {
+            console.warn(`[v0] Failed to get streams for trending video ${item.id}:`, error)
+            return this.parseVideo(item)
+          }
+        }),
+      )
+
+      const validVideos = videos.filter((v) => v !== null)
+      console.log(`[v0] Got trending music: ${validVideos.length} songs`)
+
+      return {
+        videos: validVideos,
+        totalResults: musicVideos.length,
+      }
+    } catch (error) {
+      console.error("[v0] Piped getTrending error:", error)
+      throw error
     }
   }
 

@@ -58,18 +58,6 @@ const MusicCard = React.memo(({ song, onPlay, songList }: any) => (
   </div>
 ))
 
-const CategoryItem = React.memo(({ category, onClick, flag }: any) => (
-  <div
-    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
-    onClick={onClick}
-  >
-    <span className="text-lg flex-shrink-0">{flag || "🎵"}</span>
-    <div className="flex-1 min-w-0">
-      <h3 className="text-white font-normal text-sm">{category.title}</h3>
-    </div>
-  </div>
-))
-
 export default function VibeTunePage() {
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [pageTransition, setPageTransition] = useState(false)
@@ -176,99 +164,10 @@ export default function VibeTunePage() {
     setTimeout(() => router.push("/library"), 150)
   }, [router])
 
-  const handleExploreClick = useCallback(() => {
-    setPageTransition(true)
-    setTimeout(() => router.push("/explore"), 150)
-  }, [router])
-
   const handleVideosClick = useCallback(() => {
     setPageTransition(true)
     setTimeout(() => router.push("/videos"), 150)
   }, [router])
-
-  const userContent = useMemo(() => {
-    if (!user || (syncData.playlists.length === 0 && syncData.likedSongs.length === 0)) {
-      return null
-    }
-
-    return (
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-yellow-400">Your Music</h2>
-          <Button
-            variant="outline"
-            onClick={handleLibraryClick}
-            className="border-zinc-600 text-gray-300 hover:bg-zinc-700 bg-transparent"
-          >
-            View All
-          </Button>
-        </div>
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {syncData.playlists.slice(0, 3).map((playlist) => (
-            <div
-              key={playlist.id}
-              className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={handleLibraryClick}
-            >
-              <div className="relative rounded-lg overflow-hidden mb-3">
-                <OptimizedImage
-                  src={playlist.thumbnail}
-                  alt={playlist.title}
-                  width={192}
-                  height={192}
-                  className="w-full h-48 object-cover"
-                  fallback="/music-playlist-concept.png"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                <div className="absolute bottom-4 left-4">
-                  <h3 className="text-white font-bold text-lg truncate">{playlist.title}</h3>
-                  <p className="text-yellow-400 font-bold text-sm">{playlist.videoCount} songs</p>
-                </div>
-              </div>
-              <h3 className="text-white font-semibold truncate">{playlist.title}</h3>
-              <p className="text-gray-400 text-sm truncate">{playlist.videoCount} songs</p>
-            </div>
-          ))}
-          {syncData.likedSongs.length > 0 && (
-            <div
-              className="flex-shrink-0 w-48 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={handleLibraryClick}
-            >
-              <div className="relative rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-red-500 to-pink-600">
-                <div className="w-full h-48 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
-                      <span className="text-white font-bold text-xs">❤️</span>
-                    </div>
-                    <h3 className="text-white font-bold text-lg">Liked Songs</h3>
-                    <p className="text-white/80 font-bold text-sm">{syncData.likedSongs.length} songs</p>
-                  </div>
-                </div>
-              </div>
-              <h3 className="text-white font-semibold truncate">Liked Songs</h3>
-              <p className="text-gray-400 text-sm truncate">{syncData.likedSongs.length} songs</p>
-            </div>
-          )}
-        </div>
-      </section>
-    )
-  }, [user, syncData.playlists, syncData.likedSongs, handleLibraryClick])
-
-  const musicCategories = useMemo(
-    () => [
-      { title: "Hip-Hop Classics", flag: "🇺🇸" },
-      { title: "R&B Party-Starters", flag: "🇺🇸" },
-      { title: "K-Pop Hits", flag: "🇰🇷" },
-      { title: "UK Drill", flag: "🇬🇧" },
-      { title: "Latin Reggaeton", flag: "🇵🇷" },
-      { title: "Afrobeats", flag: "🇳🇬" },
-      { title: "French Rap", flag: "🇫🇷" },
-      { title: "German Hip-Hop", flag: "🇩🇪" },
-      { title: "Italian Pop", flag: "🇮🇹" },
-      { title: "Japanese City Pop", flag: "🇯🇵" },
-    ],
-    [],
-  )
 
   const quickPicksSongs = useMemo(() => {
     if (safeTrendingSongs.length === 0) return []
@@ -328,7 +227,7 @@ export default function VibeTunePage() {
               <Button
                 variant="ghost"
                 className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-                onClick={handleExploreClick}
+                onClick={handleVideosClick}
               >
                 Show all
               </Button>
@@ -358,7 +257,7 @@ export default function VibeTunePage() {
               <Button
                 variant="ghost"
                 className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-                onClick={handleExploreClick}
+                onClick={handleVideosClick}
               >
                 Show all
               </Button>
@@ -390,7 +289,7 @@ export default function VibeTunePage() {
               <Button
                 variant="ghost"
                 className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-                onClick={handleExploreClick}
+                onClick={handleVideosClick}
               >
                 Show all
               </Button>
@@ -434,20 +333,6 @@ export default function VibeTunePage() {
                       ))}
               </div>
             )}
-          </section>
-
-          <section>
-            <h2 className="text-xl font-bold text-white mb-4">Explore</h2>
-            <div className="space-y-1">
-              {musicCategories.map((category, index) => (
-                <CategoryItem
-                  key={index}
-                  category={category}
-                  flag={category.flag}
-                  onClick={() => router.push(`/genre/${category.title.toLowerCase().replace(/[^a-z0-9]/g, "-")}`)}
-                />
-              ))}
-            </div>
           </section>
 
           {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
