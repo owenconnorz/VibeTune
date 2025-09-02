@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { createMusicAPI, fallbackMusicData, type PipedVideo } from "../lib/piped-api"
 
 export interface Song {
   id: string
@@ -13,66 +12,116 @@ export interface Song {
   audioUrl?: string
 }
 
-const musicAPI = createMusicAPI()
-
-function convertPipedVideoToSong(video: PipedVideo): Song {
-  return {
-    id: video.id,
-    title: video.title,
-    artist: video.artist,
-    thumbnail: video.thumbnail,
-    duration: video.duration,
-    url: video.url,
-    audioUrl: video.audioUrl,
-  }
-}
-
-function getFallbackSongs(): Song[] {
-  return fallbackMusicData.map(convertPipedVideoToSong)
-}
-
 async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
-  console.log("[v0] Fetching trending music from Piped API")
+  console.log("[v0] Fetching trending music from server-side Piped API")
   try {
-    const result = await musicAPI.getTrending(maxResults)
-    const songs = result.tracks.map((track) => ({
-      id: track.id,
-      title: track.title,
-      artist: track.artist,
-      thumbnail: track.thumbnail,
-      duration: track.duration,
-      url: track.url,
-      audioUrl: track.audioUrl,
-    }))
-    console.log("[v0] Successfully fetched", songs.length, "trending songs from Piped API")
-    return songs
+    const response = await fetch(`/api/piped/trending?maxResults=${maxResults}`)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log("[v0] Server-side Piped API trending response:", data.source, data.songs?.length || 0, "songs")
+
+    if (data.songs && data.songs.length > 0) {
+      return data.songs.map((song: any) => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        duration: song.duration,
+        url: song.url,
+        audioUrl: song.audioUrl,
+      }))
+    }
+
+    return getFallbackSongs().slice(0, maxResults)
   } catch (error) {
-    console.error("[v0] Piped API trending failed:", error)
+    console.error("[v0] Server-side Piped API trending failed:", error)
     console.log("[v0] Using fallback trending music data")
     return getFallbackSongs().slice(0, maxResults)
   }
 }
 
 async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
-  console.log("[v0] Searching Piped API for:", query)
+  console.log("[v0] Searching server-side Piped API for:", query)
   try {
-    const result = await musicAPI.search(query, maxResults)
-    const songs = result.tracks.map((track) => ({
-      id: track.id,
-      title: track.title,
-      artist: track.artist,
-      thumbnail: track.thumbnail,
-      duration: track.duration,
-      url: track.url,
-      audioUrl: track.audioUrl,
-    }))
-    console.log("[v0] Successfully found", songs.length, "songs for query:", query)
-    return songs
+    const response = await fetch(`/api/piped/search?q=${encodeURIComponent(query)}&maxResults=${maxResults}`)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log("[v0] Server-side Piped API search response:", data.source, data.songs?.length || 0, "songs")
+
+    if (data.songs && data.songs.length > 0) {
+      return data.songs.map((song: any) => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        duration: song.duration,
+        url: song.url,
+        audioUrl: song.audioUrl,
+      }))
+    }
+
+    return getFallbackSongs().slice(0, maxResults)
   } catch (error) {
-    console.error("[v0] Piped API search failed for query:", query, error)
+    console.error("[v0] Server-side Piped API search failed for query:", query, error)
     console.log("[v0] Using fallback music data for search")
     return getFallbackSongs().slice(0, maxResults)
   }
+}
+
+function getFallbackSongs(): Song[] {
+  return [
+    {
+      id: "fallback-1",
+      title: "Shape of You",
+      artist: "Ed Sheeran",
+      duration: "3:53",
+      thumbnail: "/ed-sheeran-shape-of-you.png",
+      url: "https://www.youtube.com/watch?v=JGwWNGJdvx8",
+      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    },
+    {
+      id: "fallback-2",
+      title: "Blinding Lights",
+      artist: "The Weeknd",
+      duration: "3:20",
+      thumbnail: "/weeknd-blinding-lights.png",
+      url: "https://www.youtube.com/watch?v=4NRXx6U8ABQ",
+      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+    },
+    {
+      id: "fallback-3",
+      title: "Anti-Hero",
+      artist: "Taylor Swift",
+      duration: "3:20",
+      thumbnail: "/taylor-swift-anti-hero.png",
+      url: "https://www.youtube.com/watch?v=b1kbLWvqugk",
+      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+    },
+    {
+      id: "fallback-4",
+      title: "As It Was",
+      artist: "Harry Styles",
+      duration: "2:47",
+      thumbnail: "/harry-styles-as-it-was.png",
+      url: "https://www.youtube.com/watch?v=H5v3kku4y6Q",
+      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+    },
+    {
+      id: "fallback-5",
+      title: "Bad Habit",
+      artist: "Steve Lacy",
+      duration: "3:51",
+      thumbnail: "/steve-lacy-bad-habit.png",
+      url: "https://www.youtube.com/watch?v=VF-r5TtlT9w",
+      audioUrl: "https://soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+    },
+  ]
 }
 
 export function useTrendingMusic() {
@@ -86,7 +135,7 @@ export function useTrendingMusic() {
       setLoading(true)
       setError(null)
 
-      console.log("[v0] Loading trending music from Piped API")
+      console.log("[v0] Loading trending music from server-side Piped API")
       const trendingSongs = await fetchTrendingMusic(25)
 
       if (trendingSongs && trendingSongs.length > 0) {
@@ -95,10 +144,10 @@ export function useTrendingMusic() {
           "[v0] Got trending music:",
           trendingSongs.length,
           "songs",
-          isUsingFallback ? "(fallback data)" : "(Piped API)",
+          isUsingFallback ? "(fallback data)" : "(server-side Piped API)",
         )
         setSongs(trendingSongs)
-        setSource(isUsingFallback ? "fallback" : "api")
+        setSource(isUsingFallback ? "fallback" : "server-side Piped API")
       } else {
         const fallbackSongs = getFallbackSongs()
         setSongs(fallbackSongs)
@@ -141,19 +190,19 @@ export function useSearchMusic(query: string, enabled = false) {
         setLoading(true)
         setError(null)
 
-        console.log(`[v0] Searching Piped API for: "${query}"`)
+        console.log(`[v0] Searching server-side Piped API for: "${query}"`)
         const results = await searchMusic(query, 15)
 
         if (results && results.length > 0) {
           setSongs(results)
-          setSource("api")
+          setSource("server-side Piped API")
         } else {
           setSongs([])
-          setSource("api")
+          setSource("server-side Piped API")
         }
       } catch (err) {
-        console.error(`[v0] Piped API search failed for "${query}":`, err)
-        setError("Piped API search failed. Please try again.")
+        console.error(`[v0] Server-side Piped API search failed for "${query}":`, err)
+        setError("Server-side Piped API search failed. Please try again.")
         setSongs([])
         setSource("error")
       } finally {
@@ -182,7 +231,7 @@ export function useMoodPlaylist(queries: string[]) {
         setLoading(true)
         setError(null)
 
-        console.log("[v0] Fetching mood playlist from Piped API for queries:", memoizedQueries)
+        console.log("[v0] Fetching mood playlist from server-side Piped API for queries:", memoizedQueries)
         const allSongs: Song[] = []
 
         for (const query of memoizedQueries) {
@@ -206,10 +255,10 @@ export function useMoodPlaylist(queries: string[]) {
             "[v0] Got mood playlist:",
             uniqueSongs.length,
             "songs",
-            isUsingFallback ? "(fallback data)" : "(Piped API)",
+            isUsingFallback ? "(fallback data)" : "(server-side Piped API)",
           )
           setSongs(uniqueSongs)
-          setSource(isUsingFallback ? "fallback" : "api")
+          setSource(isUsingFallback ? "fallback" : "server-side Piped API")
         } else {
           const fallbackSongs = getFallbackSongs().slice(0, 15)
           setSongs(fallbackSongs)
@@ -250,7 +299,7 @@ export function useNewReleases() {
       setLoading(true)
       setError(null)
 
-      console.log("[v0] Fetching new releases from Piped API")
+      console.log("[v0] Fetching new releases from server-side Piped API")
       const newReleaseQueries = [
         "new songs 2024",
         "latest releases 2024",
@@ -282,10 +331,10 @@ export function useNewReleases() {
           "[v0] Got new releases:",
           uniqueSongs.length,
           "songs",
-          isUsingFallback ? "(fallback data)" : "(Piped API)",
+          isUsingFallback ? "(fallback data)" : "(server-side Piped API)",
         )
         setSongs(uniqueSongs)
-        setSource(isUsingFallback ? "fallback" : "api")
+        setSource(isUsingFallback ? "fallback" : "server-side Piped API")
       } else {
         const fallbackSongs = getFallbackSongs().slice(0, 12)
         setSongs(fallbackSongs)
