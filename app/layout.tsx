@@ -146,7 +146,7 @@ video, canvas {
 }
 .page-content {
   padding-top: 5rem;
-  padding-bottom: 8rem;
+  padding-bottom: 10rem;
   min-height: 100vh;
   min-height: 100dvh;
 }
@@ -159,10 +159,10 @@ video, canvas {
 }
 .fixed-miniplayer {
   position: fixed;
-  bottom: 6rem;
+  bottom: 5rem;
   left: 1rem;
   right: 1rem;
-  z-index: 40;
+  z-index: 60;
 }
         `}</style>
       </head>

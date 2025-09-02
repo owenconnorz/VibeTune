@@ -123,7 +123,7 @@ export function AudioPlayer() {
 
   return (
     <>
-      <div className="fixed bottom-24 left-4 right-4 z-40">
+      <div className="fixed bottom-20 left-4 right-4 z-[60] pointer-events-auto">
         <div
           className="bg-zinc-900/95 backdrop-blur-md rounded-2xl border border-zinc-700/50 shadow-2xl overflow-hidden transition-transform duration-200 ease-out"
           style={{
