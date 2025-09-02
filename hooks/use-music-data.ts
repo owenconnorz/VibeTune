@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { createYouTubeDataAPI, type YouTubeVideo } from "../lib/youtube-data-api"
+import { createPipedAPI, type PipedVideo } from "../lib/piped-api"
 
 export interface Song {
   id: string
@@ -13,9 +13,9 @@ export interface Song {
   audioUrl?: string
 }
 
-const youtubeAPI = createYouTubeDataAPI()
+const pipedAPI = createPipedAPI()
 
-function convertYouTubeVideoToSong(video: YouTubeVideo): Song {
+function convertPipedVideoToSong(video: PipedVideo): Song {
   return {
     id: video.id,
     title: video.title,
@@ -23,33 +23,32 @@ function convertYouTubeVideoToSong(video: YouTubeVideo): Song {
     thumbnail: video.thumbnail,
     duration: video.duration,
     url: video.url,
-    // Note: YouTube URLs cannot be played directly in HTML audio elements
-    // This is expected behavior - the UI will show the songs but playback requires YouTube player
+    audioUrl: video.audioUrl,
   }
 }
 
 async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
-  console.log("[v0] Fetching trending music from YouTube API")
+  console.log("[v0] Fetching trending music from Piped API")
   try {
-    const result = await youtubeAPI.getTrending(maxResults)
-    const songs = result.videos.map(convertYouTubeVideoToSong)
-    console.log("[v0] Successfully fetched", songs.length, "trending songs from YouTube API")
+    const result = await pipedAPI.getTrending(maxResults)
+    const songs = result.videos.map(convertPipedVideoToSong)
+    console.log("[v0] Successfully fetched", songs.length, "trending songs from Piped API")
     return songs
   } catch (error) {
-    console.error("[v0] YouTube API trending failed:", error)
+    console.error("[v0] Piped API trending failed:", error)
     throw error
   }
 }
 
 async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
-  console.log("[v0] Searching YouTube API for:", query)
+  console.log("[v0] Searching Piped API for:", query)
   try {
-    const result = await youtubeAPI.search(query, maxResults)
-    const songs = result.videos.map(convertYouTubeVideoToSong)
+    const result = await pipedAPI.search(query, maxResults)
+    const songs = result.videos.map(convertPipedVideoToSong)
     console.log("[v0] Successfully found", songs.length, "songs for query:", query)
     return songs
   } catch (error) {
-    console.error("[v0] YouTube API search failed for query:", query, error)
+    console.error("[v0] Piped API search failed for query:", query, error)
     throw error
   }
 }
@@ -65,19 +64,19 @@ export function useTrendingMusic() {
       setLoading(true)
       setError(null)
 
-      console.log("[v0] Loading trending music from YouTube API")
+      console.log("[v0] Loading trending music from Piped API")
       const trendingSongs = await fetchTrendingMusic(25)
 
       if (trendingSongs && trendingSongs.length > 0) {
-        console.log("[v0] Got trending music from YouTube API:", trendingSongs.length, "songs")
+        console.log("[v0] Got trending music from Piped API:", trendingSongs.length, "songs")
         setSongs(trendingSongs)
         setSource("api")
       } else {
-        throw new Error("No trending songs returned from YouTube API")
+        throw new Error("No trending songs returned from Piped API")
       }
     } catch (err) {
-      console.error("[v0] YouTube API failed for trending music:", err)
-      setError("Failed to load trending music from YouTube API")
+      console.error("[v0] Piped API failed for trending music:", err)
+      setError("Failed to load trending music from Piped API")
       setSongs([])
       setSource("error")
     } finally {
@@ -109,7 +108,7 @@ export function useSearchMusic(query: string, enabled = false) {
         setLoading(true)
         setError(null)
 
-        console.log(`[v0] Searching YouTube API for: "${query}"`)
+        console.log(`[v0] Searching Piped API for: "${query}"`)
         const results = await searchMusic(query, 15)
 
         if (results && results.length > 0) {
@@ -120,8 +119,8 @@ export function useSearchMusic(query: string, enabled = false) {
           setSource("api")
         }
       } catch (err) {
-        console.error(`[v0] YouTube API search failed for "${query}":`, err)
-        setError("YouTube API search failed. Please try again.")
+        console.error(`[v0] Piped API search failed for "${query}":`, err)
+        setError("Piped API search failed. Please try again.")
         setSongs([])
         setSource("error")
       } finally {
@@ -150,7 +149,7 @@ export function useMoodPlaylist(queries: string[]) {
         setLoading(true)
         setError(null)
 
-        console.log("[v0] Fetching mood playlist from YouTube API for queries:", memoizedQueries)
+        console.log("[v0] Fetching mood playlist from Piped API for queries:", memoizedQueries)
         const allSongs: Song[] = []
 
         for (const query of memoizedQueries) {
@@ -169,7 +168,7 @@ export function useMoodPlaylist(queries: string[]) {
           .slice(0, 15)
 
         if (uniqueSongs.length > 0) {
-          console.log("[v0] Got mood playlist from YouTube API:", uniqueSongs.length, "songs")
+          console.log("[v0] Got mood playlist from Piped API:", uniqueSongs.length, "songs")
           setSongs(uniqueSongs)
           setSource("api")
         } else {
@@ -177,7 +176,7 @@ export function useMoodPlaylist(queries: string[]) {
         }
       } catch (err) {
         console.error("[v0] Mood playlist API failed:", err)
-        setError("Failed to load mood playlist from YouTube API")
+        setError("Failed to load mood playlist from Piped API")
         setSongs([])
         setSource("error")
       } finally {
@@ -207,7 +206,7 @@ export function useNewReleases() {
       setLoading(true)
       setError(null)
 
-      console.log("[v0] Fetching new releases from YouTube API")
+      console.log("[v0] Fetching new releases from Piped API")
       const newReleaseQueries = [
         "new songs 2024",
         "latest releases 2024",
@@ -234,7 +233,7 @@ export function useNewReleases() {
         .slice(0, 12)
 
       if (uniqueSongs.length > 0) {
-        console.log("[v0] Got new releases from YouTube API:", uniqueSongs.length, "songs")
+        console.log("[v0] Got new releases from Piped API:", uniqueSongs.length, "songs")
         setSongs(uniqueSongs)
         setSource("api")
       } else {
@@ -242,7 +241,7 @@ export function useNewReleases() {
       }
     } catch (err) {
       console.error("[v0] New releases API failed:", err)
-      setError("Failed to load new releases from YouTube API")
+      setError("Failed to load new releases from Piped API")
       setSongs([])
       setSource("error")
     } finally {
