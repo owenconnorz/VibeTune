@@ -16,7 +16,31 @@ export async function GET(request: NextRequest) {
     }
 
     const pipedAPI = createPipedAPI()
+
+    if (!pipedAPI) {
+      console.error("[v0] Failed to create Piped API instance")
+      return NextResponse.json({
+        songs: [],
+        videos: [],
+        source: "piped",
+        query,
+        error: "Piped API unavailable",
+      })
+    }
+
+    console.log("[v0] Calling pipedAPI.search...")
     const result = await pipedAPI.search(query, maxResults)
+
+    if (!result || !result.videos || !Array.isArray(result.videos)) {
+      console.error("[v0] Invalid result structure from Piped search API:", result)
+      return NextResponse.json({
+        songs: [],
+        videos: [],
+        source: "piped",
+        query,
+        error: "Invalid response from Piped API",
+      })
+    }
 
     console.log("[v0] Server-side Piped API: Found", result.videos.length, "results for query:", query)
 
@@ -33,17 +57,21 @@ export async function GET(request: NextRequest) {
 
     return response
   } catch (error) {
-    console.error("[v0] Server-side Piped search API error:", error)
+    console.error("[v0] Server-side Piped search API error:", {
+      message: error?.message || "Unknown error",
+      stack: error?.stack,
+      name: error?.name,
+      cause: error?.cause,
+    })
 
     const query = new URL(request.url).searchParams.get("q") || ""
 
-    return NextResponse.json(
-      {
-        error: "Failed to search music from Piped API",
-        message: error.message,
-        query,
-      },
-      { status: 500 },
-    )
+    return NextResponse.json({
+      songs: [],
+      videos: [],
+      source: "piped",
+      query,
+      error: "Piped API temporarily unavailable",
+    })
   }
 }

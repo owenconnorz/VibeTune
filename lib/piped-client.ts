@@ -59,10 +59,58 @@ export class PipedClient {
     "https://pipedapi.esmailelbob.xyz",
     "https://pipedapi.privacy.com.de",
     "https://api.piped.projectsegfau.lt",
+    "https://pipedapi.tokhmi.xyz",
+    "https://pipedapi.moomoo.me",
+    "https://pipedapi.syncpundit.io",
+    "https://pipedapi.leptons.xyz",
+    "https://ytapi.dc09.ru",
+    "https://pipedapi.colinslegacy.com",
   ]
 
   private cache = new Map<string, { data: any; timestamp: number }>()
   private readonly CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+  private healthyInstances = new Set<string>()
+  private lastHealthCheck = 0
+  private readonly HEALTH_CHECK_INTERVAL = 10 * 60 * 1000 // 10 minutes
+
+  private async checkInstanceHealth(instance: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${instance}/trending?region=US`, {
+        method: "HEAD",
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "VibeTune/1.0",
+        },
+        signal: AbortSignal.timeout(5000), // 5 second timeout for health checks
+      })
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+
+  private async refreshHealthyInstances(): Promise<void> {
+    if (Date.now() - this.lastHealthCheck < this.HEALTH_CHECK_INTERVAL) {
+      return // Skip if recently checked
+    }
+
+    console.log("[v0] Checking Piped instance health...")
+    this.healthyInstances.clear()
+
+    const healthChecks = this.instances.map(async (instance) => {
+      const isHealthy = await this.checkInstanceHealth(instance)
+      if (isHealthy) {
+        this.healthyInstances.add(instance)
+        console.log(`[v0] Healthy Piped instance found: ${instance}`)
+      }
+      return { instance, isHealthy }
+    })
+
+    await Promise.allSettled(healthChecks)
+    this.lastHealthCheck = Date.now()
+
+    console.log(`[v0] Health check complete: ${this.healthyInstances.size}/${this.instances.length} instances healthy`)
+  }
 
   private async fetchWithFallback<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
     const cacheKey = `${endpoint}?${new URLSearchParams(params).toString()}`
@@ -74,10 +122,14 @@ export class PipedClient {
       return cached.data
     }
 
+    await this.refreshHealthyInstances()
+
     const query = params ? `?${new URLSearchParams(params).toString()}` : ""
     const errors: string[] = []
 
-    for (const instance of this.instances) {
+    const instancesToTry = this.healthyInstances.size > 0 ? Array.from(this.healthyInstances) : this.instances
+
+    for (const instance of instancesToTry) {
       try {
         const url = `${instance}${endpoint}${query}`
         console.log("[v0] Piped API request:", url)
@@ -87,7 +139,7 @@ export class PipedClient {
             Accept: "application/json",
             "User-Agent": "VibeTune/1.0",
           },
-          signal: AbortSignal.timeout(10000), // 10 second timeout
+          signal: AbortSignal.timeout(15000), // Increased timeout to 15 seconds
         })
 
         if (!response.ok) {
@@ -104,11 +156,15 @@ export class PipedClient {
         this.cache.set(cacheKey, { data, timestamp: Date.now() })
         console.log("[v0] Piped API success:", instance)
 
+        this.healthyInstances.add(instance)
+
         return data
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
         errors.push(`${instance}: ${errorMsg}`)
         console.log(`[v0] Piped instance ${instance} failed:`, errorMsg)
+
+        this.healthyInstances.delete(instance)
         continue
       }
     }
