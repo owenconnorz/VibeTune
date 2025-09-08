@@ -4,9 +4,7 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      interval: "daily"
     open-pull-requests-limit: 10
     reviewers:
       - "@me"
@@ -40,9 +38,7 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      interval: "daily"
     labels:
       - "github-actions"
       - "dependencies"
