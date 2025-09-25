@@ -234,6 +234,54 @@ class YtDlpExtractor {
     })
   }
 
+  async getPlaylist(playlistId: string, maxResults = 50): Promise<YtDlpSong[]> {
+    console.log("[v0] YtDlp: Fetching playlist from YouTube API:", playlistId)
+
+    try {
+      // Get playlist items from YouTube API
+      const response = await fetch(
+        `${this.YOUTUBE_BASE_URL}/playlistItems?` +
+          `part=snippet&` +
+          `playlistId=${playlistId}&` +
+          `maxResults=${maxResults}&` +
+          `key=${this.YOUTUBE_API_KEY}`,
+      )
+
+      if (!response.ok) {
+        throw new Error(`YouTube API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log("[v0] YtDlp: Got", data.items?.length || 0, "playlist items from YouTube")
+
+      if (!data.items || data.items.length === 0) {
+        throw new Error("No playlist items from YouTube API")
+      }
+
+      // Extract audio URLs using yt-dlp for each video
+      const songs: YtDlpSong[] = []
+      for (const item of data.items.slice(0, Math.min(maxResults, 20))) {
+        // Limit to prevent timeout
+        try {
+          const videoInfo = await this.getVideoInfo(item.snippet.resourceId.videoId)
+          if (videoInfo) {
+            const song = this.convertToSong(videoInfo, item)
+            songs.push(song)
+          }
+        } catch (error) {
+          console.error(`[v0] YtDlp: Failed to extract ${item.snippet.resourceId.videoId}:`, error)
+          // Continue with other videos
+        }
+      }
+
+      console.log("[v0] YtDlp: Successfully extracted", songs.length, "playlist songs with audio URLs")
+      return songs
+    } catch (error) {
+      console.error("[v0] YtDlp: Playlist failed:", error)
+      throw error
+    }
+  }
+
   private convertToSong(videoInfo: YtDlpVideoInfo, youtubeItem?: any): YtDlpSong {
     // Find best audio format
     const audioFormats = videoInfo.formats?.filter((f) => f.acodec && f.acodec !== "none" && f.url) || []
@@ -268,3 +316,5 @@ class YtDlpExtractor {
 }
 
 export const createYtDlpExtractor = () => new YtDlpExtractor()
+
+export const ytDlpExtractor = new YtDlpExtractor()

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
-import { createPipedAPI } from "@/lib/piped-api"
+import { ytDlpExtractor } from "@/lib/ytdlp-extractor"
 
 export async function GET() {
   try {
@@ -11,17 +11,16 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const pipedAPI = createPipedAPI()
-    const results = await pipedAPI.getTrending(10)
+    const results = await ytDlpExtractor.getTrending(10)
 
-    const likedSongs = results.videos.map((video) => ({
+    const likedSongs = results.map((video) => ({
       id: video.id,
       title: video.title,
       channelTitle: video.artist,
       thumbnail: video.thumbnail,
       duration: video.duration,
-      viewCount: video.views || "1000000",
-      publishedAt: video.publishedAt || new Date().toISOString(),
+      viewCount: "1000000", // Default since ytdlp doesn't provide view count
+      publishedAt: new Date().toISOString(), // Default since ytdlp doesn't provide publish date
     }))
 
     return NextResponse.json({ songs: likedSongs })

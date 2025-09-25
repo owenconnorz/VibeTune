@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createPipedAPI } from "@/lib/piped-api"
+import { ytDlpExtractor } from "@/lib/ytdlp-extractor"
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,21 +11,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Playlist ID is required" }, { status: 400 })
     }
 
-    const pipedAPI = createPipedAPI()
-    const results = await pipedAPI.getPlaylist(playlistId, maxResults)
+    const results = await ytDlpExtractor.getPlaylist(playlistId, maxResults)
 
-    const videos = results.videos.map((video) => ({
+    const videos = results.map((video) => ({
       id: video.id,
       title: video.title,
       artist: video.artist,
       thumbnail: video.thumbnail,
       duration: video.duration,
       channelTitle: video.artist,
-      publishedAt: video.publishedAt || new Date().toISOString(),
-      viewCount: video.views || "1000000",
+      publishedAt: new Date().toISOString(), // Default since ytdlp doesn't provide publish date
+      viewCount: "1000000", // Default since ytdlp doesn't provide view count
       url: video.url,
       audioUrl: video.audioUrl,
-      source: "piped",
+      source: "ytdlp",
     }))
 
     return NextResponse.json({ videos })

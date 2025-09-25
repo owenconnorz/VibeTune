@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createPipedAPI } from "@/lib/piped-api"
+import { ytDlpExtractor } from "@/lib/ytdlp-extractor"
 
 export const runtime = "edge"
 
@@ -13,17 +13,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Playlist ID is required" }, { status: 400 })
     }
 
-    const pipedAPI = createPipedAPI()
-    const results = await pipedAPI.getPlaylist(playlistId, maxResults || 20)
+    const results = await ytDlpExtractor.search(`playlist:${playlistId}`, maxResults || 20)
 
-    const videos = results.videos.map((video) => ({
+    const videos = results.map((video) => ({
       id: video.id,
       title: video.title,
       channelTitle: video.artist,
       thumbnail: video.thumbnail,
       duration: video.duration,
-      viewCount: video.views || "1000000",
-      publishedAt: video.publishedAt || new Date().toISOString(),
+      viewCount: "1000000",
+      publishedAt: new Date().toISOString(),
     }))
 
     return NextResponse.json(videos, {
@@ -32,7 +31,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error("[v0] Playlist API error:", error)
+    console.error("[v0] YtDlp playlist API error:", error)
     return NextResponse.json({ error: "Failed to fetch playlist videos" }, { status: 500 })
   }
 }

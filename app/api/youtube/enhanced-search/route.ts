@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createPipedAPI } from "@/lib/piped-api"
+import { ytDlpExtractor } from "@/lib/ytdlp-extractor"
 
 export const runtime = "edge"
 
@@ -13,17 +13,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
     }
 
-    const pipedAPI = createPipedAPI()
-    const results = await pipedAPI.search(query, maxResults)
+    const results = await ytDlpExtractor.search(query, maxResults)
 
-    const songs = results.videos.map((video) => ({
+    const songs = results.map((video) => ({
       id: video.id,
       title: video.title,
       channelTitle: video.artist,
       thumbnail: video.thumbnail,
       duration: video.duration,
-      viewCount: video.views || "1000000",
-      publishedAt: video.publishedAt || new Date().toISOString(),
+      viewCount: "1000000",
+      publishedAt: new Date().toISOString(),
     }))
 
     const enhancedResults = {
@@ -40,7 +39,7 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error("[v0] Enhanced search API error:", error)
+    console.error("[v0] YtDlp enhanced search API error:", error)
     return NextResponse.json({ error: "Failed to perform enhanced search" }, { status: 500 })
   }
 }
