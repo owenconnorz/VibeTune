@@ -650,36 +650,36 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     return null
   }, [])
 
-  const fetchPipedAudioStream = useCallback(
+  const fetchYtDlpAudioStream = useCallback(
     async (track: Track): Promise<string | null> => {
       try {
-        console.log("[v0] Fetching Piped audio stream for:", track.title)
+        console.log("[v0] Fetching yt-dlp audio stream for:", track.title)
 
         // Extract YouTube video ID from track URL
         const videoId = extractYouTubeVideoId(track.url || track.videoUrl || "")
         if (!videoId) {
-          console.log("[v0] No YouTube video ID found for Piped stream fetch")
+          console.log("[v0] No YouTube video ID found for yt-dlp stream fetch")
           return null
         }
 
-        // Fetch stream from Piped
-        const response = await fetch(`/api/piped/stream/${videoId}`)
+        // Fetch stream from yt-dlp API
+        const response = await fetch(`/api/ytdlp/audio/${videoId}`)
         if (!response.ok) {
-          console.error("[v0] Piped stream fetch failed:", response.status)
+          console.error("[v0] yt-dlp stream fetch failed:", response.status)
           return null
         }
 
         const streamData = await response.json()
-        const audioStream = streamData.audioStreams?.[0]?.url
+        const audioUrl = streamData.audioUrl
 
-        if (audioStream) {
-          console.log("[v0] Successfully fetched Piped audio stream")
-          return audioStream
+        if (audioUrl) {
+          console.log("[v0] Successfully fetched yt-dlp audio stream")
+          return audioUrl
         }
 
         return null
       } catch (error) {
-        console.error("[v0] Error fetching Piped audio stream:", error)
+        console.error("[v0] Error fetching yt-dlp audio stream:", error)
         return null
       }
     },
@@ -690,16 +690,15 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     if (state.currentTrack) {
       console.log("[v0] Loading track:", state.currentTrack.title)
 
-      const loadTrackWithPipedFallback = async () => {
+      const loadTrackWithYtDlpFallback = async () => {
         let mediaUrl = state.currentTrack!.videoUrl || state.currentTrack!.audioUrl || state.currentTrack!.url || ""
 
-        // If no direct audio URL, try to fetch from Piped
         if (!state.currentTrack!.audioUrl && (state.currentTrack!.url || state.currentTrack!.videoUrl)) {
-          console.log("[v0] No direct audio URL, attempting Piped stream fetch")
-          const pipedAudioUrl = await fetchPipedAudioStream(state.currentTrack!)
-          if (pipedAudioUrl) {
-            mediaUrl = pipedAudioUrl
-            console.log("[v0] Using Piped audio stream:", pipedAudioUrl)
+          console.log("[v0] No direct audio URL, attempting yt-dlp stream fetch")
+          const ytDlpAudioUrl = await fetchYtDlpAudioStream(state.currentTrack!)
+          if (ytDlpAudioUrl) {
+            mediaUrl = ytDlpAudioUrl
+            console.log("[v0] Using yt-dlp audio stream:", ytDlpAudioUrl)
           }
         }
 
@@ -747,12 +746,12 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
           }
         } else {
           console.log("[v0] No valid media URL found for track:", state.currentTrack!.title)
-          dispatch({ type: "SET_ERROR", payload: "No playable audio stream found" })
+          dispatch({ type: "SET_ERROR", payload: "No valid media URL found for this track" })
           dispatch({ type: "SET_LOADING", payload: false })
         }
       }
 
-      loadTrackWithPipedFallback()
+      loadTrackWithYtDlpFallback()
     }
   }, [
     state.currentTrack,
@@ -760,7 +759,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     extractYouTubeVideoId,
     setupNativeMediaHandlers,
     state.volume,
-    fetchPipedAudioStream,
+    fetchYtDlpAudioStream,
   ])
 
   const setupAudioEventHandlers = useCallback(() => {
@@ -961,13 +960,13 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     const hasYouTubeUrl = track.url && (track.url.includes("youtube.com") || track.url.includes("youtu.be"))
 
     if (hasYouTubeUrl && !track.isVideo) {
-      console.log("[v0] YouTube music track detected, will use native player with Piped audio")
+      console.log("[v0] YouTube music track detected, will use native player with yt-dlp audio")
       dispatch({ type: "SET_PLAYER_TYPE", payload: "native" })
     } else if (track.audioUrl || track.url) {
       console.log("[v0] Using native audio player for track:", track.title)
       dispatch({ type: "SET_PLAYER_TYPE", payload: "native" })
     } else {
-      console.log("[v0] Track has no playable URL, will attempt Piped stream fetch")
+      console.log("[v0] Track has no playable URL, will attempt yt-dlp stream fetch")
       dispatch({ type: "SET_LOADING", payload: true })
     }
   }, [])

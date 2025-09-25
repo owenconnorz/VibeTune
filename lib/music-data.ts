@@ -1,4 +1,4 @@
-import { createPipedAPI } from "@/lib/piped-api"
+import { createYtDlpExtractor } from "@/lib/ytdlp-extractor"
 
 export interface Song {
   id: string
@@ -12,71 +12,53 @@ export interface Song {
 
 export async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
   try {
-    console.log("[v0] Fetching trending music from Piped API")
-    const pipedAPI = createPipedAPI()
+    console.log("[v0] Fetching trending music from yt-dlp")
+    const ytdlp = createYtDlpExtractor()
 
-    const trendingQueries = [
-      "trending music 2024",
-      "popular songs now",
-      "top hits today",
-      "viral music",
-      "chart toppers",
-    ]
+    const results = await ytdlp.getTrending(maxResults)
 
-    const allSongs: Song[] = []
+    if (results && results.length > 0) {
+      const songs = results.map((song) => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        duration: song.duration,
+        url: song.url,
+        audioUrl: song.audioUrl,
+      }))
 
-    for (const query of trendingQueries) {
-      try {
-        const results = await pipedAPI.search(query, Math.ceil(maxResults / trendingQueries.length))
-        if (results.videos && results.videos.length > 0) {
-          allSongs.push(
-            ...results.videos.map((video) => ({
-              id: video.id,
-              title: video.title,
-              artist: video.artist,
-              thumbnail: video.thumbnail,
-              duration: video.duration,
-              url: video.url,
-              audioUrl: video.audioUrl,
-            })),
-          )
-        }
-      } catch (error) {
-        console.warn(`[v0] Failed to fetch trending for "${query}":`, error)
-      }
+      console.log(`[v0] Successfully fetched ${songs.length} trending songs from yt-dlp`)
+      return songs.slice(0, maxResults)
     }
 
-    const uniqueSongs = allSongs
-      .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
-      .slice(0, maxResults)
-
-    console.log(`[v0] Successfully fetched ${uniqueSongs.length} trending songs from Piped API`)
-    return uniqueSongs
+    console.log("[v0] No trending songs found from yt-dlp")
+    return []
   } catch (error) {
-    console.error("[v0] Piped API trending fetch failed:", error)
+    console.error("[v0] yt-dlp trending fetch failed:", error)
     throw error
   }
 }
 
 export async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
   try {
-    console.log(`[v0] Searching Piped API for: "${query}"`)
-    const pipedAPI = createPipedAPI()
+    console.log(`[v0] Searching yt-dlp for: "${query}"`)
+    const ytdlp = createYtDlpExtractor()
 
     const musicQuery =
       query.includes("music") || query.includes("song") || query.includes("artist") ? query : `${query} music`
 
-    const results = await pipedAPI.search(musicQuery, maxResults)
+    const results = await ytdlp.search(musicQuery, maxResults)
 
-    if (results.videos && results.videos.length > 0) {
-      const songs = results.videos.map((video) => ({
-        id: video.id,
-        title: video.title,
-        artist: video.artist,
-        thumbnail: video.thumbnail,
-        duration: video.duration,
-        url: video.url,
-        audioUrl: video.audioUrl,
+    if (results && results.length > 0) {
+      const songs = results.map((song) => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        duration: song.duration,
+        url: song.url,
+        audioUrl: song.audioUrl,
       }))
 
       console.log(`[v0] Successfully found ${songs.length} songs for "${query}"`)
@@ -86,7 +68,7 @@ export async function searchMusic(query: string, maxResults = 10): Promise<Song[
       return []
     }
   } catch (error) {
-    console.error(`[v0] Piped API search failed for "${query}":`, error)
+    console.error(`[v0] yt-dlp search failed for "${query}":`, error)
     throw error
   }
 }
@@ -94,7 +76,7 @@ export async function searchMusic(query: string, maxResults = 10): Promise<Song[
 export async function getArtistSongs(artistName: string, maxResults = 15): Promise<Song[]> {
   try {
     console.log(`[v0] Fetching songs for artist: ${artistName}`)
-    const pipedAPI = createPipedAPI()
+    const ytdlp = createYtDlpExtractor()
 
     const artistQueries = [
       `${artistName} greatest hits`,
@@ -107,17 +89,17 @@ export async function getArtistSongs(artistName: string, maxResults = 15): Promi
 
     for (const query of artistQueries) {
       try {
-        const results = await pipedAPI.search(query, Math.ceil(maxResults / artistQueries.length))
-        if (results.videos && results.videos.length > 0) {
+        const results = await ytdlp.search(query, Math.ceil(maxResults / artistQueries.length))
+        if (results && results.length > 0) {
           allSongs.push(
-            ...results.videos.map((video) => ({
-              id: video.id,
-              title: video.title,
-              artist: video.artist,
-              thumbnail: video.thumbnail,
-              duration: video.duration,
-              url: video.url,
-              audioUrl: video.audioUrl,
+            ...results.map((song) => ({
+              id: song.id,
+              title: song.title,
+              artist: song.artist,
+              thumbnail: song.thumbnail,
+              duration: song.duration,
+              url: song.url,
+              audioUrl: song.audioUrl,
             })),
           )
         }
@@ -141,27 +123,8 @@ export async function getArtistSongs(artistName: string, maxResults = 15): Promi
 export async function getPlaylistSongs(playlistId: string): Promise<Song[]> {
   try {
     console.log(`[v0] Fetching playlist songs for ID: ${playlistId}`)
-    const pipedAPI = createPipedAPI()
-
-    const results = await pipedAPI.getPlaylist(playlistId)
-
-    if (results.videos && results.videos.length > 0) {
-      const songs = results.videos.map((video) => ({
-        id: video.id,
-        title: video.title,
-        artist: video.artist,
-        thumbnail: video.thumbnail,
-        duration: video.duration,
-        url: video.url,
-        audioUrl: video.audioUrl,
-      }))
-
-      console.log(`[v0] Successfully fetched ${songs.length} songs from playlist`)
-      return songs
-    } else {
-      console.warn(`[v0] No songs found in playlist ${playlistId}`)
-      return []
-    }
+    console.warn(`[v0] Playlist functionality not implemented for yt-dlp yet`)
+    return []
   } catch (error) {
     console.error(`[v0] Failed to fetch playlist ${playlistId}:`, error)
     throw error
@@ -193,7 +156,7 @@ export async function searchMusicEnhanced(
 
   try {
     console.log(`[v0] Enhanced search for: "${query}" with options:`, options)
-    const pipedAPI = createPipedAPI()
+    const ytdlp = createYtDlpExtractor()
 
     const searchQueries: string[] = [query]
 
@@ -209,17 +172,17 @@ export async function searchMusicEnhanced(
 
     for (const searchQuery of searchQueries) {
       try {
-        const results = await pipedAPI.search(searchQuery, Math.ceil(maxResults / searchQueries.length))
-        if (results.videos && results.videos.length > 0) {
+        const results = await ytdlp.search(searchQuery, Math.ceil(maxResults / searchQueries.length))
+        if (results && results.length > 0) {
           allResults.push(
-            ...results.videos.map((video) => ({
-              id: video.id,
-              title: video.title,
-              artist: video.artist,
-              thumbnail: video.thumbnail,
-              duration: video.duration,
-              url: video.url,
-              audioUrl: video.audioUrl,
+            ...results.map((song) => ({
+              id: song.id,
+              title: song.title,
+              artist: song.artist,
+              thumbnail: song.thumbnail,
+              duration: song.duration,
+              url: song.url,
+              audioUrl: song.audioUrl,
             })),
           )
         }

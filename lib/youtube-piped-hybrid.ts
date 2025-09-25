@@ -62,7 +62,7 @@ class YouTubePipedHybrid {
           item.snippet.thumbnails?.default?.url,
         duration: this.parseDuration(item.contentDetails?.duration || "PT0S"),
         url: `https://www.youtube.com/watch?v=${item.id}`,
-        audioUrl: undefined, // Will be populated by Piped when needed
+        audioUrl: undefined, // Will be populated by yt-dlp when needed
       }))
 
       console.log("[v0] Hybrid: Converted to", songs.length, "songs")
@@ -109,7 +109,7 @@ class YouTubePipedHybrid {
           item.snippet.thumbnails?.default?.url,
         duration: "Unknown", // Duration not available in search results
         url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
-        audioUrl: undefined, // Will be populated by Piped when needed
+        audioUrl: undefined, // Will be populated by yt-dlp when needed
       }))
 
       console.log("[v0] Hybrid: Converted to", songs.length, "songs")
@@ -121,28 +121,19 @@ class YouTubePipedHybrid {
   }
 
   async getAudioUrl(videoId: string): Promise<string | null> {
-    console.log("[v0] Hybrid: Getting audio URL from Piped for:", videoId)
+    console.log("[v0] Hybrid: Getting audio URL from yt-dlp for:", videoId)
 
     try {
-      const { createPipedAPI } = await import("./piped-api")
-      const pipedAPI = createPipedAPI()
+      const { createYtDlpExtractor } = await import("./ytdlp-extractor")
+      const ytdlp = createYtDlpExtractor()
 
-      // Use Piped to get audio stream URL
-      const streams = await pipedAPI.getStreams(videoId)
+      // Use yt-dlp to get direct audio stream URL
+      const audioUrl = await ytdlp.getAudioUrl(videoId)
 
-      if (streams && streams.length > 0) {
-        // Prefer M4A format, fallback to WebM
-        const m4aStream = streams.find((s) => s.format === "m4a")
-        const webmStream = streams.find((s) => s.format === "webm")
-        const audioUrl = m4aStream?.url || webmStream?.url || streams[0]?.url
-
-        console.log("[v0] Hybrid: Got audio URL from Piped:", audioUrl ? "success" : "failed")
-        return audioUrl || null
-      }
-
-      return null
+      console.log("[v0] Hybrid: Got audio URL from yt-dlp:", audioUrl ? "success" : "failed")
+      return audioUrl
     } catch (error) {
-      console.error("[v0] Hybrid: Piped audio URL failed:", error)
+      console.error("[v0] Hybrid: yt-dlp audio URL failed:", error)
       return null
     }
   }

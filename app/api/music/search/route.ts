@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createPipedAPI } from "@/lib/piped-api"
+import { createYtDlpExtractor } from "@/lib/ytdlp-extractor"
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,30 +11,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
     }
 
-    console.log("[v0] Piped API search called with query:", query, "maxResults:", maxResults)
+    console.log("[v0] Music search API called with query:", query, "maxResults:", maxResults)
 
-    const pipedAPI = createPipedAPI()
-    const results = await pipedAPI.search(query, maxResults)
+    const ytdlp = createYtDlpExtractor()
+    const results = await ytdlp.search(query, maxResults)
 
-    if (results.videos && results.videos.length > 0) {
-      const songs = results.videos.map((video) => ({
-        id: video.id,
-        title: video.title,
-        artist: video.artist,
-        thumbnail: video.thumbnail,
-        duration: video.duration,
-        channelTitle: video.artist,
-        publishedAt: video.publishedAt || new Date().toISOString(),
-        viewCount: video.views || "1000000",
-        url: video.url,
-        audioUrl: video.audioUrl,
-        source: "piped",
+    if (results && results.length > 0) {
+      const songs = results.map((song) => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        duration: song.duration,
+        channelTitle: song.artist,
+        publishedAt: new Date().toISOString(),
+        viewCount: "1000000",
+        url: song.url,
+        audioUrl: song.audioUrl,
+        source: "ytdlp",
       }))
 
       return NextResponse.json({
         songs: songs.slice(0, maxResults),
         videos: songs.slice(0, maxResults),
-        source: "piped",
+        source: "ytdlp",
         query,
       })
     }
@@ -42,14 +42,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       songs: [],
       videos: [],
-      source: "piped_no_results",
+      source: "ytdlp_no_results",
       query,
     })
   } catch (error) {
-    console.error("[v0] Piped API search error:", error)
+    console.error("[v0] Music search error:", error)
     return NextResponse.json(
       {
-        error: "Failed to search music from Piped API",
+        error: "Failed to search music from yt-dlp",
         message: error.message,
         query: new URL(request.url).searchParams.get("q") || "",
       },

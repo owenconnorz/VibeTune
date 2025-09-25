@@ -1,7 +1,5 @@
-import { createMusicAPI } from "./piped-api"
+import { createYtDlpExtractor } from "./ytdlp-extractor"
 
-// Re-export the Piped API as createMusicAPI for backward compatibility
-export { createMusicAPI }
+export const createMusicAPI = createYtDlpExtractor
 
-// Re-export the PipedAPI class as MusicAPI for backward compatibility
-export { PipedAPI as MusicAPI } from "./piped-api"
+export { YtDlpExtractor as MusicAPI } from "./ytdlp-extractor"
