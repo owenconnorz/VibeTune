@@ -5,7 +5,6 @@ import { ArrowLeft, Play, MoreVertical, User, Music } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
-import { createYtDlpExtractor } from "@/lib/ytdlp-extractor"
 
 interface Song {
   id: string
@@ -40,20 +39,20 @@ export default async function ArtistPage({ params }: ArtistPageProps) {
     try {
       console.log("[v0] Loading songs for artist:", artistName)
 
-      const ytdlp = createYtDlpExtractor()
-      const results = await ytdlp.search(artistName, 20)
+      const response = await fetch(`/api/artist/${encodeURIComponent(artistName)}?maxResults=20`)
 
-      const artistSongs = results.map((song) => ({
-        id: song.id,
-        title: song.title || "Unknown Title",
-        artist: song.artist || artistName,
-        thumbnail: song.thumbnail,
-        duration: song.duration,
-      }))
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.status}`)
+      }
 
-      console.log("[v0] Loaded", artistSongs.length, "songs for artist")
+      const data = await response.json()
 
-      setSongs(artistSongs)
+      if (data.error) {
+        throw new Error(data.error)
+      }
+
+      console.log("[v0] Loaded", data.songs.length, "songs for artist")
+      setSongs(data.songs)
     } catch (err) {
       setError("Failed to load songs")
       console.error("Error loading artist songs:", err)

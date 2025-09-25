@@ -1,5 +1,3 @@
-import { createYtDlpExtractor } from "@/lib/ytdlp-extractor"
-
 export interface Song {
   id: string
   title: string
@@ -12,13 +10,18 @@ export interface Song {
 
 export async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
   try {
-    console.log("[v0] Fetching trending music from yt-dlp")
-    const ytdlp = createYtDlpExtractor()
+    console.log("[v0] Fetching trending music from hybrid YouTube-Piped API")
+    const response = await fetch(`/api/hybrid/trending?maxResults=${maxResults}`)
 
-    const results = await ytdlp.getTrending(maxResults)
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
 
-    if (results && results.length > 0) {
-      const songs = results.map((song) => ({
+    const data = await response.json()
+    console.log("[v0] Hybrid API trending response:", data.source, data.songs?.length || 0, "songs")
+
+    if (data.songs && data.songs.length > 0) {
+      return data.songs.map((song: any) => ({
         id: song.id,
         title: song.title,
         artist: song.artist,
@@ -27,31 +30,29 @@ export async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
         url: song.url,
         audioUrl: song.audioUrl,
       }))
-
-      console.log(`[v0] Successfully fetched ${songs.length} trending songs from yt-dlp`)
-      return songs.slice(0, maxResults)
     }
 
-    console.log("[v0] No trending songs found from yt-dlp")
-    return []
+    throw new Error(data.error || "No trending songs available")
   } catch (error) {
-    console.error("[v0] yt-dlp trending fetch failed:", error)
+    console.error("[v0] Trending fetch failed:", error)
     throw error
   }
 }
 
 export async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
   try {
-    console.log(`[v0] Searching yt-dlp for: "${query}"`)
-    const ytdlp = createYtDlpExtractor()
+    console.log(`[v0] Searching hybrid YouTube-Piped API for: "${query}"`)
+    const response = await fetch(`/api/hybrid/search?q=${encodeURIComponent(query)}&maxResults=${maxResults}`)
 
-    const musicQuery =
-      query.includes("music") || query.includes("song") || query.includes("artist") ? query : `${query} music`
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    }
 
-    const results = await ytdlp.search(musicQuery, maxResults)
+    const data = await response.json()
+    console.log("[v0] Hybrid API search response:", data.source, data.songs?.length || 0, "songs")
 
-    if (results && results.length > 0) {
-      const songs = results.map((song) => ({
+    if (data.songs && data.songs.length > 0) {
+      return data.songs.map((song: any) => ({
         id: song.id,
         title: song.title,
         artist: song.artist,
@@ -60,15 +61,11 @@ export async function searchMusic(query: string, maxResults = 10): Promise<Song[
         url: song.url,
         audioUrl: song.audioUrl,
       }))
-
-      console.log(`[v0] Successfully found ${songs.length} songs for "${query}"`)
-      return songs
-    } else {
-      console.warn(`[v0] No results found for "${query}"`)
-      return []
     }
+
+    return []
   } catch (error) {
-    console.error(`[v0] yt-dlp search failed for "${query}":`, error)
+    console.error(`[v0] Search failed for "${query}":`, error)
     throw error
   }
 }
@@ -76,44 +73,20 @@ export async function searchMusic(query: string, maxResults = 10): Promise<Song[
 export async function getArtistSongs(artistName: string, maxResults = 15): Promise<Song[]> {
   try {
     console.log(`[v0] Fetching songs for artist: ${artistName}`)
-    const ytdlp = createYtDlpExtractor()
+    const response = await fetch(`/api/artist/${encodeURIComponent(artistName)}?maxResults=${maxResults}`)
 
-    const artistQueries = [
-      `${artistName} greatest hits`,
-      `${artistName} popular songs`,
-      `${artistName} best songs`,
-      `${artistName} top tracks`,
-    ]
-
-    const allSongs: Song[] = []
-
-    for (const query of artistQueries) {
-      try {
-        const results = await ytdlp.search(query, Math.ceil(maxResults / artistQueries.length))
-        if (results && results.length > 0) {
-          allSongs.push(
-            ...results.map((song) => ({
-              id: song.id,
-              title: song.title,
-              artist: song.artist,
-              thumbnail: song.thumbnail,
-              duration: song.duration,
-              url: song.url,
-              audioUrl: song.audioUrl,
-            })),
-          )
-        }
-      } catch (error) {
-        console.warn(`[v0] Failed to fetch artist songs for "${query}":`, error)
-      }
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const uniqueSongs = allSongs
-      .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
-      .slice(0, maxResults)
+    const data = await response.json()
 
-    console.log(`[v0] Successfully fetched ${uniqueSongs.length} songs for ${artistName}`)
-    return uniqueSongs
+    if (data.error) {
+      throw new Error(data.error)
+    }
+
+    console.log(`[v0] Successfully fetched ${data.songs.length} songs for ${artistName}`)
+    return data.songs
   } catch (error) {
     console.error(`[v0] Failed to fetch artist songs for ${artistName}:`, error)
     throw error
@@ -123,7 +96,7 @@ export async function getArtistSongs(artistName: string, maxResults = 15): Promi
 export async function getPlaylistSongs(playlistId: string): Promise<Song[]> {
   try {
     console.log(`[v0] Fetching playlist songs for ID: ${playlistId}`)
-    console.warn(`[v0] Playlist functionality not implemented for yt-dlp yet`)
+    console.warn(`[v0] Playlist functionality not implemented yet`)
     return []
   } catch (error) {
     console.error(`[v0] Failed to fetch playlist ${playlistId}:`, error)
@@ -156,7 +129,6 @@ export async function searchMusicEnhanced(
 
   try {
     console.log(`[v0] Enhanced search for: "${query}" with options:`, options)
-    const ytdlp = createYtDlpExtractor()
 
     const searchQueries: string[] = [query]
 
@@ -172,19 +144,9 @@ export async function searchMusicEnhanced(
 
     for (const searchQuery of searchQueries) {
       try {
-        const results = await ytdlp.search(searchQuery, Math.ceil(maxResults / searchQueries.length))
+        const results = await searchMusic(searchQuery, Math.ceil(maxResults / searchQueries.length))
         if (results && results.length > 0) {
-          allResults.push(
-            ...results.map((song) => ({
-              id: song.id,
-              title: song.title,
-              artist: song.artist,
-              thumbnail: song.thumbnail,
-              duration: song.duration,
-              url: song.url,
-              audioUrl: song.audioUrl,
-            })),
-          )
+          allResults.push(...results)
         }
       } catch (error) {
         console.warn(`[v0] Enhanced search failed for "${searchQuery}":`, error)
