@@ -27,7 +27,6 @@ class YouTubeMusicBrowse {
   private baseUrl = "https://music.youtube.com/youtubei/v1/browse"
   private apiKey = process.env.YOUTUBE_API_KEY || ""
 
-  // YouTube Music client configuration
   private clientConfig = {
     clientName: "WEB_REMIX",
     clientVersion: "1.20241210.01.00",
@@ -50,7 +49,7 @@ class YouTubeMusicBrowse {
 
     console.log(`[v0] YouTube Music Browse: Requesting ${browseId}`)
 
-    const response = await fetch(`${this.baseUrl}?key=${this.apiKey}`, {
+    const response = await fetch(`${this.baseUrl}?key=${this.apiKey}&prettyPrint=false`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -58,8 +57,21 @@ class YouTubeMusicBrowse {
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         Accept: "*/*",
         "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
         Origin: "https://music.youtube.com",
         Referer: "https://music.youtube.com/",
+        "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "same-origin",
+        "Sec-Fetch-Site": "same-origin",
+        "X-Goog-AuthUser": "0",
+        "X-Goog-Visitor-Id": "CgtVc0JHVkVqVVBBSSiMjZq2BjIKCgJVUxIEGgAgOA%3D%3D",
+        "X-Origin": "https://music.youtube.com",
+        "X-Youtube-Bootstrap-Logged-In": "false",
+        "X-Youtube-Client-Name": "67",
+        "X-Youtube-Client-Version": "1.20241210.01.00",
       },
       body: JSON.stringify(body),
     })

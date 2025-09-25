@@ -25,14 +25,49 @@ class YouTubeMusicScraper {
     try {
       console.log("[v0] YouTube Music Scraper: Searching for:", query)
 
-      // Use YouTube Data API v3 for search
-      const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&q=${encodeURIComponent(query)}&key=${this.apiKey}&maxResults=${limit}&pageToken=${page > 1 ? `page${page}` : ""}`
+      const searchUrl = "https://music.youtube.com/youtubei/v1/search"
 
-      const response = await fetch(searchUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          Accept: "application/json",
+      const body = {
+        context: {
+          client: {
+            clientName: "WEB_REMIX",
+            clientVersion: "1.20241210.01.00",
+            hl: "en",
+            gl: "US",
+          },
+          user: {
+            lockedSafetyMode: false,
+          },
         },
+        query,
+        params: "EgWKAQIIAWoKEAoQAxAEEAkQBQ%3D%3D", // Music search filter
+      }
+
+      const response = await fetch(`${searchUrl}?key=${this.apiKey}&prettyPrint=false`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "*/*",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Accept-Encoding": "gzip, deflate, br",
+          Origin: "https://music.youtube.com",
+          Referer: "https://music.youtube.com/",
+          "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+          "Sec-Ch-Ua-Mobile": "?0",
+          "Sec-Ch-Ua-Platform": '"Windows"',
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "same-origin",
+          "Sec-Fetch-Site": "same-origin",
+          "X-Goog-AuthUser": "0",
+          "X-Goog-Visitor-Id": "CgtVc0JHVkVqVVBBSSiMjZq2BjIKCgJVUxIEGgAgOA%3D%3D",
+          "X-Origin": "https://music.youtube.com",
+          "X-Youtube-Bootstrap-Logged-In": "false",
+          "X-Youtube-Client-Name": "67",
+          "X-Youtube-Client-Version": "1.20241210.01.00",
+        },
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
@@ -41,23 +76,26 @@ class YouTubeMusicScraper {
 
       const data = await response.json()
 
-      const tracks: YouTubeMusicTrack[] =
-        data.items?.map((item: any) => ({
-          id: item.id.videoId,
-          title: item.snippet.title,
-          artist: item.snippet.channelTitle,
-          duration: 0, // Will be fetched separately if needed
-          thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
-          videoUrl: `https://www.youtube.com/watch?v=${item.id.videoId}`,
-          source: "youtube-music" as const,
-        })) || []
+      const tracks: YouTubeMusicTrack[] = []
+      const contents =
+        data.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || []
+
+      for (const section of contents) {
+        const musicShelfRenderer = section.musicShelfRenderer
+        if (musicShelfRenderer?.contents) {
+          for (const item of musicShelfRenderer.contents) {
+            const track = this.parseTrackFromRenderer(item)
+            if (track) tracks.push(track)
+          }
+        }
+      }
 
       console.log(`[v0] YouTube Music Scraper: Found ${tracks.length} tracks`)
 
       return {
-        tracks,
-        totalCount: data.pageInfo?.totalResults || tracks.length,
-        hasNextPage: !!data.nextPageToken,
+        tracks: tracks.slice(0, limit),
+        totalCount: tracks.length,
+        hasNextPage: tracks.length >= limit,
       }
     } catch (error) {
       console.error("[v0] YouTube Music Scraper error:", error)
@@ -70,18 +108,96 @@ class YouTubeMusicScraper {
     }
   }
 
+  private parseTrackFromRenderer(renderer: any): YouTubeMusicTrack | null {
+    try {
+      const musicResponsiveListItemRenderer = renderer.musicResponsiveListItemRenderer
+      if (!musicResponsiveListItemRenderer) return null
+
+      // Extract video ID
+      const navigationEndpoint =
+        musicResponsiveListItemRenderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer
+          ?.playNavigationEndpoint
+      const videoId = navigationEndpoint?.watchEndpoint?.videoId
+      if (!videoId) return null
+
+      // Extract title
+      const titleRuns =
+        musicResponsiveListItemRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
+      const title = titleRuns?.[0]?.text || "Unknown Title"
+
+      // Extract artist
+      const artistRuns =
+        musicResponsiveListItemRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
+      const artist =
+        artistRuns?.find((run: any) => run.navigationEndpoint?.browseEndpoint)?.text ||
+        artistRuns?.[0]?.text ||
+        "Unknown Artist"
+
+      // Extract thumbnail
+      const thumbnails = musicResponsiveListItemRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails
+      const thumbnail = thumbnails?.[thumbnails.length - 1]?.url || ""
+
+      return {
+        id: videoId,
+        title: title.replace(/&amp;/g, "&").replace(/&quot;/g, '"'),
+        artist: artist.replace(/&amp;/g, "&").replace(/&quot;/g, '"'),
+        duration: 0,
+        thumbnail: thumbnail.startsWith("//") ? `https:${thumbnail}` : thumbnail,
+        videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+        source: "youtube-music" as const,
+      }
+    } catch (error) {
+      console.warn("[v0] Failed to parse track from renderer:", error)
+      return null
+    }
+  }
+
   async getTrending(limit = 20): Promise<YouTubeMusicSearchResult> {
     try {
       console.log("[v0] YouTube Music Scraper: Getting trending music")
 
-      // Get trending music videos
-      const trendingUrl = `https://www.googleapis.com/youtube/v3/videos?part=snippet&chart=mostPopular&videoCategoryId=10&regionCode=US&maxResults=${limit}&key=${this.apiKey}`
+      const browseUrl = "https://music.youtube.com/youtubei/v1/browse"
 
-      const response = await fetch(trendingUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          Accept: "application/json",
+      const body = {
+        context: {
+          client: {
+            clientName: "WEB_REMIX",
+            clientVersion: "1.20241210.01.00",
+            hl: "en",
+            gl: "US",
+          },
+          user: {
+            lockedSafetyMode: false,
+          },
         },
+        browseId: "FEmusic_trending",
+      }
+
+      const response = await fetch(`${browseUrl}?key=${this.apiKey}&prettyPrint=false`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "*/*",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Accept-Encoding": "gzip, deflate, br",
+          Origin: "https://music.youtube.com",
+          Referer: "https://music.youtube.com/",
+          "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+          "Sec-Ch-Ua-Mobile": "?0",
+          "Sec-Ch-Ua-Platform": '"Windows"',
+          "Sec-Fetch-Dest": "empty",
+          "Sec-Fetch-Mode": "same-origin",
+          "Sec-Fetch-Site": "same-origin",
+          "X-Goog-AuthUser": "0",
+          "X-Goog-Visitor-Id": "CgtVc0JHVkVqVVBBSSiMjZq2BjIKCgJVUxIEGgAgOA%3D%3D",
+          "X-Origin": "https://music.youtube.com",
+          "X-Youtube-Bootstrap-Logged-In": "false",
+          "X-Youtube-Client-Name": "67",
+          "X-Youtube-Client-Version": "1.20241210.01.00",
+        },
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
@@ -90,21 +206,25 @@ class YouTubeMusicScraper {
 
       const data = await response.json()
 
-      const tracks: YouTubeMusicTrack[] =
-        data.items?.map((item: any) => ({
-          id: item.id,
-          title: item.snippet.title,
-          artist: item.snippet.channelTitle,
-          duration: 0,
-          thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
-          videoUrl: `https://www.youtube.com/watch?v=${item.id}`,
-          source: "youtube-music" as const,
-        })) || []
+      const tracks: YouTubeMusicTrack[] = []
+      const contents =
+        data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+          ?.contents || []
+
+      for (const section of contents) {
+        const musicShelfRenderer = section.musicShelfRenderer
+        if (musicShelfRenderer?.contents) {
+          for (const item of musicShelfRenderer.contents) {
+            const track = this.parseTrackFromRenderer(item)
+            if (track) tracks.push(track)
+          }
+        }
+      }
 
       console.log(`[v0] YouTube Music Scraper: Found ${tracks.length} trending tracks`)
 
       return {
-        tracks,
+        tracks: tracks.slice(0, limit),
         totalCount: tracks.length,
         hasNextPage: false,
       }
