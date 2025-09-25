@@ -1,3 +1,4 @@
+// Web-compatible NewPipe extractor implementation
 export interface NewPipeSong {
   id: string
   title: string

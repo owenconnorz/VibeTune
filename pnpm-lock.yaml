@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       '@ai-sdk/openai':
-        specifier: latest
+        specifier: 2.0.35
         version: 2.0.35(zod@3.25.67)
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -96,7 +96,7 @@ importers:
         specifier: 1.1.6
         version: 1.1.6(@types/react-dom@19.1.9(@types/react@19.1.13))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       ai:
-        specifier: latest
+        specifier: 5.0.52
         version: 5.0.52(zod@3.25.67)
       autoprefixer:
         specifier: ^10.4.20

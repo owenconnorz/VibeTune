@@ -100,6 +100,8 @@ export default function VibeTunePage() {
       artist: song.artist || song.channelTitle,
       thumbnail: song.thumbnail,
       duration: song.duration,
+      url: song.url,
+      audioUrl: song.audioUrl,
     }),
     [],
   )
