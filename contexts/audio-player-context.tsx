@@ -693,7 +693,10 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       const loadTrackWithYtDlpFallback = async () => {
         let mediaUrl = state.currentTrack!.videoUrl || state.currentTrack!.audioUrl || state.currentTrack!.url || ""
 
-        if (!state.currentTrack!.audioUrl && (state.currentTrack!.url || state.currentTrack!.videoUrl)) {
+        if (state.currentTrack!.id.startsWith("mock-") && state.currentTrack!.audioUrl) {
+          console.log("[v0] Demo track detected, using direct audio URL:", state.currentTrack!.audioUrl)
+          mediaUrl = state.currentTrack!.audioUrl
+        } else if (!state.currentTrack!.audioUrl && (state.currentTrack!.url || state.currentTrack!.videoUrl)) {
           console.log("[v0] No direct audio URL, attempting yt-dlp stream fetch")
           const ytDlpAudioUrl = await fetchYtDlpAudioStream(state.currentTrack!)
           if (ytDlpAudioUrl) {

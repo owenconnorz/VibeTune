@@ -46,8 +46,7 @@ class YouTubePipedHybrid {
 
         if (response.status === 403) {
           console.error("[v0] Hybrid: YouTube API 403 - API key invalid or quota exceeded")
-          // Try fallback to mock data for development
-          return this.getMockTrendingData()
+          return this.getTrendingFromYtDlp(maxResults)
         }
 
         throw new Error(`YouTube API error: ${response.status} - ${errorText}`)
@@ -57,8 +56,8 @@ class YouTubePipedHybrid {
       console.log("[v0] Hybrid: Got", data.items?.length || 0, "trending videos from YouTube")
 
       if (!data.items || data.items.length === 0) {
-        console.warn("[v0] Hybrid: No trending videos from YouTube API, using mock data")
-        return this.getMockTrendingData()
+        console.warn("[v0] Hybrid: No trending videos from YouTube API, using yt-dlp fallback")
+        return this.getTrendingFromYtDlp(maxResults)
       }
 
       // Convert YouTube videos to HybridSong format
@@ -79,8 +78,8 @@ class YouTubePipedHybrid {
       return songs
     } catch (error) {
       console.error("[v0] Hybrid: YouTube trending failed:", error)
-      console.log("[v0] Hybrid: Using mock trending data as fallback")
-      return this.getMockTrendingData()
+      console.log("[v0] Hybrid: Using yt-dlp fallback for trending")
+      return this.getTrendingFromYtDlp(maxResults)
     }
   }
 
@@ -104,7 +103,7 @@ class YouTubePipedHybrid {
 
         if (response.status === 403) {
           console.error("[v0] Hybrid: YouTube API 403 - API key invalid or quota exceeded")
-          return this.getMockSearchData(query)
+          return this.searchWithYtDlp(query, maxResults)
         }
 
         throw new Error(`YouTube API error: ${response.status} - ${errorText}`)
@@ -114,7 +113,7 @@ class YouTubePipedHybrid {
       console.log("[v0] Hybrid: Got", data.items?.length || 0, "search results from YouTube")
 
       if (!data.items || data.items.length === 0) {
-        return this.getMockSearchData(query)
+        return this.searchWithYtDlp(query, maxResults)
       }
 
       // Convert YouTube search results to HybridSong format
@@ -135,59 +134,76 @@ class YouTubePipedHybrid {
       return songs
     } catch (error) {
       console.error("[v0] Hybrid: YouTube search failed:", error)
-      console.log("[v0] Hybrid: Using mock search data as fallback")
-      return this.getMockSearchData(query)
+      console.log("[v0] Hybrid: Using yt-dlp fallback for search")
+      return this.searchWithYtDlp(query, maxResults)
     }
   }
 
-  private getMockTrendingData(): HybridSong[] {
-    return [
-      {
-        id: "mock-1",
-        title: "Trending Song 1 (Demo)",
-        artist: "Demo Artist",
-        thumbnail: "/abstract-soundscape.png",
-        duration: "3:45",
-        url: "https://www.youtube.com/watch?v=mock-1",
-      },
-      {
-        id: "mock-2",
-        title: "Popular Track 2 (Demo)",
-        artist: "Sample Artist",
-        thumbnail: "/music-vinyl-record.jpg",
-        duration: "4:12",
-        url: "https://www.youtube.com/watch?v=mock-2",
-      },
-      {
-        id: "mock-3",
-        title: "Hit Song 3 (Demo)",
-        artist: "Example Band",
-        thumbnail: "/concert-stage-lights.png",
-        duration: "3:28",
-        url: "https://www.youtube.com/watch?v=mock-3",
-      },
-    ]
+  private async getTrendingFromYtDlp(maxResults = 25): Promise<HybridSong[]> {
+    console.log("[v0] Hybrid: Fetching trending from yt-dlp fallback")
+
+    try {
+      const { createYtDlpExtractor } = await import("./ytdlp-extractor")
+      const ytdlp = createYtDlpExtractor()
+
+      // Use a curated list of popular music channels/playlists for trending
+      const trendingQueries = ["trending music 2024", "popular songs", "top hits", "new music", "viral songs"]
+
+      const allSongs: HybridSong[] = []
+
+      for (const query of trendingQueries.slice(0, 2)) {
+        // Limit to prevent timeout
+        try {
+          const ytdlpSongs = await ytdlp.search(query, Math.ceil(maxResults / 2))
+          const hybridSongs = ytdlpSongs.map((song) => ({
+            id: song.id,
+            title: song.title,
+            artist: song.artist,
+            thumbnail: song.thumbnail,
+            duration: song.duration,
+            url: song.url,
+            audioUrl: song.audioUrl,
+          }))
+          allSongs.push(...hybridSongs)
+        } catch (error) {
+          console.error("[v0] Hybrid: yt-dlp trending query failed:", query, error)
+        }
+      }
+
+      console.log("[v0] Hybrid: Got", allSongs.length, "songs from yt-dlp trending fallback")
+      return allSongs.slice(0, maxResults)
+    } catch (error) {
+      console.error("[v0] Hybrid: yt-dlp trending fallback failed:", error)
+      // Only return empty array if yt-dlp completely fails
+      return []
+    }
   }
 
-  private getMockSearchData(query: string): HybridSong[] {
-    return [
-      {
-        id: `mock-search-1-${Date.now()}`,
-        title: `${query} - Result 1 (Demo)`,
-        artist: "Search Demo Artist",
-        thumbnail: "/music-search-results.jpg",
-        duration: "3:30",
-        url: `https://www.youtube.com/watch?v=mock-search-1`,
-      },
-      {
-        id: `mock-search-2-${Date.now()}`,
-        title: `${query} - Result 2 (Demo)`,
-        artist: "Demo Search Band",
-        thumbnail: "/music-headphones.jpg",
-        duration: "4:05",
-        url: `https://www.youtube.com/watch?v=mock-search-2`,
-      },
-    ]
+  private async searchWithYtDlp(query: string, maxResults = 15): Promise<HybridSong[]> {
+    console.log("[v0] Hybrid: Searching with yt-dlp fallback for:", query)
+
+    try {
+      const { createYtDlpExtractor } = await import("./ytdlp-extractor")
+      const ytdlp = createYtDlpExtractor()
+
+      const ytdlpSongs = await ytdlp.search(query, maxResults)
+      const hybridSongs = ytdlpSongs.map((song) => ({
+        id: song.id,
+        title: song.title,
+        artist: song.artist,
+        thumbnail: song.thumbnail,
+        duration: song.duration,
+        url: song.url,
+        audioUrl: song.audioUrl,
+      }))
+
+      console.log("[v0] Hybrid: Got", hybridSongs.length, "songs from yt-dlp search fallback")
+      return hybridSongs
+    } catch (error) {
+      console.error("[v0] Hybrid: yt-dlp search fallback failed:", error)
+      // Only return empty array if yt-dlp completely fails
+      return []
+    }
   }
 
   async getAudioUrl(videoId: string): Promise<string | null> {

@@ -13,14 +13,14 @@ export interface Song {
 }
 
 async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
-  console.log("[v0] Fetching trending music from hybrid YouTube-Piped API")
-  const response = await fetch(`/api/hybrid/trending?maxResults=${maxResults}`)
+  console.log("[v0] Fetching trending music from NewPipe API")
+  const response = await fetch(`/api/newpipe/trending?maxResults=${maxResults}`)
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`)
   }
 
   const data = await response.json()
-  console.log("[v0] Hybrid API trending response:", data.source, data.songs?.length || 0, "songs")
+  console.log("[v0] NewPipe API trending response:", data.source, data.songs?.length || 0, "songs")
 
   if (data.songs && data.songs.length > 0) {
     return data.songs.map((song: any) => ({
@@ -38,14 +38,14 @@ async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
 }
 
 async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
-  console.log("[v0] Searching hybrid YouTube-Piped API for:", query)
-  const response = await fetch(`/api/hybrid/search?q=${encodeURIComponent(query)}&maxResults=${maxResults}`)
+  console.log("[v0] Searching NewPipe API for:", query)
+  const response = await fetch(`/api/newpipe/search?q=${encodeURIComponent(query)}&maxResults=${maxResults}`)
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`)
   }
 
   const data = await response.json()
-  console.log("[v0] Hybrid API search response:", data.source, data.songs?.length || 0, "songs")
+  console.log("[v0] NewPipe API search response:", data.source, data.songs?.length || 0, "songs")
 
   if (data.songs && data.songs.length > 0) {
     return data.songs.map((song: any) => ({
@@ -72,10 +72,10 @@ export function useTrendingMusic() {
       setLoading(true)
       setError(null)
 
-      console.log("[v0] Loading trending music from hybrid YouTube-Piped API")
+      console.log("[v0] Loading trending music from NewPipe API")
       const trendingSongs = await fetchTrendingMusic(25)
 
-      console.log("[v0] Got trending music:", trendingSongs.length, "songs from hybrid YouTube-Piped API")
+      console.log("[v0] Got trending music:", trendingSongs.length, "songs from NewPipe API")
       setSongs(trendingSongs)
     } catch (err) {
       console.error("[v0] Trending music failed:", err)
@@ -109,12 +109,12 @@ export function useSearchMusic(query: string, enabled = false) {
         setLoading(true)
         setError(null)
 
-        console.log(`[v0] Searching hybrid YouTube-Piped API for: "${query}"`)
+        console.log(`[v0] Searching NewPipe API for: "${query}"`)
         const results = await searchMusic(query, 15)
 
         setSongs(results)
       } catch (err) {
-        console.error(`[v0] Hybrid YouTube-Piped API search failed for "${query}":`, err)
+        console.error(`[v0] NewPipe API search failed for "${query}":`, err)
         setError(err.message || "Search failed")
         setSongs([])
       } finally {
@@ -142,7 +142,7 @@ export function useMoodPlaylist(queries: string[]) {
         setLoading(true)
         setError(null)
 
-        console.log("[v0] Fetching mood playlist from hybrid YouTube-Piped API for queries:", memoizedQueries)
+        console.log("[v0] Fetching mood playlist from NewPipe API for queries:", memoizedQueries)
         const allSongs: Song[] = []
 
         for (const query of memoizedQueries) {
@@ -160,7 +160,7 @@ export function useMoodPlaylist(queries: string[]) {
           .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
           .slice(0, 15)
 
-        console.log("[v0] Got mood playlist:", uniqueSongs.length, "songs from hybrid YouTube-Piped API")
+        console.log("[v0] Got mood playlist:", uniqueSongs.length, "songs from NewPipe API")
         setSongs(uniqueSongs)
       } catch (err) {
         console.error("[v0] Mood playlist failed:", err)
@@ -192,7 +192,7 @@ export function useNewReleases() {
       setLoading(true)
       setError(null)
 
-      console.log("[v0] Fetching new releases from hybrid YouTube-Piped API")
+      console.log("[v0] Fetching new releases from NewPipe API")
       const newReleaseQueries = [
         "new songs 2024",
         "latest releases 2024",
@@ -218,7 +218,7 @@ export function useNewReleases() {
         .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
         .slice(0, 12)
 
-      console.log("[v0] Got new releases:", uniqueSongs.length, "songs from hybrid YouTube-Piped API")
+      console.log("[v0] Got new releases:", uniqueSongs.length, "songs from NewPipe API")
       setSongs(uniqueSongs)
     } catch (err) {
       console.error("[v0] New releases failed:", err)
