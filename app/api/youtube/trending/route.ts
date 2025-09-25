@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { ytDlpExtractor } from "@/lib/ytdlp-extractor"
 
-export const runtime = "edge"
+export const runtime = "nodejs"
 
 export async function GET(request: NextRequest) {
   try {

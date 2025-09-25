@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { ytDlpExtractor } from "@/lib/ytdlp-extractor"
 
+export const runtime = "nodejs"
+
 export async function GET() {
   try {
     const cookieStore = cookies()
