@@ -1,23 +1,23 @@
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
+import { YouTubeMusicAuth } from "@/lib/youtube-music-auth"
 
 export async function GET() {
   try {
-    const cookieStore = cookies()
-    const authToken = cookieStore.get("auth-token")
+    const user = await YouTubeMusicAuth.getAuthenticatedUser()
 
-    if (!authToken) {
+    if (!user) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    const user = JSON.parse(authToken.value)
-
     // Remove sensitive tokens from response
-    const { accessToken, refreshToken, ...safeUser } = user
+    const { accessToken, refreshToken, ytmusicCookies, ytmusicHeaders, ...safeUser } = user
 
-    return NextResponse.json(safeUser)
+    return NextResponse.json({
+      ...safeUser,
+      hasYouTubeMusicAccess: !!(ytmusicCookies || ytmusicHeaders),
+    })
   } catch (error) {
-    console.error("Error getting user:", error)
+    console.error("[v0] Error getting authenticated user:", error)
     return NextResponse.json({ error: "Invalid session" }, { status: 401 })
   }
 }

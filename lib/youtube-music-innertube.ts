@@ -1,0 +1,158 @@
+// YouTube Music InnerTube API client based on SimpMusic's approach
+interface InnerTubeContext {
+  client: {
+    clientName: string
+    clientVersion: string
+    platform: string
+    osName: string
+    osVersion: string
+    userAgent: string
+  }
+  user: {
+    lockedSafetyMode: boolean
+  }
+  request: {
+    useSsl: boolean
+    internalExperimentFlags: string[]
+  }
+}
+
+interface SearchParams {
+  query: string
+  params?: string
+}
+
+interface BrowseParams {
+  browseId: string
+  params?: string
+}
+
+export class YouTubeMusicInnerTube {
+  private static readonly BASE_URL = "https://music.youtube.com/youtubei/v1"
+  private static readonly API_KEY = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
+
+  private static readonly CONTEXT: InnerTubeContext = {
+    client: {
+      clientName: "WEB_REMIX",
+      clientVersion: "1.20241202.01.00",
+      platform: "DESKTOP",
+      osName: "Windows",
+      osVersion: "10.0",
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    },
+    user: {
+      lockedSafetyMode: false,
+    },
+    request: {
+      useSsl: true,
+      internalExperimentFlags: [],
+    },
+  }
+
+  private static readonly HEADERS = {
+    Accept: "*/*",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+    "Content-Type": "application/json",
+    Origin: "https://music.youtube.com",
+    Pragma: "no-cache",
+    Referer: "https://music.youtube.com/",
+    "Sec-Ch-Ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"Windows"',
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "same-origin",
+    "Sec-Fetch-Site": "same-origin",
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "X-Goog-AuthUser": "0",
+    "X-Goog-Visitor-Id": "CgtVcWJHVGVqWWVnOCiIjbG4BjIKCgJVUxIEGgAgOA%3D%3D",
+    "X-Origin": "https://music.youtube.com",
+    "X-Youtube-Bootstrap-Logged-In": "false",
+    "X-Youtube-Client-Name": "67",
+    "X-Youtube-Client-Version": "1.20241202.01.00",
+  }
+
+  private static async makeRequest(endpoint: string, body: any): Promise<any> {
+    const url = `${this.BASE_URL}/${endpoint}?key=${this.API_KEY}&prettyPrint=false`
+
+    console.log(`[v0] YouTube Music InnerTube: ${endpoint} request`)
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: this.HEADERS,
+        body: JSON.stringify({
+          context: this.CONTEXT,
+          ...body,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error(`[v0] YouTube Music InnerTube ${endpoint} error:`, error)
+      throw error
+    }
+  }
+
+  static async search(query: string, params?: string): Promise<any> {
+    const body: SearchParams = { query }
+    if (params) body.params = params
+
+    return this.makeRequest("search", body)
+  }
+
+  static async browse(browseId: string, params?: string): Promise<any> {
+    const body: BrowseParams = { browseId }
+    if (params) body.params = params
+
+    return this.makeRequest("browse", body)
+  }
+
+  static async getHome(): Promise<any> {
+    return this.browse("FEmusic_home")
+  }
+
+  static async getExplore(): Promise<any> {
+    return this.browse("FEmusic_explore")
+  }
+
+  static async getCharts(): Promise<any> {
+    return this.browse("FEmusic_charts")
+  }
+
+  static async getNewReleases(): Promise<any> {
+    return this.browse("FEmusic_new_releases")
+  }
+
+  static async getMoodsAndGenres(): Promise<any> {
+    return this.browse("FEmusic_moods_and_genres")
+  }
+
+  static async searchSongs(query: string): Promise<any> {
+    return this.search(query, "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D")
+  }
+
+  static async searchVideos(query: string): Promise<any> {
+    return this.search(query, "EgWKAQIQAWoKEAkQBRAKEAMQBA%3D%3D")
+  }
+
+  static async searchAlbums(query: string): Promise<any> {
+    return this.search(query, "EgWKAQIYAWoKEAkQBRAKEAMQBA%3D%3D")
+  }
+
+  static async searchArtists(query: string): Promise<any> {
+    return this.search(query, "EgWKAQIgAWoKEAkQBRAKEAMQBA%3D%3D")
+  }
+
+  static async searchPlaylists(query: string): Promise<any> {
+    return this.search(query, "EgeKAQQoADgBagwQDhAKEAMQBRAJEAQ%3D")
+  }
+}

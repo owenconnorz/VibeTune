@@ -51,67 +51,88 @@ export function generateAlbumArtwork(artist: string, title?: string): string {
   return `data:image/svg+xml;base64,${btoa(svg)}`
 }
 
-// Basic search function
 export async function searchMusic(query: string): Promise<Song[]> {
   try {
-    console.log("[v0] Searching music with advanced YouTube API for:", query)
-    const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`)
+    console.log("[v0] Searching music with enhanced YouTube Music API for:", query)
+
+    // Use the enhanced search API
+    const response = await fetch(`/api/youtube-music/search?query=${encodeURIComponent(query)}&type=songs&useAuth=true`)
     if (!response.ok) {
-      throw new Error(`Search failed: ${response.status}`)
+      throw new Error(`Enhanced search failed: ${response.status}`)
     }
+
     const data = await response.json()
-    console.log("[v0] YouTube API search results:", data.songs?.length || 0, "songs")
-    return data.songs || []
+    console.log("[v0] Enhanced YouTube Music API search results:", data.tracks?.length || 0, "songs")
+
+    return (data.tracks || []).map((track: any) => ({
+      id: track.id,
+      title: track.title,
+      artist: track.channelTitle || track.artist,
+      thumbnail: track.thumbnail || generateAlbumArtwork(track.channelTitle || track.artist, track.title),
+      duration: track.duration || "0:00",
+      type: "song" as const,
+    }))
   } catch (error) {
-    console.error("[v0] YouTube API search error:", error)
+    console.error("[v0] Enhanced YouTube Music API search error:", error)
     return []
   }
 }
 
-// Enhanced search with categories
-export async function searchMusicEnhanced(query: string): Promise<EnhancedSearchResults> {
+export async function searchMusicEnhanced(query: string, page = 1): Promise<EnhancedSearchResults> {
   try {
-    console.log("[v0] Enhanced search with advanced YouTube API for:", query)
-    const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`)
+    console.log("[v0] Enhanced search with SimpMusic integration for:", query, "page:", page)
+
+    // Search all types with enhanced API
+    const response = await fetch(
+      `/api/youtube-music/search?query=${encodeURIComponent(query)}&page=${page}&type=all&useAuth=true`,
+    )
     if (!response.ok) {
       throw new Error(`Enhanced search failed: ${response.status}`)
     }
-    const data = await response.json()
-    const allResults = data.songs || []
-    console.log("[v0] YouTube API enhanced search got results:", allResults.length, "items")
 
-    // Categorize results based on content analysis
+    const data = await response.json()
+    const allResults = data.tracks || []
+    console.log("[v0] Enhanced YouTube Music API got results:", allResults.length, "items")
+
+    // Categorize results based on type from API
     const songs: Song[] = []
     const artists: Song[] = []
     const albums: Song[] = []
     const playlists: Song[] = []
 
-    allResults.forEach((item) => {
+    allResults.forEach((item: any) => {
       const song: Song = {
         id: item.id,
         title: item.title,
-        artist: item.channelTitle,
-        thumbnail: item.thumbnail,
-        duration: item.duration,
+        artist: item.channelTitle || item.artist || "Unknown Artist",
+        thumbnail:
+          item.thumbnail || generateAlbumArtwork(item.channelTitle || item.artist || "Unknown Artist", item.title),
+        duration: item.duration || "0:00",
         type: "song" as const,
       }
 
-      // Categorize based on title patterns
-      const title = song.title.toLowerCase()
-      const artist = song.artist.toLowerCase()
+      // Use API-provided type or fallback to pattern matching
+      const itemType = item.type || "song"
 
-      if (title.includes("playlist") || title.includes("mix")) {
-        playlists.push(song)
-      } else if (title.includes("album") || title.includes("full album")) {
-        albums.push(song)
-      } else if (title === artist || title.includes("artist") || title.includes("channel")) {
-        artists.push(song)
-      } else {
-        songs.push(song)
+      switch (itemType) {
+        case "artist":
+          artists.push(song)
+          break
+        case "album":
+          albums.push(song)
+          break
+        case "playlist":
+          playlists.push(song)
+          break
+        case "video":
+        case "song":
+        default:
+          songs.push(song)
+          break
       }
     })
 
-    console.log("[v0] Categorized results:", {
+    console.log("[v0] Enhanced categorized results:", {
       songs: songs.length,
       artists: artists.length,
       albums: albums.length,
@@ -126,7 +147,7 @@ export async function searchMusicEnhanced(query: string): Promise<EnhancedSearch
       playlists,
     }
   } catch (error) {
-    console.error("[v0] YouTube API enhanced search error:", error)
+    console.error("[v0] Enhanced YouTube Music API search error:", error)
     return {
       all: [],
       songs: [],

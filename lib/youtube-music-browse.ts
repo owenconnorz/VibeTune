@@ -35,7 +35,12 @@ class YouTubeMusicBrowse {
     utcOffsetMinutes: 0,
   }
 
-  private async makeRequest(browseId: string, continuationToken?: string): Promise<any> {
+  private async makeRequest(
+    browseId: string,
+    continuationToken?: string,
+    accessToken?: string,
+    ytmusicHeaders?: Record<string, string>,
+  ): Promise<any> {
     const body = {
       context: {
         client: this.clientConfig,
@@ -47,32 +52,46 @@ class YouTubeMusicBrowse {
       ...(continuationToken && { continuation: continuationToken }),
     }
 
-    console.log(`[v0] YouTube Music Browse: Requesting ${browseId}`)
+    console.log(`[v0] YouTube Music Browse: Enhanced request ${browseId} (authenticated: ${!!accessToken})`)
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Accept: "*/*",
+      "Accept-Language": "en-US,en;q=0.9",
+      "Accept-Encoding": "gzip, deflate, br",
+      Origin: "https://music.youtube.com",
+      Referer: "https://music.youtube.com/",
+      "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+      "Sec-Ch-Ua-Mobile": "?0",
+      "Sec-Ch-Ua-Platform": '"Windows"',
+      "Sec-Fetch-Dest": "empty",
+      "Sec-Fetch-Mode": "same-origin",
+      "Sec-Fetch-Site": "same-origin",
+      "X-Goog-AuthUser": "0",
+      "X-Goog-Visitor-Id": "CgtVc0JHVkVqVVBBSSiMjZq2BjIKCgJVUxIEGgAgOA%3D%3D",
+      "X-Origin": "https://music.youtube.com",
+      "X-Youtube-Client-Name": "67",
+      "X-Youtube-Client-Version": "1.20241210.01.00",
+    }
+
+    // Add authentication headers if available
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`
+      headers["X-Youtube-Bootstrap-Logged-In"] = "true"
+    } else {
+      headers["X-Youtube-Bootstrap-Logged-In"] = "false"
+    }
+
+    // Merge additional YouTube Music headers
+    if (ytmusicHeaders) {
+      Object.assign(headers, ytmusicHeaders)
+    }
 
     const response = await fetch(`${this.baseUrl}?key=${this.apiKey}&prettyPrint=false`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        Origin: "https://music.youtube.com",
-        Referer: "https://music.youtube.com/",
-        "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-        "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": '"Windows"',
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "same-origin",
-        "Sec-Fetch-Site": "same-origin",
-        "X-Goog-AuthUser": "0",
-        "X-Goog-Visitor-Id": "CgtVc0JHVkVqVVBBSSiMjZq2BjIKCgJVUxIEGgAgOA%3D%3D",
-        "X-Origin": "https://music.youtube.com",
-        "X-Youtube-Bootstrap-Logged-In": "false",
-        "X-Youtube-Client-Name": "67",
-        "X-Youtube-Client-Version": "1.20241210.01.00",
-      },
+      headers,
       body: JSON.stringify(body),
     })
 
@@ -185,12 +204,12 @@ class YouTubeMusicBrowse {
     }
   }
 
-  async getHomeFeed(): Promise<YouTubeMusicBrowseResult> {
+  async getHomeFeed(accessToken?: string, ytmusicHeaders?: Record<string, string>): Promise<YouTubeMusicBrowseResult> {
     try {
-      console.log("[v0] YouTube Music Browse: Getting home feed")
+      console.log(`[v0] YouTube Music Browse: Getting enhanced home feed (authenticated: ${!!accessToken})`)
 
       // Use the home browse ID for YouTube Music
-      const data = await this.makeRequest("FEmusic_home")
+      const data = await this.makeRequest("FEmusic_home", undefined, accessToken, ytmusicHeaders)
 
       const sections: YouTubeMusicBrowseSection[] = []
 
@@ -206,14 +225,14 @@ class YouTubeMusicBrowse {
         }
       }
 
-      console.log(`[v0] YouTube Music Browse: Found ${sections.length} sections with content`)
+      console.log(`[v0] YouTube Music Browse: Found ${sections.length} enhanced sections with content`)
 
       return {
         sections,
         continuationToken: sectionListRenderer?.continuations?.[0]?.nextContinuationData?.continuation,
       }
     } catch (error) {
-      console.error("[v0] YouTube Music Browse home feed error:", error)
+      console.error("[v0] YouTube Music Browse enhanced home feed error:", error)
       return {
         sections: [],
         error: error instanceof Error ? error.message : "Unknown error",
@@ -221,9 +240,9 @@ class YouTubeMusicBrowse {
     }
   }
 
-  async getQuickPicks(): Promise<YouTubeMusicTrack[]> {
+  async getQuickPicks(accessToken?: string, ytmusicHeaders?: Record<string, string>): Promise<YouTubeMusicTrack[]> {
     try {
-      const homeData = await this.getHomeFeed()
+      const homeData = await this.getHomeFeed(accessToken, ytmusicHeaders)
 
       // Look for quick picks or mixed sections
       const quickPicksSection = homeData.sections.find(
@@ -235,14 +254,14 @@ class YouTubeMusicBrowse {
 
       return quickPicksSection?.contents.slice(0, 8) || []
     } catch (error) {
-      console.error("[v0] YouTube Music Browse quick picks error:", error)
+      console.error("[v0] YouTube Music Browse enhanced quick picks error:", error)
       return []
     }
   }
 
-  async getNewReleases(): Promise<YouTubeMusicTrack[]> {
+  async getNewReleases(accessToken?: string, ytmusicHeaders?: Record<string, string>): Promise<YouTubeMusicTrack[]> {
     try {
-      const homeData = await this.getHomeFeed()
+      const homeData = await this.getHomeFeed(accessToken, ytmusicHeaders)
 
       // Look for new releases section
       const newReleasesSection = homeData.sections.find(
@@ -254,14 +273,17 @@ class YouTubeMusicBrowse {
 
       return newReleasesSection?.contents.slice(0, 12) || []
     } catch (error) {
-      console.error("[v0] YouTube Music Browse new releases error:", error)
+      console.error("[v0] YouTube Music Browse enhanced new releases error:", error)
       return []
     }
   }
 
-  async getRecommendations(): Promise<YouTubeMusicTrack[]> {
+  async getRecommendations(
+    accessToken?: string,
+    ytmusicHeaders?: Record<string, string>,
+  ): Promise<YouTubeMusicTrack[]> {
     try {
-      const homeData = await this.getHomeFeed()
+      const homeData = await this.getHomeFeed(accessToken, ytmusicHeaders)
 
       // Look for recommendation sections
       const recommendationSection = homeData.sections.find(
@@ -273,7 +295,7 @@ class YouTubeMusicBrowse {
 
       return recommendationSection?.contents.slice(0, 15) || []
     } catch (error) {
-      console.error("[v0] YouTube Music Browse recommendations error:", error)
+      console.error("[v0] YouTube Music Browse enhanced recommendations error:", error)
       return []
     }
   }

@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Search, Settings, MoreVertical, Play } from "lucide-react"
+import { Search, Settings, MoreVertical, Play, Sparkles, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AudioPlayer } from "@/components/audio-player"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
@@ -61,6 +61,10 @@ const MusicCard = React.memo(({ song, onPlay, songList }: any) => (
 export default function VibeTunePage() {
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [pageTransition, setPageTransition] = useState(false)
+  const [simpMusicStatus, setSimpMusicStatus] = useState<{
+    hasAccess: boolean
+    loading: boolean
+  }>({ hasAccess: false, loading: true })
 
   const [profileSettings, setProfileSettings] = useState({
     useCustomPicture: false,
@@ -92,6 +96,30 @@ export default function VibeTunePage() {
     source: newReleasesSource,
     refetch: refetchNewReleases,
   } = useNewReleases()
+
+  useEffect(() => {
+    if (user) {
+      checkSimpMusicAccess()
+    } else {
+      setSimpMusicStatus({ hasAccess: false, loading: false })
+    }
+  }, [user])
+
+  const checkSimpMusicAccess = async () => {
+    try {
+      const response = await fetch("/api/auth/me")
+      if (response.ok) {
+        const data = await response.json()
+        setSimpMusicStatus({
+          hasAccess: data.hasYouTubeMusicAccess || false,
+          loading: false,
+        })
+      }
+    } catch (error) {
+      console.error("Error checking SimpMusic access:", error)
+      setSimpMusicStatus({ hasAccess: false, loading: false })
+    }
+  }
 
   const convertToTrack = useCallback(
     (song: any) => ({
@@ -200,6 +228,21 @@ export default function VibeTunePage() {
             <span className="text-black font-bold text-xs">VT</span>
           </div>
           <h1 className="text-xl font-normal text-white">VibeTune</h1>
+          {user && !simpMusicStatus.loading && (
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-zinc-800/50 border border-zinc-700">
+              {simpMusicStatus.hasAccess ? (
+                <>
+                  <Sparkles className="w-3 h-3 text-yellow-400" />
+                  <span className="text-xs text-yellow-400 font-medium">Enhanced</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-3 h-3 text-gray-400" />
+                  <span className="text-xs text-gray-400">Basic</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <Button
@@ -225,7 +268,15 @@ export default function VibeTunePage() {
         <div className="space-y-8">
           <section className="mt-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">Quick picks</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-white">Quick picks</h2>
+                {user && simpMusicStatus.hasAccess && (
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-400/10 border border-yellow-400/20">
+                    <Sparkles className="w-3 h-3 text-yellow-400" />
+                    <span className="text-xs text-yellow-400">Personalized</span>
+                  </div>
+                )}
+              </div>
               <Button
                 variant="ghost"
                 className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
@@ -255,7 +306,15 @@ export default function VibeTunePage() {
 
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">Mixed for you</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold text-white">Mixed for you</h2>
+                {user && simpMusicStatus.hasAccess && (
+                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-400/10 border border-yellow-400/20">
+                    <Sparkles className="w-3 h-3 text-yellow-400" />
+                    <span className="text-xs text-yellow-400">AI-Powered</span>
+                  </div>
+                )}
+              </div>
               <Button
                 variant="ghost"
                 className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"

@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
+import { YouTubeMusicAuth } from "@/lib/youtube-music-auth"
 
 export async function POST() {
   try {
-    const cookieStore = cookies()
-    cookieStore.delete("auth-token")
+    YouTubeMusicAuth.clearUserSession()
 
+    console.log("[v0] User session cleared successfully")
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Error logging out:", error)
+    console.error("[v0] Error logging out:", error)
     return NextResponse.json({ error: "Logout failed" }, { status: 500 })
   }
 }

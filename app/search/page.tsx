@@ -3,11 +3,12 @@
 import type React from "react"
 import { useEffect } from "react"
 import { useState, useMemo } from "react"
-import { Search, ArrowLeft, MoreVertical, User, Music } from "lucide-react"
+import { Search, ArrowLeft, MoreVertical, User, Music, Sparkles, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
+import { useAuth } from "@/contexts/auth-context"
 import { searchMusicEnhanced } from "@/lib/music-data"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 
@@ -68,12 +69,41 @@ const GENRE_SUGGESTIONS = [
 export default function SearchPage() {
   const router = useRouter()
   const { playQueue } = useAudioPlayer()
+  const { user } = useAuth()
   const [query, setQuery] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState<string>("all")
   const [error, setError] = useState<string | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [suggestions, setSuggestions] = useState<string[]>([])
+  const [simpMusicStatus, setSimpMusicStatus] = useState<{
+    hasAccess: boolean
+    loading: boolean
+  }>({ hasAccess: false, loading: true })
+
+  useEffect(() => {
+    if (user) {
+      checkSimpMusicAccess()
+    } else {
+      setSimpMusicStatus({ hasAccess: false, loading: false })
+    }
+  }, [user])
+
+  const checkSimpMusicAccess = async () => {
+    try {
+      const response = await fetch("/api/auth/me")
+      if (response.ok) {
+        const data = await response.json()
+        setSimpMusicStatus({
+          hasAccess: data.hasYouTubeMusicAccess || false,
+          loading: false,
+        })
+      }
+    } catch (error) {
+      console.error("Error checking SimpMusic access:", error)
+      setSimpMusicStatus({ hasAccess: false, loading: false })
+    }
+  }
 
   const {
     items: searchResults,
@@ -86,7 +116,7 @@ export default function SearchPage() {
         return { items: [], hasMore: false }
       }
 
-      console.log("[v0] Fetching search results page:", page, "for query:", searchQuery)
+      console.log("[v0] Fetching enhanced search results page:", page, "for query:", searchQuery)
       const results = await searchMusicEnhanced(searchQuery, page)
 
       const allResults = [...results.songs, ...results.artists, ...results.albums, ...results.playlists]
@@ -239,6 +269,23 @@ export default function SearchPage() {
             className="pl-10 pr-20 bg-zinc-800 border-zinc-700 text-white placeholder-gray-400 rounded-full"
             autoFocus
           />
+          {user && !simpMusicStatus.loading && (
+            <div className="absolute right-20 top-1/2 transform -translate-y-1/2">
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-zinc-700/50 border border-zinc-600">
+                {simpMusicStatus.hasAccess ? (
+                  <>
+                    <Sparkles className="w-3 h-3 text-yellow-400" />
+                    <span className="text-xs text-yellow-400 font-medium">Enhanced</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-3 h-3 text-gray-400" />
+                    <span className="text-xs text-gray-400">Basic</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
           {showSuggestions && suggestions.length > 0 && (
             <div className="absolute top-full left-0 right-0 bg-zinc-800 border border-zinc-700 rounded-lg mt-1 shadow-lg z-10">
               {suggestions.map((suggestion, index) => (
@@ -277,11 +324,26 @@ export default function SearchPage() {
         </div>
       </header>
 
-      {searchQuery && getTotalResults() > 0 && (
-        <div className="px-4 py-2 bg-zinc-800/50">
-          <p className="text-sm text-gray-400">
-            Results for: <span className="text-white font-medium">"{searchQuery}"</span>
-          </p>
+      {searchQuery && user && !simpMusicStatus.loading && (
+        <div className="px-4 py-2 bg-zinc-800/30 border-b border-zinc-700/50">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-gray-400">
+              Results for: <span className="text-white font-medium">"{searchQuery}"</span>
+            </p>
+            <div className="flex items-center gap-2">
+              {simpMusicStatus.hasAccess ? (
+                <>
+                  <Sparkles className="w-4 h-4 text-yellow-400" />
+                  <span className="text-sm text-yellow-400 font-medium">SimpMusic Enhanced Search</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-400">Basic Search Mode</span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

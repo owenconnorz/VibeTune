@@ -3,10 +3,11 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import { Search, X, Play, Clock } from "lucide-react"
+import { Search, X, Play, Clock, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSearchMusic } from "@/hooks/use-music-data"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
+import { useAuth } from "@/contexts/auth-context"
 import { SongSkeleton, ErrorMessage } from "@/components/loading-skeleton"
 
 interface SearchModalProps {
@@ -52,6 +53,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const { playTrack, playQueue } = useAudioPlayer()
+  const { user } = useAuth()
 
   const { songs, loading, error } = useSearchMusic(query, query.length > 2)
 
@@ -149,13 +151,18 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search for songs, artists, albums..."
+              placeholder={user ? "Search with enhanced SimpMusic features..." : "Search for songs, artists, albums..."}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => setShowSuggestions(suggestions.length > 0)}
               className="w-full bg-zinc-800 text-white pl-10 pr-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
             />
+            {user && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <Sparkles className="w-4 h-4 text-yellow-400" />
+              </div>
+            )}
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 bg-zinc-800 border border-zinc-700 rounded-lg mt-1 shadow-lg z-10">
                 {suggestions.map((suggestion, index) => (
@@ -175,6 +182,15 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             <X className="w-5 h-5" />
           </Button>
         </div>
+
+        {user && query.length > 0 && (
+          <div className="px-4 py-2 bg-yellow-400/10 border-b border-yellow-400/20">
+            <div className="flex items-center gap-2 text-yellow-400 text-sm">
+              <Sparkles className="w-4 h-4" />
+              <span>Enhanced search with SimpMusic integration</span>
+            </div>
+          </div>
+        )}
 
         {/* Search Content */}
         <div className="overflow-y-auto h-[calc(50vh-80px)] md:max-h-[calc(80vh-80px)]">
@@ -241,7 +257,15 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               {recentSearches.length === 0 && (
                 <div className="text-center py-8">
                   <Search className="w-12 h-12 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">Start typing to search for music</p>
+                  <p className="text-gray-400">
+                    {user ? "Start typing to search with enhanced features" : "Start typing to search for music"}
+                  </p>
+                  {user && (
+                    <p className="text-yellow-400 text-sm mt-2 flex items-center justify-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      SimpMusic integration active
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -266,8 +290,9 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           ) : (
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-semibold">
+                <h3 className="text-white font-semibold flex items-center gap-2">
                   {safeSongs.length} result{safeSongs.length !== 1 ? "s" : ""} for "{query}"
+                  {user && <Sparkles className="w-4 h-4 text-yellow-400" />}
                 </h3>
                 <Button
                   onClick={handlePlayAll}
