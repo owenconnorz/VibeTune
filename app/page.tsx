@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Search, Settings, MoreVertical, Play, Sparkles, CheckCircle } from "lucide-react"
+import { Search, Settings, MoreVertical, Play, Sparkles, CheckCircle, Heart, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AudioPlayer } from "@/components/audio-player"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
@@ -17,44 +17,67 @@ import { NavigationRouter } from "@/components/navigation-router"
 
 const MemoizedSongItem = React.memo(({ song, onPlay, trendingSongs }: any) => (
   <div
-    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-2 transition-all duration-200 ease-out"
+    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-lg p-3 transition-all duration-200 ease-out group"
     onClick={() => onPlay(song, trendingSongs)}
   >
-    <OptimizedImage
-      src={song.thumbnail}
-      alt={`${song.title} thumbnail`}
-      width={40}
-      height={40}
-      className="w-10 h-10 rounded-md object-cover flex-shrink-0"
-    />
+    <div className="relative">
+      <OptimizedImage
+        src={song.thumbnail}
+        alt={`${song.title} thumbnail`}
+        width={48}
+        height={48}
+        className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+      />
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 rounded-lg" />
+      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200">
+        <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
+          <Play className="w-3 h-3 text-black fill-black" />
+        </div>
+      </div>
+    </div>
     <div className="flex-1 min-w-0">
-      <h3 className="text-white font-normal text-sm truncate">{song.title}</h3>
+      <h3 className="text-white font-medium text-sm truncate">{song.title}</h3>
       <p className="text-gray-400 text-xs truncate">{song.artist}</p>
     </div>
     <div className="text-xs text-gray-500">{song.duration}</div>
-    <MoreVertical className="w-4 h-4 text-gray-400" />
+    <MoreVertical className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-200" />
   </div>
 ))
 
 const MusicCard = React.memo(({ song, onPlay, songList }: any) => (
-  <div className="flex-shrink-0 w-40 cursor-pointer group" onClick={() => onPlay(song, songList)}>
-    <div className="relative rounded-lg overflow-hidden mb-3">
+  <div className="flex-shrink-0 w-44 cursor-pointer group" onClick={() => onPlay(song, songList)}>
+    <div className="relative rounded-xl overflow-hidden mb-3 shadow-lg">
       <OptimizedImage
         src={song.thumbnail}
         alt={`${song.title} thumbnail`}
-        width={160}
-        height={160}
-        className="w-full h-40 object-cover transition-all duration-300 ease-out group-hover:scale-105"
+        width={176}
+        height={176}
+        className="w-full h-44 object-cover transition-all duration-300 ease-out group-hover:scale-105"
       />
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300" />
-      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
-        <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-          <Play className="w-4 h-4 text-black fill-black" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300" />
+      <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
+        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-xl">
+          <Play className="w-5 h-5 text-black fill-black ml-0.5" />
         </div>
       </div>
     </div>
-    <h3 className="text-white font-medium text-sm truncate mb-1">{song.title}</h3>
+    <h3 className="text-white font-medium text-sm truncate mb-1 leading-tight">{song.title}</h3>
     <p className="text-gray-400 text-xs truncate">{song.artist}</p>
+  </div>
+))
+
+const QuickAccessCard = React.memo(({ icon, title, subtitle, onClick }: any) => (
+  <div
+    className="flex items-center gap-4 p-4 bg-gradient-to-r from-zinc-800/50 to-zinc-700/30 rounded-xl cursor-pointer hover:from-zinc-700/60 hover:to-zinc-600/40 transition-all duration-300 group border border-zinc-700/50"
+    onClick={onClick}
+  >
+    <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
+      {icon}
+    </div>
+    <div className="flex-1 min-w-0">
+      <h3 className="text-white font-medium text-sm truncate">{title}</h3>
+      <p className="text-gray-400 text-xs truncate">{subtitle}</p>
+    </div>
   </div>
 ))
 
@@ -208,10 +231,10 @@ export default function VibeTunePage() {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center mx-auto animate-pulse">
-            <span className="text-black font-bold text-lg">VT</span>
+          <div className="w-16 h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center mx-auto animate-pulse shadow-2xl">
+            <span className="text-black font-bold text-xl">VT</span>
           </div>
-          <div className="text-xl font-normal text-white">VibeTune</div>
+          <div className="text-2xl font-medium text-white">VibeTune</div>
           <div className="w-8 h-8 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
         </div>
       </div>
@@ -222,68 +245,84 @@ export default function VibeTunePage() {
     <div
       className={`min-h-screen bg-black text-white transition-all duration-300 ${pageTransition ? "opacity-50 scale-95" : "opacity-100 scale-100"}`}
     >
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-4 bg-black/95 backdrop-blur-xl border-b border-zinc-800/50 shadow-lg transition-all duration-300">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center">
-            <span className="text-black font-bold text-xs">VT</span>
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-4 bg-black/95 backdrop-blur-xl border-b border-zinc-800/50 shadow-2xl transition-all duration-300">
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
+            <span className="text-black font-bold text-sm">VT</span>
           </div>
-          <h1 className="text-xl font-normal text-white">VibeTune</h1>
-          {user && !simpMusicStatus.loading && (
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-zinc-800/50 border border-zinc-700">
-              {simpMusicStatus.hasAccess ? (
-                <>
-                  <Sparkles className="w-3 h-3 text-yellow-400" />
-                  <span className="text-xs text-yellow-400 font-medium">Enhanced</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="w-3 h-3 text-gray-400" />
-                  <span className="text-xs text-gray-400">Basic</span>
-                </>
-              )}
-            </div>
-          )}
+          <div>
+            <h1 className="text-xl font-semibold text-white">VibeTune</h1>
+            {user && !simpMusicStatus.loading && (
+              <div className="flex items-center gap-1 mt-0.5">
+                {simpMusicStatus.hasAccess ? (
+                  <>
+                    <Sparkles className="w-3 h-3 text-yellow-400" />
+                    <span className="text-xs text-yellow-400 font-medium">Enhanced Experience</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-3 h-3 text-gray-400" />
+                    <span className="text-xs text-gray-400">Basic Mode</span>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-400 hover:text-white hover:bg-zinc-800 w-8 h-8 transition-all duration-200 hover:scale-110 active:scale-95"
+            className="text-gray-400 hover:text-white hover:bg-zinc-800/60 w-10 h-10 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
             onClick={handleSearchClick}
           >
-            <Search className="w-4 h-4" />
+            <Search className="w-5 h-5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="text-gray-400 hover:text-white hover:bg-zinc-800 w-8 h-8 transition-all duration-200 hover:scale-110 active:scale-95"
+            className="text-gray-400 hover:text-white hover:bg-zinc-800/60 w-10 h-10 rounded-xl transition-all duration-200 hover:scale-110 active:scale-95"
             onClick={handleSettingsClick}
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-5 h-5" />
           </Button>
         </div>
       </header>
 
-      <div className="page-content px-4">
+      <div className="page-content px-6 pt-2">
         <div className="space-y-8">
-          <section className="mt-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">Quick picks</h2>
+          {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
+            <section className="mt-6">
+              <div className="grid grid-cols-1 gap-3">
+                {syncData.likedSongs.length > 0 && (
+                  <QuickAccessCard
+                    icon={<Heart className="w-6 h-6 text-white" />}
+                    title="Liked Songs"
+                    subtitle={`${syncData.likedSongs.length} songs`}
+                    onClick={handleLibraryClick}
+                  />
+                )}
+                <QuickAccessCard
+                  icon={<Clock className="w-6 h-6 text-white" />}
+                  title="Recently Played"
+                  subtitle="Your listening history"
+                  onClick={handleLibraryClick}
+                />
+              </div>
+            </section>
+          )}
+
+          <section className="mt-8">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold text-white">Quick picks</h2>
                 {user && simpMusicStatus.hasAccess && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-400/10 border border-yellow-400/20">
-                    <Sparkles className="w-3 h-3 text-yellow-400" />
-                    <span className="text-xs text-yellow-400">Personalized</span>
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/20">
+                    <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+                    <span className="text-xs text-yellow-400 font-medium">Personalized</span>
                   </div>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-                onClick={handleVideosClick}
-              >
-                Show all
-              </Button>
             </div>
             {trendingError ? (
               <ErrorMessage message={trendingError} onRetry={refetchTrending} />
@@ -291,8 +330,8 @@ export default function VibeTunePage() {
               <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                 {trendingLoading
                   ? Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="flex-shrink-0 w-40">
-                        <div className="w-full h-40 bg-zinc-800 rounded-lg animate-pulse mb-3" />
+                      <div key={i} className="flex-shrink-0 w-44">
+                        <div className="w-full h-44 bg-zinc-800 rounded-xl animate-pulse mb-3" />
                         <div className="h-4 bg-zinc-800 rounded animate-pulse mb-2" />
                         <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/4" />
                       </div>
@@ -305,23 +344,16 @@ export default function VibeTunePage() {
           </section>
 
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white">Mixed for you</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold text-white">Mixed for you</h2>
                 {user && simpMusicStatus.hasAccess && (
-                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-400/10 border border-yellow-400/20">
-                    <Sparkles className="w-3 h-3 text-yellow-400" />
-                    <span className="text-xs text-yellow-400">AI-Powered</span>
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-400/10 border border-yellow-400/20">
+                    <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+                    <span className="text-xs text-yellow-400 font-medium">AI-Powered</span>
                   </div>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-                onClick={handleVideosClick}
-              >
-                Show all
-              </Button>
             </div>
             {mixedError ? (
               <ErrorMessage message={mixedError} onRetry={() => window.location.reload()} />
@@ -329,8 +361,8 @@ export default function VibeTunePage() {
               <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                 {mixedLoading
                   ? Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="flex-shrink-0 w-40">
-                        <div className="w-full h-40 bg-zinc-800 rounded-lg animate-pulse mb-3" />
+                      <div key={i} className="flex-shrink-0 w-44">
+                        <div className="w-full h-44 bg-zinc-800 rounded-xl animate-pulse mb-3" />
                         <div className="h-4 bg-zinc-800 rounded animate-pulse mb-2" />
                         <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/4" />
                       </div>
@@ -345,15 +377,8 @@ export default function VibeTunePage() {
           </section>
 
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">New releases for you</h2>
-              <Button
-                variant="ghost"
-                className="text-red-500 hover:text-red-400 hover:bg-zinc-800/50 text-sm font-medium transition-all duration-200 hover:scale-105 active:scale-95"
-                onClick={handleVideosClick}
-              >
-                Show all
-              </Button>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-white">New releases</h2>
             </div>
             {newReleasesError ? (
               <ErrorMessage message={newReleasesError} onRetry={refetchNewReleases} />
@@ -361,8 +386,8 @@ export default function VibeTunePage() {
               <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
                 {newReleasesLoading
                   ? Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="flex-shrink-0 w-40">
-                        <div className="w-full h-40 bg-zinc-800 rounded-lg animate-pulse mb-3" />
+                      <div key={i} className="flex-shrink-0 w-44">
+                        <div className="w-full h-44 bg-zinc-800 rounded-xl animate-pulse mb-3" />
                         <div className="h-4 bg-zinc-800 rounded animate-pulse mb-2" />
                         <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/4" />
                       </div>
@@ -375,11 +400,11 @@ export default function VibeTunePage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-4">Listen again</h2>
+            <h2 className="text-2xl font-bold text-white mb-6">Listen again</h2>
             {trendingError ? (
               <ErrorMessage message={trendingError} onRetry={refetchTrending} />
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {trendingLoading
                   ? Array.from({ length: 6 }).map((_, i) => <SongSkeleton key={i} />)
                   : safeTrendingSongs
@@ -395,46 +420,6 @@ export default function VibeTunePage() {
               </div>
             )}
           </section>
-
-          {user && (syncData.playlists.length > 0 || syncData.likedSongs.length > 0) && (
-            <section>
-              <h2 className="text-lg font-normal text-white mb-4">Your Library</h2>
-              <div className="space-y-1">
-                {syncData.likedSongs.length > 0 && (
-                  <div
-                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
-                    onClick={handleLibraryClick}
-                  >
-                    <span className="text-lg flex-shrink-0">❤️</span>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-normal text-sm">Liked Songs</h3>
-                      <p className="text-gray-400 text-xs">{syncData.likedSongs.length} songs</p>
-                    </div>
-                  </div>
-                )}
-                {syncData.playlists.slice(0, 5).map((playlist) => (
-                  <div
-                    key={playlist.id}
-                    className="flex items-center gap-3 cursor-pointer hover:bg-zinc-800/50 rounded-md p-3 transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.98]"
-                    onClick={handleLibraryClick}
-                  >
-                    <OptimizedImage
-                      src={playlist.thumbnail}
-                      alt={playlist.title}
-                      width={24}
-                      height={24}
-                      className="w-6 h-6 rounded-sm object-cover flex-shrink-0"
-                      fallback="/music-playlist-concept.png"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-normal text-sm truncate">{playlist.title}</h3>
-                      <p className="text-gray-400 text-xs">{playlist.videoCount} songs</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
         </div>
       </div>
 
