@@ -245,8 +245,27 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                       </div>
                     }
                   >
-                    {state.currentTrack?.url &&
-                    (state.currentTrack.url.includes("youtube.com") || state.currentTrack.url.includes("youtu.be")) ? (
+                    {state.currentTrack?.url && state.currentTrack.url.includes("eporner.com") ? (
+                      <iframe
+                        src={state.currentTrack.url}
+                        className="w-full h-full border-0"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                        title={state.currentTrack.title}
+                        style={{ backgroundColor: "#000" }}
+                      />
+                    ) : state.currentTrack?.videoUrl && state.currentTrack.videoUrl.includes("eporner.com") ? (
+                      <iframe
+                        src={state.currentTrack.videoUrl}
+                        className="w-full h-full border-0"
+                        allow="autoplay; fullscreen; picture-in-picture"
+                        allowFullScreen
+                        title={state.currentTrack.title}
+                        style={{ backgroundColor: "#000" }}
+                      />
+                    ) : state.currentTrack?.url &&
+                      (state.currentTrack.url.includes("youtube.com") ||
+                        state.currentTrack.url.includes("youtu.be")) ? (
                       <div className="w-full h-full bg-black flex items-center justify-center text-white">
                         <div className="text-center">
                           <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
