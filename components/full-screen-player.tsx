@@ -33,7 +33,7 @@ interface FullScreenPlayerProps {
 }
 
 export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
-  const { state, togglePlay, nextTrack, previousTrack, seekTo, setVideoMode } = useAudioPlayer()
+  const { state, togglePlay, nextTrack, previousTrack, seekTo, setVideoMode, setFullScreenVideo } = useAudioPlayer()
   const { colors, isTransitioning } = useTheme()
   const { isLiked, toggleLike } = useLikedSongs()
   const [dragY, setDragY] = useState(0)
@@ -145,10 +145,13 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
   const handleToggleVideoMode = useCallback(() => {
     try {
       setVideoMode(!state.isVideoMode)
+      if (!state.isVideoMode) {
+        setFullScreenVideo(true)
+      }
     } catch (error) {
       console.error("Failed to toggle video mode:", error)
     }
-  }, [state.isVideoMode, setVideoMode])
+  }, [state.isVideoMode, setVideoMode, setFullScreenVideo])
 
   if (!isOpen || !state.currentTrack || !colors) return null
 
@@ -176,7 +179,12 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
         <div className="flex items-center justify-center pt-8 sm:pt-12 pb-4 sm:pb-8 px-4">
           <div className="text-center">
             <h1 className="text-white text-lg sm:text-xl font-semibold">Now Playing</h1>
-            <p className="text-white/80 text-xs sm:text-sm mt-1">{state.isVideoMode ? "VIDEO MODE" : "AUDIO MODE"}</p>
+            <p className="text-white/80 text-xs sm:text-sm mt-1">
+              {state.isVideoMode ? "VIDEO MODE" : "AUDIO MODE"}
+              {state.isVideoMode && state.videoQuality !== "auto" && (
+                <span className="ml-2 text-xs bg-white/20 px-2 py-1 rounded">{state.videoQuality.toUpperCase()}</span>
+              )}
+            </p>
           </div>
         </div>
 
@@ -216,7 +224,9 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                   disabled
                 >
                   <Monitor className="w-4 h-4" />
-                  <span className="text-sm font-medium">Embedded</span>
+                  <span className="text-sm font-medium">
+                    {state.videoQuality === "auto" ? "Auto" : state.videoQuality.toUpperCase()}
+                  </span>
                 </Button>
               )}
             </div>
@@ -235,14 +245,16 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                       </div>
                     }
                   >
-                    {state.currentTrack.url &&
+                    {state.currentTrack?.url &&
                     (state.currentTrack.url.includes("youtube.com") || state.currentTrack.url.includes("youtu.be")) ? (
                       <div className="w-full h-full bg-black flex items-center justify-center text-white">
                         <div className="text-center">
                           <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>YouTube Embedded Player</p>
-                          <p className="text-sm text-white/60 mt-2">Video playback via YouTube iframe</p>
-                          <p className="text-xs text-white/40 mt-2">Audio extraction active in background</p>
+                          <p>YouTube Video Player</p>
+                          <p className="text-sm text-white/60 mt-2">
+                            Playing in {state.videoQuality === "auto" ? "auto quality" : state.videoQuality}
+                          </p>
+                          <p className="text-xs text-white/40 mt-2">{state.currentTrack.title}</p>
                         </div>
                       </div>
                     ) : (
@@ -262,8 +274,8 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                     <CanvasBackground isEnabled={canvasSettings.enableCanvas} className="rounded-2xl sm:rounded-3xl" />
                   </ErrorBoundaryComponent>
                   <img
-                    src={state.currentTrack.thumbnail || "/placeholder.svg"}
-                    alt={`${state.currentTrack.title} album cover`}
+                    src={state.currentTrack?.thumbnail || "/placeholder.svg"}
+                    alt={`${state.currentTrack?.title} album cover`}
                     className="w-full h-full object-cover relative z-10"
                     onError={(e) => {
                       e.currentTarget.src = "/placeholder.svg"
@@ -271,7 +283,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                   />
                   <div className="absolute inset-0 flex items-center justify-center z-20">
                     <div className="text-white text-4xl sm:text-6xl font-bold opacity-20 transform rotate-12">
-                      {state.currentTrack.artist?.toUpperCase() || "UNKNOWN"}
+                      {state.currentTrack?.artist?.toUpperCase() || "UNKNOWN"}
                     </div>
                   </div>
                 </div>

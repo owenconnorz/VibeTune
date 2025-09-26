@@ -39,6 +39,8 @@ interface AudioPlayerState {
   shuffleEnabled: boolean
   originalQueue: Track[]
   gaplessPlayback: boolean
+  isFullScreenVideo: boolean
+  videoQuality: "auto" | "144p" | "240p" | "360p" | "480p" | "720p" | "1080p"
 }
 
 type AudioPlayerAction =
@@ -65,6 +67,8 @@ type AudioPlayerAction =
   | { type: "SET_REPEAT_MODE"; payload: "none" | "one" | "all" }
   | { type: "TOGGLE_SHUFFLE" }
   | { type: "SET_GAPLESS_PLAYBACK"; payload: boolean }
+  | { type: "SET_FULLSCREEN_VIDEO"; payload: boolean }
+  | { type: "SET_VIDEO_QUALITY"; payload: "auto" | "144p" | "240p" | "360p" | "480p" | "720p" | "1080p" }
 
 const initialState: AudioPlayerState = {
   currentTrack: null,
@@ -89,11 +93,17 @@ const initialState: AudioPlayerState = {
   shuffleEnabled: false,
   originalQueue: [],
   gaplessPlayback: true,
+  isFullScreenVideo: false,
+  videoQuality: "auto",
 }
 
 function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction): AudioPlayerState {
   switch (action.type) {
     case "SET_TRACK":
+      const isVideoTrack =
+        action.payload.isVideo ||
+        action.payload.url?.includes("youtube.com") ||
+        action.payload.url?.includes("youtu.be")
       return {
         ...state,
         currentTrack: action.payload,
@@ -101,6 +111,7 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
         error: null,
         bufferProgress: 0,
         networkState: "loading",
+        isVideoMode: isVideoTrack ? true : state.isVideoMode,
       }
     case "SET_PLAYER_TYPE":
       return { ...state, playerType: action.payload }
@@ -225,6 +236,10 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
       }
     case "SET_GAPLESS_PLAYBACK":
       return { ...state, gaplessPlayback: action.payload }
+    case "SET_FULLSCREEN_VIDEO":
+      return { ...state, isFullScreenVideo: action.payload }
+    case "SET_VIDEO_QUALITY":
+      return { ...state, videoQuality: action.payload }
     default:
       return state
   }
@@ -253,6 +268,8 @@ interface AudioPlayerContextType {
   setGaplessPlayback: (enabled: boolean) => void
   seekForward: (seconds?: number) => void
   seekBackward: (seconds?: number) => void
+  setFullScreenVideo: (enabled: boolean) => void
+  setVideoQuality: (quality: "auto" | "144p" | "240p" | "360p" | "480p" | "720p" | "1080p") => void
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined)
@@ -419,6 +436,14 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     [state.currentTime, seekTo],
   )
 
+  const setFullScreenVideo = useCallback((enabled: boolean) => {
+    dispatch({ type: "SET_FULLSCREEN_VIDEO", payload: enabled })
+  }, [])
+
+  const setVideoQuality = useCallback((quality: "auto" | "144p" | "240p" | "360p" | "480p" | "720p" | "1080p") => {
+    dispatch({ type: "SET_VIDEO_QUALITY", payload: quality })
+  }, [])
+
   const contextValue: AudioPlayerContextType = {
     state,
     playTrack,
@@ -442,6 +467,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     setGaplessPlayback,
     seekForward,
     seekBackward,
+    setFullScreenVideo,
+    setVideoQuality,
   }
 
   return <AudioPlayerContext.Provider value={contextValue}>{children}</AudioPlayerContext.Provider>
