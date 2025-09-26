@@ -25,7 +25,9 @@ export class YouTubeMusicAuth {
   static generateAuthUrl(baseUrl: string): string {
     const clientId = process.env.GOOGLE_CLIENT_ID
     if (!clientId) {
-      throw new Error("Google OAuth not configured")
+      throw new Error(
+        "Google OAuth not configured: GOOGLE_CLIENT_ID environment variable is missing. Please add it to your Vercel project settings.",
+      )
     }
 
     const redirectUri = `${baseUrl}/api/auth/callback`
@@ -50,7 +52,9 @@ export class YouTubeMusicAuth {
     const redirectUri = `${baseUrl}/api/auth/callback`
 
     if (!clientId || !clientSecret) {
-      throw new Error("Google OAuth credentials not configured")
+      throw new Error(
+        "Google OAuth credentials not configured: Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variables. Please add them to your Vercel project settings.",
+      )
     }
 
     // Exchange authorization code for tokens

@@ -12,6 +12,8 @@ import {
   Music,
   CheckCircle,
   AlertCircle,
+  Settings,
+  ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,7 +25,7 @@ import { useSettings } from "@/contexts/settings-context"
 
 export default function AccountSettingsPage() {
   const router = useRouter()
-  const { user, signInWithGoogle, signOut, loading } = useAuth()
+  const { user, signInWithGoogle, signOut, loading, error, clearError } = useAuth()
   const {
     discordRpcEnabled,
     setDiscordRpcEnabled,
@@ -75,11 +77,8 @@ export default function AccountSettingsPage() {
   }
 
   const handleSignIn = async () => {
-    try {
-      await signInWithGoogle()
-    } catch (error) {
-      console.error("Failed to sign in:", error)
-    }
+    clearError()
+    await signInWithGoogle()
   }
 
   return (
@@ -352,6 +351,52 @@ export default function AccountSettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {error && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-red-400 font-medium mb-1">Authentication Error</p>
+                        <p className="text-red-300 text-sm mb-3">{error}</p>
+
+                        {error.includes("Google OAuth is not configured") && (
+                          <div className="bg-red-500/5 border border-red-500/10 rounded p-3 mt-3">
+                            <p className="text-red-300 text-sm font-medium mb-2">Setup Required:</p>
+                            <div className="text-red-200 text-xs space-y-1">
+                              <p>
+                                1. Go to{" "}
+                                <a
+                                  href="https://console.cloud.google.com"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="underline hover:text-red-100"
+                                >
+                                  Google Cloud Console
+                                </a>
+                              </p>
+                              <p>2. Create OAuth 2.0 credentials</p>
+                              <p>3. Add environment variables to Vercel:</p>
+                              <div className="bg-black/20 rounded p-2 mt-2 font-mono text-xs">
+                                <p>GOOGLE_CLIENT_ID=your_client_id</p>
+                                <p>GOOGLE_CLIENT_SECRET=your_client_secret</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={clearError}
+                          className="text-red-300 hover:text-red-200 hover:bg-red-500/10 mt-2"
+                        >
+                          Dismiss
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="text-center py-8">
                   <div className="w-16 h-16 bg-zinc-700 rounded-full flex items-center justify-center mx-auto mb-4">
                     <User className="w-8 h-8 text-gray-400" />
@@ -372,6 +417,90 @@ export default function AccountSettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {error && error.includes("Google OAuth is not configured") && (
+              <Card className="bg-zinc-800 border-zinc-700">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    OAuth Setup Guide
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Step-by-step guide to configure Google OAuth for this application
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        1
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Create Google Cloud Project</p>
+                        <p className="text-gray-400 text-sm">Go to Google Cloud Console and create a new project</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-400 hover:text-blue-300 p-0 h-auto mt-1"
+                          onClick={() => window.open("https://console.cloud.google.com", "_blank")}
+                        >
+                          Open Google Cloud Console <ExternalLink className="w-3 h-3 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        2
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Enable APIs</p>
+                        <p className="text-gray-400 text-sm">Enable Google+ API and YouTube Data API v3</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        3
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Create OAuth Credentials</p>
+                        <p className="text-gray-400 text-sm">Create OAuth 2.0 Client ID credentials</p>
+                        <div className="bg-zinc-700/50 rounded p-2 mt-2 text-xs">
+                          <p className="text-gray-300">Authorized redirect URI:</p>
+                          <code className="text-yellow-400">
+                            {typeof window !== "undefined" ? window.location.origin : "https://your-domain.com"}
+                            /api/auth/callback
+                          </code>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                        4
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Add Environment Variables</p>
+                        <p className="text-gray-400 text-sm">Add the credentials to your Vercel project settings</p>
+                        <div className="bg-black/40 rounded p-3 mt-2 font-mono text-xs">
+                          <p className="text-green-400">GOOGLE_CLIENT_ID=your_client_id_here</p>
+                          <p className="text-green-400">GOOGLE_CLIENT_SECRET=your_client_secret_here</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-blue-400 hover:text-blue-300 p-0 h-auto mt-2"
+                          onClick={() => window.open("https://vercel.com/dashboard", "_blank")}
+                        >
+                          Open Vercel Dashboard <ExternalLink className="w-3 h-3 ml-1" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Card className="bg-zinc-800 border-zinc-700">
               <CardHeader>

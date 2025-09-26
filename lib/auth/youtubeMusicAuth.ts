@@ -28,9 +28,18 @@ class YouTubeMusicAuth {
   private userInfoUrl = "https://www.googleapis.com/oauth2/v2/userinfo"
 
   constructor() {
+    const clientId = process.env.GOOGLE_CLIENT_ID
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+
+    if (!clientId || !clientSecret) {
+      console.warn(
+        "[v0] YouTube Music Auth: Missing Google OAuth credentials. Authentication will not work until GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set.",
+      )
+    }
+
     this.config = {
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: clientId || "",
+      clientSecret: clientSecret || "",
       redirectUri: `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/callback`,
       scopes: [
         "https://www.googleapis.com/auth/userinfo.email",
@@ -42,6 +51,12 @@ class YouTubeMusicAuth {
   }
 
   generateAuthUrl(baseUrl: string): string {
+    if (!this.config.clientId) {
+      throw new Error(
+        "Google OAuth not configured: GOOGLE_CLIENT_ID environment variable is missing. Please add it to your Vercel project settings.",
+      )
+    }
+
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: `${baseUrl}/api/auth/callback`,

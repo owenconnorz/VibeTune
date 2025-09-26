@@ -14,9 +14,11 @@ export interface User {
 interface AuthContextType {
   user: User | null
   loading: boolean
+  error: string | null
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   refreshAccessToken: () => Promise<string | null>
+  clearError: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -24,6 +26,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     // Check for existing session on mount
@@ -46,21 +49,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
-      // Redirect to Google OAuth
+      setError(null)
+      setLoading(true)
+
+      const response = await fetch("/api/auth/google")
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        if (errorData.error === "Google OAuth not configured") {
+          setError(
+            "Google OAuth is not configured. Please contact the administrator to set up GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.",
+          )
+          setLoading(false)
+          return
+        }
+        throw new Error(errorData.error || "Authentication failed")
+      }
+
+      // If we get here, the OAuth endpoint returned a redirect
+      // This means the credentials are configured, so we can proceed
       window.location.href = "/api/auth/google"
     } catch (error) {
       console.error("Error signing in with Google:", error)
-      throw error
+      setError(error instanceof Error ? error.message : "Failed to sign in with Google")
+      setLoading(false)
     }
   }
 
   const signOut = async () => {
     try {
+      setError(null)
       await fetch("/api/auth/logout", { method: "POST" })
       setUser(null)
     } catch (error) {
       console.error("Error signing out:", error)
-      throw error
+      setError("Failed to sign out")
     }
   }
 
@@ -81,14 +104,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const clearError = () => {
+    setError(null)
+  }
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
+        error,
         signInWithGoogle,
         signOut,
         refreshAccessToken,
+        clearError,
       }}
     >
       {children}
