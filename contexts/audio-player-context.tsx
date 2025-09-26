@@ -305,9 +305,23 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const fetchYtDlpAudioStream = useCallback(
     async (track: Track): Promise<string | null> => {
       try {
-        console.log("[v0] Fetching yt-dlp audio stream for:", track.title)
+        console.log("[v0] Fetching audio stream for:", track.title)
         const videoId = extractYouTubeVideoId(track.url || track.videoUrl || "")
         if (!videoId) return null
+
+        try {
+          console.log("[v0] Trying InnerTube API for audio stream (no auth required)")
+          const innerTubeResponse = await fetch(`/api/youtube-music/innertube-audio/${videoId}`)
+          if (innerTubeResponse.ok) {
+            const innerTubeData = await innerTubeResponse.json()
+            if (innerTubeData?.audioUrl) {
+              console.log("[v0] Successfully got audio stream from InnerTube API")
+              return innerTubeData.audioUrl
+            }
+          }
+        } catch (error) {
+          console.log("[v0] InnerTube API failed, trying yt-dlp fallback:", error)
+        }
 
         const response = await fetch(`/api/youtube-music/audio/${videoId}`)
         if (!response.ok) return null
@@ -330,7 +344,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
         }
         return null
       } catch (error) {
-        console.error("[v0] Error fetching yt-dlp audio stream:", error)
+        console.error("[v0] Error fetching audio stream:", error)
         return null
       }
     },

@@ -155,4 +155,47 @@ export class YouTubeMusicInnerTube {
   static async searchPlaylists(query: string): Promise<any> {
     return this.search(query, "EgeKAQQoADgBagwQDhAKEAMQBRAJEAQ%3D")
   }
+
+  static async getVideoInfo(videoId: string): Promise<any> {
+    console.log(`[v0] YouTube Music InnerTube: Getting video info for ${videoId}`)
+
+    try {
+      const response = await fetch(`${this.BASE_URL}/player?key=${this.API_KEY}&prettyPrint=false`, {
+        method: "POST",
+        headers: this.HEADERS,
+        body: JSON.stringify({
+          context: this.CONTEXT,
+          videoId: videoId,
+          playbackContext: {
+            contentPlaybackContext: {
+              html5Preference: "HTML5_PREF_WANTS",
+              lactThreshold: 4000,
+              referer: "https://music.youtube.com/",
+              signatureTimestamp: Math.floor(Date.now() / 1000),
+            },
+          },
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+
+      if (data.playabilityStatus?.status !== "OK") {
+        throw new Error(`Video not playable: ${data.playabilityStatus?.reason || "Unknown reason"}`)
+      }
+
+      if (!data.streamingData) {
+        throw new Error("No streaming data available")
+      }
+
+      console.log(`[v0] YouTube Music InnerTube: Successfully got video info for ${videoId}`)
+      return data
+    } catch (error) {
+      console.error(`[v0] YouTube Music InnerTube getVideoInfo error:`, error)
+      throw error
+    }
+  }
 }

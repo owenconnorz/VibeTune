@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import { YouTubeMusicAuth } from "@/lib/youtube-music-auth"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     console.log("[v0] Google OAuth: Starting authentication flow")
 
     const clientId =
       process.env.GOOGLE_CLIENT_ID || "338253206434-pp4kk32qohilg76pbke4045uchvm13b9.apps.googleusercontent.com"
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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"
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`
 
     console.log("[v0] Google OAuth config:", {
       hasClientId: !!clientId,

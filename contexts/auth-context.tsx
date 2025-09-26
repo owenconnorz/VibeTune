@@ -52,10 +52,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null)
       setLoading(true)
 
-      const response = await fetch("/api/auth/google")
+      console.log("[v0] Initiating Google sign-in...")
+
+      const response = await fetch("/api/auth/google", {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      })
+
+      console.log("[v0] Auth endpoint response status:", response.status)
 
       if (!response.ok) {
-        const errorData = await response.json()
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch {
+          errorData = { error: "Network error occurred" }
+        }
+
+        console.error("[v0] Auth endpoint error:", errorData)
+
         if (errorData.error === "Google OAuth not configured") {
           setError(
             "Google OAuth is not configured. Please contact the administrator to set up GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.",
@@ -68,9 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // If we get here, the OAuth endpoint returned a redirect
       // This means the credentials are configured, so we can proceed
+      console.log("[v0] Redirecting to Google OAuth...")
       window.location.href = "/api/auth/google"
     } catch (error) {
-      console.error("Error signing in with Google:", error)
+      console.error("[v0] Error signing in with Google:", error)
       setError(error instanceof Error ? error.message : "Failed to sign in with Google")
       setLoading(false)
     }

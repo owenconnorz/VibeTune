@@ -23,16 +23,18 @@ export class YouTubeMusicAuth {
   ]
 
   static generateAuthUrl(baseUrl: string): string {
-    const clientId =
-      process.env.GOOGLE_CLIENT_ID || "338253206434-pp4kk32qohilg76pbke4045uchvm13b9.apps.googleusercontent.com"
+    const clientId = process.env.GOOGLE_CLIENT_ID
     if (!clientId) {
+      console.warn("[v0] Google OAuth not configured - using InnerTube API without authentication")
       throw new Error(
-        "Google OAuth not configured: GOOGLE_CLIENT_ID environment variable is missing. Please add it to your Vercel project settings.",
+        "Google OAuth not configured: GOOGLE_CLIENT_ID environment variable is missing. The app will work without authentication using YouTube Music's public API.",
       )
     }
 
     const redirectUri = `${baseUrl}/api/auth/callback`
     const scopes = this.YOUTUBE_MUSIC_SCOPES.join(" ")
+
+    console.log("[v0] OAuth redirect URI:", redirectUri)
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -53,11 +55,15 @@ export class YouTubeMusicAuth {
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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"
     const redirectUri = `${baseUrl}/api/auth/callback`
 
+    console.log("[v0] Token exchange - Redirect URI:", redirectUri)
+
     if (!clientId || !clientSecret) {
       throw new Error(
         "Google OAuth credentials not configured: Missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET environment variables. Please add them to your Vercel project settings.",
       )
     }
+
+    console.log("[v0] Exchanging authorization code for tokens...")
 
     // Exchange authorization code for tokens
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
@@ -77,8 +83,11 @@ export class YouTubeMusicAuth {
     const tokens = await tokenResponse.json()
 
     if (!tokenResponse.ok) {
+      console.error("[v0] Token exchange failed:", tokens)
       throw new Error(tokens.error_description || "Failed to exchange code for tokens")
     }
+
+    console.log("[v0] Token exchange successful, fetching user info...")
 
     // Get user info from Google
     const userResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
@@ -90,8 +99,11 @@ export class YouTubeMusicAuth {
     const userInfo = await userResponse.json()
 
     if (!userResponse.ok) {
+      console.error("[v0] User info fetch failed:", userInfo)
       throw new Error("Failed to fetch user info")
     }
+
+    console.log("[v0] User info fetched successfully for:", userInfo.email)
 
     // Validate YouTube Music access
     const ytMusicAccess = await this.validateYouTubeMusicAccess(tokens.access_token)
@@ -202,6 +214,7 @@ export class YouTubeMusicAuth {
       const authToken = cookieStore.get("auth-token")
 
       if (!authToken) {
+        console.log("[v0] No auth token found - using unauthenticated mode")
         return null
       }
 
