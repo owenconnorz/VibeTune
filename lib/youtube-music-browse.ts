@@ -35,6 +35,12 @@ class YouTubeMusicBrowse {
     utcOffsetMinutes: 0,
   }
 
+  updateClientConfig(language = "en", region = "US") {
+    this.clientConfig.hl = language
+    this.clientConfig.gl = region
+    console.log(`[v0] YouTube Music Browse: Updated client config - language: ${language}, region: ${region}`)
+  }
+
   private async makeRequest(
     browseId: string,
     continuationToken?: string,
@@ -204,9 +210,20 @@ class YouTubeMusicBrowse {
     }
   }
 
-  async getHomeFeed(accessToken?: string, ytmusicHeaders?: Record<string, string>): Promise<YouTubeMusicBrowseResult> {
+  async getHomeFeed(
+    accessToken?: string,
+    ytmusicHeaders?: Record<string, string>,
+    language?: string,
+    region?: string,
+  ): Promise<YouTubeMusicBrowseResult> {
     try {
-      console.log(`[v0] YouTube Music Browse: Getting enhanced home feed (authenticated: ${!!accessToken})`)
+      if (language || region) {
+        this.updateClientConfig(language || "en", region || "US")
+      }
+
+      console.log(
+        `[v0] YouTube Music Browse: Getting enhanced home feed (authenticated: ${!!accessToken}, language: ${this.clientConfig.hl}, region: ${this.clientConfig.gl})`,
+      )
 
       // Use the home browse ID for YouTube Music
       const data = await this.makeRequest("FEmusic_home", undefined, accessToken, ytmusicHeaders)

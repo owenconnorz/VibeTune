@@ -10,6 +10,12 @@ interface DiscordUser {
   avatar: string | null
 }
 
+interface LanguageSettings {
+  appLanguage: string
+  searchLanguage: string
+  region: string
+}
+
 interface SettingsContextType {
   adultContentEnabled: boolean
   setAdultContentEnabled: (enabled: boolean) => void
@@ -25,6 +31,8 @@ interface SettingsContextType {
   setAgeVerified: (verified: boolean) => void
   showAgeVerification: boolean
   setShowAgeVerification: (show: boolean) => void
+  languageSettings: LanguageSettings
+  setLanguageSettings: (settings: LanguageSettings) => void
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
@@ -36,6 +44,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [discordAccessToken, setDiscordAccessToken] = useState<string | null>(null)
   const [isAgeVerified, setIsAgeVerifiedState] = useState(false)
   const [showAgeVerification, setShowAgeVerification] = useState(false)
+
+  const [languageSettings, setLanguageSettingsState] = useState<LanguageSettings>({
+    appLanguage: "en",
+    searchLanguage: "en",
+    region: "US",
+  })
 
   const setCookie = (name: string, value: string, days = 365) => {
     const expires = new Date()
@@ -77,6 +91,15 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     if (ageVerified === "true") {
       setIsAgeVerifiedState(true)
     }
+
+    const languageSaved = localStorage.getItem("vibetuneLanguageSettings")
+    if (languageSaved) {
+      try {
+        setLanguageSettingsState(JSON.parse(languageSaved))
+      } catch (error) {
+        console.error("Failed to parse language settings:", error)
+      }
+    }
   }, [])
 
   const setAdultContentEnabled = (enabled: boolean) => {
@@ -97,6 +120,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       setAdultContentEnabledState(true)
       localStorage.setItem("vibetuneAdultContent", JSON.stringify(true))
     }
+  }
+
+  const setLanguageSettings = (settings: LanguageSettings) => {
+    setLanguageSettingsState(settings)
+    localStorage.setItem("vibetuneLanguageSettings", JSON.stringify(settings))
   }
 
   const loginToDiscord = () => {
@@ -150,6 +178,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         setAgeVerified,
         showAgeVerification,
         setShowAgeVerification,
+        languageSettings,
+        setLanguageSettings,
       }}
     >
       {children}

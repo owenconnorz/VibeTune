@@ -52,6 +52,12 @@ export default function SettingsPage() {
         description: "Google account and profile settings",
       },
       {
+        id: "language",
+        title: "Language & Region",
+        icon: Globe,
+        description: "App language and music search preferences",
+      },
+      {
         id: "content",
         title: "Content",
         icon: Globe,

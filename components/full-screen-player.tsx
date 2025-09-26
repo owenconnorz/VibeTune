@@ -245,16 +245,16 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                       </div>
                     }
                   >
-                    {state.currentTrack?.url && state.currentTrack.url.includes("eporner.com") ? (
+                    {state.currentTrack?.embed && state.currentTrack.embed.includes("eporner.com/embed/") ? (
                       <iframe
-                        src={state.currentTrack.url}
+                        src={state.currentTrack.embed}
                         className="w-full h-full border-0"
                         allow="autoplay; fullscreen; picture-in-picture"
                         allowFullScreen
                         title={state.currentTrack.title}
                         style={{ backgroundColor: "#000" }}
                       />
-                    ) : state.currentTrack?.videoUrl && state.currentTrack.videoUrl.includes("eporner.com") ? (
+                    ) : state.currentTrack?.videoUrl && state.currentTrack.videoUrl.includes("eporner.com/embed/") ? (
                       <iframe
                         src={state.currentTrack.videoUrl}
                         className="w-full h-full border-0"
@@ -263,6 +263,15 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
                         title={state.currentTrack.title}
                         style={{ backgroundColor: "#000" }}
                       />
+                    ) : state.currentTrack?.url && state.currentTrack.url.includes("eporner.com") ? (
+                      <div className="w-full h-full bg-black flex items-center justify-center text-white">
+                        <div className="text-center">
+                          <Video className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>Eporner Video</p>
+                          <p className="text-sm text-white/60 mt-2">Loading video player...</p>
+                          <p className="text-xs text-white/40 mt-2">{state.currentTrack.title}</p>
+                        </div>
+                      </div>
                     ) : state.currentTrack?.url &&
                       (state.currentTrack.url.includes("youtube.com") ||
                         state.currentTrack.url.includes("youtu.be")) ? (
