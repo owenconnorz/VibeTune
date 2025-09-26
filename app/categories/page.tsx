@@ -182,7 +182,7 @@ export default function CategoriesPage() {
                 <Play className="w-3 h-3" />
               </div>
             </div>
-            <span className="text-[10px] text-white font-medium">Porn</span>
+            <span className="text-[10px] text-white font-medium">Videos</span>
           </div>
           <div className="flex flex-col items-center py-1 px-3 cursor-pointer" onClick={() => router.push("/library")}>
             <div className="w-5 h-5 text-gray-400 mb-0.5 flex items-center justify-center">
