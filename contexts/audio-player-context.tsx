@@ -80,7 +80,7 @@ const initialState: AudioPlayerState = {
   currentIndex: -1,
   isLoading: false,
   error: null,
-  isVideoMode: typeof window !== "undefined" ? localStorage.getItem("vibetuneVideoMode") === "true" : false,
+  isVideoMode: false,
   playerType: null,
   bufferProgress: 0,
   playbackRate: 1,
@@ -103,7 +103,9 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
       const isVideoTrack =
         action.payload.isVideo ||
         action.payload.url?.includes("youtube.com") ||
-        action.payload.url?.includes("youtu.be")
+        action.payload.url?.includes("youtu.be") ||
+        action.payload.url?.includes("eporner.com") ||
+        action.payload.id?.startsWith("eporner_")
       return {
         ...state,
         currentTrack: action.payload,
@@ -111,7 +113,7 @@ function audioPlayerReducer(state: AudioPlayerState, action: AudioPlayerAction):
         error: null,
         bufferProgress: 0,
         networkState: "loading",
-        isVideoMode: isVideoTrack ? true : state.isVideoMode,
+        isVideoMode: isVideoTrack,
       }
     case "SET_PLAYER_TYPE":
       return { ...state, playerType: action.payload }

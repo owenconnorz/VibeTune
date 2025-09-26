@@ -3,8 +3,9 @@ import { YouTubeMusicAuth } from "@/lib/youtube-music-auth"
 
 export async function GET() {
   try {
-    const clientId = process.env.GOOGLE_CLIENT_ID
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+    const clientId =
+      process.env.GOOGLE_CLIENT_ID || "338253206434-pp4kk32qohilg76pbke4045uchvm13b9.apps.googleusercontent.com"
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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"
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
 
     if (!clientId || !clientSecret) {

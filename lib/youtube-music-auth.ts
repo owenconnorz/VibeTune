@@ -23,7 +23,8 @@ export class YouTubeMusicAuth {
   ]
 
   static generateAuthUrl(baseUrl: string): string {
-    const clientId = process.env.GOOGLE_CLIENT_ID
+    const clientId =
+      process.env.GOOGLE_CLIENT_ID || "338253206434-pp4kk32qohilg76pbke4045uchvm13b9.apps.googleusercontent.com"
     if (!clientId) {
       throw new Error(
         "Google OAuth not configured: GOOGLE_CLIENT_ID environment variable is missing. Please add it to your Vercel project settings.",
@@ -47,8 +48,9 @@ export class YouTubeMusicAuth {
   }
 
   static async exchangeCodeForTokens(code: string, baseUrl: string): Promise<YouTubeMusicUser> {
-    const clientId = process.env.GOOGLE_CLIENT_ID
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+    const clientId =
+      process.env.GOOGLE_CLIENT_ID || "338253206434-pp4kk32qohilg76pbke4045uchvm13b9.apps.googleusercontent.com"
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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"
     const redirectUri = `${baseUrl}/api/auth/callback`
 
     if (!clientId || !clientSecret) {
@@ -161,8 +163,9 @@ export class YouTubeMusicAuth {
   }
 
   static async refreshAccessToken(refreshToken: string): Promise<string> {
-    const clientId = process.env.GOOGLE_CLIENT_ID
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+    const clientId =
+      process.env.GOOGLE_CLIENT_ID || "338253206434-pp4kk32qohilg76pbke4045uchvm13b9.apps.googleusercontent.com"
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "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"
 
     if (!clientId || !clientSecret) {
       throw new Error("Google OAuth credentials not configured")

@@ -1,101 +1,125 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Play, Eye, Calendar, Search, Filter } from "lucide-react"
+import { Play, Eye, Calendar, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
-import { useRouter } from "next/navigation"
 
-interface VideoItem {
+interface EpornerVideo {
   id: string
   title: string
-  artist: string
-  thumbnail: string
-  duration: string
-  views: string
-  publishedAt: string
   url: string
-  isVideo: boolean
+  videoUrl?: string
+  embed?: string
+  thumb: string
+  default_thumb: {
+    src: string
+    width: number
+    height: number
+  }
+  length_min: string
+  length_sec?: number
+  views: number
+  rate: number
+  added: string
+  keywords: string
 }
 
 export default function VideosPage() {
-  const [videos, setVideos] = useState<VideoItem[]>([])
+  const [videos, setVideos] = useState<EpornerVideo[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [selectedCategory, setSelectedCategory] = useState("home")
+  const [currentPage, setCurrentPage] = useState(1)
   const { playTrack, setVideoMode } = useAudioPlayer()
-  const router = useRouter()
 
   const categories = [
-    { id: "all", label: "All Videos" },
-    { id: "music", label: "Music Videos" },
-    { id: "live", label: "Live Performances" },
-    { id: "trending", label: "Trending" },
+    { id: "home", label: "Home", searchType: "5" },
+    { id: "trending", label: "Trending", searchType: "6" },
+    { id: "latest", label: "Latest", searchType: "2" },
+    { id: "longest", label: "Longest", searchType: "3" },
   ]
 
   useEffect(() => {
     fetchVideos()
-  }, [])
+  }, [selectedCategory, currentPage])
 
-  const fetchVideos = async () => {
+  const fetchVideos = async (query?: string) => {
     try {
       setLoading(true)
-      const response = await fetch("/api/youtube-music/search?type=video&limit=20")
+      const category = categories.find((c) => c.id === selectedCategory)
+      const searchType = category?.searchType || "5"
+
+      let apiUrl = `/api/eporner/search?searchType=${searchType}&page=${currentPage}&per_page=20`
+
+      if (query || searchQuery) {
+        apiUrl += `&query=${encodeURIComponent(query || searchQuery)}`
+      }
+
+      if (selectedCategory === "longest") {
+        apiUrl += "&duration=longest"
+      }
+
+      console.log("[v0] Fetching Eporner videos:", apiUrl)
+      const response = await fetch(apiUrl)
+
       if (response.ok) {
         const data = await response.json()
-        const videoItems: VideoItem[] =
-          data.items?.map((item: any) => ({
-            id: item.id?.videoId || item.id,
-            title: item.snippet?.title || "Unknown Title",
-            artist: item.snippet?.channelTitle || "Unknown Artist",
-            thumbnail:
-              item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.default?.url || "/placeholder.svg",
-            duration: item.contentDetails?.duration || "0:00",
-            views: item.statistics?.viewCount
-              ? `${Math.floor(Number.parseInt(item.statistics.viewCount) / 1000)}K views`
-              : "Unknown views",
-            publishedAt: item.snippet?.publishedAt
-              ? new Date(item.snippet.publishedAt).toLocaleDateString()
-              : "Unknown date",
-            url: `https://www.youtube.com/watch?v=${item.id?.videoId || item.id}`,
-            isVideo: true,
-          })) || []
-        setVideos(videoItems)
+        console.log("[v0] Eporner API response:", data)
+        setVideos(data.videos || [])
+      } else {
+        console.error("[v0] Eporner API error:", response.status)
+        setVideos([])
       }
     } catch (error) {
-      console.error("Error fetching videos:", error)
+      console.error("[v0] Error fetching Eporner videos:", error)
+      setVideos([])
     } finally {
       setLoading(false)
     }
   }
 
-  const handlePlayVideo = (video: VideoItem) => {
-    // Enable video mode and play the track
+  const handleSearch = () => {
+    setCurrentPage(1)
+    setSelectedCategory("latest") // Switch to search mode
+    fetchVideos(searchQuery)
+  }
+
+  const handlePlayVideo = (video: EpornerVideo) => {
+    console.log("[v0] Playing Eporner video:", video.title)
+
     setVideoMode(true)
     playTrack({
       id: video.id,
       title: video.title,
-      artist: video.artist,
-      thumbnail: video.thumbnail,
-      duration: video.duration,
+      artist: "Eporner",
+      thumbnail: video.thumb || video.default_thumb.src,
+      duration: `${video.length_min}:00`,
       url: video.url,
+      videoUrl: video.embed || video.url,
       isVideo: true,
     })
   }
 
-  const filteredVideos = videos.filter((video) => {
-    const matchesSearch =
-      video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      video.artist.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory =
-      selectedCategory === "all" ||
-      (selectedCategory === "music" && video.title.toLowerCase().includes("music")) ||
-      (selectedCategory === "live" && video.title.toLowerCase().includes("live")) ||
-      (selectedCategory === "trending" && true) // For now, all videos are considered trending
-    return matchesSearch && matchesCategory
-  })
+  const formatViews = (views: number) => {
+    if (views >= 1000000) {
+      return `${(views / 1000000).toFixed(1)}M views`
+    } else if (views >= 1000) {
+      return `${(views / 1000).toFixed(1)}K views`
+    }
+    return `${views} views`
+  }
+
+  const formatDuration = (lengthMin: string, lengthSec?: number) => {
+    if (lengthSec) {
+      const minutes = Math.floor(lengthSec / 60)
+      const seconds = lengthSec % 60
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`
+    }
+    return `${lengthMin}:00`
+  }
 
   if (loading) {
     return (
@@ -117,8 +141,8 @@ export default function VideosPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">Music Videos</h1>
-          <p className="text-white/70">Discover and watch the latest music videos</p>
+          <h1 className="text-4xl font-bold text-white mb-2">Videos</h1>
+          <p className="text-white/70">Discover and watch the latest videos</p>
         </div>
 
         {/* Search and Filters */}
@@ -130,12 +154,13 @@ export default function VideosPage() {
                 placeholder="Search videos..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleSearch()}
                 className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/50"
               />
             </div>
-            <Button variant="outline" className="border-white/20 text-white hover:bg-white/10 bg-transparent">
-              <Filter className="w-4 h-4 mr-2" />
-              Filters
+            <Button onClick={handleSearch} className="bg-purple-600 hover:bg-purple-700 text-white">
+              <Search className="w-4 h-4 mr-2" />
+              Search
             </Button>
           </div>
 
@@ -150,7 +175,11 @@ export default function VideosPage() {
                     ? "bg-purple-600 text-white"
                     : "border-white/20 text-white/70 hover:bg-white/10"
                 }`}
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => {
+                  setSelectedCategory(category.id)
+                  setCurrentPage(1)
+                  setSearchQuery("")
+                }}
               >
                 {category.label}
               </Badge>
@@ -160,7 +189,7 @@ export default function VideosPage() {
 
         {/* Videos Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredVideos.map((video) => (
+          {videos.map((video) => (
             <div
               key={video.id}
               className="group bg-white/5 backdrop-blur-sm rounded-xl overflow-hidden hover:bg-white/10 transition-all duration-300 cursor-pointer"
@@ -169,11 +198,11 @@ export default function VideosPage() {
               {/* Thumbnail */}
               <div className="relative aspect-video overflow-hidden">
                 <img
-                  src={video.thumbnail || "/placeholder.svg"}
+                  src={video.thumb || video.default_thumb.src}
                   alt={video.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   onError={(e) => {
-                    e.currentTarget.src = "/music-video-thumbnail.png"
+                    e.currentTarget.src = "/video-thumbnail.png"
                   }}
                 />
                 <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-300" />
@@ -183,8 +212,9 @@ export default function VideosPage() {
                   </div>
                 </div>
                 <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                  {video.duration}
+                  {formatDuration(video.length_min, video.length_sec)}
                 </div>
+                <div className="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded">HD</div>
               </div>
 
               {/* Content */}
@@ -192,30 +222,56 @@ export default function VideosPage() {
                 <h3 className="text-white font-semibold line-clamp-2 mb-2 group-hover:text-purple-300 transition-colors">
                   {video.title}
                 </h3>
-                <p className="text-white/70 text-sm mb-3 truncate">{video.artist}</p>
 
-                <div className="flex items-center justify-between text-xs text-white/50">
+                <div className="flex items-center justify-between text-xs text-white/50 mb-2">
                   <div className="flex items-center gap-1">
                     <Eye className="w-3 h-3" />
-                    <span>{video.views}</span>
+                    <span>{formatViews(video.views)}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>{video.publishedAt}</span>
+                    <span>⭐ {video.rate.toFixed(1)}</span>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-1 text-xs text-white/50">
+                  <Calendar className="w-3 h-3" />
+                  <span>{new Date(video.added).toLocaleDateString()}</span>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
+        {/* Pagination */}
+        {videos.length > 0 && (
+          <div className="flex justify-center mt-8 gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              Previous
+            </Button>
+            <span className="flex items-center px-4 text-white">Page {currentPage}</span>
+            <Button
+              variant="outline"
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={videos.length < 20}
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              Next
+            </Button>
+          </div>
+        )}
+
         {/* Empty State */}
-        {filteredVideos.length === 0 && !loading && (
+        {videos.length === 0 && !loading && (
           <div className="text-center py-12">
             <div className="text-white/50 mb-4">
               <Play className="w-16 h-16 mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">No videos found</h3>
-              <p>Try adjusting your search or filters</p>
+              <p>Try adjusting your search or category</p>
             </div>
           </div>
         )}
