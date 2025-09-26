@@ -159,7 +159,7 @@ export function FullScreenPlayer({ isOpen, onClose }: FullScreenPlayerProps) {
   return (
     <div
       ref={containerRef}
-      className={`fixed inset-0 z-50 overflow-hidden ${
+      className={`fixed inset-0 z-[70] overflow-hidden ${
         isDragging ? "" : "transition-all duration-500 ease-out"
       } ${isTransitioning ? "transition-all duration-500" : ""}`}
       style={{

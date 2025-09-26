@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useReducer, useRef, useEffect, useCallback } from "react"
+import { createContext, useReducer, useRef, useEffect, useCallback, useContext } from "react"
 import { useListeningHistory } from "./listening-history-context"
-import { PermissionsManager } from "@/lib/permissions"
 
 export interface Track {
   id: string
@@ -74,7 +73,7 @@ const initialState: AudioPlayerState = {
   isPlaying: false,
   currentTime: 0,
   duration: 0,
-  volume: 1,
+  volume: typeof window !== "undefined" ? Number.parseFloat(localStorage.getItem("vibetuneVolume") || "1") : 1,
   queue: [],
   currentIndex: -1,
   isLoading: false,
@@ -279,7 +278,18 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const nativeAudioRef = useRef<HTMLAudioElement | null>(null)
   const playButtonRef = useRef<HTMLButtonElement | null>(null)
   const progressRef = useRef<HTMLInputElement | null>(null)
+  const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const { addToHistory } = useListeningHistory()
+
+  const updatePositionState = useCallback(() => {
+    if ("mediaSession" in navigator && state.currentTrack) {
+      navigator.mediaSession.setPositionState({
+        duration: state.duration,
+        playbackRate: state.playbackRate,
+        position: state.currentTime,
+      })
+    }
+  }, [state.currentTrack, state.duration, state.playbackRate, state.currentTime])
 
   const detectMediaType = useCallback((url: string): "youtube" | "native" => {
     const youtubePatterns = [/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)/, /youtube\.com\/v\//]
@@ -405,66 +415,93 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     [state.repeatMode, state.currentIndex, state.queue],
   )
 
-  useEffect(() => {
-    if (typeof window === "undefined") return
+  const startTimeUpdates = useCallback(() => {
+    if (timeUpdateIntervalRef.current) return
 
-    // Create native media elements
-    createNativeMediaElements()
+    timeUpdateIntervalRef.current = setInterval(() => {
+      if (youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+        const currentTime = youtubePlayerRef.current.getCurrentTime() || 0
+        const duration = youtubePlayerRef.current.getDuration() || 0
 
-    // Load YouTube IFrame API if not already loaded
-    try {
-      if (!window.YT) {
-        const tag = document.createElement("script")
-        tag.src = "https://www.youtube.com/iframe_api"
-        tag.onerror = () => {
-          console.error("[v0] Failed to load YouTube IFrame API")
-          dispatch({ type: "SET_ERROR", payload: "Failed to load YouTube player" })
+        dispatch({ type: "SET_CURRENT_TIME", payload: currentTime })
+
+        if (duration > 0) {
+          dispatch({ type: "SET_DURATION", payload: duration })
         }
-        const firstScriptTag = document.getElementsByTagName("script")[0]
-        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
-
-        const existingCallback = window.onYouTubeIframeAPIReady
-        window.onYouTubeIframeAPIReady = () => {
-          try {
-            console.log("[v0] YouTube IFrame API loaded")
-            if (existingCallback && typeof existingCallback === "function") {
-              existingCallback()
-            }
-            initializeYouTubePlayer()
-          } catch (error) {
-            console.error("[v0] Error in YouTube API ready callback:", error)
-            dispatch({ type: "SET_ERROR", payload: "YouTube player initialization failed" })
-          }
-        }
-      } else if (window.YT.Player) {
-        initializeYouTubePlayer()
       }
-    } catch (error) {
-      console.error("[v0] Error setting up YouTube API:", error)
-      dispatch({ type: "SET_ERROR", payload: "YouTube player setup failed" })
+    }, 1000)
+  }, [])
+
+  const stopTimeUpdates = useCallback(() => {
+    if (timeUpdateIntervalRef.current) {
+      clearInterval(timeUpdateIntervalRef.current)
+      timeUpdateIntervalRef.current = null
+    }
+  }, [])
+
+  const extractYouTubeVideoId = useCallback((url: string): string | null => {
+    if (!url) return null
+
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /youtube\.com\/v\/([^&\n?#]+)/,
+      /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
+    ]
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern)
+      if (match && match[1]) {
+        console.log("[v0] Extracted YouTube video ID:", match[1], "from URL:", url)
+        return match[1]
+      }
     }
 
-    return () => {
+    console.log("[v0] Could not extract YouTube video ID from URL:", url)
+    return null
+  }, [])
+
+  const fetchYtDlpAudioStream = useCallback(
+    async (track: Track): Promise<string | null> => {
       try {
-        if (youtubePlayerRef.current) {
-          youtubePlayerRef.current.destroy()
-          youtubePlayerRef.current = null
-          youtubePlayerReadyRef.current = false
-          console.log("[v0] YouTube player cleaned up")
+        console.log("[v0] Fetching yt-dlp audio stream for:", track.title)
+
+        // Extract YouTube video ID from track URL
+        const videoId = extractYouTubeVideoId(track.url || track.videoUrl || "")
+        if (!videoId) {
+          console.log("[v0] No YouTube video ID found for yt-dlp stream fetch")
+          return null
         }
-        if (nativeVideoRef.current) {
-          nativeVideoRef.current.remove()
-          nativeVideoRef.current = null
+
+        const response = await fetch(`/api/youtube-music/audio/${videoId}`)
+        if (!response.ok) {
+          console.error("[v0] yt-dlp stream fetch failed:", response.status, response.statusText)
+          return null
         }
-        if (nativeAudioRef.current) {
-          nativeAudioRef.current.remove()
-          nativeAudioRef.current = null
+
+        let streamData
+        try {
+          streamData = await response.json()
+        } catch (parseError) {
+          console.error("[v0] Error parsing yt-dlp response JSON:", parseError)
+          return null
+        }
+
+        const audioUrl = streamData.audioUrl
+
+        if (audioUrl) {
+          console.log("[v0] Successfully fetched yt-dlp audio stream")
+          return audioUrl
+        } else {
+          console.log("[v0] No audio URL in response:", streamData)
+          return null
         }
       } catch (error) {
-        console.error("[v0] Error cleaning up media players:", error)
+        console.error("[v0] Error fetching yt-dlp audio stream:", error)
+        return null
       }
-    }
-  }, [createNativeMediaElements])
+    },
+    [extractYouTubeVideoId],
+  )
 
   const initializeYouTubePlayer = useCallback(() => {
     try {
@@ -575,7 +612,15 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
           break
       }
     },
-    [state.currentTrack, state.repeatMode, state.currentIndex, state.queue, addToHistory],
+    [
+      state.currentTrack,
+      state.repeatMode,
+      state.currentIndex,
+      state.queue,
+      addToHistory,
+      startTimeUpdates,
+      stopTimeUpdates,
+    ],
   )
 
   const onPlayerError = useCallback((event: any) => {
@@ -603,88 +648,66 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_NETWORK_STATE", payload: "error" })
   }, [])
 
-  const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  useEffect(() => {
+    if (typeof window === "undefined") return
 
-  const startTimeUpdates = useCallback(() => {
-    if (timeUpdateIntervalRef.current) return
+    // Create native media elements
+    createNativeMediaElements()
 
-    timeUpdateIntervalRef.current = setInterval(() => {
-      if (youtubePlayerRef.current && youtubePlayerReadyRef.current) {
-        const currentTime = youtubePlayerRef.current.getCurrentTime() || 0
-        const duration = youtubePlayerRef.current.getDuration() || 0
-
-        dispatch({ type: "SET_CURRENT_TIME", payload: currentTime })
-
-        if (duration > 0) {
-          dispatch({ type: "SET_DURATION", payload: duration })
+    // Load YouTube IFrame API if not already loaded
+    try {
+      if (!window.YT) {
+        const tag = document.createElement("script")
+        tag.src = "https://www.youtube.com/iframe_api"
+        tag.onerror = () => {
+          console.error("[v0] Failed to load YouTube IFrame API")
+          dispatch({ type: "SET_ERROR", payload: "Failed to load YouTube player" })
         }
+        const firstScriptTag = document.getElementsByTagName("script")[0]
+        firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+
+        const existingCallback = window.onYouTubeIframeAPIReady
+        window.onYouTubeIframeAPIReady = () => {
+          try {
+            console.log("[v0] YouTube IFrame API loaded")
+            if (existingCallback && typeof existingCallback === "function") {
+              existingCallback()
+            }
+            initializeYouTubePlayer()
+          } catch (error) {
+            console.error("[v0] Error in YouTube API ready callback:", error)
+            dispatch({ type: "SET_ERROR", payload: "YouTube player initialization failed" })
+          }
+        }
+      } else if (window.YT.Player) {
+        initializeYouTubePlayer()
       }
-    }, 1000)
-  }, [])
-
-  const stopTimeUpdates = useCallback(() => {
-    if (timeUpdateIntervalRef.current) {
-      clearInterval(timeUpdateIntervalRef.current)
-      timeUpdateIntervalRef.current = null
-    }
-  }, [])
-
-  const extractYouTubeVideoId = useCallback((url: string): string | null => {
-    if (!url) return null
-
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-      /youtube\.com\/v\/([^&\n?#]+)/,
-      /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
-    ]
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern)
-      if (match && match[1]) {
-        console.log("[v0] Extracted YouTube video ID:", match[1], "from URL:", url)
-        return match[1]
-      }
+    } catch (error) {
+      console.error("[v0] Error setting up YouTube API:", error)
+      dispatch({ type: "SET_ERROR", payload: "YouTube player setup failed" })
     }
 
-    console.log("[v0] Could not extract YouTube video ID from URL:", url)
-    return null
-  }, [])
-
-  const fetchYtDlpAudioStream = useCallback(
-    async (track: Track): Promise<string | null> => {
+    return () => {
       try {
-        console.log("[v0] Fetching yt-dlp audio stream for:", track.title)
-
-        // Extract YouTube video ID from track URL
-        const videoId = extractYouTubeVideoId(track.url || track.videoUrl || "")
-        if (!videoId) {
-          console.log("[v0] No YouTube video ID found for yt-dlp stream fetch")
-          return null
+        if (youtubePlayerRef.current) {
+          youtubePlayerRef.current.destroy()
+          youtubePlayerRef.current = null
+          youtubePlayerReadyRef.current = false
+          console.log("[v0] YouTube player cleaned up")
         }
-
-        // Fetch stream from yt-dlp API
-        const response = await fetch(`/api/ytdlp/audio/${videoId}`)
-        if (!response.ok) {
-          console.error("[v0] yt-dlp stream fetch failed:", response.status)
-          return null
+        if (nativeVideoRef.current) {
+          nativeVideoRef.current.remove()
+          nativeVideoRef.current = null
         }
-
-        const streamData = await response.json()
-        const audioUrl = streamData.audioUrl
-
-        if (audioUrl) {
-          console.log("[v0] Successfully fetched yt-dlp audio stream")
-          return audioUrl
+        if (nativeAudioRef.current) {
+          nativeAudioRef.current.remove()
+          nativeAudioRef.current = null
         }
-
-        return null
       } catch (error) {
-        console.error("[v0] Error fetching yt-dlp audio stream:", error)
-        return null
+        console.error("[v0] Error cleaning up media players:", error)
       }
-    },
-    [extractYouTubeVideoId],
-  )
+    }
+  }, [createNativeMediaElements, initializeYouTubePlayer])
 
   useEffect(() => {
     if (state.currentTrack) {
@@ -765,17 +788,6 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     fetchYtDlpAudioStream,
   ])
 
-  const setupAudioEventHandlers = useCallback(() => {
-    try {
-      if (!youtubePlayerRef.current || !youtubePlayerReadyRef.current) return
-
-      // YouTube player events are already handled through the events configuration in initializeYouTubePlayer
-      console.log("[v0] YouTube player event handlers already configured through player initialization")
-    } catch (error) {
-      console.error("[v0] Error setting up audio event handlers:", error)
-    }
-  }, [state.currentTrack, addToHistory])
-
   const seekTo = useCallback(
     (time: number) => {
       const clampedTime = Math.max(0, Math.min(time, state.duration))
@@ -793,7 +805,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       dispatch({ type: "SET_CURRENT_TIME", payload: clampedTime })
       updatePositionState()
     },
-    [state.duration, state.playerType, state.currentTrack],
+    [state.duration, state.playerType, state.currentTrack, updatePositionState],
   )
 
   const setVolume = useCallback(
@@ -831,7 +843,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       dispatch({ type: "SET_PLAYBACK_RATE", payload: clampedRate })
       updatePositionState()
     },
-    [state.playerType],
+    [state.playerType, updatePositionState],
   )
 
   const seekForward = useCallback(
@@ -850,295 +862,118 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     [state.currentTime, seekTo],
   )
 
-  const setupMediaSession = useCallback(() => {
-    if (!("mediaSession" in navigator) || !state.currentTrack) return
-
-    try {
-      const artwork = [
-        { src: state.currentTrack.thumbnail, sizes: "96x96", type: "image/jpeg" },
-        { src: state.currentTrack.thumbnail, sizes: "128x128", type: "image/jpeg" },
-        { src: state.currentTrack.thumbnail, sizes: "192x192", type: "image/jpeg" },
-        { src: state.currentTrack.thumbnail, sizes: "256x256", type: "image/jpeg" },
-        { src: state.currentTrack.thumbnail, sizes: "384x384", type: "image/jpeg" },
-        { src: state.currentTrack.thumbnail, sizes: "512x512", type: "image/jpeg" },
-        { src: state.currentTrack.thumbnail, sizes: "1024x1024", type: "image/jpeg" },
-      ]
-
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: state.currentTrack.title,
-        artist: state.currentTrack.artist,
-        album: "VibeTune",
-        artwork,
-      })
-
-      navigator.mediaSession.setActionHandler("play", () => {
-        console.log("[v0] Media Session: Play action triggered")
-        dispatch({ type: "PLAY" })
-      })
-
-      navigator.mediaSession.setActionHandler("pause", () => {
-        console.log("[v0] Media Session: Pause action triggered")
-        dispatch({ type: "PAUSE" })
-      })
-
-      navigator.mediaSession.setActionHandler("stop", () => {
-        console.log("[v0] Media Session: Stop action triggered")
-        dispatch({ type: "PAUSE" })
-        dispatch({ type: "SET_CURRENT_TIME", payload: 0 })
-      })
-
-      navigator.mediaSession.setActionHandler("previoustrack", () => {
-        console.log("[v0] Media Session: Previous track action triggered")
-        dispatch({ type: "PREVIOUS_TRACK" })
-      })
-
-      navigator.mediaSession.setActionHandler("nexttrack", () => {
-        console.log("[v0] Media Session: Next track action triggered")
-        dispatch({ type: "NEXT_TRACK" })
-      })
-
-      navigator.mediaSession.setActionHandler("seekto", (details) => {
-        if (details.seekTime !== undefined && details.seekTime >= 0) {
-          seekTo(details.seekTime)
-        }
-      })
-
-      navigator.mediaSession.setActionHandler("seekbackward", (details) => {
-        const seekOffset = details.seekOffset || 15
-        seekBackward(seekOffset)
-      })
-
-      navigator.mediaSession.setActionHandler("seekforward", (details) => {
-        const seekOffset = details.seekOffset || 15
-        seekForward(seekOffset)
-      })
-
-      navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused"
-
-      console.log("[v0] Enhanced Media Session setup completed")
-    } catch (error) {
-      console.warn("[v0] Media Session setup failed:", error)
-    }
-  }, [state.currentTrack, state.isPlaying, seekTo, seekForward, seekBackward])
-
-  const updatePositionState = useCallback(() => {
-    if (!("mediaSession" in navigator) || !state.currentTrack || state.duration <= 0) return
-
-    try {
-      const position = Math.max(0, Math.min(state.currentTime, state.duration))
-
-      console.log("[v0] Updating Media Session position state:", {
-        duration: state.duration.toFixed(2),
-        currentTime: state.currentTime.toFixed(2),
-        position: position.toFixed(2),
-        isPlaying: state.isPlaying,
-      })
-
-      navigator.mediaSession.setPositionState({
-        duration: state.duration,
-        playbackRate: state.playbackRate,
-        position: position,
-      })
-
-      navigator.mediaSession.playbackState = state.isPlaying ? "playing" : "paused"
-
-      console.log("[v0] Media Session position state updated successfully")
-    } catch (error) {
-      console.warn("[v0] Media Session position update failed:", error)
-    }
-  }, [state.duration, state.currentTime, state.currentTrack, state.isPlaying, state.playbackRate])
-
-  const playTrack = useCallback(async (track: Track) => {
-    console.log("[v0] Playing track:", track.title, "Audio URL:", track.audioUrl, "Video URL:", track.videoUrl)
-
-    if (!track.isVideo && !track.videoUrl) {
-      console.log("[v0] Disabling video mode for audio track:", track.title)
-      dispatch({ type: "SET_VIDEO_MODE", payload: false })
-    }
-
+  const playTrack = useCallback((track: Track) => {
     dispatch({ type: "SET_TRACK", payload: track })
-    dispatch({ type: "SET_LOADING", payload: true })
-    dispatch({ type: "SET_ERROR", payload: null })
-
-    const hasYouTubeUrl = track.url && (track.url.includes("youtube.com") || track.url.includes("youtu.be"))
-
-    if (hasYouTubeUrl && !track.isVideo) {
-      console.log("[v0] YouTube music track detected, will use native player with yt-dlp audio")
-      dispatch({ type: "SET_PLAYER_TYPE", payload: "native" })
-    } else if (track.audioUrl || track.url) {
-      console.log("[v0] Using native audio player for track:", track.title)
-      dispatch({ type: "SET_PLAYER_TYPE", payload: "native" })
-    } else {
-      console.log("[v0] Track has no playable URL, will attempt yt-dlp stream fetch")
-      dispatch({ type: "SET_LOADING", payload: true })
-    }
   }, [])
 
-  const playQueue = (tracks: Track[], startIndex = 0) => {
-    const startingTrack = tracks[startIndex]
-    console.log(
-      "[v0] Playing queue starting with:",
-      startingTrack?.title,
-      "Audio URL:",
-      startingTrack?.audioUrl || "None",
-      "Video URL:",
-      startingTrack?.videoUrl || "None",
-    )
-
+  const playQueue = useCallback((tracks: Track[], startIndex?: number) => {
     dispatch({ type: "SET_QUEUE", payload: { tracks, startIndex } })
+  }, [])
 
-    const hasPlayableUrl = startingTrack && (startingTrack.audioUrl || startingTrack.videoUrl || startingTrack.url)
-    if (hasPlayableUrl) {
-      dispatch({ type: "PLAY" })
-    } else {
-      console.log("[v0] Starting track has no playable URL, showing info only")
-      dispatch({ type: "PAUSE" })
-    }
-
-    if (startingTrack && (startingTrack.isVideo || startingTrack.videoUrl)) {
-      console.log("[v0] Auto-enabling video mode for video queue:", startingTrack.title)
-      dispatch({ type: "SET_VIDEO_MODE", payload: true })
-    } else {
-      console.log("[v0] Disabling video mode for audio queue")
-      dispatch({ type: "SET_VIDEO_MODE", payload: false })
-    }
-  }
-
-  const togglePlay = () => {
-    const hasPlayableUrl =
-      state.currentTrack && (state.currentTrack.audioUrl || state.currentTrack.videoUrl || state.currentTrack.url)
-    if (!hasPlayableUrl && !state.isPlaying) {
-      console.log("[v0] Cannot play: no playable URL available")
-      dispatch({ type: "SET_ERROR", payload: "No playable URL available." })
-      return
-    }
-
-    dispatch({ type: "TOGGLE_PLAY" })
-  }
-
-  const nextTrack = () => {
-    dispatch({ type: "NEXT_TRACK" })
-  }
-
-  const previousTrack = () => {
-    dispatch({ type: "PREVIOUS_TRACK" })
-  }
-
-  const setCurrentTime = (time: number) => {
-    dispatch({ type: "SET_CURRENT_TIME", payload: time })
-  }
-
-  const setDuration = (duration: number) => {
-    dispatch({ type: "SET_DURATION", payload: duration })
-  }
-
-  const setBufferProgress = (progress: number) => {
-    dispatch({ type: "SET_BUFFER_PROGRESS", payload: progress })
-  }
-
-  const setCrossfade = (enabled: boolean, duration?: number) => {
-    dispatch({ type: "SET_CROSSFADE", payload: { enabled, duration } })
-  }
-
-  const setAudioQuality = (quality: "low" | "medium" | "high" | "auto") => {
-    dispatch({ type: "SET_AUDIO_QUALITY", payload: quality })
-  }
-
-  const setBuffering = (buffering: boolean) => {
-    dispatch({ type: "SET_BUFFERING", payload: buffering })
-  }
-
-  const setNetworkState = (networkState: "idle" | "loading" | "loaded" | "error") => {
-    dispatch({ type: "SET_NETWORK_STATE", payload: networkState })
-  }
-
-  const setRepeatMode = (mode: "none" | "one" | "all") => {
-    dispatch({ type: "SET_REPEAT_MODE", payload: mode })
-  }
-
-  const toggleShuffle = () => {
-    dispatch({ type: "TOGGLE_SHUFFLE" })
-  }
-
-  const setGaplessPlayback = (enabled: boolean) => {
-    dispatch({ type: "SET_GAPLESS_PLAYBACK", payload: enabled })
-  }
-
-  const setVideoMode = (enabled: boolean) => {
-    dispatch({ type: "SET_VIDEO_MODE", payload: enabled })
-  }
-
-  useEffect(() => {
-    if (state.currentTrack) {
-      const shouldBeVideoMode = !!(state.currentTrack.isVideo || state.currentTrack.videoUrl)
-      if (shouldBeVideoMode !== state.isVideoMode) {
-        console.log("[v0] Auto-switching video mode to:", shouldBeVideoMode, "for track:", state.currentTrack.title)
-        setVideoMode(shouldBeVideoMode)
+  const togglePlay = useCallback(() => {
+    if (state.isPlaying) {
+      // Pause
+      if (state.playerType === "youtube" && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+        youtubePlayerRef.current.pauseVideo()
+      } else if (state.playerType === "native") {
+        const isVideo = state.currentTrack?.isVideo || !!state.currentTrack?.videoUrl
+        const element = isVideo ? nativeVideoRef.current : nativeAudioRef.current
+        if (element) {
+          element.pause()
+        }
       }
-    }
-  }, [state.currentTrack, state.isVideoMode])
-
-  useEffect(() => {
-    setupAudioEventHandlers()
-  }, [setupAudioEventHandlers])
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedVolume = localStorage.getItem("vibetuneVolume")
-      if (savedVolume) {
-        const volume = Number.parseFloat(savedVolume)
-        if (!isNaN(volume)) {
-          setVolume(volume)
+    } else {
+      // Play
+      if (state.playerType === "youtube" && youtubePlayerRef.current && youtubePlayerReadyRef.current) {
+        youtubePlayerRef.current.playVideo()
+      } else if (state.playerType === "native") {
+        const isVideo = state.currentTrack?.isVideo || !!state.currentTrack?.videoUrl
+        const element = isVideo ? nativeVideoRef.current : nativeAudioRef.current
+        if (element) {
+          element.play()
         }
       }
     }
-  }, [setVolume])
+  }, [state.isPlaying, state.playerType, state.currentTrack])
 
-  useEffect(() => {
-    return () => {
-      stopTimeUpdates()
-      if (historyTimeoutRef.current) {
-        clearTimeout(historyTimeoutRef.current)
-      }
-      if (crossfadeTimeoutRef.current) {
-        clearTimeout(crossfadeTimeoutRef.current)
-      }
-      if (wakeLockRef.current) {
-        PermissionsManager.releaseWakeLock()
-      }
-    }
-  }, [stopTimeUpdates])
+  const nextTrack = useCallback(() => {
+    dispatch({ type: "NEXT_TRACK" })
+  }, [])
 
-  return (
-    <AudioPlayerContext.Provider
-      value={{
-        state,
-        playTrack,
-        playQueue,
-        togglePlay,
-        nextTrack,
-        previousTrack,
-        seekTo,
-        setVolume,
-        setVideoMode,
-        setCurrentTime,
-        setDuration,
-        setBufferProgress,
-        setPlaybackRate,
-        setCrossfade,
-        setAudioQuality,
-        setBuffering,
-        setNetworkState,
-        setRepeatMode,
-        toggleShuffle,
-        setGaplessPlayback,
-        seekForward,
-        seekBackward,
-      }}
-    >
-      {children}
-    </AudioPlayerContext.Provider>
-  )
+  const previousTrack = useCallback(() => {
+    dispatch({ type: "PREVIOUS_TRACK" })
+  }, [])
+
+  const setVideoMode = useCallback((enabled: boolean) => {
+    dispatch({ type: "SET_VIDEO_MODE", payload: enabled })
+  }, [])
+
+  const setCurrentTime = useCallback((time: number) => {
+    dispatch({ type: "SET_CURRENT_TIME", payload: time })
+  }, [])
+
+  const setDuration = useCallback((duration: number) => {
+    dispatch({ type: "SET_DURATION", payload: duration })
+  }, [])
+
+  const setBufferProgress = useCallback((progress: number) => {
+    dispatch({ type: "SET_BUFFER_PROGRESS", payload: progress })
+  }, [])
+
+  const setCrossfade = useCallback((enabled: boolean, duration?: number) => {
+    dispatch({ type: "SET_CROSSFADE", payload: { enabled, duration } })
+  }, [])
+
+  const setAudioQuality = useCallback((quality: "low" | "medium" | "high" | "auto") => {
+    dispatch({ type: "SET_AUDIO_QUALITY", payload: quality })
+  }, [])
+
+  const setBuffering = useCallback((buffering: boolean) => {
+    dispatch({ type: "SET_BUFFERING", payload: buffering })
+  }, [])
+
+  const setNetworkState = useCallback((networkState: "idle" | "loading" | "loaded" | "error") => {
+    dispatch({ type: "SET_NETWORK_STATE", payload: networkState })
+  }, [])
+
+  const setRepeatMode = useCallback((mode: "none" | "one" | "all") => {
+    dispatch({ type: "SET_REPEAT_MODE", payload: mode })
+  }, [])
+
+  const toggleShuffle = useCallback(() => {
+    dispatch({ type: "TOGGLE_SHUFFLE" })
+  }, [])
+
+  const setGaplessPlayback = useCallback((enabled: boolean) => {
+    dispatch({ type: "SET_GAPLESS_PLAYBACK", payload: enabled })
+  }, [])
+
+  const contextValue: AudioPlayerContextType = {
+    state,
+    playTrack,
+    playQueue,
+    togglePlay,
+    nextTrack,
+    previousTrack,
+    seekTo,
+    setVolume,
+    setVideoMode,
+    setCurrentTime,
+    setDuration,
+    setBufferProgress,
+    setPlaybackRate,
+    setCrossfade,
+    setAudioQuality,
+    setBuffering,
+    setNetworkState,
+    setRepeatMode,
+    toggleShuffle,
+    setGaplessPlayback,
+    seekForward,
+    seekBackward,
+  }
+
+  return <AudioPlayerContext.Provider value={contextValue}>{children}</AudioPlayerContext.Provider>
 }
 
 export function useAudioPlayer() {
