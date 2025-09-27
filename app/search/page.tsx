@@ -3,7 +3,7 @@
 import type React from "react"
 import { useEffect } from "react"
 import { useState, useMemo } from "react"
-import { Search, ArrowLeft, MoreVertical, User, Music, Sparkles, CheckCircle } from "lucide-react"
+import { Search, ArrowLeft, MoveVertical as MoreVertical, User, Music, Sparkles, CircleCheck as CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useRouter } from "next/navigation"
