@@ -101,10 +101,10 @@ export default function AccountSettingsPage() {
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">
               <Music className="w-5 h-5" />
-              SimpMusic Integration Status
+              YouTube Status
             </CardTitle>
             <CardDescription className="text-gray-400">
-              Your app is using SimpMusic's approach for reliable music streaming
+              Your app is using YT music streaming
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
