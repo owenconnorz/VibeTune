@@ -179,8 +179,7 @@ export default function SearchPage() {
   const handleItemClick = (item: SearchResult) => {
     switch (item.type) {
       case "song":
-        const artistName = item.artist || item.channelTitle || "Unknown Artist"
-        router.push(`/artist/${encodeURIComponent(artistName)}`)
+        handlePlaySong(item, [item])
         break
       case "artist":
         router.push(`/artist/${encodeURIComponent(item.title || item.name || "")}`)

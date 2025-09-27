@@ -108,6 +108,33 @@ async function searchMusic(query: string, maxResults = 10, language = "en"): Pro
   }
 }
 
+export async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
+  try {
+    console.log("[v0] Searching music with enhanced YouTube Music API for:", query)
+
+    // Use the enhanced search API
+    const response = await fetch(`/api/youtube-music/search?query=${encodeURIComponent(query)}&type=songs&useAuth=true&limit=${maxResults}`)
+    if (!response.ok) {
+      throw new Error(`Enhanced search failed: ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log("[v0] Enhanced YouTube Music API search results:", data.tracks?.length || 0, "songs")
+
+    return (data.tracks || []).map((track: any) => ({
+      id: track.id,
+      title: track.title,
+      artist: track.channelTitle || track.artist,
+      thumbnail: track.thumbnail || generateAlbumArtwork(track.channelTitle || track.artist, track.title),
+      duration: track.duration || "0:00",
+      type: "song" as const,
+    }))
+  } catch (error) {
+    console.error("[v0] Enhanced YouTube Music API search error:", error)
+    return []
+  }
+}
+
 async function fetchBrowseData(section: string): Promise<Song[]> {
   console.log(`[v0] Fetching ${section} from YouTube Music Browse API`)
 

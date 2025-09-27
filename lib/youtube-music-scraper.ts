@@ -124,6 +124,50 @@ class YouTubeMusicScraper {
     }
   }
 
+  private parseTrackFromRenderer(renderer: any): YouTubeMusicTrack | null {
+    try {
+      const musicResponsiveListItemRenderer = renderer.musicResponsiveListItemRenderer
+      if (!musicResponsiveListItemRenderer) return null
+
+      // Extract video ID
+      const navigationEndpoint =
+        musicResponsiveListItemRenderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer
+          ?.playNavigationEndpoint
+      const videoId = navigationEndpoint?.watchEndpoint?.videoId
+      if (!videoId) return null
+
+      // Extract title
+      const titleRuns =
+        musicResponsiveListItemRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
+      const title = titleRuns?.[0]?.text || "Unknown Title"
+
+      // Extract artist
+      const artistRuns =
+        musicResponsiveListItemRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
+      const artist =
+        artistRuns?.find((run: any) => run.navigationEndpoint?.browseEndpoint)?.text ||
+        artistRuns?.[0]?.text ||
+        "Unknown Artist"
+
+      // Extract thumbnail
+      const thumbnails = musicResponsiveListItemRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails
+      const thumbnail = thumbnails?.[thumbnails.length - 1]?.url || ""
+
+      return {
+        id: videoId,
+        title: title.replace(/&/g, "&").replace(/"/g, '"'),
+        artist: artist.replace(/&/g, "&").replace(/"/g, '"'),
+        duration: 0,
+        thumbnail: thumbnail.startsWith("//") ? `https:${thumbnail}` : thumbnail,
+        videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+        source: "youtube-music" as const,
+      }
+    } catch (error) {
+      console.warn("[v0] Failed to parse track from renderer:", error)
+      return null
+    }
+  }
+
   private getRequestHeaders(accessToken?: string) {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -249,50 +293,6 @@ class YouTubeMusicScraper {
         hasNextPage: false,
         error: error instanceof Error ? error.message : "Search failed",
       }
-    }
-  }
-
-  private parseTrackFromRenderer(renderer: any): YouTubeMusicTrack | null {
-    try {
-      const musicResponsiveListItemRenderer = renderer.musicResponsiveListItemRenderer
-      if (!musicResponsiveListItemRenderer) return null
-
-      // Extract video ID
-      const navigationEndpoint =
-        musicResponsiveListItemRenderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer
-          ?.playNavigationEndpoint
-      const videoId = navigationEndpoint?.watchEndpoint?.videoId
-      if (!videoId) return null
-
-      // Extract title
-      const titleRuns =
-        musicResponsiveListItemRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
-      const title = titleRuns?.[0]?.text || "Unknown Title"
-
-      // Extract artist
-      const artistRuns =
-        musicResponsiveListItemRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs
-      const artist =
-        artistRuns?.find((run: any) => run.navigationEndpoint?.browseEndpoint)?.text ||
-        artistRuns?.[0]?.text ||
-        "Unknown Artist"
-
-      // Extract thumbnail
-      const thumbnails = musicResponsiveListItemRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails
-      const thumbnail = thumbnails?.[thumbnails.length - 1]?.url || ""
-
-      return {
-        id: videoId,
-        title: title.replace(/&amp;/g, "&").replace(/&quot;/g, '"'),
-        artist: artist.replace(/&amp;/g, "&").replace(/&quot;/g, '"'),
-        duration: 0,
-        thumbnail: thumbnail.startsWith("//") ? `https:${thumbnail}` : thumbnail,
-        videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
-        source: "youtube-music" as const,
-      }
-    } catch (error) {
-      console.warn("[v0] Failed to parse track from renderer:", error)
-      return null
     }
   }
 

@@ -33,6 +33,17 @@ interface SettingsContextType {
   setShowAgeVerification: (show: boolean) => void
   languageSettings: LanguageSettings
   setLanguageSettings: (settings: LanguageSettings) => void
+  youtubeSettings?: {
+    highQualityAudio: boolean
+    preferOpus: boolean
+    adaptiveAudio: boolean
+    showVideos: boolean
+    preferVideos: boolean
+  }
+  setYoutubeSettings?: (settings: any) => void
+  settings?: {
+    showAdultContent: boolean
+  }
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined)
@@ -49,6 +60,14 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     appLanguage: "en",
     searchLanguage: "en",
     region: "US",
+  })
+
+  const [youtubeSettings, setYoutubeSettingsState] = useState({
+    highQualityAudio: false,
+    preferOpus: false,
+    adaptiveAudio: true,
+    showVideos: true,
+    preferVideos: false,
   })
 
   const setCookie = (name: string, value: string, days = 365) => {
@@ -127,6 +146,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("vibetuneLanguageSettings", JSON.stringify(settings))
   }
 
+  const setYoutubeSettings = (settings: any) => {
+    setYoutubeSettingsState(settings)
+    localStorage.setItem("vibetuneYoutubeSettings", JSON.stringify(settings))
+  }
+
   const loginToDiscord = () => {
     const clientId = "1234567890123456789" // Replace with your Discord app client ID
     const redirectUri = encodeURIComponent(window.location.origin + "/auth/discord/callback")
@@ -180,6 +204,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         setShowAgeVerification,
         languageSettings,
         setLanguageSettings,
+        youtubeSettings,
+        setYoutubeSettings,
+        settings: {
+          showAdultContent: adultContentEnabled,
+        },
       }}
     >
       {children}

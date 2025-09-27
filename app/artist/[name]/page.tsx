@@ -15,20 +15,19 @@ interface Song {
 }
 
 interface ArtistPageProps {
-  params: Promise<{
+  params: {
     name: string
-  }>
+  }
 }
 
-export default async function ArtistPage({ params }: ArtistPageProps) {
-  const resolvedParams = await params
+export default function ArtistPage({ params }: ArtistPageProps) {
   const router = useRouter()
   const { playQueue } = useAudioPlayer()
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const artistName = decodeURIComponent(resolvedParams.name)
+  const artistName = decodeURIComponent(params.name)
 
   const loadSongs = useCallback(async () => {
     if (loading) return
