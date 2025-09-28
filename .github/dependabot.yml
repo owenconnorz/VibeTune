@@ -1,6 +1,7 @@
 version: 2
+
 updates:
-  # Enable version updates for npm
+  # NPM dependencies
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -19,7 +20,7 @@ updates:
     labels:
       - "dependencies"
       - "automated"
-    # Group minor and patch updates together
+    # Group minor and patch updates
     groups:
       minor-and-patch:
         patterns:
@@ -27,16 +28,17 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    # Separate major updates
+    # Ignore all major updates by default
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-    # Allow specific major updates for critical packages
+    # Allow major updates for direct dependencies only (critical packages)
     allow:
-      - dependency-type: "direct"
-      - dependency-type: "indirect"
+      - dependency-name: "*"
+        dependency-type: "direct"
+        update-types: ["version-update:semver-major"]
 
-  # Monitor GitHub Actions
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -46,3 +48,7 @@ updates:
     labels:
       - "github-actions"
       - "dependencies"
+    # Optional: ignore major updates for GitHub Actions unless critical
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
