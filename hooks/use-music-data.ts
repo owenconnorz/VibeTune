@@ -1,389 +1,319 @@
-"use client"
+import { spawn } from "child_process"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
-import { useSettings } from "@/contexts/settings-context"
-
-export interface Song {
+export interface YtDlpSong {
   id: string
   title: string
   artist: string
   thumbnail: string
   duration: string
-  url?: string
-  audioUrl?: string
-  pluginId?: string
+  url: string
+  audioUrl: string
+  formats?: YtDlpFormat[]
 }
 
-function getLocalizedQueries(baseQueries: string[], language: string): string[] {
-  const languageTerms: Record<string, string[]> = {
-    es: ["música", "canciones", "éxitos", "nuevo", "tendencia"],
-    fr: ["musique", "chansons", "hits", "nouveau", "tendance"],
-    de: ["musik", "lieder", "hits", "neu", "trend"],
-    it: ["musica", "canzoni", "hits", "nuovo", "tendenza"],
-    pt: ["música", "canções", "hits", "novo", "tendência"],
-    ru: ["музыка", "песни", "хиты", "новый", "тренд"],
-    ja: ["音楽", "歌", "ヒット", "新しい", "トレンド"],
-    ko: ["음악", "노래", "히트", "새로운", "트렌드"],
-    zh: ["音乐", "歌曲", "热门", "新", "趋势"],
-    hi: ["संगीत", "गाने", "हिट", "नया", "ट्रेंड"],
-    ar: ["موسيقى", "أغاني", "هيتس", "جديد", "ترند"],
-  }
-
-  if (language === "en" || !languageTerms[language]) {
-    return baseQueries
-  }
-
-  const terms = languageTerms[language]
-  return [
-    ...baseQueries.map((query) => `${query} ${terms[0]}`), // Add language-specific music term
-    ...baseQueries.map((query) => query.replace("music", terms[0]).replace("songs", terms[1])),
-    `${terms[2]} ${terms[0]} 2024`, // "hits music 2024" in target language
-    `${terms[3]} ${terms[1]}`, // "new songs" in target language
-  ]
+export interface YtDlpFormat {
+  format_id: string
+  url: string
+  ext: string
+  acodec: string
+  abr?: number
+  filesize?: number
 }
 
-async function fetchTrendingMusic(maxResults = 20): Promise<Song[]> {
-  console.log("[v0] Fetching trending music from YouTube Music API")
-
-  try {
-    const response = await fetch(`/api/youtube-music/trending?limit=${maxResults}`)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    console.log("[v0] YouTube Music API trending response:", data.tracks?.length || 0, "songs")
-
-    if (data.success && data.tracks && data.tracks.length > 0) {
-      return data.tracks.map((track: any) => ({
-        id: track.id,
-        title: track.title,
-        artist: track.artist,
-        thumbnail: track.thumbnail,
-        duration: track.duration?.toString() || "0:00",
-        url: track.videoUrl || `https://www.youtube.com/watch?v=${track.id}`,
-        audioUrl: track.audioUrl,
-      }))
-    }
-
-    throw new Error(data.error || "No trending songs available")
-  } catch (error) {
-    console.error("[v0] YouTube Music API trending failed:", error)
-    throw error
-  }
+export interface YtDlpVideoInfo {
+  id: string
+  title: string
+  uploader: string
+  thumbnail: string
+  duration: number
+  webpage_url: string
+  formats: YtDlpFormat[]
 }
 
-async function searchMusic(query: string, maxResults = 10, language = "en"): Promise<Song[]> {
-  console.log(`[v0] Searching YouTube Music API for: "${query}" (language: ${language})`)
+class YtDlpExtractor {
+  private readonly YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || "AIzaSyBIQVGnXO2T7smsxf6q_MWxMD1sQzek1Nc"
+  private readonly YOUTUBE_BASE_URL = "https://www.googleapis.com/youtube/v3"
 
-  try {
-    const searchQuery = language !== "en" ? `${query} ${language}` : query
+  async getTrending(maxResults = 25): Promise<YtDlpSong[]> {
+    console.log("[v0] YtDlp: Fetching trending music from YouTube API")
 
-    const response = await fetch(
-      `/api/youtube-music/search?query=${encodeURIComponent(searchQuery)}&limit=${maxResults}`,
-    )
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    console.log(`[v0] YouTube Music API search response (${language}):`, data.tracks?.length || 0, "songs")
-
-    if (data.success && data.tracks && data.tracks.length > 0) {
-      return data.tracks.map((track: any) => ({
-        id: track.id,
-        title: track.title,
-        artist: track.artist,
-        thumbnail: track.thumbnail,
-        duration: track.duration?.toString() || "0:00",
-        url: track.videoUrl || `https://www.youtube.com/watch?v=${track.id}`,
-        audioUrl: track.audioUrl,
-      }))
-    }
-
-    return []
-  } catch (error) {
-    console.error(`[v0] YouTube Music API search failed (${language}):`, error)
-    return []
-  }
-}
-
-export async function searchMusic(query: string, maxResults = 10): Promise<Song[]> {
-  try {
-    console.log("[v0] Searching music with enhanced YouTube Music API for:", query)
-
-    // Use the enhanced search API
-    const response = await fetch(`/api/youtube-music/search?query=${encodeURIComponent(query)}&type=songs&useAuth=true&limit=${maxResults}`)
-    if (!response.ok) {
-      throw new Error(`Enhanced search failed: ${response.status}`)
-    }
-
-    const data = await response.json()
-    console.log("[v0] Enhanced YouTube Music API search results:", data.tracks?.length || 0, "songs")
-
-    return (data.tracks || []).map((track: any) => ({
-      id: track.id,
-      title: track.title,
-      artist: track.channelTitle || track.artist,
-      thumbnail: track.thumbnail || generateAlbumArtwork(track.channelTitle || track.artist, track.title),
-      duration: track.duration || "0:00",
-      type: "song" as const,
-    }))
-  } catch (error) {
-    console.error("[v0] Enhanced YouTube Music API search error:", error)
-    return []
-  }
-}
-
-async function fetchBrowseData(section: string): Promise<Song[]> {
-  console.log(`[v0] Fetching ${section} from YouTube Music Browse API`)
-
-  try {
-    const response = await fetch(`/api/youtube-music/browse?section=${section}`)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const data = await response.json()
-    console.log(
-      `[v0] YouTube Music Browse API ${section} response:`,
-      data.tracks?.length || data.sections?.length || 0,
-      "items",
-    )
-
-    if (data.success) {
-      // Handle home feed sections
-      if (data.sections) {
-        const allTracks: Song[] = []
-        for (const section of data.sections) {
-          if (section.contents) {
-            allTracks.push(
-              ...section.contents.map((track: any) => ({
-                id: track.id,
-                title: track.title,
-                artist: track.artist,
-                thumbnail: track.thumbnail,
-                duration: track.duration?.toString() || "0:00",
-                url: track.videoUrl || `https://www.youtube.com/watch?v=${track.id}`,
-                audioUrl: track.audioUrl,
-              })),
-            )
-          }
-        }
-        return allTracks.slice(0, 25) // Limit to 25 tracks
-      }
-
-      // Handle direct track arrays
-      if (data.tracks && data.tracks.length > 0) {
-        return data.tracks.map((track: any) => ({
-          id: track.id,
-          title: track.title,
-          artist: track.artist,
-          thumbnail: track.thumbnail,
-          duration: track.duration?.toString() || "0:00",
-          url: track.videoUrl || `https://www.youtube.com/watch?v=${track.id}`,
-          audioUrl: track.audioUrl,
-        }))
-      }
-    }
-
-    throw new Error(data.error || `No ${section} data available`)
-  } catch (error) {
-    console.error(`[v0] YouTube Music Browse API ${section} failed:`, error)
-    // Fallback to original methods
-    if (section === "quick-picks") {
-      return await fetchTrendingMusic(8)
-    }
-    throw error
-  }
-}
-
-export function useTrendingMusic() {
-  const [songs, setSongs] = useState<Song[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const loadTrendingMusic = useCallback(async (forceRefresh = false) => {
     try {
-      setLoading(true)
-      setError(null)
+      // Get trending music videos from YouTube API
+      const response = await fetch(
+        `${this.YOUTUBE_BASE_URL}/videos?` +
+          `part=snippet,contentDetails&` +
+          `chart=mostPopular&` +
+          `videoCategoryId=10&` + // Music category
+          `regionCode=US&` +
+          `maxResults=${maxResults}&` +
+          `key=${this.YOUTUBE_API_KEY}`,
+      )
 
-      console.log("[v0] Loading trending music from YouTube Music Browse API")
-
-      // Try browse API first, fallback to original method
-      let trendingSongs: Song[]
-      try {
-        trendingSongs = await fetchBrowseData("quick-picks")
-      } catch (browseError) {
-        console.warn("[v0] Browse API failed, falling back to original method:", browseError)
-        trendingSongs = await fetchTrendingMusic(25)
+      if (!response.ok) {
+        throw new Error(`YouTube API error: ${response.status}`)
       }
 
-      console.log("[v0] Got trending music:", trendingSongs.length, "songs")
-      setSongs(trendingSongs)
-    } catch (err: any) {
-      console.error("[v0] Trending music failed:", err)
-      setError(err.message || "Failed to load trending music")
-      setSongs([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      const data = await response.json()
+      console.log("[v0] YtDlp: Got", data.items?.length || 0, "trending videos from YouTube")
 
-  useEffect(() => {
-    loadTrendingMusic(false)
-  }, [loadTrendingMusic])
-
-  return { songs, loading, error, refetch: () => loadTrendingMusic(true) }
-}
-
-export function useSearchMusic(query: string, enabled = false) {
-  const [songs, setSongs] = useState<Song[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!enabled || !query.trim()) {
-      setSongs([])
-      return
-    }
-
-    async function performSearch() {
-      try {
-        setLoading(true)
-        setError(null)
-
-        console.log(`[v0] Searching YouTube Music API for: "${query}"`)
-        const results = await searchMusic(query, 15)
-
-        setSongs(results)
-      } catch (err: any) {
-        console.error(`[v0] YouTube Music API search failed for "${query}":`, err)
-        setError(err.message || "Search failed")
-        setSongs([])
-      } finally {
-        setLoading(false)
+      if (!data.items || data.items.length === 0) {
+        throw new Error("No trending videos from YouTube API")
       }
-    }
 
-    const debounceTimer = setTimeout(performSearch, 300)
-    return () => clearTimeout(debounceTimer)
-  }, [query, enabled])
-
-  return { songs, loading, error }
-}
-
-export function useNewReleases() {
-  const [songs, setSongs] = useState<Song[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const { languageSettings } = useSettings()
-
-  const loadNewReleases = useCallback(
-    async (forceRefresh = false) => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        console.log(
-          `[v0] Fetching new releases from YouTube Music Browse API (language: ${languageSettings.searchLanguage})`,
-        )
-
-        // Try browse API first
-        let newReleasesSongs: Song[]
+      // Extract audio URLs using yt-dlp for each video
+      const songs: YtDlpSong[] = []
+      for (const item of data.items.slice(0, Math.min(maxResults, 10))) {
+        // Limit to prevent timeout
         try {
-          newReleasesSongs = await fetchBrowseData("new-releases")
-        } catch (browseError) {
-          console.warn("[v0] Browse API failed, falling back to search method:", browseError)
-          const baseQueries = [
-            "new songs 2024",
-            "latest releases 2024",
-            "new music this week",
-            "trending new songs",
-            "fresh hits 2024",
-            "new album releases",
-          ]
-
-          const localizedQueries = getLocalizedQueries(baseQueries, languageSettings.searchLanguage)
-
-          const allSongs: Song[] = []
-          for (const query of localizedQueries.slice(0, 6)) {
-            // Limit to prevent too many requests
-            try {
-              const results = await searchMusic(query, 4, languageSettings.searchLanguage)
-              if (results && results.length > 0) {
-                allSongs.push(...results)
-              }
-            } catch (err) {
-              console.warn(`[v0] Failed to search for new releases "${query}":`, err)
-            }
+          const videoInfo = await this.getVideoInfo(item.id)
+          if (videoInfo) {
+            const song = this.convertToSong(videoInfo, item)
+            songs.push(song)
           }
+        } catch (error) {
+          console.error(`[v0] YtDlp: Failed to extract ${item.id}:`, error)
+          // Continue with other videos
         }
       }
+
+      console.log("[v0] YtDlp: Successfully extracted", songs.length, "songs with audio URLs")
+      return songs
+    } catch (error) {
+      console.error("[v0] YtDlp: Trending failed:", error)
+      throw error
     }
-  )
-}
-export function useMoodPlaylist(queries: string[]) {
-  const [songs, setSongs] = useState<Song[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const { languageSettings } = useSettings()
+  }
 
-  const memoizedQueries = useMemo(() => queries, [queries.join(",")])
+  async search(query: string, maxResults = 15): Promise<YtDlpSong[]> {
+    console.log("[v0] YtDlp: Searching YouTube API for:", query)
 
-  const loadMoodPlaylist = useCallback(
-    async (forceRefresh = false) => {
-      try {
-        setLoading(true)
-        setError(null)
+    try {
+      const response = await fetch(
+        `${this.YOUTUBE_BASE_URL}/search?` +
+          `part=snippet&` +
+          `q=${encodeURIComponent(query + " music")}&` +
+          `type=video&` +
+          `videoCategoryId=10&` +
+          `maxResults=${maxResults}&` +
+          `key=${this.YOUTUBE_API_KEY}`,
+      )
 
-        console.log(
-          `[v0] Fetching mood playlist from YouTube Music Browse API (language: ${languageSettings.searchLanguage})`,
-        )
-
-        // Try browse API first
-        let mixedSongs: Song[]
-        try {
-          mixedSongs = await fetchBrowseData("recommendations")
-        } catch (browseError) {
-          console.warn("[v0] Browse API failed, falling back to search method:", browseError)
-          const localizedQueries = getLocalizedQueries(memoizedQueries, languageSettings.searchLanguage)
-
-          const allSongs: Song[] = []
-          for (const query of localizedQueries.slice(0, 4)) {
-            // Limit queries
-            try {
-              const results = await searchMusic(query, 5, languageSettings.searchLanguage)
-              if (results && results.length > 0) {
-                allSongs.push(...results)
-              }
-            } catch (err) {
-              console.warn(`[v0] Failed to search for "${query}":`, err)
-            }
-          }
-          mixedSongs = allSongs
-            .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
-            .slice(0, 15)
-        }
-
-        console.log("[v0] Got mood playlist:", mixedSongs.length, "songs")
-        setSongs(mixedSongs)
-      } catch (err: any) {
-        console.error("[v0] Mood playlist failed:", err)
-        setError(err.message || "Failed to load mood playlist")
-        setSongs([])
-      } finally {
-        setLoading(false)
+      if (!response.ok) {
+        throw new Error(`YouTube API error: ${response.status}`)
       }
-    },
-    [memoizedQueries, languageSettings.searchLanguage], // Add language dependency
-  )
 
-  useEffect(() => {
-    if (memoizedQueries.length > 0) {
-      loadMoodPlaylist(false)
+      const data = await response.json()
+      console.log("[v0] YtDlp: Got", data.items?.length || 0, "search results from YouTube")
+
+      if (!data.items || data.items.length === 0) {
+        return []
+      }
+
+      // Extract audio URLs using yt-dlp for search results
+      const songs: YtDlpSong[] = []
+      for (const item of data.items.slice(0, Math.min(maxResults, 8))) {
+        // Limit to prevent timeout
+        try {
+          const videoInfo = await this.getVideoInfo(item.id.videoId)
+          if (videoInfo) {
+            const song = this.convertToSong(videoInfo, item)
+            songs.push(song)
+          }
+        } catch (error) {
+          console.error(`[v0] YtDlp: Failed to extract ${item.id.videoId}:`, error)
+          // Continue with other videos
+        }
+      }
+
+      console.log("[v0] YtDlp: Successfully extracted", songs.length, "search results with audio URLs")
+      return songs
+    } catch (error) {
+      console.error("[v0] YtDlp: Search failed:", error)
+      throw error
     }
-  }, [loadMoodPlaylist, memoizedQueries])
+  }
 
-  return { songs, loading, error, refetch: () => loadMoodPlaylist(true) }
+  async getVideoInfo(videoId: string): Promise<YtDlpVideoInfo | null> {
+    console.log("[v0] YtDlp: Extracting video info for:", videoId)
+
+    return new Promise((resolve, reject) => {
+      const ytDlpProcess = spawn("yt-dlp", [
+        "--dump-json",
+        "--no-playlist",
+        "--format",
+        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+        `https://www.youtube.com/watch?v=${videoId}`,
+      ])
+
+      let stdout = ""
+      let stderr = ""
+
+      ytDlpProcess.stdout.on("data", (data) => {
+        stdout += data.toString()
+      })
+
+      ytDlpProcess.stderr.on("data", (data) => {
+        stderr += data.toString()
+      })
+
+      ytDlpProcess.on("close", (code) => {
+        if (code === 0 && stdout.trim()) {
+          try {
+            const videoInfo = JSON.parse(stdout.trim())
+            console.log("[v0] YtDlp: Successfully extracted info for:", videoId)
+            resolve(videoInfo)
+          } catch (error) {
+            console.error("[v0] YtDlp: JSON parse error for:", videoId, error)
+            resolve(null)
+          }
+        } else {
+          console.error("[v0] YtDlp: Extraction failed for:", videoId, "Code:", code, "Error:", stderr)
+          resolve(null)
+        }
+      })
+
+      ytDlpProcess.on("error", (error) => {
+        console.error("[v0] YtDlp: Process error for:", videoId, error)
+        resolve(null)
+      })
+
+      // Timeout after 30 seconds
+      setTimeout(() => {
+        ytDlpProcess.kill()
+        console.error("[v0] YtDlp: Timeout for:", videoId)
+        resolve(null)
+      }, 30000)
+    })
+  }
+
+  async getAudioUrl(videoId: string): Promise<string | null> {
+    console.log("[v0] YtDlp: Getting direct audio URL for:", videoId)
+
+    return new Promise((resolve) => {
+      const ytDlpProcess = spawn("yt-dlp", [
+        "--get-url",
+        "--no-playlist",
+        "--format",
+        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+        `https://www.youtube.com/watch?v=${videoId}`,
+      ])
+
+      let stdout = ""
+      let stderr = ""
+
+      ytDlpProcess.stdout.on("data", (data) => {
+        stdout += data.toString()
+      })
+
+      ytDlpProcess.stderr.on("data", (data) => {
+        stderr += data.toString()
+      })
+
+      ytDlpProcess.on("close", (code) => {
+        if (code === 0 && stdout.trim()) {
+          const audioUrl = stdout.trim().split("\n")[0] // Get first URL
+          console.log("[v0] YtDlp: Got audio URL for:", videoId)
+          resolve(audioUrl)
+        } else {
+          console.error("[v0] YtDlp: Failed to get audio URL for:", videoId, "Code:", code, "Error:", stderr)
+          resolve(null)
+        }
+      })
+
+      ytDlpProcess.on("error", (error) => {
+        console.error("[v0] YtDlp: Process error for:", videoId, error)
+        resolve(null)
+      })
+
+      // Timeout after 20 seconds
+      setTimeout(() => {
+        ytDlpProcess.kill()
+        console.error("[v0] YtDlp: Audio URL timeout for:", videoId)
+        resolve(null)
+      }, 20000)
+    })
+  }
+
+  async getPlaylist(playlistId: string, maxResults = 50): Promise<YtDlpSong[]> {
+    console.log("[v0] YtDlp: Fetching playlist from YouTube API:", playlistId)
+
+    try {
+      // Get playlist items from YouTube API
+      const response = await fetch(
+        `${this.YOUTUBE_BASE_URL}/playlistItems?` +
+          `part=snippet&` +
+          `playlistId=${playlistId}&` +
+          `maxResults=${maxResults}&` +
+          `key=${this.YOUTUBE_API_KEY}`,
+      )
+
+      if (!response.ok) {
+        throw new Error(`YouTube API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log("[v0] YtDlp: Got", data.items?.length || 0, "playlist items from YouTube")
+
+      if (!data.items || data.items.length === 0) {
+        throw new Error("No playlist items from YouTube API")
+      }
+
+      // Extract audio URLs using yt-dlp for each video
+      const songs: YtDlpSong[] = []
+      for (const item of data.items.slice(0, Math.min(maxResults, 20))) {
+        // Limit to prevent timeout
+        try {
+          const videoInfo = await this.getVideoInfo(item.snippet.resourceId.videoId)
+          if (videoInfo) {
+            const song = this.convertToSong(videoInfo, item)
+            songs.push(song)
+          }
+        } catch (error) {
+          console.error(`[v0] YtDlp: Failed to extract ${item.snippet.resourceId.videoId}:`, error)
+          // Continue with other videos
+        }
+      }
+
+      console.log("[v0] YtDlp: Successfully extracted", songs.length, "playlist songs with audio URLs")
+      return songs
+    } catch (error) {
+      console.error("[v0] YtDlp: Playlist failed:", error)
+      throw error
+    }
+  }
+
+  private convertToSong(videoInfo: YtDlpVideoInfo, youtubeItem?: any): YtDlpSong {
+    // Find best audio format
+    const audioFormats = videoInfo.formats?.filter((f) => f.acodec && f.acodec !== "none" && f.url) || []
+
+    const bestAudio =
+      audioFormats.find((f) => f.ext === "m4a") || audioFormats.find((f) => f.ext === "webm") || audioFormats[0]
+
+    return {
+      id: videoInfo.id,
+      title: videoInfo.title,
+      artist: videoInfo.uploader || "Unknown Artist",
+      thumbnail: videoInfo.thumbnail || "",
+      duration: this.formatDuration(videoInfo.duration || 0),
+      url: videoInfo.webpage_url,
+      audioUrl: bestAudio?.url || "",
+      formats: audioFormats,
+    }
+  }
+
+  private formatDuration(seconds: number): string {
+    if (!seconds || seconds <= 0) return "0:00"
+
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+    }
+    return `${minutes}:${secs.toString().padStart(2, "0")}`
+  }
 }
+
+export const createYtDlpExtractor = () => new YtDlpExtractor()
+

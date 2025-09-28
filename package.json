@@ -18,7 +18,7 @@
   "license": "MIT",
   "author": "VibeTune Team",
   "scripts": {
-    "build": "NODE_OPTIONS='--max_old_space_size=4096' next build",
+    "build": "next build",
     "dev": "NODE_OPTIONS='--max_old_space_size=4096' next dev",
     "lint": "next lint",
     "release": "npm version patch && git push --follow-tags",
