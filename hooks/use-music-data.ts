@@ -317,33 +317,6 @@ export function useNewReleases() {
             } catch (err) {
               console.warn(`[v0] Failed to search for new releases "${query}":`, err)
             }
-          }
-
-          newReleasesSongs = allSongs
-            .filter((song, index, self) => index === self.findIndex((s) => s.id === song.id))
-            .slice(0, 12)
-        }
-
-        console.log("[v0] Got new releases:", newReleasesSongs.length, "songs")
-        setSongs(newReleasesSongs)
-      } catch (err: any) {
-        console.error("[v0] New releases failed:", err)
-        setError(err.message || "Failed to load new releases")
-        setSongs([])
-      } finally {
-        setLoading(false)
-      }
-    },
-    [languageSettings.searchLanguage],
-  ) // Add language dependency
-
-  useEffect(() => {
-    loadNewReleases(false)
-  }, [loadNewReleases])
-
-  return { songs, loading, error, refetch: () => loadNewReleases(true) }
-}
-
 export function useMoodPlaylist(queries: string[]) {
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)

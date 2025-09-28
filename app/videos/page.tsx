@@ -90,8 +90,7 @@ export default function VideosPage() {
   const handlePlayVideo = (video: EpornerVideo) => {
     console.log("[v0] Playing Eporner video:", video.title)
 
-    setVideoMode(true)
-    playTrack({
+    const videoTrack = {
       id: video.id,
       title: video.title,
       artist: "Eporner",
@@ -100,7 +99,10 @@ export default function VideosPage() {
       url: video.url,
       videoUrl: video.embed || video.url,
       isVideo: true,
-    })
+    }
+    
+    setVideoMode(true)
+    playTrack(videoTrack)
   }
 
   const formatViews = (views: number) => {

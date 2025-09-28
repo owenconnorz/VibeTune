@@ -53,7 +53,9 @@ export async function GET(request: NextRequest) {
       limit,
       type,
       authenticated: !!accessToken,
-      ...result,
+      tracks: result.tracks,
+      totalCount: result.totalCount,
+      hasNextPage: result.hasNextPage,
     })
   } catch (error) {
     console.error("[v0] YouTube Music API enhanced search error:", error)

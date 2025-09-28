@@ -84,14 +84,14 @@ export async function searchMusicEnhanced(query: string, page = 1): Promise<Enha
 
     // Search all types with enhanced API
     const response = await fetch(
-      `/api/youtube-music/search?query=${encodeURIComponent(query)}&page=${page}&type=all&useAuth=true`,
+      `/api/youtube-music/search?query=${encodeURIComponent(query)}&page=${page}&type=all&useAuth=true&limit=20`,
     )
     if (!response.ok) {
       throw new Error(`Enhanced search failed: ${response.status}`)
     }
 
     const data = await response.json()
-    const allResults = data.tracks || []
+    const allResults = data.tracks || data.results?.songs || []
     console.log("[v0] Enhanced YouTube Music API got results:", allResults.length, "items")
 
     // Categorize results based on type from API

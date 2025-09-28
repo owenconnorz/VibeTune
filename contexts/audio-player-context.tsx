@@ -263,6 +263,8 @@ interface AudioPlayerContextType {
   setVideoMode: (enabled: boolean) => void
   setCurrentTime: (time: number) => void
   setDuration: (duration: number) => void
+  addToQueue: (track: Track) => void
+  playNext: (track: Track) => void
   setBufferProgress: (progress: number) => void
   setPlaybackRate: (rate: number) => void
   setCrossfade: (enabled: boolean, duration?: number) => void
@@ -464,6 +466,16 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     dispatch({ type: "SET_VIDEO_QUALITY", payload: quality })
   }, [])
 
+  const addToQueue = useCallback((track: Track) => {
+    dispatch({ type: "SET_QUEUE", payload: { tracks: [...state.queue, track] } })
+  }, [state.queue])
+
+  const playNext = useCallback((track: Track) => {
+    const newQueue = [...state.queue]
+    newQueue.splice(state.currentIndex + 1, 0, track)
+    dispatch({ type: "SET_QUEUE", payload: { tracks: newQueue, startIndex: state.currentIndex } })
+  }, [state.queue, state.currentIndex])
+
   const contextValue: AudioPlayerContextType = {
     state,
     playTrack,
@@ -476,6 +488,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     setVideoMode,
     setCurrentTime,
     setDuration,
+    addToQueue,
+    playNext,
     setBufferProgress,
     setPlaybackRate,
     setCrossfade,

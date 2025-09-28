@@ -179,7 +179,14 @@ export default function SearchPage() {
   const handleItemClick = (item: SearchResult) => {
     switch (item.type) {
       case "song":
-        handlePlaySong(item, [item])
+        const track = {
+          id: item.id,
+          title: item.title || item.name || "Unknown Title",
+          artist: item.artist || item.channelTitle || "Unknown Artist",
+          thumbnail: item.thumbnail,
+          duration: item.duration,
+        }
+        playQueue([track], 0)
         break
       case "artist":
         router.push(`/artist/${encodeURIComponent(item.title || item.name || "")}`)

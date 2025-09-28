@@ -36,6 +36,11 @@ export default function LibraryPage() {
   const [importedPlaylists, setImportedPlaylists] = useState<any[]>([])
   const [videoPlaylists, setVideoPlaylists] = useState<Array<{ id: string; name: string; videos: any[] }>>([])
 
+  const [profileSettings, setProfileSettings] = useState({
+    useCustomPicture: false,
+    customPictureUrl: null as string | null,
+  })
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem("vibetuneProfileSettings")
@@ -66,11 +71,6 @@ export default function LibraryPage() {
       console.error("Failed to load video playlists:", error)
     }
   }, [])
-
-  const [profileSettings, setProfileSettings] = useState({
-    useCustomPicture: false,
-    customPictureUrl: null as string | null,
-  })
 
   const allLikedSongs = [
     ...(syncData?.likedSongs || []),

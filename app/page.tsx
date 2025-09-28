@@ -222,11 +222,6 @@ export default function VibeTunePage() {
     setTimeout(() => router.push("/videos"), 150)
   }, [router])
 
-  const quickPicksSongs = useMemo(() => {
-    if (safeTrendingSongs.length === 0) return []
-    return safeTrendingSongs.slice(0, 8)
-  }, [safeTrendingSongs])
-
   if (isPageLoading) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -336,7 +331,7 @@ export default function VibeTunePage() {
                         <div className="h-3 bg-zinc-800 rounded animate-pulse w-3/4" />
                       </div>
                     ))
-                  : quickPicksSongs.map((song) => (
+                  : safeTrendingSongs.slice(0, 8).map((song) => (
                       <MusicCard key={song.id} song={song} onPlay={handlePlaySong} songList={safeTrendingSongs} />
                     ))}
               </div>
