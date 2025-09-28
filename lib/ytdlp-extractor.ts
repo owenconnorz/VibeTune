@@ -1,190 +1,145 @@
+import { ytDlp } from "yt-dlp-exec";
+
 export interface YtDlpSong {
-  id: string
-  title: string
-  artist: string
-  thumbnail: string
-  duration: string
-  url: string
-  audioUrl: string
-  formats?: YtDlpFormat[]
+  id: string;
+  title: string;
+  artist: string;
+  thumbnail: string;
+  duration: string;
+  url: string;
+  audioUrl: string;
+  formats?: YtDlpFormat[];
 }
 
 export interface YtDlpFormat {
-  format_id: string
-  url: string
-  ext: string
-  acodec: string
-  abr?: number
-  filesize?: number
+  format_id: string;
+  url: string;
+  ext: string;
+  acodec: string;
+  abr?: number;
+  filesize?: number;
 }
 
 export interface YtDlpVideoInfo {
-  id: string
-  title: string
-  uploader: string
-  thumbnail: string
-  duration: number
-  webpage_url: string
-  formats: YtDlpFormat[]
+  id: string;
+  title: string;
+  uploader: string;
+  thumbnail: string;
+  duration: number;
+  webpage_url: string;
+  formats: YtDlpFormat[];
 }
 
 export class YtDlpExtractor {
   private readonly YOUTUBE_API_KEY =
-    process.env.YOUTUBE_API_KEY || "YOUR_DEFAULT_KEY"
-  private readonly YOUTUBE_BASE_URL = "https://www.googleapis.com/youtube/v3"
+    process.env.YOUTUBE_API_KEY || "AIzaSyBIQVGnXO2T7smsxf6q_MWxMD1sQzek1Nc";
+  private readonly YOUTUBE_BASE_URL = "https://www.googleapis.com/youtube/v3";
 
-  /** Get trending music videos from YouTube */
+  // --- Get trending music from YouTube ---
   async getTrending(maxResults = 25): Promise<YtDlpSong[]> {
     const response = await fetch(
       `${this.YOUTUBE_BASE_URL}/videos?part=snippet,contentDetails&chart=mostPopular&videoCategoryId=10&regionCode=US&maxResults=${maxResults}&key=${this.YOUTUBE_API_KEY}`
-    )
-    if (!response.ok) throw new Error(`YouTube API error: ${response.status}`)
-    const data = await response.json()
-
-    const songs: YtDlpSong[] = []
-    for (const item of data.items) {
-      const song = await this.convertToSongFromApi(item)
-      songs.push(song)
+    );
+    if (!response.ok) throw new Error(`YouTube API error: ${response.status}`);
+    const data = await response.json();
+    const songs: YtDlpSong[] = [];
+    for (const item of data.items.slice(0, Math.min(maxResults, 10))) {
+      const videoInfo = await this.getVideoInfo(item.id);
+      if (videoInfo) songs.push(this.convertToSong(videoInfo));
     }
-    return songs
+    return songs;
   }
 
-  /** Search music videos on YouTube */
+  // --- Search YouTube ---
   async search(query: string, maxResults = 15): Promise<YtDlpSong[]> {
     const response = await fetch(
       `${this.YOUTUBE_BASE_URL}/search?part=snippet&q=${encodeURIComponent(
         query + " music"
       )}&type=video&videoCategoryId=10&maxResults=${maxResults}&key=${this.YOUTUBE_API_KEY}`
-    )
-    if (!response.ok) throw new Error(`YouTube API error: ${response.status}`)
-    const data = await response.json()
-
-    const songs: YtDlpSong[] = []
-    for (const item of data.items) {
-      const song = await this.convertToSongFromSearch(item)
-      songs.push(song)
+    );
+    if (!response.ok) throw new Error(`YouTube API error: ${response.status}`);
+    const data = await response.json();
+    const songs: YtDlpSong[] = [];
+    for (const item of data.items.slice(0, Math.min(maxResults, 8))) {
+      const videoInfo = await this.getVideoInfo(item.id.videoId);
+      if (videoInfo) songs.push(this.convertToSong(videoInfo));
     }
-    return songs
+    return songs;
   }
 
-  /** Get playlist videos from YouTube */
-  async getPlaylist(playlistId: string, maxResults = 50): Promise<YtDlpSong[]> {
-    const response = await fetch(
-      `${this.YOUTUBE_BASE_URL}/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=${maxResults}&key=${this.YOUTUBE_API_KEY}`
-    )
-    if (!response.ok) throw new Error(`YouTube API error: ${response.status}`)
-    const data = await response.json()
-
-    const songs: YtDlpSong[] = []
-    for (const item of data.items) {
-      const song = await this.convertToSongFromPlaylist(item)
-      songs.push(song)
-    }
-    return songs
-  }
-
-  /** Get video info (metadata only) */
+  // --- Get video info using yt-dlp-exec ---
   async getVideoInfo(videoId: string): Promise<YtDlpVideoInfo | null> {
-    const response = await fetch(
-      `${this.YOUTUBE_BASE_URL}/videos?part=snippet,contentDetails&id=${videoId}&key=${this.YOUTUBE_API_KEY}`
-    )
-    if (!response.ok) return null
-    const data = await response.json()
-    if (!data.items || data.items.length === 0) return null
-    const item = data.items[0]
-    return {
-      id: item.id,
-      title: item.snippet.title,
-      uploader: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails?.high?.url || "",
-      duration: this.parseDurationToSeconds(item.contentDetails.duration),
-      webpage_url: `https://www.youtube.com/watch?v=${item.id}`,
-      formats: [],
+    try {
+      const info = await ytDlp(`https://www.youtube.com/watch?v=${videoId}`, {
+        dumpJson: true,
+        noPlaylist: true,
+        format: "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+      });
+      return {
+        id: info.id,
+        title: info.title,
+        uploader: info.uploader || "Unknown Artist",
+        thumbnail: info.thumbnail || "",
+        duration: info.duration || 0,
+        webpage_url: info.webpage_url,
+        formats: info.formats || [],
+      };
+    } catch (error) {
+      console.error("yt-dlp error:", error);
+      return null;
     }
   }
 
-  /** Get audio URL via Vercel audio proxy */
+  // --- Get direct audio URL ---
   async getAudioUrl(videoId: string): Promise<string | null> {
     try {
-      const response = await fetch(`/api/audio/${videoId}`)
-      if (!response.ok) return null
-      const data = await response.json()
-      return data.audioUrl || null
-    } catch (err) {
-      console.error("Failed to get audio URL:", err)
-      return null
+      const info = await ytDlp(`https://www.youtube.com/watch?v=${videoId}`, {
+        getUrl: true,
+        noPlaylist: true,
+        format: "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+      });
+      if (typeof info === "string") return info.split("\n")[0];
+      return null;
+    } catch (error) {
+      console.error("yt-dlp getAudioUrl error:", error);
+      return null;
     }
   }
 
-  /** Convert YouTube API trending item to song */
-  private async convertToSongFromApi(item: any): Promise<YtDlpSong> {
-    const audioUrl = await this.getAudioUrl(item.id)
+  // --- Convert video info to song ---
+  private convertToSong(videoInfo: YtDlpVideoInfo): YtDlpSong {
+    const audioFormats = videoInfo.formats?.filter(
+      (f) => f.acodec && f.acodec !== "none" && f.url
+    );
+    const bestAudio =
+      audioFormats.find((f) => f.ext === "m4a") ||
+      audioFormats.find((f) => f.ext === "webm") ||
+      audioFormats?.[0];
     return {
-      id: item.id,
-      title: item.snippet.title,
-      artist: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails?.high?.url || "",
-      duration: this.formatDuration(
-        this.parseDurationToSeconds(item.contentDetails.duration)
-      ),
-      url: `https://www.youtube.com/watch?v=${item.id}`,
-      audioUrl: audioUrl || "",
-      formats: [],
-    }
+      id: videoInfo.id,
+      title: videoInfo.title,
+      artist: videoInfo.uploader || "Unknown Artist",
+      thumbnail: videoInfo.thumbnail || "",
+      duration: this.formatDuration(videoInfo.duration),
+      url: videoInfo.webpage_url,
+      audioUrl: bestAudio?.url || "",
+      formats: audioFormats,
+    };
   }
 
-  /** Convert YouTube search result to song */
-  private async convertToSongFromSearch(item: any): Promise<YtDlpSong> {
-    const videoId = item.id.videoId
-    const audioUrl = await this.getAudioUrl(videoId)
-    return {
-      id: videoId,
-      title: item.snippet.title,
-      artist: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails?.high?.url || "",
-      duration: "Unknown",
-      url: `https://www.youtube.com/watch?v=${videoId}`,
-      audioUrl: audioUrl || "",
-      formats: [],
-    }
-  }
-
-  /** Convert playlist item to song */
-  private async convertToSongFromPlaylist(item: any): Promise<YtDlpSong> {
-    const videoId = item.snippet.resourceId.videoId
-    const audioUrl = await this.getAudioUrl(videoId)
-    return {
-      id: videoId,
-      title: item.snippet.title,
-      artist: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails?.high?.url || "",
-      duration: "Unknown",
-      url: `https://www.youtube.com/watch?v=${videoId}`,
-      audioUrl: audioUrl || "",
-      formats: [],
-    }
-  }
-
-  /** ISO 8601 PT1H2M3S → seconds */
-  private parseDurationToSeconds(duration: string): number {
-    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
-    if (!match) return 0
-    const hours = parseInt(match[1] || "0")
-    const minutes = parseInt(match[2] || "0")
-    const seconds = parseInt(match[3] || "0")
-    return hours * 3600 + minutes * 60 + seconds
-  }
-
-  /** seconds → mm:ss or hh:mm:ss */
+  // --- Format seconds to mm:ss or hh:mm:ss ---
   private formatDuration(seconds: number): string {
-    const hrs = Math.floor(seconds / 3600)
-    const mins = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
-    return hrs > 0
-      ? `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-      : `${mins}:${secs.toString().padStart(2, "0")}`
+    if (!seconds || seconds <= 0) return "0:00";
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hours > 0)
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs
+        .toString()
+        .padStart(2, "0")}`;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
   }
 }
 
-export const createYtDlpExtractor = () => new YtDlpExtractor()
-export const ytDlpExtractor = new YtDlpExtractor()
+export const createYtDlpExtractor = () => new YtDlpExtractor();
+export const ytDlpExtractor = new YtDlpExtractor();
