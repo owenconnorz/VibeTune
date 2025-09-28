@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      ...result,
+      tracks: result.tracks,
+      totalCount: result.totalCount,
+      hasNextPage: result.hasNextPage,
     })
   } catch (error) {
     console.error("[v0] YouTube Music API trending error:", error)

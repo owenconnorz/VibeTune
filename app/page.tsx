@@ -2,7 +2,7 @@
 
 import React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
-import { Search, Settings, MoreVertical, Play, Sparkles, CheckCircle, Heart, Clock } from "lucide-react"
+import { Search, Settings, MoveVertical as MoreVertical, Play, Sparkles, CircleCheck as CheckCircle, Heart, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AudioPlayer } from "@/components/audio-player"
 import { useAudioPlayer } from "@/contexts/audio-player-context"

@@ -317,6 +317,12 @@ export function useNewReleases() {
             } catch (err) {
               console.warn(`[v0] Failed to search for new releases "${query}":`, err)
             }
+          }
+        }
+      }
+    }
+  )
+}
 export function useMoodPlaylist(queries: string[]) {
   const [songs, setSongs] = useState<Song[]>([])
   const [loading, setLoading] = useState(true)

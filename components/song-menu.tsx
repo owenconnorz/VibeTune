@@ -2,21 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import {
-  Play,
-  Plus,
-  Share,
-  Radio,
-  Edit,
-  ListPlus,
-  Library,
-  User,
-  Disc,
-  RefreshCw,
-  Info,
-  MoreVertical,
-  X,
-} from "lucide-react"
+import { Play, Plus, Share, Radio, CreditCard as Edit, ListPlus, Library, User, Disc, RefreshCw, Info, MoveVertical as MoreVertical, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { useAudioPlayer } from "@/contexts/audio-player-context"

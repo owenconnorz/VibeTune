@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { User, Heart, CheckCircle, Play, Plus, Search, Trash2, Music, Settings } from "lucide-react"
+import { User, Heart, CircleCheck as CheckCircle, Play, Plus, Search, Trash2, Music, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
