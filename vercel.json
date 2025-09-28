@@ -1,4 +1,4 @@
-// import { spawn } from "child_process" // Disabled for Vercel deployment
+// Web-compatible YouTube Music API implementation for Vercel deployment
 
 export interface YtDlpSong {
   id: string
@@ -60,23 +60,19 @@ class YtDlpExtractor {
         throw new Error("No trending videos from YouTube API")
       }
 
-      // Extract audio URLs using yt-dlp for each video
-      const songs: YtDlpSong[] = []
-      for (const item of data.items.slice(0, Math.min(maxResults, 10))) {
-        // Limit to prevent timeout
-        try {
-          const videoInfo = await this.getVideoInfo(item.id)
-          if (videoInfo) {
-            const song = this.convertToSong(videoInfo, item)
-            songs.push(song)
-          }
-        } catch (error) {
-          console.error(`[v0] YtDlp: Failed to extract ${item.id}:`, error)
-          // Continue with other videos
-        }
-      }
+      // Convert YouTube videos to songs format
+      const songs: YtDlpSong[] = data.items.map((item: any) => ({
+        id: item.id,
+        title: item.snippet.title,
+        artist: item.snippet.channelTitle,
+        thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || "",
+        duration: this.parseDuration(item.contentDetails?.duration || "PT0S"),
+        url: `https://www.youtube.com/watch?v=${item.id}`,
+        audioUrl: "", // Will be populated when needed
+        formats: [],
+      }))
 
-      console.log("[v0] YtDlp: Successfully extracted", songs.length, "songs with audio URLs")
+      console.log("[v0] YtDlp: Successfully converted", songs.length, "songs")
       return songs
     } catch (error) {
       console.error("[v0] YtDlp: Trending failed:", error)
@@ -109,23 +105,19 @@ class YtDlpExtractor {
         return []
       }
 
-      // Extract audio URLs using yt-dlp for search results
-      const songs: YtDlpSong[] = []
-      for (const item of data.items.slice(0, Math.min(maxResults, 8))) {
-        // Limit to prevent timeout
-        try {
-          const videoInfo = await this.getVideoInfo(item.id.videoId)
-          if (videoInfo) {
-            const song = this.convertToSong(videoInfo, item)
-            songs.push(song)
-          }
-        } catch (error) {
-          console.error(`[v0] YtDlp: Failed to extract ${item.id.videoId}:`, error)
-          // Continue with other videos
-        }
-      }
+      // Convert YouTube search results to songs format
+      const songs: YtDlpSong[] = data.items.map((item: any) => ({
+        id: item.id.videoId,
+        title: item.snippet.title,
+        artist: item.snippet.channelTitle,
+        thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || "",
+        duration: "Unknown", // Duration not available in search results
+        url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
+        audioUrl: "", // Will be populated when needed
+        formats: [],
+      }))
 
-      console.log("[v0] YtDlp: Successfully extracted", songs.length, "search results with audio URLs")
+      console.log("[v0] YtDlp: Successfully converted", songs.length, "search results")
       return songs
     } catch (error) {
       console.error("[v0] YtDlp: Search failed:", error)
@@ -134,104 +126,61 @@ class YtDlpExtractor {
   }
 
   async getVideoInfo(videoId: string): Promise<YtDlpVideoInfo | null> {
-    console.log("[v0] YtDlp: Extracting video info for:", videoId)
+    console.log("[v0] YtDlp: Getting video info for:", videoId)
 
-    return new Promise((resolve, reject) => {
-      const ytDlpProcess = spawn("yt-dlp", [
-        "--dump-json",
-        "--no-playlist",
-        "--format",
-        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
-        `https://www.youtube.com/watch?v=${videoId}`,
-      ])
+    try {
+      // Use YouTube API to get video details
+      const response = await fetch(
+        `${this.YOUTUBE_BASE_URL}/videos?` +
+          `part=snippet,contentDetails&` +
+          `id=${videoId}&` +
+          `key=${this.YOUTUBE_API_KEY}`,
+      )
 
-      let stdout = ""
-      let stderr = ""
+      if (!response.ok) {
+        throw new Error(`YouTube API error: ${response.status}`)
+      }
 
-      ytDlpProcess.stdout.on("data", (data) => {
-        stdout += data.toString()
-      })
+      const data = await response.json()
+      
+      if (!data.items || data.items.length === 0) {
+        return null
+      }
 
-      ytDlpProcess.stderr.on("data", (data) => {
-        stderr += data.toString()
-      })
-
-      ytDlpProcess.on("close", (code) => {
-        if (code === 0 && stdout.trim()) {
-          try {
-            const videoInfo = JSON.parse(stdout.trim())
-            console.log("[v0] YtDlp: Successfully extracted info for:", videoId)
-            resolve(videoInfo)
-          } catch (error) {
-            console.error("[v0] YtDlp: JSON parse error for:", videoId, error)
-            resolve(null)
-          }
-        } else {
-          console.error("[v0] YtDlp: Extraction failed for:", videoId, "Code:", code, "Error:", stderr)
-          resolve(null)
-        }
-      })
-
-      ytDlpProcess.on("error", (error) => {
-        console.error("[v0] YtDlp: Process error for:", videoId, error)
-        resolve(null)
-      })
-
-      // Timeout after 30 seconds
-      setTimeout(() => {
-        ytDlpProcess.kill()
-        console.error("[v0] YtDlp: Timeout for:", videoId)
-        resolve(null)
-      }, 30000)
-    })
+      const item = data.items[0]
+      return {
+        id: item.id,
+        title: item.snippet.title,
+        uploader: item.snippet.channelTitle,
+        thumbnail: item.snippet.thumbnails?.high?.url || "",
+        duration: this.parseDurationToSeconds(item.contentDetails?.duration || "PT0S"),
+        webpage_url: `https://www.youtube.com/watch?v=${item.id}`,
+        formats: [], // Will be populated by audio extraction API
+      }
+    } catch (error) {
+      console.error("[v0] YtDlp: Video info failed for:", videoId, error)
+      return null
+    }
   }
 
   async getAudioUrl(videoId: string): Promise<string | null> {
-    console.log("[v0] YtDlp: Getting direct audio URL for:", videoId)
+    console.log("[v0] YtDlp: Getting audio URL for:", videoId)
 
-    return new Promise((resolve) => {
-      const ytDlpProcess = spawn("yt-dlp", [
-        "--get-url",
-        "--no-playlist",
-        "--format",
-        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
-        `https://www.youtube.com/watch?v=${videoId}`,
-      ])
+    try {
+      // Use the audio extraction API endpoint
+      const response = await fetch(`/api/youtube-music/audio/${videoId}`)
+      
+      if (!response.ok) {
+        console.error("[v0] Audio extraction failed:", response.status)
+        return null
+      }
 
-      let stdout = ""
-      let stderr = ""
-
-      ytDlpProcess.stdout.on("data", (data) => {
-        stdout += data.toString()
-      })
-
-      ytDlpProcess.stderr.on("data", (data) => {
-        stderr += data.toString()
-      })
-
-      ytDlpProcess.on("close", (code) => {
-        if (code === 0 && stdout.trim()) {
-          const audioUrl = stdout.trim().split("\n")[0] // Get first URL
-          console.log("[v0] YtDlp: Got audio URL for:", videoId)
-          resolve(audioUrl)
-        } else {
-          console.error("[v0] YtDlp: Failed to get audio URL for:", videoId, "Code:", code, "Error:", stderr)
-          resolve(null)
-        }
-      })
-
-      ytDlpProcess.on("error", (error) => {
-        console.error("[v0] YtDlp: Process error for:", videoId, error)
-        resolve(null)
-      })
-
-      // Timeout after 20 seconds
-      setTimeout(() => {
-        ytDlpProcess.kill()
-        console.error("[v0] YtDlp: Audio URL timeout for:", videoId)
-        resolve(null)
-      }, 20000)
-    })
+      const data = await response.json()
+      return data.audioUrl || null
+    } catch (error) {
+      console.error("[v0] YtDlp: Audio URL failed for:", videoId, error)
+      return null
+    }
   }
 
   async getPlaylist(playlistId: string, maxResults = 50): Promise<YtDlpSong[]> {
@@ -258,23 +207,19 @@ class YtDlpExtractor {
         throw new Error("No playlist items from YouTube API")
       }
 
-      // Extract audio URLs using yt-dlp for each video
-      const songs: YtDlpSong[] = []
-      for (const item of data.items.slice(0, Math.min(maxResults, 20))) {
-        // Limit to prevent timeout
-        try {
-          const videoInfo = await this.getVideoInfo(item.snippet.resourceId.videoId)
-          if (videoInfo) {
-            const song = this.convertToSong(videoInfo, item)
-            songs.push(song)
-          }
-        } catch (error) {
-          console.error(`[v0] YtDlp: Failed to extract ${item.snippet.resourceId.videoId}:`, error)
-          // Continue with other videos
-        }
-      }
+      // Convert playlist items to songs format
+      const songs: YtDlpSong[] = data.items.map((item: any) => ({
+        id: item.snippet.resourceId.videoId,
+        title: item.snippet.title,
+        artist: item.snippet.channelTitle,
+        thumbnail: item.snippet.thumbnails?.high?.url || item.snippet.thumbnails?.medium?.url || "",
+        duration: "Unknown",
+        url: `https://www.youtube.com/watch?v=${item.snippet.resourceId.videoId}`,
+        audioUrl: "", // Will be populated when needed
+        formats: [],
+      }))
 
-      console.log("[v0] YtDlp: Successfully extracted", songs.length, "playlist songs with audio URLs")
+      console.log("[v0] YtDlp: Successfully converted", songs.length, "playlist songs")
       return songs
     } catch (error) {
       console.error("[v0] YtDlp: Playlist failed:", error)
@@ -283,12 +228,6 @@ class YtDlpExtractor {
   }
 
   private convertToSong(videoInfo: YtDlpVideoInfo, youtubeItem?: any): YtDlpSong {
-    // Find best audio format
-    const audioFormats = videoInfo.formats?.filter((f) => f.acodec && f.acodec !== "none" && f.url) || []
-
-    const bestAudio =
-      audioFormats.find((f) => f.ext === "m4a") || audioFormats.find((f) => f.ext === "webm") || audioFormats[0]
-
     return {
       id: videoInfo.id,
       title: videoInfo.title,
@@ -296,8 +235,8 @@ class YtDlpExtractor {
       thumbnail: videoInfo.thumbnail || "",
       duration: this.formatDuration(videoInfo.duration || 0),
       url: videoInfo.webpage_url,
-      audioUrl: bestAudio?.url || "",
-      formats: audioFormats,
+      audioUrl: "", // Will be populated when needed
+      formats: videoInfo.formats || [],
     }
   }
 
@@ -313,8 +252,34 @@ class YtDlpExtractor {
     }
     return `${minutes}:${secs.toString().padStart(2, "0")}`
   }
+
+  private parseDuration(duration: string): string {
+    // Parse ISO 8601 duration (PT4M13S) to readable format (4:13)
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+    if (!match) return "0:00"
+
+    const hours = parseInt(match[1] || "0")
+    const minutes = parseInt(match[2] || "0")
+    const seconds = parseInt(match[3] || "0")
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+    }
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`
+  }
+
+  private parseDurationToSeconds(duration: string): number {
+    // Parse ISO 8601 duration to seconds
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+    if (!match) return 0
+
+    const hours = parseInt(match[1] || "0")
+    const minutes = parseInt(match[2] || "0")
+    const seconds = parseInt(match[3] || "0")
+
+    return hours * 3600 + minutes * 60 + seconds
+  }
 }
 
 export const createYtDlpExtractor = () => new YtDlpExtractor()
-
 export const ytDlpExtractor = new YtDlpExtractor()
