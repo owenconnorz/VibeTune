@@ -1,29 +1,9 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "next.config.js",
-      "use": "@vercel/next"
-    },
-    {
-      "src": "pages/api/**/*.ts",
-      "use": "@vercel/node"
-    }
+    { "src": "package.json", "use": "@vercel/next" }
   ],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
-    }
-  ],
-  "env": {
-    "YOUTUBE_API_KEY": "@youtube-api-key"
-  },
-  "github": {
-    "silent": true
-  }
+    { "src": "/api/(.*)", "dest": "/pages/api/$1.ts" }
+  ]
 }
