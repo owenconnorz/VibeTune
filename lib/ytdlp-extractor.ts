@@ -1,4 +1,4 @@
-import { ytDlp } from "yt-dlp-exec";
+import { YtDlpWrap } from "yt-dlp-wrap";
 
 export interface YtDlpSong {
   id: string;
@@ -30,114 +30,105 @@ export interface YtDlpVideoInfo {
   formats: YtDlpFormat[];
 }
 
-export class YtDlpExtractor {
-  private readonly YOUTUBE_API_KEY =
-    process.env.YOUTUBE_API_KEY || "AIzaSyBIQVGnXO2T7smsxf6q_MWxMD1sQzek1Nc";
+class YtDlpExtractor {
+  private readonly YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY || "YOUR_API_KEY";
   private readonly YOUTUBE_BASE_URL = "https://www.googleapis.com/youtube/v3";
+  private readonly ytDlp: YtDlpWrap;
 
-  // --- Get trending music from YouTube ---
+  constructor() {
+    this.ytDlp = new YtDlpWrap();
+  }
+
   async getTrending(maxResults = 25): Promise<YtDlpSong[]> {
     const response = await fetch(
       `${this.YOUTUBE_BASE_URL}/videos?part=snippet,contentDetails&chart=mostPopular&videoCategoryId=10&regionCode=US&maxResults=${maxResults}&key=${this.YOUTUBE_API_KEY}`
     );
+
     if (!response.ok) throw new Error(`YouTube API error: ${response.status}`);
     const data = await response.json();
+
     const songs: YtDlpSong[] = [];
     for (const item of data.items.slice(0, Math.min(maxResults, 10))) {
       const videoInfo = await this.getVideoInfo(item.id);
-      if (videoInfo) songs.push(this.convertToSong(videoInfo));
+      if (videoInfo) songs.push(this.convertToSong(videoInfo, item));
     }
     return songs;
   }
 
-  // --- Search YouTube ---
   async search(query: string, maxResults = 15): Promise<YtDlpSong[]> {
     const response = await fetch(
-      `${this.YOUTUBE_BASE_URL}/search?part=snippet&q=${encodeURIComponent(
-        query + " music"
-      )}&type=video&videoCategoryId=10&maxResults=${maxResults}&key=${this.YOUTUBE_API_KEY}`
+      `${this.YOUTUBE_BASE_URL}/search?part=snippet&q=${encodeURIComponent(query + " music")}&type=video&videoCategoryId=10&maxResults=${maxResults}&key=${this.YOUTUBE_API_KEY}`
     );
+
     if (!response.ok) throw new Error(`YouTube API error: ${response.status}`);
     const data = await response.json();
+
     const songs: YtDlpSong[] = [];
     for (const item of data.items.slice(0, Math.min(maxResults, 8))) {
       const videoInfo = await this.getVideoInfo(item.id.videoId);
-      if (videoInfo) songs.push(this.convertToSong(videoInfo));
+      if (videoInfo) songs.push(this.convertToSong(videoInfo, item));
     }
     return songs;
   }
 
-  // --- Get video info using yt-dlp-exec ---
   async getVideoInfo(videoId: string): Promise<YtDlpVideoInfo | null> {
     try {
-      const info = await ytDlp(`https://www.youtube.com/watch?v=${videoId}`, {
-        dumpJson: true,
-        noPlaylist: true,
-        format: "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
-      });
-      return {
-        id: info.id,
-        title: info.title,
-        uploader: info.uploader || "Unknown Artist",
-        thumbnail: info.thumbnail || "",
-        duration: info.duration || 0,
-        webpage_url: info.webpage_url,
-        formats: info.formats || [],
-      };
-    } catch (error) {
-      console.error("yt-dlp error:", error);
+      const jsonStr = await this.ytDlp.execPromise([
+        "--dump-json",
+        "--no-playlist",
+        "--format",
+        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+        `https://www.youtube.com/watch?v=${videoId}`,
+      ]);
+
+      const info: YtDlpVideoInfo = JSON.parse(jsonStr);
+      return info;
+    } catch (err) {
+      console.error("YtDlpExtractor: Failed to get video info", err);
       return null;
     }
   }
 
-  // --- Get direct audio URL ---
   async getAudioUrl(videoId: string): Promise<string | null> {
     try {
-      const info = await ytDlp(`https://www.youtube.com/watch?v=${videoId}`, {
-        getUrl: true,
-        noPlaylist: true,
-        format: "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
-      });
-      if (typeof info === "string") return info.split("\n")[0];
-      return null;
-    } catch (error) {
-      console.error("yt-dlp getAudioUrl error:", error);
+      const urlStr = await this.ytDlp.execPromise([
+        "--get-url",
+        "--no-playlist",
+        "--format",
+        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio",
+        `https://www.youtube.com/watch?v=${videoId}`,
+      ]);
+      return urlStr.split("\n")[0];
+    } catch (err) {
+      console.error("YtDlpExtractor: Failed to get audio URL", err);
       return null;
     }
   }
 
-  // --- Convert video info to song ---
-  private convertToSong(videoInfo: YtDlpVideoInfo): YtDlpSong {
-    const audioFormats = videoInfo.formats?.filter(
-      (f) => f.acodec && f.acodec !== "none" && f.url
-    );
-    const bestAudio =
-      audioFormats.find((f) => f.ext === "m4a") ||
-      audioFormats.find((f) => f.ext === "webm") ||
-      audioFormats?.[0];
+  private convertToSong(videoInfo: YtDlpVideoInfo, youtubeItem?: any): YtDlpSong {
+    const audioFormats = videoInfo.formats?.filter(f => f.acodec && f.acodec !== "none" && f.url) || [];
+    const bestAudio = audioFormats.find(f => f.ext === "m4a") || audioFormats.find(f => f.ext === "webm") || audioFormats[0];
+
     return {
       id: videoInfo.id,
       title: videoInfo.title,
       artist: videoInfo.uploader || "Unknown Artist",
       thumbnail: videoInfo.thumbnail || "",
-      duration: this.formatDuration(videoInfo.duration),
+      duration: this.formatDuration(videoInfo.duration || 0),
       url: videoInfo.webpage_url,
       audioUrl: bestAudio?.url || "",
       formats: audioFormats,
     };
   }
 
-  // --- Format seconds to mm:ss or hh:mm:ss ---
   private formatDuration(seconds: number): string {
     if (!seconds || seconds <= 0) return "0:00";
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    if (hours > 0)
-      return `${hours}:${minutes.toString().padStart(2, "0")}:${secs
-        .toString()
-        .padStart(2, "0")}`;
-    return `${minutes}:${secs.toString().padStart(2, "0")}`;
+    return hours > 0
+      ? `${hours}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+      : `${minutes}:${secs.toString().padStart(2, "0")}`;
   }
 }
 
