@@ -37,6 +37,9 @@ updates:
       - dependency-name: "*"
         dependency-type: "direct"
         update-types: ["version-update:semver-major"]
+    # Auto-merge minor/patch updates when CI passes
+    automerge: true
+    automerge-type: "branch" # merge via branch instead of squash commit
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -48,7 +51,8 @@ updates:
     labels:
       - "github-actions"
       - "dependencies"
-    # Optional: ignore major updates for GitHub Actions unless critical
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+    automerge: true
+    automerge-type: "branch"
