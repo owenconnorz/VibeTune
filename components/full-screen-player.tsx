@@ -3,22 +3,7 @@
 import type React from "react"
 import { useEffect } from "react"
 import { useState, useRef, useCallback } from "react"
-import {
-  Play,
-  Pause,
-  SkipForward,
-  SkipBack,
-  Heart,
-  Share,
-  MoreHorizontal,
-  List,
-  Moon,
-  BarChart3,
-  Repeat,
-  Video,
-  Music,
-  Monitor,
-} from "lucide-react"
+import { Play, Pause, SkipForward, SkipBack, Heart, Share, MoveHorizontal as MoreHorizontal, List, Moon, ChartBar as BarChart3, Repeat, Video, Music, Monitor } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { useAudioPlayer } from "@/contexts/audio-player-context"
