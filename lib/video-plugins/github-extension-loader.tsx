@@ -1,4 +1,4 @@
-interface GitHubExtension {
+export interface GitHubExtension {
   id: string
   name: string
   version: string
@@ -21,7 +21,7 @@ interface GitHubExtension {
   lastUpdated?: string
 }
 
-interface GitHubRepository {
+export interface GitHubRepository {
   id: string
   name: string
   url: string
@@ -29,7 +29,7 @@ interface GitHubRepository {
   lastUpdated: Date
 }
 
-interface ExtensionCode {
+export interface ExtensionCode {
   id: string
   name: string
   code: string
@@ -41,7 +41,7 @@ import { CloudStreamExtensionParser } from "./cloudstream-extension-parser"
 import type { CloudStreamProvider } from "./cloudstream-compat"
 import { PluginUpdateChecker } from "@/lib/plugin-update-checker"
 
-class GitHubExtensionLoader {
+export class GitHubExtensionLoader {
   private cache = new Map<string, GitHubRepository>()
   private extensionCode = new Map<string, ExtensionCode>()
   private readonly CACHE_DURATION = 1000 * 60 * 30 // 30 minutes
