@@ -1,51 +1,31 @@
-import { NextResponse } from "next/server"
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export async function GET() {
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY!;
+const BASE_URL = "https://www.googleapis.com/youtube/v3";
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    console.log("[v0] Trending music API called")
+    const maxResults = Number(req.query.maxResults || 25);
+    const response = await fetch(
+      `${BASE_URL}/videos?part=snippet,contentDetails&chart=mostPopular&videoCategoryId=10&regionCode=US&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
+    );
+    if (!response.ok) return res.status(response.status).json({ error: "YouTube API error" });
 
-    // Use the YouTube Music API for trending
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/youtube-music/trending?limit=25`)
-    
-    if (!response.ok) {
-      throw new Error(`YouTube Music API error: ${response.status}`)
-    }
+    const data = await response.json();
 
-    const data = await response.json()
-    
-    return NextResponse.json({
-      songs: data.tracks || [],
-      source: "youtube-music",
-      count: data.tracks?.length || 0,
-    })
-  } catch (error) {
-    console.error("[v0] Trending music API error:", error)
-    
-    // Fallback trending songs
-    const fallbackSongs = [
-      {
-        id: "dQw4w9WgXcQ",
-        title: "Never Gonna Give You Up",
-        artist: "Rick Astley",
-        thumbnail: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
-        duration: "3:33",
-        url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-      },
-      {
-        id: "9bZkp7q19f0",
-        title: "Gangnam Style",
-        artist: "PSY",
-        thumbnail: "https://i.ytimg.com/vi/9bZkp7q19f0/hqdefault.jpg",
-        duration: "4:13",
-        url: "https://www.youtube.com/watch?v=9bZkp7q19f0",
-      },
-    ]
+    const songs = data.items.map((item: any) => ({
+      id: item.id,
+      title: item.snippet.title,
+      artist: item.snippet.channelTitle,
+      thumbnail: item.snippet.thumbnails?.high?.url || "",
+      duration: item.contentDetails?.duration || "PT0S",
+      url: `https://www.youtube.com/watch?v=${item.id}`,
+      audioUrl: "" 
+    }));
 
-    return NextResponse.json({
-      songs: fallbackSongs,
-      source: "fallback",
-      count: fallbackSongs.length,
-      error: error instanceof Error ? error.message : "Unknown error",
-    })
+    res.status(200).json({ songs });
+  } catch (err) {
+    console.error("Trending API failed:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 }
