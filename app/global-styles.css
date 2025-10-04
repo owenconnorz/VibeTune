@@ -1,0 +1,66 @@
+/* Global styles moved from layout.tsx to fix styled-jsx issue */
+html {
+  font-family: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+video, canvas {
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.video-optimized {
+  contain: layout style paint;
+  transform: translateZ(0);
+  will-change: transform, opacity;
+}
+
+.page-content {
+  padding-top: 5rem;
+  padding-bottom: 10rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.fixed-navigation {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+}
+
+.fixed-miniplayer {
+  position: fixed;
+  bottom: 5rem;
+  left: 1rem;
+  right: 1rem;
+  z-index: 60;
+}
+
+.miniplayer-container {
+  position: fixed !important;
+  bottom: 5rem !important;
+  left: 1rem !important;
+  right: 1rem !important;
+  z-index: 60 !important;
+  pointer-events: none;
+}
+
+.miniplayer-container > * {
+  pointer-events: auto;
+}

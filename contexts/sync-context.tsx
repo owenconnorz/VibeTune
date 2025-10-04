@@ -128,16 +128,22 @@ export function SyncProvider({ children }: { children: ReactNode }) {
         }))
 
         try {
-            const playlistResponse = await fetch("/api/playlists", {
-              headers: {
-                Authorization: `Bearer ${user.accessToken || ""}`,
-              },
-            })
-        if (playlistResponse.ok) {
-          const playlistData = await playlistResponse.json()
-          newSyncData.playlists = playlistData.playlists
-        } else {
-          throw new Error("Failed to sync playlists")
+          const playlistResponse = await fetch("/api/playlists", {
+            headers: {
+              Authorization: `Bearer ${user.accessToken || ""}`,
+            },
+          })
+          if (playlistResponse.ok) {
+            const playlistData = await playlistResponse.json()
+            newSyncData.playlists = playlistData.playlists || []
+            console.log(`[v0] Synced ${newSyncData.playlists.length} playlists`)
+          } else {
+            console.warn("[v0] Failed to sync playlists:", playlistResponse.status)
+            // Continue with sync even if playlists fail
+          }
+        } catch (error) {
+          console.warn("[v0] Error syncing playlists:", error)
+          // Continue with sync even if playlists fail
         }
       }
 
@@ -149,12 +155,23 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           currentStep: "Syncing liked songs...",
         }))
 
-        const likedResponse = await fetch("/api/liked-songs")
-        if (likedResponse.ok) {
-          const likedData = await likedResponse.json()
-          newSyncData.likedSongs = likedData.songs
-        } else {
-          throw new Error("Failed to sync liked songs")
+        try {
+          const likedResponse = await fetch("/api/liked-songs", {
+            headers: {
+              Authorization: `Bearer ${user.accessToken || ""}`,
+            },
+          })
+          if (likedResponse.ok) {
+            const likedData = await likedResponse.json()
+            newSyncData.likedSongs = likedData.songs || []
+            console.log(`[v0] Synced ${newSyncData.likedSongs.length} liked songs`)
+          } else {
+            console.warn("[v0] Failed to sync liked songs:", likedResponse.status)
+            // Continue with sync even if liked songs fail
+          }
+        } catch (error) {
+          console.warn("[v0] Error syncing liked songs:", error)
+          // Continue with sync even if liked songs fail
         }
       }
 

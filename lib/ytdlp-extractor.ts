@@ -1,4 +1,4 @@
-import { YtDlpWrap } from "yt-dlp-wrap";
+import YtDlpWrap from "yt-dlp-wrap";
 
 export interface YtDlpSong {
   id: string;

@@ -317,3 +317,110 @@ class YtDlpExtractor {
 
 export const createYtDlpExtractor = () => new YtDlpExtractor()
 
+
+// React Hooks for music data
+import { useState, useEffect } from "react"
+
+export function useTrendingMusic() {
+  const [trending, setTrending] = useState<YtDlpSong[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        setLoading(true)
+        const extractor = createYtDlpExtractor()
+        const results = await extractor.getTrending(20)
+        setTrending(results)
+        setError(null)
+      } catch (err) {
+        console.error("[v0] Error fetching trending music:", err)
+        setError(err instanceof Error ? err.message : "Failed to fetch trending music")
+        setTrending([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTrending()
+  }, [])
+
+  return { trending, loading, error }
+}
+
+export function useMoodPlaylist(queries: string[]) {
+  const [playlist, setPlaylist] = useState<YtDlpSong[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchPlaylist = async () => {
+      try {
+        setLoading(true)
+        const extractor = createYtDlpExtractor()
+        const allSongs: YtDlpSong[] = []
+
+        // Search for each query and combine results
+        for (const query of queries) {
+          try {
+            const results = await extractor.search(query, 1, 5)
+            allSongs.push(...results)
+          } catch (searchError) {
+            console.warn(`[v0] Error searching for "${query}":`, searchError)
+          }
+        }
+
+        // Remove duplicates and limit to 20 songs
+        const uniqueSongs = allSongs.filter((song, index, self) =>
+          index === self.findIndex((s) => s.id === song.id)
+        ).slice(0, 20)
+
+        setPlaylist(uniqueSongs)
+        setError(null)
+      } catch (err) {
+        console.error("[v0] Error fetching mood playlist:", err)
+        setError(err instanceof Error ? err.message : "Failed to fetch mood playlist")
+        setPlaylist([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (queries.length > 0) {
+      fetchPlaylist()
+    }
+  }, [queries.join(",")])
+
+  return { playlist, loading, error }
+}
+
+export function useNewReleases() {
+  const [releases, setReleases] = useState<YtDlpSong[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchNewReleases = async () => {
+      try {
+        setLoading(true)
+        const extractor = createYtDlpExtractor()
+        // Search for recent music releases
+        const results = await extractor.search("new music releases 2024", 1, 20)
+        setReleases(results)
+        setError(null)
+      } catch (err) {
+        console.error("[v0] Error fetching new releases:", err)
+        setError(err instanceof Error ? err.message : "Failed to fetch new releases")
+        setReleases([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchNewReleases()
+  }, [])
+
+  return { releases, loading, error }
+}
+
