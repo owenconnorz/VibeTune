@@ -1,70 +1,62 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { youtubeMusicScraper } from "@/lib/youtube-music-scraper"
-import { YouTubeMusicAuth } from "@/lib/youtube-music-auth"
+// Server-only search for YouTube videos.
+// Uses YouTube Data API v3: https://developers.google.com/youtube/v3/docs/search
+// Returns normalized results ready for UI consumption.
 
-export async function GET(request: NextRequest) {
+import { NextRequest } from "next/server";
+import { searchYouTube } from "@/lib/youtube";
+
+// Revalidate cached responses every 60s in production
+export const revalidate = 60;
+
+type Json = Response;
+
+function badRequest(msg: string, status = 400): Json {
+  return Response.json({ error: msg }, { status });
+}
+
+// Super simple in-memory limiter (per Lambda instance).
+// For production scale, swap with Upstash Redis, etc.
+const WINDOW_MS = 60_000;
+const MAX_REQ = 60;
+const bucket = new Map<string, { count: number; windowStart: number }>();
+
+function rateLimit(ip: string): boolean {
+  const now = Date.now();
+  const rec = bucket.get(ip);
+  if (!rec || now - rec.windowStart > WINDOW_MS) {
+    bucket.set(ip, { count: 1, windowStart: now });
+    return true;
+  }
+  if (rec.count >= MAX_REQ) return false;
+  rec.count += 1;
+  return true;
+}
+
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const q = url.searchParams.get("q")?.trim();
+  const pageToken = url.searchParams.get("pageToken") ?? undefined;
+
+  if (!q) return badRequest("Missing query ?q=");
+
+  const ip =
+    req.ip ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "anon";
+
+  if (!rateLimit(ip)) return badRequest("Rate limit exceeded", 429);
+
   try {
-    const { searchParams } = new URL(request.url)
-    const query = searchParams.get("query") || searchParams.get("q") || ""
-    const page = Number.parseInt(searchParams.get("page") || "1")
-    const limit = Number.parseInt(searchParams.get("limit") || "20")
-    const type = searchParams.get("type") || "all"
-    const useAuth = searchParams.get("useAuth") !== "false"
-    const fallback = searchParams.get("fallback") !== "false"
-
-    console.log(`[v0] YouTube Music API: Enhanced search request:`, { query, page, limit, type, useAuth })
-
-    if (!query.trim()) {
-      return NextResponse.json({
-        success: false,
-        error: "Query parameter is required",
-        tracks: [],
-        totalCount: 0,
-        hasNextPage: false,
-      })
-    }
-
-    let accessToken: string | undefined
-    if (useAuth) {
-      try {
-        const user = await YouTubeMusicAuth.getAuthenticatedUser()
-        if (user?.accessToken) {
-          accessToken = user.accessToken
-          console.log(`[v0] Using authenticated search for user: ${user.email}`)
-        }
-      } catch (error) {
-        console.warn("[v0] Could not get authenticated user for search:", error)
-      }
-    }
-
-    const result = await youtubeMusicScraper.search(query, page, limit, {
-      type: type as any,
-      useAuth,
-      fallbackToOldAPI: fallback,
-      accessToken,
-    })
-
-    console.log(`[v0] YouTube Music API: Enhanced search response: ${result.tracks.length} tracks`)
-
-    return NextResponse.json({
-      success: true,
-      query,
-      page,
-      limit,
-      type,
-      authenticated: !!accessToken,
-      tracks: result.tracks,
-      totalCount: result.totalCount,
-      hasNextPage: result.hasNextPage,
-    })
-  } catch (error) {
-    console.error("[v0] YouTube Music API enhanced search error:", error)
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-      tracks: [],
-      totalCount: 0,
-      hasNextPage: false,
-    })
+    const data = await searchYouTube(q, { pageToken });
+    // Cache hint for downstream and browsers
+    return Response.json(data, {
+      headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
+    });
+  } catch (err: any) {
+    console.error("YT search failed:", err?.message || err);
+    return Response.json(
+      { error: "Search failed", details: err?.message || String(err) },
+      { status: 502 },
+    );
   }
 }
