@@ -127,7 +127,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           currentStep: "Syncing playlists...",
         }))
 
-        const playlistResponse = await fetch("/api/playlists")
+        try {
+            const playlistResponse = await fetch("/api/playlists", {
+              headers: {
+                Authorization: `Bearer ${user.accessToken || ""}`,
+              },
+            })
         if (playlistResponse.ok) {
           const playlistData = await playlistResponse.json()
           newSyncData.playlists = playlistData.playlists

@@ -80,59 +80,76 @@ export async function searchMusic(query: string): Promise<Song[]> {
 
 export async function searchMusicEnhanced(query: string, page = 1): Promise<EnhancedSearchResults> {
   try {
-    console.log("[v0] Enhanced search with SimpMusic integration for:", query, "page:", page)
+    console.log("[v0] Enhanced search with multi-source integration for:", query, "page:", page)
 
-    // Search all types with enhanced API
-    const response = await fetch(
-      `/api/youtube-music/search?query=${encodeURIComponent(query)}&page=${page}&type=all&useAuth=true&limit=20`,
-    )
-    if (!response.ok) {
-      throw new Error(`Enhanced search failed: ${response.status}`)
-    }
+    // Search both YouTube Music and Libre.fm in parallel
+    const [ytMusicResponse, libreResponse] = await Promise.allSettled([
+      fetch(`/api/youtube-music/search?query=${encodeURIComponent(query)}&page=${page}&type=all&useAuth=true&limit=20`),
+      fetch(`/api/libre-music/search?query=${encodeURIComponent(query)}&page=${page}&limit=10`),
+    ])
 
-    const data = await response.json()
-    const allResults = data.tracks || data.results?.songs || []
-    console.log("[v0] Enhanced YouTube Music API got results:", allResults.length, "items")
-
-    // Categorize results based on type from API
     const songs: Song[] = []
     const artists: Song[] = []
     const albums: Song[] = []
     const playlists: Song[] = []
 
-    allResults.forEach((item: any) => {
-      const song: Song = {
-        id: item.id,
-        title: item.title,
-        artist: item.channelTitle || item.artist || "Unknown Artist",
-        thumbnail:
-          item.thumbnail || generateAlbumArtwork(item.channelTitle || item.artist || "Unknown Artist", item.title),
-        duration: item.duration || "0:00",
-        type: "song" as const,
-      }
+    // Process YouTube Music results
+    if (ytMusicResponse.status === "fulfilled" && ytMusicResponse.value.ok) {
+      const data = await ytMusicResponse.value.json()
+      const allResults = data.tracks || data.results?.songs || []
+      console.log("[v0] YouTube Music API got results:", allResults.length, "items")
 
-      // Use API-provided type or fallback to pattern matching
-      const itemType = item.type || "song"
+      allResults.forEach((item: any) => {
+        const song: Song = {
+          id: item.id,
+          title: item.title,
+          artist: item.channelTitle || item.artist || "Unknown Artist",
+          thumbnail:
+            item.thumbnail || generateAlbumArtwork(item.channelTitle || item.artist || "Unknown Artist", item.title),
+          duration: item.duration || "0:00",
+          type: "song" as const,
+        }
 
-      switch (itemType) {
-        case "artist":
-          artists.push(song)
-          break
-        case "album":
-          albums.push(song)
-          break
-        case "playlist":
-          playlists.push(song)
-          break
-        case "video":
-        case "song":
-        default:
-          songs.push(song)
-          break
-      }
-    })
+        const itemType = item.type || "song"
+        switch (itemType) {
+          case "artist":
+            artists.push(song)
+            break
+          case "album":
+            albums.push(song)
+            break
+          case "playlist":
+            playlists.push(song)
+            break
+          case "video":
+          case "song":
+          default:
+            songs.push(song)
+            break
+        }
+      })
+    }
 
-    console.log("[v0] Enhanced categorized results:", {
+    // Process Libre.fm results
+    if (libreResponse.status === "fulfilled" && libreResponse.value.ok) {
+      const data = await libreResponse.value.json()
+      const libreTracks = data.tracks || []
+      console.log("[v0] Libre.fm API got results:", libreTracks.length, "items")
+
+      libreTracks.forEach((item: any) => {
+        const song: Song = {
+          id: `libre-${item.id}`,
+          title: item.title,
+          artist: item.artist || "Unknown Artist",
+          thumbnail: item.thumbnail || generateAlbumArtwork(item.artist || "Unknown Artist", item.title),
+          duration: item.duration || "0:00",
+          type: "song" as const,
+        }
+        songs.push(song)
+      })
+    }
+
+    console.log("[v0] Enhanced multi-source categorized results:", {
       songs: songs.length,
       artists: artists.length,
       albums: albums.length,
@@ -147,7 +164,7 @@ export async function searchMusicEnhanced(query: string, page = 1): Promise<Enha
       playlists,
     }
   } catch (error) {
-    console.error("[v0] Enhanced YouTube Music API search error:", error)
+    console.error("[v0] Enhanced multi-source search error:", error)
     return {
       all: [],
       songs: [],
