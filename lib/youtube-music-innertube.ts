@@ -198,4 +198,75 @@ export class YouTubeMusicInnerTube {
       throw error
     }
   }
+
+  static async getLibraryPlaylists(): Promise<any[]> {
+    console.log("[v0] YouTube Music InnerTube: Getting library playlists")
+    
+    try {
+      const data = await this.browse("FEmusic_liked_playlists")
+      
+      // Parse playlists from response
+      const playlists: any[] = []
+      const contents = data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || []
+      
+      for (const section of contents) {
+        const items = section?.musicCarouselShelfRenderer?.contents || section?.gridRenderer?.items || []
+        
+        for (const item of items) {
+          const playlistData = item?.musicTwoRowItemRenderer || item?.musicResponsiveListItemRenderer
+          if (playlistData) {
+            const playlist = {
+              id: playlistData.navigationEndpoint?.browseEndpoint?.browseId || "",
+              title: playlistData.title?.runs?.[0]?.text || "Unknown Playlist",
+              thumbnail: playlistData.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url || "",
+              videoCount: playlistData.subtitle?.runs?.[0]?.text || "0",
+            }
+            playlists.push(playlist)
+          }
+        }
+      }
+      
+      console.log(`[v0] YouTube Music InnerTube: Found ${playlists.length} playlists`)
+      return playlists
+    } catch (error) {
+      console.error("[v0] YouTube Music InnerTube getLibraryPlaylists error:", error)
+      return []
+    }
+  }
+
+  static async getLikedSongs(): Promise<any[]> {
+    console.log("[v0] YouTube Music InnerTube: Getting liked songs")
+    
+    try {
+      const data = await this.browse("FEmusic_liked_videos")
+      
+      // Parse liked songs from response
+      const songs: any[] = []
+      const contents = data?.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || []
+      
+      for (const section of contents) {
+        const items = section?.musicPlaylistShelfRenderer?.contents || section?.musicShelfRenderer?.contents || []
+        
+        for (const item of items) {
+          const songData = item?.musicResponsiveListItemRenderer
+          if (songData) {
+            const song = {
+              id: songData.playlistItemData?.videoId || songData.navigationEndpoint?.watchEndpoint?.videoId || "",
+              title: songData.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || "Unknown Title",
+              artist: songData.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || "Unknown Artist",
+              thumbnail: songData.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url || "",
+              duration: songData.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text || "0:00",
+            }
+            songs.push(song)
+          }
+        }
+      }
+      
+      console.log(`[v0] YouTube Music InnerTube: Found ${songs.length} liked songs`)
+      return songs
+    } catch (error) {
+      console.error("[v0] YouTube Music InnerTube getLikedSongs error:", error)
+      return []
+    }
+  }
 }
