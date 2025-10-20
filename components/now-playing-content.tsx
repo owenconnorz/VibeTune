@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import {
   Play,
   Pause,
@@ -19,6 +21,7 @@ import { Slider } from "@/components/ui/slider"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 export function NowPlayingContent() {
   const {
@@ -35,10 +38,35 @@ export function NowPlayingContent() {
   } = useMusicPlayer()
   const router = useRouter()
 
+  const [touchStart, setTouchStart] = useState(0)
+  const [touchEnd, setTouchEnd] = useState(0)
+  const [dragOffset, setDragOffset] = useState(0)
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientY)
+    setTouchEnd(e.touches[0].clientY)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.touches[0].clientY)
+    const offset = e.touches[0].clientY - touchStart
+    if (offset > 0) {
+      setDragOffset(offset)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    const swipeDistance = touchEnd - touchStart
+    if (swipeDistance > 100) {
+      router.back()
+    }
+    setDragOffset(0)
   }
 
   if (!currentVideo) {
@@ -47,17 +75,29 @@ export function NowPlayingContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/20 to-background flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md space-y-8">
+    <div
+      className="h-screen bg-gradient-to-b from-primary/20 to-background flex flex-col overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{
+        transform: `translateY(${dragOffset}px)`,
+        transition: dragOffset === 0 ? "transform 0.3s ease-out" : "none",
+      }}
+    >
+      <div className="flex justify-center pt-2 pb-1">
+        <div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-between px-4 py-4 min-h-0">
+        <div className="w-full max-w-md flex flex-col h-full justify-between space-y-4">
           {/* Header */}
-          <div className="text-center">
+          <div className="text-center flex-shrink-0">
             <p className="text-sm text-muted-foreground mb-1">Now Playing</p>
             <h2 className="text-lg font-semibold">music 🎶</h2>
           </div>
 
-          {/* Album Art */}
-          <div className="relative aspect-square w-full rounded-3xl overflow-hidden shadow-2xl">
+          <div className="relative w-full max-h-[40vh] aspect-square rounded-3xl overflow-hidden shadow-2xl flex-shrink-0">
             <Image
               src={currentVideo.thumbnail || "/placeholder.svg"}
               alt={currentVideo.title}
@@ -66,22 +106,20 @@ export function NowPlayingContent() {
             />
           </div>
 
-          {/* Song Info */}
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold">{currentVideo.title}</h1>
-            <p className="text-lg text-muted-foreground">{currentVideo.artist}</p>
-            <div className="flex items-center justify-center gap-4 pt-4">
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Share2 className="w-6 h-6" />
+          <div className="text-center space-y-1 flex-shrink-0">
+            <h1 className="text-xl font-bold line-clamp-1">{currentVideo.title}</h1>
+            <p className="text-base text-muted-foreground line-clamp-1">{currentVideo.artist}</p>
+            <div className="flex items-center justify-center gap-4 pt-2">
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                <Share2 className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Heart className="w-6 h-6" />
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                <Heart className="w-5 h-5" />
               </Button>
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <div className="space-y-2">
+          <div className="space-y-1 flex-shrink-0">
             <Slider
               value={[currentTime]}
               max={duration || 100}
@@ -95,21 +133,19 @@ export function NowPlayingContent() {
             </div>
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center justify-center gap-6">
-            <Button variant="ghost" size="icon" className="w-14 h-14 rounded-full" onClick={playPrevious}>
-              <SkipBack className="w-7 h-7" />
+          <div className="flex items-center justify-center gap-4 flex-shrink-0">
+            <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full" onClick={playPrevious}>
+              <SkipBack className="w-6 h-6" />
             </Button>
-            <Button size="icon" className="w-20 h-20 rounded-full bg-primary" onClick={togglePlay}>
-              {isPlaying ? <Pause className="w-9 h-9" /> : <Play className="w-9 h-9 fill-current" />}
+            <Button size="icon" className="w-16 h-16 rounded-full bg-primary" onClick={togglePlay}>
+              {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 fill-current" />}
             </Button>
-            <Button variant="ghost" size="icon" className="w-14 h-14 rounded-full" onClick={playNext}>
-              <SkipForward className="w-7 h-7" />
+            <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full" onClick={playNext}>
+              <SkipForward className="w-6 h-6" />
             </Button>
           </div>
 
-          {/* Volume Control */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <Volume2 className="w-5 h-5 text-muted-foreground" />
             <Slider
               value={[volume * 100]}
@@ -120,22 +156,21 @@ export function NowPlayingContent() {
             />
           </div>
 
-          {/* Bottom Controls */}
-          <div className="flex items-center justify-around pt-4">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <List className="w-6 h-6" />
+          <div className="flex items-center justify-around flex-shrink-0">
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+              <List className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Moon className="w-6 h-6" />
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+              <Moon className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Sliders className="w-6 h-6" />
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+              <Sliders className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Repeat className="w-6 h-6" />
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+              <Repeat className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <MoreVertical className="w-6 h-6" />
+            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+              <MoreVertical className="w-5 h-5" />
             </Button>
           </div>
         </div>
