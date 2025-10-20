@@ -10,11 +10,11 @@ import { X } from "lucide-react"
 import Link from "next/link"
 
 interface ProfileMenuProps {
-  user: {
+  user?: {
     name?: string | null
     email?: string | null
     image?: string | null
-  }
+  } | null
   isOpen: boolean
   onClose: () => void
 }
@@ -40,21 +40,27 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
           <div className="flex items-center justify-between bg-card rounded-2xl p-6">
             <div className="flex items-center gap-4">
               <Avatar className="w-16 h-16">
-                <AvatarImage src={user.image || ""} alt={user.name || ""} />
-                <AvatarFallback className="text-xl">{user.name?.charAt(0) || "U"}</AvatarFallback>
+                <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
+                <AvatarFallback className="text-xl">{user?.name?.charAt(0) || "U"}</AvatarFallback>
               </Avatar>
               <div>
-                <h3 className="font-semibold text-lg">{user.name}</h3>
-                <p className="text-sm text-muted-foreground">{user.email}</p>
+                <h3 className="font-semibold text-lg">{user?.name || "Guest"}</h3>
+                <p className="text-sm text-muted-foreground">{user?.email || "guest@opentune.app"}</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              className="rounded-full px-6 bg-transparent"
-              onClick={() => signOut({ callbackUrl: "/" })}
-            >
-              Log out
-            </Button>
+            {user ? (
+              <Button
+                variant="outline"
+                className="rounded-full px-6 bg-transparent"
+                onClick={() => signOut({ callbackUrl: "/" })}
+              >
+                Log out
+              </Button>
+            ) : (
+              <Button variant="outline" className="rounded-full px-6 bg-transparent" asChild>
+                <Link href="/auth/signin">Sign in</Link>
+              </Button>
+            )}
           </div>
 
           {/* Token */}

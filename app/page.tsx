@@ -2,8 +2,10 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Music, Radio, ListMusic, Headphones, Play, Sparkles } from "lucide-react"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 
 export default function HomePage() {
+  redirect("/dashboard")
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}

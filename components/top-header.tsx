@@ -8,11 +8,11 @@ import { ProfileMenu } from "@/components/profile-menu"
 import Link from "next/link"
 
 interface TopHeaderProps {
-  user: {
+  user?: {
     name?: string | null
     email?: string | null
     image?: string | null
-  }
+  } | null
   title: string
 }
 
@@ -36,8 +36,8 @@ export function TopHeader({ user, title }: TopHeaderProps) {
               </Button>
               <Button variant="ghost" size="icon" className="rounded-full p-0" onClick={() => setIsProfileOpen(true)}>
                 <Avatar className="w-10 h-10">
-                  <AvatarImage src={user.image || ""} alt={user.name || ""} />
-                  <AvatarFallback>{user.name?.charAt(0) || "U"}</AvatarFallback>
+                  <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
+                  <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
                 </Avatar>
               </Button>
             </div>

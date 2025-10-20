@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Clock, Trash2, Play } from "lucide-react"
 import { useMusicPlayer } from "@/components/music-player-provider"
+import { TopHeader } from "@/components/top-header"
+import { BottomNav } from "@/components/bottom-nav"
+import { MiniPlayer } from "@/components/mini-player"
 
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryVideo[]>([])
@@ -53,11 +56,11 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-32">
+    <div className="min-h-screen bg-background pb-40">
+      <TopHeader user={null} title="History" />
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">History</h1>
             <p className="text-muted-foreground">
               {history.length} video{history.length !== 1 ? "s" : ""} watched
             </p>
@@ -122,6 +125,8 @@ export default function HistoryPage() {
           </div>
         )}
       </div>
+      <MiniPlayer />
+      <BottomNav />
     </div>
   )
 }
