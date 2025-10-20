@@ -56,7 +56,10 @@ export function NowPlayingContent() {
   const handleTouchMove = (e: React.TouchEvent) => {
     setTouchEnd(e.touches[0].clientY)
     const offset = e.touches[0].clientY - touchStart
+
+    // Only allow downward swipe and prevent browser refresh
     if (offset > 0) {
+      e.preventDefault() // Prevent pull-to-refresh
       setDragOffset(offset)
     }
   }
@@ -76,13 +79,14 @@ export function NowPlayingContent() {
 
   return (
     <div
-      className="h-screen bg-gradient-to-b from-primary/20 to-background flex flex-col overflow-hidden"
+      className="h-screen bg-gradient-to-b from-primary/20 to-background flex flex-col overflow-hidden overscroll-none touch-pan-y"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       style={{
         transform: `translateY(${dragOffset}px)`,
         transition: dragOffset === 0 ? "transform 0.3s ease-out" : "none",
+        overscrollBehavior: "contain",
       }}
     >
       <div className="flex justify-center pt-2 pb-1">

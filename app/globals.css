@@ -109,5 +109,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Prevent pull-to-refresh on mobile browsers */
+    overscroll-behavior: contain;
+    touch-action: pan-x pan-y;
   }
 }
