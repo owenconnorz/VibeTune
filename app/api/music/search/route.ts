@@ -45,7 +45,12 @@ export async function GET(request: NextRequest) {
         id: item.id,
         title: item.snippet.title,
         artist: item.snippet.channelTitle,
-        thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
+        thumbnail:
+          item.snippet.thumbnails.maxres?.url ||
+          item.snippet.thumbnails.standard?.url ||
+          item.snippet.thumbnails.high?.url ||
+          item.snippet.thumbnails.medium?.url ||
+          item.snippet.thumbnails.default?.url,
         duration: formatDuration(item.contentDetails.duration),
       })) || []
 
