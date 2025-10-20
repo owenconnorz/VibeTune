@@ -1,17 +1,48 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, ArrowLeft, Globe } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import { useMusicPlayer } from "@/components/music-player-provider"
+import type { YouTubeVideo } from "@/lib/innertube"
+import Image from "next/image"
 
 export function SearchContent() {
   const [query, setQuery] = useState("")
+  const [results, setResults] = useState<YouTubeVideo[]>([])
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const { playVideo } = useMusicPlayer()
+
+  useEffect(() => {
+    const searchTimeout = setTimeout(() => {
+      if (query.trim()) {
+        performSearch()
+      } else {
+        setResults([])
+      }
+    }, 500)
+
+    return () => clearTimeout(searchTimeout)
+  }, [query])
+
+  const performSearch = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`)
+      const data = await response.json()
+      setResults(data.videos || [])
+    } catch (error) {
+      console.error("[v0] Search error:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-32">
       <div className="sticky top-0 bg-background z-30 border-b border-border/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
@@ -33,10 +64,39 @@ export function SearchContent() {
           </div>
         </div>
       </div>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center h-96 text-muted-foreground">
-          <p>Start typing to search for music...</p>
-        </div>
+      <div className="container mx-auto px-4 py-6">
+        {loading ? (
+          <div className="flex items-center justify-center h-96">
+            <p className="text-muted-foreground">Searching...</p>
+          </div>
+        ) : results.length > 0 ? (
+          <div className="space-y-2">
+            {results.map((video) => (
+              <button
+                key={video.id}
+                onClick={() => playVideo(video)}
+                className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors text-left"
+              >
+                <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                  <Image src={video.thumbnail || "/placeholder.svg"} alt={video.title} fill className="object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold truncate">{video.title}</h3>
+                  <p className="text-sm text-muted-foreground truncate">{video.artist}</p>
+                </div>
+                <span className="text-sm text-muted-foreground">{video.duration}</span>
+              </button>
+            ))}
+          </div>
+        ) : query.trim() ? (
+          <div className="flex items-center justify-center h-96 text-muted-foreground">
+            <p>No results found</p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-96 text-muted-foreground">
+            <p>Start typing to search for music...</p>
+          </div>
+        )}
       </div>
     </div>
   )
