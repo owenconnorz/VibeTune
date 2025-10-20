@@ -3,6 +3,8 @@
 import { createContext, useContext, useState, useRef, useEffect, type ReactNode } from "react"
 import type { YouTubeVideo } from "@/lib/innertube"
 import { historyStorage } from "@/lib/history-storage"
+import { extractColorsFromImage, type ExtractedColors } from "@/lib/color-extractor"
+import { themeStorage } from "@/lib/theme-storage"
 
 declare global {
   interface Window {
@@ -18,6 +20,7 @@ interface MusicPlayerContextType {
   currentTime: number
   duration: number
   volume: number
+  themeColors: ExtractedColors | null
   playVideo: (video: YouTubeVideo) => void
   togglePlay: () => void
   playNext: () => void
@@ -37,6 +40,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(100)
+  const [themeColors, setThemeColors] = useState<ExtractedColors | null>(null)
   const playerRef = useRef<any>(null)
   const playerContainerRef = useRef<HTMLDivElement | null>(null)
   const timeUpdateInterval = useRef<NodeJS.Timeout | null>(null)
@@ -143,6 +147,53 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [isPlaying])
 
+  useEffect(() => {
+    if (!currentVideo) return
+
+    const settings = themeStorage.getSettings()
+    if (!settings.dynamicThemeEnabled) {
+      setThemeColors(null)
+      return
+    }
+
+    extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
+      setThemeColors(colors)
+      applyThemeColors(colors)
+    })
+  }, [currentVideo])
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const settings = themeStorage.getSettings()
+      if (!settings.dynamicThemeEnabled) {
+        setThemeColors(null)
+        resetThemeColors()
+      } else if (currentVideo) {
+        extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
+          setThemeColors(colors)
+          applyThemeColors(colors)
+        })
+      }
+    }
+
+    window.addEventListener("themeSettingsChanged", handleThemeChange)
+    return () => window.removeEventListener("themeSettingsChanged", handleThemeChange)
+  }, [currentVideo])
+
+  const applyThemeColors = (colors: ExtractedColors) => {
+    const root = document.documentElement
+    root.style.setProperty("--background", colors.primary)
+    root.style.setProperty("--card", colors.secondary)
+    root.style.setProperty("--accent", colors.accent)
+  }
+
+  const resetThemeColors = () => {
+    const root = document.documentElement
+    root.style.removeProperty("--background")
+    root.style.removeProperty("--card")
+    root.style.removeProperty("--accent")
+  }
+
   const playVideo = (video: YouTubeVideo) => {
     setCurrentVideo(video)
     setIsPlaying(true)
@@ -208,6 +259,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         currentTime,
         duration,
         volume,
+        themeColors,
         playVideo,
         togglePlay,
         playNext,

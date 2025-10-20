@@ -10,7 +10,7 @@ export function SettingsContent() {
   const sections = [
     {
       title: "Interface",
-      items: [{ icon: Palette, label: "Appearance" }],
+      items: [{ icon: Palette, label: "Appearance", href: "/dashboard/settings/appearance" }],
     },
     {
       title: "Player & Content",
@@ -61,6 +61,7 @@ export function SettingsContent() {
               {section.items.map((item) => (
                 <button
                   key={item.label}
+                  onClick={() => item.href && router.push(item.href)}
                   className="w-full flex items-center gap-4 bg-card rounded-2xl p-4 hover:bg-card/80 transition-colors"
                 >
                   <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">

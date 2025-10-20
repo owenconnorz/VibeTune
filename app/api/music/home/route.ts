@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import type { HomeFeedSection } from "@/lib/innertube"
 
 export const runtime = "nodejs"
-export const dynamic = "force-dynamic"
+export const revalidate = 1800 // Revalidate every 30 minutes
 
 async function fetchPopularMusic(): Promise<{ sections: HomeFeedSection[] }> {
   const apiKey = process.env.YOUTUBE_API_KEY
@@ -193,7 +193,12 @@ export async function GET() {
     console.log("[v0] Home feed API called")
     const feed = await fetchPopularMusic()
     console.log("[v0] Returning home feed with", feed.sections.length, "sections")
-    return NextResponse.json(feed)
+
+    return NextResponse.json(feed, {
+      headers: {
+        "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+      },
+    })
   } catch (error) {
     console.error("[v0] Error in home feed API:", error)
     return NextResponse.json(getMockHomeFeed())

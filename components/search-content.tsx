@@ -1,44 +1,54 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, ArrowLeft, Globe } from "lucide-react"
+import { Search, ArrowLeft, Globe, Clock } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import type { YouTubeVideo } from "@/lib/innertube"
 import Image from "next/image"
+import { useAPI } from "@/lib/use-api"
+import { searchHistory } from "@/lib/cache"
 
 export function SearchContent() {
   const [query, setQuery] = useState("")
-  const [results, setResults] = useState<YouTubeVideo[]>([])
-  const [loading, setLoading] = useState(false)
+  const [debouncedQuery, setDebouncedQuery] = useState("")
+  const [history, setHistory] = useState<string[]>([])
   const router = useRouter()
   const { playVideo } = useMusicPlayer()
+
+  const { data, isLoading } = useAPI<{ videos: YouTubeVideo[] }>(
+    debouncedQuery ? `/api/music/search?q=${encodeURIComponent(debouncedQuery)}` : null,
+  )
+
+  const results = data?.videos || []
+
+  useEffect(() => {
+    setHistory(searchHistory.get())
+  }, [])
 
   useEffect(() => {
     const searchTimeout = setTimeout(() => {
       if (query.trim()) {
-        performSearch()
+        setDebouncedQuery(query.trim())
+        searchHistory.add(query.trim())
+        setHistory(searchHistory.get())
       } else {
-        setResults([])
+        setDebouncedQuery("")
       }
     }, 500)
 
     return () => clearTimeout(searchTimeout)
   }, [query])
 
-  const performSearch = async () => {
-    setLoading(true)
-    try {
-      const response = await fetch(`/api/music/search?q=${encodeURIComponent(query)}`)
-      const data = await response.json()
-      setResults(data.videos || [])
-    } catch (error) {
-      console.error("[v0] Search error:", error)
-    } finally {
-      setLoading(false)
-    }
+  const handleHistoryClick = (historyQuery: string) => {
+    setQuery(historyQuery)
+  }
+
+  const clearHistory = () => {
+    searchHistory.clear()
+    setHistory([])
   }
 
   return (
@@ -65,7 +75,29 @@ export function SearchContent() {
         </div>
       </div>
       <div className="container mx-auto px-4 py-6">
-        {loading ? (
+        {!query.trim() && history.length > 0 && (
+          <div className="space-y-3 mb-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted-foreground">Recent Searches</h3>
+              <Button variant="ghost" size="sm" onClick={clearHistory}>
+                Clear
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {history.map((item, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleHistoryClick(item)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors text-left"
+                >
+                  <Clock className="w-5 h-5 text-muted-foreground" />
+                  <span className="flex-1">{item}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {isLoading ? (
           <div className="flex items-center justify-center h-96">
             <p className="text-muted-foreground">Searching...</p>
           </div>

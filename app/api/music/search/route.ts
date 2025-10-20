@@ -50,7 +50,15 @@ export async function GET(request: NextRequest) {
       })) || []
 
     console.log("[v0] Found", videos.length, "videos")
-    return NextResponse.json({ videos })
+
+    return NextResponse.json(
+      { videos },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+        },
+      },
+    )
   } catch (error) {
     console.error("[v0] Search error:", error)
     return NextResponse.json({ videos: [] })
