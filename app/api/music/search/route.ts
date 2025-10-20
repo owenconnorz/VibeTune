@@ -1,20 +1,72 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { searchMusic } from "@/lib/innertube"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const query = searchParams.get("q")
-  const continuation = searchParams.get("continuation")
 
   if (!query) {
     return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
   }
 
   try {
-    const results = await searchMusic(query, continuation || undefined)
-    return NextResponse.json(results)
+    console.log("[v0] Searching for:", query)
+
+    const apiKey = process.env.YOUTUBE_API_KEY
+    if (!apiKey) {
+      console.error("[v0] YouTube API key not found")
+      return NextResponse.json({ videos: [] })
+    }
+
+    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&maxResults=20&key=${apiKey}`
+
+    const searchResponse = await fetch(searchUrl)
+    if (!searchResponse.ok) {
+      console.error("[v0] YouTube API search failed:", searchResponse.status)
+      return NextResponse.json({ videos: [] })
+    }
+
+    const searchData = await searchResponse.json()
+
+    // Get video details for duration
+    const videoIds = searchData.items?.map((item: any) => item.id.videoId).join(",") || ""
+    if (!videoIds) {
+      return NextResponse.json({ videos: [] })
+    }
+
+    const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${apiKey}`
+    const detailsResponse = await fetch(detailsUrl)
+    const detailsData = await detailsResponse.json()
+
+    const videos =
+      detailsData.items?.map((item: any) => ({
+        id: item.id,
+        title: item.snippet.title,
+        artist: item.snippet.channelTitle,
+        thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
+        duration: formatDuration(item.contentDetails.duration),
+      })) || []
+
+    console.log("[v0] Found", videos.length, "videos")
+    return NextResponse.json({ videos })
   } catch (error) {
     console.error("[v0] Search error:", error)
-    return NextResponse.json({ error: "Failed to search" }, { status: 500 })
+    return NextResponse.json({ videos: [] })
   }
+}
+
+function formatDuration(duration: string): string {
+  const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/)
+  if (!match) return "0:00"
+
+  const hours = (match[1] || "").replace("H", "")
+  const minutes = (match[2] || "0M").replace("M", "")
+  const seconds = (match[3] || "0S").replace("S", "")
+
+  if (hours) {
+    return `${hours}:${minutes.padStart(2, "0")}:${seconds.padStart(2, "0")}`
+  }
+  return `${minutes}:${seconds.padStart(2, "0")}`
 }

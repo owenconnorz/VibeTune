@@ -4,6 +4,13 @@ import { createContext, useContext, useState, useRef, useEffect, type ReactNode 
 import type { YouTubeVideo } from "@/lib/innertube"
 import { historyStorage } from "@/lib/history-storage"
 
+declare global {
+  interface Window {
+    YT: any
+    onYouTubeIframeAPIReady: () => void
+  }
+}
+
 interface MusicPlayerContextType {
   currentVideo: YouTubeVideo | null
   isPlaying: boolean
@@ -29,63 +36,110 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<YouTubeVideo[]>([])
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [volume, setVolumeState] = useState(1)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [volume, setVolumeState] = useState(100)
+  const playerRef = useRef<any>(null)
+  const playerContainerRef = useRef<HTMLDivElement | null>(null)
+  const timeUpdateInterval = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    audioRef.current = new Audio()
-    audioRef.current.volume = volume
+    if (!window.YT) {
+      const tag = document.createElement("script")
+      tag.src = "https://www.youtube.com/iframe_api"
+      const firstScriptTag = document.getElementsByTagName("script")[0]
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
 
-    audioRef.current.addEventListener("timeupdate", () => {
-      setCurrentTime(audioRef.current?.currentTime || 0)
-    })
-
-    audioRef.current.addEventListener("loadedmetadata", () => {
-      setDuration(audioRef.current?.duration || 0)
-    })
-
-    audioRef.current.addEventListener("ended", () => {
-      playNext()
-    })
+      window.onYouTubeIframeAPIReady = () => {
+        console.log("[v0] YouTube IFrame API ready")
+      }
+    }
 
     return () => {
-      audioRef.current?.pause()
-      audioRef.current = null
+      if (timeUpdateInterval.current) {
+        clearInterval(timeUpdateInterval.current)
+      }
     }
   }, [])
 
   useEffect(() => {
-    if (!currentVideo || !audioRef.current) return
+    if (!currentVideo) return
 
-    const loadAudio = async () => {
-      try {
-        const response = await fetch(`/api/music/stream/${currentVideo.id}`)
-        const data = await response.json()
-
-        if (data.audioUrl && audioRef.current) {
-          audioRef.current.src = data.audioUrl
-          if (isPlaying) {
-            await audioRef.current.play()
-          }
-        }
-      } catch (error) {
-        console.error("[v0] Error loading audio:", error)
+    const initPlayer = () => {
+      if (!window.YT || !window.YT.Player) {
+        setTimeout(initPlayer, 100)
+        return
       }
+
+      if (playerRef.current) {
+        playerRef.current.loadVideoById(currentVideo.id)
+        if (isPlaying) {
+          playerRef.current.playVideo()
+        }
+        return
+      }
+
+      // Create hidden container for player
+      if (!playerContainerRef.current) {
+        playerContainerRef.current = document.createElement("div")
+        playerContainerRef.current.id = "youtube-player"
+        playerContainerRef.current.style.display = "none"
+        document.body.appendChild(playerContainerRef.current)
+      }
+
+      playerRef.current = new window.YT.Player("youtube-player", {
+        height: "0",
+        width: "0",
+        videoId: currentVideo.id,
+        playerVars: {
+          autoplay: isPlaying ? 1 : 0,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          modestbranding: 1,
+          playsinline: 1,
+        },
+        events: {
+          onReady: (event: any) => {
+            console.log("[v0] Player ready")
+            event.target.setVolume(volume)
+            setDuration(event.target.getDuration())
+            if (isPlaying) {
+              event.target.playVideo()
+            }
+
+            // Start time update interval
+            if (timeUpdateInterval.current) {
+              clearInterval(timeUpdateInterval.current)
+            }
+            timeUpdateInterval.current = setInterval(() => {
+              if (playerRef.current && playerRef.current.getCurrentTime) {
+                setCurrentTime(playerRef.current.getCurrentTime())
+              }
+            }, 100)
+          },
+          onStateChange: (event: any) => {
+            if (event.data === window.YT.PlayerState.ENDED) {
+              playNext()
+            } else if (event.data === window.YT.PlayerState.PLAYING) {
+              setIsPlaying(true)
+              setDuration(event.target.getDuration())
+            } else if (event.data === window.YT.PlayerState.PAUSED) {
+              setIsPlaying(false)
+            }
+          },
+        },
+      })
     }
 
-    loadAudio()
+    initPlayer()
   }, [currentVideo])
 
   useEffect(() => {
-    if (!audioRef.current) return
+    if (!playerRef.current || !playerRef.current.playVideo) return
 
     if (isPlaying) {
-      audioRef.current.play().catch((error) => {
-        console.error("[v0] Playback error:", error)
-        setIsPlaying(false)
-      })
+      playerRef.current.playVideo()
     } else {
-      audioRef.current.pause()
+      playerRef.current.pauseVideo()
     }
   }, [isPlaying])
 
@@ -96,7 +150,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       id: video.id,
       title: video.title,
       thumbnail: video.thumbnail,
-      channelTitle: video.channelTitle,
+      channelTitle: video.artist || video.channelTitle,
       duration: video.duration,
     })
   }
@@ -117,8 +171,8 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   const playPrevious = () => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0
+    if (playerRef.current && playerRef.current.seekTo) {
+      playerRef.current.seekTo(0)
     }
     setIsPlaying(true)
   }
@@ -132,16 +186,16 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   const seekTo = (time: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = time
+    if (playerRef.current && playerRef.current.seekTo) {
+      playerRef.current.seekTo(time, true)
       setCurrentTime(time)
     }
   }
 
   const setVolume = (newVolume: number) => {
     setVolumeState(newVolume)
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume
+    if (playerRef.current && playerRef.current.setVolume) {
+      playerRef.current.setVolume(newVolume)
     }
   }
 
