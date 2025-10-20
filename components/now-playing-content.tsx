@@ -15,6 +15,12 @@ import {
   Repeat,
   MoreVertical,
   Volume2,
+  Radio,
+  ListPlus,
+  Link2,
+  User,
+  Disc3,
+  Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -22,6 +28,7 @@ import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 
 export function NowPlayingContent() {
   const {
@@ -41,6 +48,7 @@ export function NowPlayingContent() {
   const [touchStart, setTouchStart] = useState(0)
   const [touchEnd, setTouchEnd] = useState(0)
   const [dragOffset, setDragOffset] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -57,9 +65,8 @@ export function NowPlayingContent() {
     setTouchEnd(e.touches[0].clientY)
     const offset = e.touches[0].clientY - touchStart
 
-    // Only allow downward swipe and prevent browser refresh
     if (offset > 0) {
-      e.preventDefault() // Prevent pull-to-refresh
+      e.preventDefault()
       setDragOffset(offset)
     }
   }
@@ -72,113 +79,209 @@ export function NowPlayingContent() {
     setDragOffset(0)
   }
 
+  const handleCopyLink = () => {
+    if (currentVideo) {
+      const link = `https://youtube.com/watch?v=${currentVideo.id}`
+      navigator.clipboard.writeText(link)
+      setMenuOpen(false)
+    }
+  }
+
+  const handleStartRadio = () => {
+    console.log("[v0] Start radio for:", currentVideo?.title)
+    setMenuOpen(false)
+  }
+
+  const handleAddToPlaylist = () => {
+    console.log("[v0] Add to playlist:", currentVideo?.title)
+    setMenuOpen(false)
+  }
+
+  const handleViewArtist = () => {
+    console.log("[v0] View artist:", currentVideo?.artist)
+    setMenuOpen(false)
+  }
+
+  const handleViewAlbum = () => {
+    console.log("[v0] View album for:", currentVideo?.title)
+    setMenuOpen(false)
+  }
+
+  const handleDownload = () => {
+    console.log("[v0] Download:", currentVideo?.title)
+    setMenuOpen(false)
+  }
+
   if (!currentVideo) {
     router.push("/dashboard")
     return null
   }
 
   return (
-    <div
-      className="h-screen bg-gradient-to-b from-primary/20 to-background flex flex-col overflow-hidden overscroll-none touch-pan-y"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{
-        transform: `translateY(${dragOffset}px)`,
-        transition: dragOffset === 0 ? "transform 0.3s ease-out" : "none",
-        overscrollBehavior: "contain",
-      }}
-    >
-      <div className="flex justify-center pt-2 pb-1">
-        <div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
-      </div>
+    <>
+      <div
+        className="h-screen bg-gradient-to-b from-primary/20 to-background flex flex-col overflow-hidden overscroll-none touch-pan-y"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          transform: `translateY(${dragOffset}px)`,
+          transition: dragOffset === 0 ? "transform 0.3s ease-out" : "none",
+          overscrollBehavior: "contain",
+        }}
+      >
+        <div className="flex justify-center pt-2 pb-1">
+          <div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
+        </div>
 
-      <div className="flex-1 flex flex-col items-center justify-between px-4 py-4 min-h-0">
-        <div className="w-full max-w-md flex flex-col h-full justify-between space-y-4">
-          {/* Header */}
-          <div className="text-center flex-shrink-0">
-            <p className="text-sm text-muted-foreground mb-1">Now Playing</p>
-            <h2 className="text-lg font-semibold">music 🎶</h2>
-          </div>
+        <div className="flex-1 flex flex-col items-center justify-between px-4 py-4 min-h-0">
+          <div className="w-full max-w-md flex flex-col h-full justify-between space-y-4">
+            <div className="text-center flex-shrink-0">
+              <p className="text-sm text-muted-foreground mb-1">Now Playing</p>
+              <h2 className="text-lg font-semibold">music 🎶</h2>
+            </div>
 
-          <div className="relative w-full max-h-[40vh] aspect-square rounded-3xl overflow-hidden shadow-2xl flex-shrink-0">
-            <Image
-              src={currentVideo.thumbnail || "/placeholder.svg"}
-              alt={currentVideo.title}
-              fill
-              className="object-cover"
-            />
-          </div>
+            <div className="relative w-full max-h-[40vh] aspect-square rounded-3xl overflow-hidden shadow-2xl flex-shrink-0">
+              <Image
+                src={currentVideo.thumbnail || "/placeholder.svg"}
+                alt={currentVideo.title}
+                fill
+                className="object-cover"
+              />
+            </div>
 
-          <div className="text-center space-y-1 flex-shrink-0">
-            <h1 className="text-xl font-bold line-clamp-1">{currentVideo.title}</h1>
-            <p className="text-base text-muted-foreground line-clamp-1">{currentVideo.artist}</p>
-            <div className="flex items-center justify-center gap-4 pt-2">
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                <Share2 className="w-5 h-5" />
+            <div className="text-center space-y-1 flex-shrink-0">
+              <h1 className="text-xl font-bold line-clamp-1">{currentVideo.title}</h1>
+              <p className="text-base text-muted-foreground line-clamp-1">{currentVideo.artist}</p>
+              <div className="flex items-center justify-center gap-4 pt-2">
+                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                  <Share2 className="w-5 h-5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                  <Heart className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1 flex-shrink-0">
+              <Slider
+                value={[currentTime]}
+                max={duration || 100}
+                step={1}
+                onValueChange={(value) => seekTo(value[0])}
+                className="w-full"
+              />
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{formatTime(currentTime)}</span>
+                <span>{formatTime(duration)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center gap-4 flex-shrink-0">
+              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full" onClick={playPrevious}>
+                <SkipBack className="w-6 h-6" />
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                <Heart className="w-5 h-5" />
+              <Button size="icon" className="w-16 h-16 rounded-full bg-primary" onClick={togglePlay}>
+                {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 fill-current" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full" onClick={playNext}>
+                <SkipForward className="w-6 h-6" />
               </Button>
             </div>
-          </div>
 
-          <div className="space-y-1 flex-shrink-0">
-            <Slider
-              value={[currentTime]}
-              max={duration || 100}
-              step={1}
-              onValueChange={(value) => seekTo(value[0])}
-              className="w-full"
-            />
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>{formatTime(currentTime)}</span>
-              <span>{formatTime(duration)}</span>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <Volume2 className="w-5 h-5 text-muted-foreground" />
+              <Slider
+                value={[volume * 100]}
+                max={100}
+                step={1}
+                onValueChange={(value) => setVolume(value[0] / 100)}
+                className="flex-1"
+              />
             </div>
-          </div>
 
-          <div className="flex items-center justify-center gap-4 flex-shrink-0">
-            <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full" onClick={playPrevious}>
-              <SkipBack className="w-6 h-6" />
-            </Button>
-            <Button size="icon" className="w-16 h-16 rounded-full bg-primary" onClick={togglePlay}>
-              {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8 fill-current" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full" onClick={playNext}>
-              <SkipForward className="w-6 h-6" />
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <Volume2 className="w-5 h-5 text-muted-foreground" />
-            <Slider
-              value={[volume * 100]}
-              max={100}
-              step={1}
-              onValueChange={(value) => setVolume(value[0] / 100)}
-              className="flex-1"
-            />
-          </div>
-
-          <div className="flex items-center justify-around flex-shrink-0">
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-              <List className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-              <Moon className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-              <Sliders className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-              <Repeat className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-              <MoreVertical className="w-5 h-5" />
-            </Button>
+            <div className="flex items-center justify-around flex-shrink-0">
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                <List className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                <Moon className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                <Sliders className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                <Repeat className="w-5 h-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setMenuOpen(true)}>
+                <MoreVertical className="w-5 h-5" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <Drawer open={menuOpen} onOpenChange={setMenuOpen}>
+        <DrawerContent>
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Song Options</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-6 pt-2">
+            <div className="flex items-center gap-3 mb-6">
+              <Volume2 className="w-5 h-5 text-muted-foreground" />
+              <Slider
+                value={[volume * 100]}
+                max={100}
+                step={1}
+                onValueChange={(value) => setVolume(value[0] / 100)}
+                className="flex-1"
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <Button
+                variant="outline"
+                className="flex flex-col items-center gap-2 h-auto py-4 rounded-2xl bg-transparent"
+                onClick={handleStartRadio}
+              >
+                <Radio className="w-5 h-5" />
+                <span className="text-xs">Start radio</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="flex flex-col items-center gap-2 h-auto py-4 rounded-2xl bg-transparent"
+                onClick={handleAddToPlaylist}
+              >
+                <ListPlus className="w-5 h-5" />
+                <span className="text-xs">Add to playlist</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="flex flex-col items-center gap-2 h-auto py-4 rounded-2xl bg-transparent"
+                onClick={handleCopyLink}
+              >
+                <Link2 className="w-5 h-5" />
+                <span className="text-xs">Copy link</span>
+              </Button>
+            </div>
+
+            <div className="space-y-1">
+              <Button variant="ghost" className="w-full justify-start gap-3 h-12" onClick={handleViewArtist}>
+                <User className="w-5 h-5" />
+                <span>View artist</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start gap-3 h-12" onClick={handleViewAlbum}>
+                <Disc3 className="w-5 h-5" />
+                <span>View album</span>
+              </Button>
+              <Button variant="ghost" className="w-full justify-start gap-3 h-12" onClick={handleDownload}>
+                <Download className="w-5 h-5" />
+                <span>Download</span>
+              </Button>
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
+    </>
   )
 }
