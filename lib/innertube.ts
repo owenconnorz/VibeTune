@@ -4,7 +4,14 @@ let innertubeInstance: Innertube | null = null
 
 export async function getInnertube() {
   if (!innertubeInstance) {
-    innertubeInstance = await Innertube.create()
+    try {
+      console.log("[v0] Initializing Innertube...")
+      innertubeInstance = await Innertube.create()
+      console.log("[v0] Innertube initialized successfully")
+    } catch (error) {
+      console.error("[v0] Failed to initialize Innertube:", error)
+      throw error
+    }
   }
   return innertubeInstance
 }
@@ -35,43 +42,62 @@ export interface HomeFeedResult {
 
 export async function getHomeFeed(): Promise<HomeFeedResult> {
   try {
+    console.log("[v0] Getting Innertube instance...")
     const innertube = await getInnertube()
+    console.log("[v0] Fetching music home feed...")
     const homeFeed = await innertube.music.getHomeFeed()
+    console.log("[v0] Home feed response received")
 
     const sections: HomeFeedSection[] = []
 
-    for (const shelf of homeFeed.contents || []) {
-      if (shelf.type === "MusicCarouselShelf" || shelf.type === "MusicShelf") {
-        const title = shelf.title?.text || "Recommended"
-        const items: YouTubeVideo[] = []
+    if (!homeFeed || !homeFeed.contents) {
+      console.log("[v0] No contents in home feed")
+      return { sections: [] }
+    }
 
-        for (const item of shelf.contents || []) {
-          if (item.type === "MusicResponsiveListItem" || item.type === "MusicTwoRowItem") {
-            const videoId = item.id
-            if (!videoId) continue
+    for (const shelf of homeFeed.contents) {
+      try {
+        if (shelf.type === "MusicCarouselShelf" || shelf.type === "MusicShelf") {
+          const title = shelf.title?.text || "Recommended"
+          const items: YouTubeVideo[] = []
 
-            const title = item.title?.text || item.title || "Unknown Title"
-            const artist = item.artists?.[0]?.name || item.subtitle?.text || "Unknown Artist"
-            const thumbnail = item.thumbnails?.[0]?.url || item.thumbnail?.[0]?.url || ""
-            const duration = item.duration?.text || "0:00"
+          for (const item of shelf.contents || []) {
+            try {
+              if (item.type === "MusicResponsiveListItem" || item.type === "MusicTwoRowItem") {
+                const videoId = item.id
+                if (!videoId) continue
 
-            items.push({
-              id: videoId,
-              title,
-              artist,
-              thumbnail,
-              duration,
-              channelTitle: artist,
-            })
+                const title = item.title?.text || item.title || "Unknown Title"
+                const artist = item.artists?.[0]?.name || item.subtitle?.text || "Unknown Artist"
+                const thumbnail = item.thumbnails?.[0]?.url || item.thumbnail?.[0]?.url || ""
+                const duration = item.duration?.text || "0:00"
+
+                items.push({
+                  id: videoId,
+                  title,
+                  artist,
+                  thumbnail,
+                  duration,
+                  channelTitle: artist,
+                })
+              }
+            } catch (itemError) {
+              console.error("[v0] Error processing item:", itemError)
+              continue
+            }
+          }
+
+          if (items.length > 0) {
+            sections.push({ title, items })
           }
         }
-
-        if (items.length > 0) {
-          sections.push({ title, items })
-        }
+      } catch (shelfError) {
+        console.error("[v0] Error processing shelf:", shelfError)
+        continue
       }
     }
 
+    console.log("[v0] Processed", sections.length, "sections")
     return { sections }
   } catch (error) {
     console.error("[v0] Error getting home feed:", error)

@@ -25,15 +25,36 @@ export function HomeContent() {
   const { playVideo } = useMusicPlayer()
   const [homeFeed, setHomeFeed] = useState<HomeFeedSection[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchHomeFeed() {
       try {
+        console.log("[v0] Fetching home feed from API...")
         const response = await fetch("/api/music/home")
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const contentType = response.headers.get("content-type")
+        if (!contentType || !contentType.includes("application/json")) {
+          const text = await response.text()
+          console.error("[v0] Non-JSON response:", text)
+          throw new Error("Server returned non-JSON response")
+        }
+
         const data = await response.json()
+        console.log("[v0] Home feed data received:", data)
+
+        if (data.error) {
+          setError(data.error)
+        }
+
         setHomeFeed(data.sections || [])
       } catch (error) {
         console.error("[v0] Error fetching home feed:", error)
+        setError(error instanceof Error ? error.message : "Failed to load home feed")
       } finally {
         setLoading(false)
       }
@@ -62,6 +83,13 @@ export function HomeContent() {
 
       {loading ? (
         <div className="px-4 py-8 text-center text-muted-foreground">Loading recommendations...</div>
+      ) : error ? (
+        <div className="px-4 py-8 text-center">
+          <p className="text-muted-foreground mb-2">Unable to load recommendations</p>
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      ) : homeFeed.length === 0 ? (
+        <div className="px-4 py-8 text-center text-muted-foreground">No recommendations available</div>
       ) : (
         homeFeed.map((section, sectionIndex) => (
           <div key={sectionIndex} className="px-4 space-y-4">
