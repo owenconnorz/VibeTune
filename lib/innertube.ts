@@ -24,6 +24,61 @@ export interface YouTubeSearchResult {
   continuation?: string
 }
 
+export interface HomeFeedSection {
+  title: string
+  items: YouTubeVideo[]
+}
+
+export interface HomeFeedResult {
+  sections: HomeFeedSection[]
+}
+
+export async function getHomeFeed(): Promise<HomeFeedResult> {
+  try {
+    const innertube = await getInnertube()
+    const homeFeed = await innertube.music.getHomeFeed()
+
+    const sections: HomeFeedSection[] = []
+
+    for (const shelf of homeFeed.contents || []) {
+      if (shelf.type === "MusicCarouselShelf" || shelf.type === "MusicShelf") {
+        const title = shelf.title?.text || "Recommended"
+        const items: YouTubeVideo[] = []
+
+        for (const item of shelf.contents || []) {
+          if (item.type === "MusicResponsiveListItem" || item.type === "MusicTwoRowItem") {
+            const videoId = item.id
+            if (!videoId) continue
+
+            const title = item.title?.text || item.title || "Unknown Title"
+            const artist = item.artists?.[0]?.name || item.subtitle?.text || "Unknown Artist"
+            const thumbnail = item.thumbnails?.[0]?.url || item.thumbnail?.[0]?.url || ""
+            const duration = item.duration?.text || "0:00"
+
+            items.push({
+              id: videoId,
+              title,
+              artist,
+              thumbnail,
+              duration,
+              channelTitle: artist,
+            })
+          }
+        }
+
+        if (items.length > 0) {
+          sections.push({ title, items })
+        }
+      }
+    }
+
+    return { sections }
+  } catch (error) {
+    console.error("[v0] Error getting home feed:", error)
+    return { sections: [] }
+  }
+}
+
 export async function searchMusic(query: string, continuation?: string): Promise<YouTubeSearchResult> {
   const innertube = await getInnertube()
 
