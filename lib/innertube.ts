@@ -298,148 +298,179 @@ export async function getArtistData(browseId: string) {
   }
 }
 
-export async function getHomeFeed() {
+export async function getTrendingMusic() {
   try {
     const data = await makeInnerTubeRequest("browse", {
-      browseId: "FEmusic_home",
+      browseId: "FEmusic_trending",
     })
 
     const contents =
       data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
         ?.contents || []
 
-    const sections: any[] = []
+    const items: any[] = []
 
     for (const section of contents) {
-      try {
-        const carouselShelf = section.musicCarouselShelfRenderer
-        const immersiveCarousel = section.musicImmersiveCarouselShelfRenderer
-        const shelf = section.musicShelfRenderer
+      const shelf = section.musicShelfRenderer || section.musicCarouselShelfRenderer
+      if (!shelf) continue
 
-        let title = ""
-        const items: any[] = []
-        let sectionType = "carousel" // Default type
-
-        // Parse carousel shelf (horizontal scrolling sections)
-        if (carouselShelf) {
-          title = carouselShelf.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]?.text || "Recommended"
-          const shelfContents = carouselShelf.contents || []
-
-          for (const item of shelfContents) {
-            try {
-              const twoRowRenderer = item.musicTwoRowItemRenderer
-              if (twoRowRenderer) {
-                const videoId =
-                  twoRowRenderer.navigationEndpoint?.watchEndpoint?.videoId ||
-                  twoRowRenderer.navigationEndpoint?.watchPlaylistEndpoint?.videoId
-                const browseId = twoRowRenderer.navigationEndpoint?.browseEndpoint?.browseId
-                const playlistId = twoRowRenderer.navigationEndpoint?.watchPlaylistEndpoint?.playlistId
-                const itemTitle = twoRowRenderer.title?.runs?.[0]?.text
-                const itemSubtitle = twoRowRenderer.subtitle?.runs?.[0]?.text
-                const itemThumbnail =
-                  twoRowRenderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
-
-                // Determine item type based on aspect ratio and navigation
-                const aspectRatio = twoRowRenderer.aspectRatio || "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE"
-                const isPlaylist = playlistId || browseId?.startsWith("VLRDCLAK") || browseId?.startsWith("VLPL")
-                const isAlbum = browseId?.startsWith("MPREb_")
-                const isArtist = browseId?.startsWith("UC") || browseId?.startsWith("MPLA")
-
-                if ((videoId || browseId || playlistId) && itemTitle) {
-                  items.push({
-                    id: videoId || browseId || playlistId,
-                    title: itemTitle,
-                    artist: itemSubtitle || "Unknown Artist",
-                    thumbnail: itemThumbnail || "/placeholder.svg",
-                    duration: "",
-                    type: isPlaylist ? "playlist" : isAlbum ? "album" : isArtist ? "artist" : "song",
-                    aspectRatio: aspectRatio.includes("RECTANGLE") ? "video" : "square",
-                  })
-                }
-                continue
-              }
-
-              const videoInfo = extractVideoInfo(item)
-              if (videoInfo) {
-                items.push({ ...videoInfo, type: "song", aspectRatio: "square" })
-              }
-            } catch (itemError) {
-              continue
-            }
+      const shelfContents = shelf.contents || []
+      for (const item of shelfContents) {
+        try {
+          const videoInfo = extractVideoInfo(item)
+          if (videoInfo) {
+            items.push({ ...videoInfo, type: "song", aspectRatio: "square" })
           }
+        } catch {
+          continue
         }
-
-        // Parse immersive carousel (large hero sections)
-        if (immersiveCarousel) {
-          title =
-            immersiveCarousel.header?.musicImmersiveCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]?.text ||
-            "Featured"
-          sectionType = "immersive"
-          const carouselContents = immersiveCarousel.contents || []
-
-          for (const item of carouselContents) {
-            try {
-              const renderer = item.musicTwoRowItemRenderer
-              if (renderer) {
-                const videoId = renderer.navigationEndpoint?.watchEndpoint?.videoId
-                const browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId
-                const playlistId = renderer.navigationEndpoint?.watchPlaylistEndpoint?.playlistId
-                const itemTitle = renderer.title?.runs?.[0]?.text
-                const itemSubtitle = renderer.subtitle?.runs?.[0]?.text
-                const itemThumbnail =
-                  renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
-
-                if ((videoId || browseId || playlistId) && itemTitle) {
-                  items.push({
-                    id: videoId || browseId || playlistId,
-                    title: itemTitle,
-                    artist: itemSubtitle || "",
-                    thumbnail: itemThumbnail || "/placeholder.svg",
-                    duration: "",
-                    type: "featured",
-                    aspectRatio: "wide",
-                  })
-                }
-              }
-            } catch (itemError) {
-              continue
-            }
-          }
-        }
-
-        // Parse shelf (vertical list sections like "Quick picks")
-        if (shelf) {
-          title = shelf.title?.runs?.[0]?.text || "Quick picks"
-          sectionType = "list"
-          const shelfContents = shelf.contents || []
-
-          for (const item of shelfContents) {
-            try {
-              const videoInfo = extractVideoInfo(item)
-              if (videoInfo) {
-                items.push({ ...videoInfo, type: "song", aspectRatio: "square" })
-              }
-            } catch (itemError) {
-              continue
-            }
-          }
-        }
-
-        if (items.length > 0) {
-          sections.push({
-            title,
-            items,
-            type: sectionType,
-          })
-        }
-      } catch (sectionError) {
-        continue
       }
     }
 
+    return items
+  } catch (error) {
+    console.error("[v0] Trending music error:", error)
+    return []
+  }
+}
+
+export async function getCharts() {
+  try {
+    const data = await makeInnerTubeRequest("browse", {
+      browseId: "FEmusic_charts",
+    })
+
+    const contents =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+        ?.contents || []
+
+    const items: any[] = []
+
+    for (const section of contents) {
+      const shelf = section.musicShelfRenderer || section.musicCarouselShelfRenderer
+      if (!shelf) continue
+
+      const shelfContents = shelf.contents || []
+      for (const item of shelfContents) {
+        try {
+          const videoInfo = extractVideoInfo(item)
+          if (videoInfo) {
+            items.push({ ...videoInfo, type: "song", aspectRatio: "square" })
+          }
+        } catch {
+          continue
+        }
+      }
+    }
+
+    return items
+  } catch (error) {
+    console.error("[v0] Charts error:", error)
+    return []
+  }
+}
+
+export async function getHomeFeed() {
+  try {
+    console.log("[v0] ===== STARTING HOME FEED FETCH =====")
+    console.log("[v0] Timestamp:", new Date().toISOString())
+
+    const sections: any[] = []
+
+    // Fetch trending music
+    try {
+      console.log("[v0] Fetching trending music...")
+      const trendingItems = await getTrendingMusic()
+      console.log("[v0] Trending items:", trendingItems.length)
+
+      if (trendingItems.length > 0) {
+        sections.push({
+          title: "Quick picks",
+          items: trendingItems.slice(0, 10),
+          type: "list",
+        })
+      }
+    } catch (error: any) {
+      console.error("[v0] Trending music failed:", error.message)
+    }
+
+    // Fetch charts
+    try {
+      console.log("[v0] Fetching charts...")
+      const chartItems = await getCharts()
+      console.log("[v0] Chart items:", chartItems.length)
+
+      if (chartItems.length > 0) {
+        sections.push({
+          title: "Top Charts",
+          items: chartItems.slice(0, 10),
+          type: "carousel",
+        })
+      }
+    } catch (error: any) {
+      console.error("[v0] Charts failed:", error.message)
+    }
+
+    // Fetch popular music
+    try {
+      console.log("[v0] Fetching popular music...")
+      const popMusicResults = await searchMusic("popular music 2024")
+      console.log("[v0] Popular music items:", popMusicResults.videos.length)
+
+      if (popMusicResults.videos.length > 0) {
+        sections.push({
+          title: "Popular Music",
+          items: popMusicResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          type: "carousel",
+        })
+      }
+    } catch (error: any) {
+      console.error("[v0] Popular music failed:", error.message)
+    }
+
+    // Fetch feel good music
+    try {
+      console.log("[v0] Fetching feel good music...")
+      const feelGoodResults = await searchMusic("feel good music")
+      console.log("[v0] Feel good items:", feelGoodResults.videos.length)
+
+      if (feelGoodResults.videos.length > 0) {
+        sections.push({
+          title: "Feel Good",
+          items: feelGoodResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          type: "carousel",
+        })
+      }
+    } catch (error: any) {
+      console.error("[v0] Feel good music failed:", error.message)
+    }
+
+    // Fetch workout music
+    try {
+      console.log("[v0] Fetching workout music...")
+      const workoutResults = await searchMusic("workout music")
+      console.log("[v0] Workout items:", workoutResults.videos.length)
+
+      if (workoutResults.videos.length > 0) {
+        sections.push({
+          title: "Workout Mix",
+          items: workoutResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          type: "carousel",
+        })
+      }
+    } catch (error: any) {
+      console.error("[v0] Workout music failed:", error.message)
+    }
+
+    console.log("[v0] ===== HOME FEED COMPLETE =====")
+    console.log("[v0] Total sections created:", sections.length)
+    console.log("[v0] Section titles:", sections.map((s) => s.title).join(", "))
+
     return { sections }
   } catch (error: any) {
-    console.error("[v0] Home feed error:", error.message)
+    console.error("[v0] ===== HOME FEED FATAL ERROR =====")
+    console.error("[v0] Error:", error.message)
+    console.error("[v0] Stack:", error.stack)
     throw error
   }
 }
