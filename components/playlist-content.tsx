@@ -150,9 +150,9 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
       return
     }
 
-    // Validate file size (max 2MB to avoid localStorage limits)
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Image size must be less than 2MB")
+    // Validate file size (max 5MB to avoid localStorage limits)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size must be less than 5MB")
       return
     }
 
@@ -380,7 +380,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
                 <ImageIcon className="w-4 h-4 mr-2" />
                 Choose image file
               </Button>
-              <p className="text-xs text-muted-foreground">Maximum file size: 2MB</p>
+              <p className="text-xs text-muted-foreground">Maximum file size: 5MB</p>
             </div>
 
             <div className="relative">
