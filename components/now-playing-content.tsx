@@ -99,7 +99,7 @@ export function NowPlayingContent() {
   return (
     <>
       <div
-        className="h-screen bg-gradient-to-b from-primary/20 to-background flex flex-col overflow-hidden overscroll-none touch-pan-y"
+        className="h-[100dvh] bg-gradient-to-b from-primary/20 to-background flex flex-col overflow-hidden overscroll-none touch-pan-y"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -109,38 +109,39 @@ export function NowPlayingContent() {
           overscrollBehavior: "contain",
         }}
       >
-        <div className="flex justify-between items-center px-4 pt-4 pb-2">
+        <div className="flex justify-between items-center px-4 pt-safe pb-2">
           <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto" />
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full h-9 w-9 absolute right-4 top-4"
+            className="rounded-full h-9 w-9 absolute right-4 top-safe"
             onClick={() => setDevicePickerOpen(true)}
           >
             <Cast className="w-5 h-5" />
           </Button>
         </div>
 
-        <div className="flex-1 flex flex-col items-center justify-between px-4 py-4 min-h-0">
-          <div className="w-full max-w-md flex flex-col h-full justify-between space-y-4">
-            <div className="text-center flex-shrink-0">
-              <p className="text-sm text-muted-foreground mb-1">Now Playing</p>
-              <h2 className="text-lg font-semibold">music 🎶</h2>
+        <div className="flex-1 flex flex-col items-center px-6 py-2 min-h-0 overflow-y-auto">
+          <div className="w-full max-w-sm flex flex-col gap-4 pb-safe">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Now Playing</p>
+              <h2 className="text-base font-semibold">music 🎶</h2>
             </div>
 
-            <div className="relative w-full max-h-[40vh] aspect-square rounded-3xl overflow-hidden shadow-2xl flex-shrink-0">
+            <div className="relative w-full aspect-square max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl">
               <Image
                 src={currentVideo.thumbnail || "/placeholder.svg"}
                 alt={currentVideo.title}
                 fill
                 className="object-cover"
+                priority
               />
             </div>
 
-            <div className="text-center space-y-1 flex-shrink-0">
-              <h1 className="text-xl font-bold line-clamp-1">{currentVideo.title}</h1>
+            <div className="text-center space-y-1">
+              <h1 className="text-xl font-bold line-clamp-2 px-2">{currentVideo.title}</h1>
               <p className="text-base text-muted-foreground line-clamp-1">{currentVideo.artist}</p>
-              <div className="flex items-center justify-center gap-4 pt-2">
+              <div className="flex items-center justify-center gap-4 pt-1">
                 <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                   <Share2 className="w-5 h-5" />
                 </Button>
@@ -150,7 +151,7 @@ export function NowPlayingContent() {
               </div>
             </div>
 
-            <div className="space-y-1 flex-shrink-0">
+            <div className="space-y-1">
               <Slider
                 value={[currentTime]}
                 max={duration || 100}
@@ -158,13 +159,13 @@ export function NowPlayingContent() {
                 onValueChange={(value) => seekTo(value[0])}
                 className="w-full"
               />
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{formatTime(currentTime)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-center gap-4 flex-shrink-0">
+            <div className="flex items-center justify-center gap-6 py-2">
               <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full" onClick={playPrevious}>
                 <SkipBack className="w-6 h-6" />
               </Button>
@@ -176,8 +177,8 @@ export function NowPlayingContent() {
               </Button>
             </div>
 
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <Volume2 className="w-5 h-5 text-muted-foreground" />
+            <div className="flex items-center gap-3">
+              <Volume2 className="w-5 h-5 text-muted-foreground flex-shrink-0" />
               <Slider
                 value={[volume * 100]}
                 max={100}
@@ -187,7 +188,7 @@ export function NowPlayingContent() {
               />
             </div>
 
-            <div className="flex items-center justify-around flex-shrink-0">
+            <div className="flex items-center justify-around pt-1">
               <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                 <List className="w-5 h-5" />
               </Button>
