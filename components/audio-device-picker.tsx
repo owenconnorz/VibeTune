@@ -138,14 +138,7 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
     // Try to enumerate audio output devices using Web Audio API
     if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
       try {
-        console.log("[v0] Requesting audio permissions for device enumeration...")
-        try {
-          await navigator.mediaDevices.getUserMedia({ audio: true })
-          console.log("[v0] Audio permissions granted")
-        } catch (permError) {
-          console.log("[v0] Audio permission denied:", permError)
-          console.log("[v0] Device labels may be limited without microphone permission")
-        }
+        console.log("[v0] Enumerating audio devices without requesting microphone permission...")
 
         const mediaDevices = await navigator.mediaDevices.enumerateDevices()
         console.log("[v0] Total media devices found:", mediaDevices.length)
@@ -461,8 +454,8 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
                 </li>
               </ul>
               <p className="mt-2 pt-2 border-t border-border">
-                <strong>Permissions needed:</strong> Microphone access (to see device names), Location (for Bluetooth on
-                Android)
+                <strong>Note:</strong> Device names may show as "Unknown" without additional permissions. Bluetooth
+                devices must be paired in your device settings first.
               </p>
             </div>
           </div>

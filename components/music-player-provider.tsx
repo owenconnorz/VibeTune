@@ -37,6 +37,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const [currentVideo, setCurrentVideo] = useState<YouTubeVideo | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [queue, setQueue] = useState<YouTubeVideo[]>([])
+  const [previousTracks, setPreviousTracks] = useState<YouTubeVideo[]>([])
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolumeState] = useState(100)
@@ -224,6 +225,10 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   const playVideo = (video: YouTubeVideo) => {
+    if (currentVideo) {
+      setPreviousTracks((prev) => [...prev, currentVideo])
+      console.log("[v0] Added to previous tracks:", currentVideo.title)
+    }
     setCurrentVideo(video)
     setIsPlaying(true)
     historyStorage.addToHistory({
@@ -236,32 +241,63 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   const togglePlay = () => {
+    console.log("[v0] Toggle play:", !isPlaying)
     setIsPlaying(!isPlaying)
   }
 
   const playNext = () => {
+    console.log("[v0] Play next called, queue length:", queue.length)
     if (queue.length > 0) {
       const nextVideo = queue[0]
+      console.log("[v0] Playing next video:", nextVideo.title)
+      if (currentVideo) {
+        setPreviousTracks((prev) => [...prev, currentVideo])
+      }
       setCurrentVideo(nextVideo)
       setQueue(queue.slice(1))
       setIsPlaying(true)
     } else {
+      console.log("[v0] No more songs in queue")
       setIsPlaying(false)
     }
   }
 
   const playPrevious = () => {
-    if (playerRef.current && playerRef.current.seekTo) {
-      playerRef.current.seekTo(0)
+    console.log("[v0] Play previous called, previous tracks length:", previousTracks.length)
+    if (currentTime > 3) {
+      console.log("[v0] Seeking to start of current song")
+      if (playerRef.current && playerRef.current.seekTo) {
+        playerRef.current.seekTo(0)
+      }
+      setIsPlaying(true)
+      return
     }
-    setIsPlaying(true)
+
+    if (previousTracks.length > 0) {
+      const previousVideo = previousTracks[previousTracks.length - 1]
+      console.log("[v0] Playing previous video:", previousVideo.title)
+      if (currentVideo) {
+        setQueue((prev) => [currentVideo, ...prev])
+      }
+      setCurrentVideo(previousVideo)
+      setPreviousTracks((prev) => prev.slice(0, -1))
+      setIsPlaying(true)
+    } else {
+      console.log("[v0] No previous tracks, seeking to start")
+      if (playerRef.current && playerRef.current.seekTo) {
+        playerRef.current.seekTo(0)
+      }
+      setIsPlaying(true)
+    }
   }
 
   const addToQueue = (video: YouTubeVideo) => {
+    console.log("[v0] Adding to queue:", video.title)
     setQueue([...queue, video])
   }
 
   const clearQueue = () => {
+    console.log("[v0] Clearing queue")
     setQueue([])
   }
 
@@ -345,7 +381,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       navigator.mediaSession.setActionHandler("seekforward", null)
       navigator.mediaSession.setActionHandler("seekto", null)
     }
-  }, [currentVideo, currentTime, duration])
+  }, [currentVideo, currentTime, duration, previousTracks, queue])
 
   useEffect(() => {
     if ("mediaSession" in navigator) {

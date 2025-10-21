@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Search, Clock, ArrowUpRight } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { Search, Clock, ArrowUpRight, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -10,12 +10,17 @@ import type { YouTubeVideo } from "@/lib/innertube"
 import Image from "next/image"
 import { useAPI } from "@/lib/use-api"
 import { searchHistory } from "@/lib/cache"
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 
 export function SearchContent() {
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [history, setHistory] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [allResults, setAllResults] = useState<YouTubeVideo[]>([])
+  const [nextPageToken, setNextPageToken] = useState<string | null>(null)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+
   const router = useRouter()
   const { playVideo } = useMusicPlayer()
 
@@ -23,15 +28,50 @@ export function SearchContent() {
     query.length >= 2 ? `/api/music/suggestions?q=${encodeURIComponent(query)}` : null,
   )
 
-  const { data, isLoading } = useAPI<{ videos: YouTubeVideo[] }>(
+  const { data, isLoading } = useAPI<{ videos: YouTubeVideo[]; nextPageToken: string | null }>(
     debouncedQuery ? `/api/music/search?q=${encodeURIComponent(debouncedQuery)}` : null,
   )
 
-  const results = data?.videos || []
   const suggestions = suggestionsData?.suggestions || []
 
-  const topResult = results[0]
-  const otherResults = results.slice(1)
+  useEffect(() => {
+    if (data) {
+      console.log("[v0] Initial search results:", data.videos.length, "nextPageToken:", data.nextPageToken)
+      setAllResults(data.videos)
+      setNextPageToken(data.nextPageToken)
+    }
+  }, [data])
+
+  const loadMoreResults = useCallback(async () => {
+    if (!nextPageToken || isLoadingMore || !debouncedQuery) return
+
+    console.log("[v0] Loading more results with pageToken:", nextPageToken)
+    setIsLoadingMore(true)
+
+    try {
+      const response = await fetch(
+        `/api/music/search?q=${encodeURIComponent(debouncedQuery)}&pageToken=${nextPageToken}`,
+      )
+      const newData = await response.json()
+
+      console.log("[v0] Loaded", newData.videos.length, "more results")
+      setAllResults((prev) => [...prev, ...newData.videos])
+      setNextPageToken(newData.nextPageToken)
+    } catch (error) {
+      console.error("[v0] Error loading more results:", error)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [nextPageToken, isLoadingMore, debouncedQuery])
+
+  const loadMoreRef = useInfiniteScroll({
+    onLoadMore: loadMoreResults,
+    hasMore: !!nextPageToken,
+    isLoading: isLoadingMore,
+  })
+
+  const topResult = allResults[0]
+  const otherResults = allResults.slice(1)
 
   useEffect(() => {
     setHistory(searchHistory.get())
@@ -46,6 +86,8 @@ export function SearchContent() {
         setShowSuggestions(false)
       } else {
         setDebouncedQuery("")
+        setAllResults([])
+        setNextPageToken(null)
       }
     }, 500)
 
@@ -137,7 +179,7 @@ export function SearchContent() {
           <div className="flex items-center justify-center h-96">
             <p className="text-muted-foreground">Searching...</p>
           </div>
-        ) : results.length > 0 ? (
+        ) : allResults.length > 0 ? (
           <div className="space-y-6">
             {topResult && (
               <div>
@@ -187,6 +229,18 @@ export function SearchContent() {
                       <span className="text-sm text-muted-foreground">{video.duration}</span>
                     </button>
                   ))}
+                </div>
+                <div ref={loadMoreRef} className="py-8 flex justify-center">
+                  {isLoadingMore && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Loading more songs...</span>
+                    </div>
+                  )}
+                  {!isLoadingMore && nextPageToken && <p className="text-sm text-muted-foreground">Scroll for more</p>}
+                  {!nextPageToken && allResults.length > 20 && (
+                    <p className="text-sm text-muted-foreground">No more results</p>
+                  )}
                 </div>
               </div>
             )}

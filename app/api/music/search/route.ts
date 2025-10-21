@@ -6,33 +6,37 @@ export const dynamic = "force-dynamic"
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const query = searchParams.get("q")
+  const pageToken = searchParams.get("pageToken")
 
   if (!query) {
     return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
   }
 
   try {
-    console.log("[v0] Searching for:", query)
+    console.log("[v0] Searching for:", query, "pageToken:", pageToken || "none")
 
     const apiKey = process.env.YOUTUBE_API_KEY
     if (!apiKey) {
       console.error("[v0] YouTube API key not found")
-      return NextResponse.json({ videos: [] })
+      return NextResponse.json({ videos: [], nextPageToken: null })
     }
 
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&maxResults=20&key=${apiKey}`
+    let searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&maxResults=20&key=${apiKey}`
+    if (pageToken) {
+      searchUrl += `&pageToken=${pageToken}`
+    }
 
     const searchResponse = await fetch(searchUrl)
     if (!searchResponse.ok) {
       console.error("[v0] YouTube API search failed:", searchResponse.status)
-      return NextResponse.json({ videos: [] })
+      return NextResponse.json({ videos: [], nextPageToken: null })
     }
 
     const searchData = await searchResponse.json()
 
     const videoIds = searchData.items?.map((item: any) => item.id.videoId).join(",") || ""
     if (!videoIds) {
-      return NextResponse.json({ videos: [] })
+      return NextResponse.json({ videos: [], nextPageToken: null })
     }
 
     const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${apiKey}`
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
         id: item.id,
         title: item.snippet.title,
         artist: item.snippet.channelTitle,
-        channelId: item.snippet.channelId, // Added channelId for artist navigation
+        channelId: item.snippet.channelId,
         thumbnail:
           item.snippet.thumbnails.maxres?.url ||
           item.snippet.thumbnails.standard?.url ||
@@ -54,10 +58,10 @@ export async function GET(request: NextRequest) {
         duration: formatDuration(item.contentDetails.duration),
       })) || []
 
-    console.log("[v0] Found", videos.length, "videos")
+    console.log("[v0] Found", videos.length, "videos, nextPageToken:", searchData.nextPageToken || "none")
 
     return NextResponse.json(
-      { videos },
+      { videos, nextPageToken: searchData.nextPageToken || null },
       {
         headers: {
           "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
@@ -66,7 +70,7 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error("[v0] Search error:", error)
-    return NextResponse.json({ videos: [] })
+    return NextResponse.json({ videos: [], nextPageToken: null })
   }
 }
 
