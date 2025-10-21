@@ -1,11 +1,12 @@
 "use client"
 
-import { ArrowLeft, Radio, Shuffle, MoreVertical } from "lucide-react"
+import { ArrowLeft, Radio, Shuffle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
 import { useAPI } from "@/lib/use-api"
+import { ArtistMenu } from "@/components/artist-menu"
 
 interface Artist {
   id: string
@@ -57,9 +58,7 @@ export function ArtistContent({ artistId }: { artistId: string }) {
               <ArrowLeft className="w-6 h-6" />
             </Button>
             <h1 className="text-lg font-semibold truncate flex-1 mx-4">{artist.name}</h1>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="w-6 h-6" />
-            </Button>
+            <ArtistMenu artistName={artist.name} artistBanner={artist.banner} />
           </div>
         </div>
       </div>
@@ -123,9 +122,17 @@ export function ArtistContent({ artistId }: { artistId: string }) {
                   <h3 className="font-semibold truncate">{song.title}</h3>
                   <p className="text-sm text-muted-foreground truncate">{artist.name}</p>
                 </div>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="w-5 h-5" />
-                </Button>
+                <ArtistMenu
+                  song={{
+                    id: song.id,
+                    title: song.title,
+                    artist: song.artist,
+                    thumbnail: song.thumbnail,
+                    duration: song.duration,
+                  }}
+                  artistName={artist.name}
+                  artistBanner={artist.banner}
+                />
               </button>
             ))}
           </div>
