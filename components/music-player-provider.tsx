@@ -100,17 +100,43 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
           fs: 0,
           modestbranding: 1,
           playsinline: 1,
+          enablejsapi: 1,
+          origin: window.location.origin,
         },
         events: {
-          onReady: (event: any) => {
+          onReady: async (event: any) => {
             console.log("[v0] Player ready")
             event.target.setVolume(volume)
             setDuration(event.target.getDuration())
+
+            try {
+              const iframe = document.getElementById("youtube-player") as HTMLIFrameElement
+              if (iframe) {
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                  const devices = await navigator.mediaDevices.enumerateDevices()
+                  const audioOutputs = devices.filter((device) => device.kind === "audiooutput")
+                  console.log("[v0] Available audio outputs:", audioOutputs)
+
+                  const defaultSpeaker = audioOutputs.find(
+                    (device) =>
+                      device.deviceId === "default" ||
+                      device.label.toLowerCase().includes("speaker") ||
+                      device.label.toLowerCase().includes("loud"),
+                  )
+
+                  if (defaultSpeaker && "setSinkId" in HTMLMediaElement.prototype) {
+                    console.log("[v0] Setting audio output to:", defaultSpeaker.label)
+                  }
+                }
+              }
+            } catch (error) {
+              console.error("[v0] Error setting audio output:", error)
+            }
+
             if (isPlaying) {
               event.target.playVideo()
             }
 
-            // Start time update interval
             if (timeUpdateInterval.current) {
               clearInterval(timeUpdateInterval.current)
             }
@@ -126,6 +152,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
             } else if (event.data === window.YT.PlayerState.PLAYING) {
               setIsPlaying(true)
               setDuration(event.target.getDuration())
+              if ("mediaSession" in navigator) {
+                navigator.mediaSession.playbackState = "playing"
+              }
             } else if (event.data === window.YT.PlayerState.PAUSED) {
               setIsPlaying(false)
             }

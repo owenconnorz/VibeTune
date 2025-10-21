@@ -125,11 +125,10 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
     console.log("[v0] Loading audio devices...")
     setScanning(true)
 
-    // Default device (this device)
     const defaultDevices: AudioDevice[] = [
       {
         id: "this-device",
-        name: "This Device",
+        name: "This Phone",
         type: "phone",
         connected: true,
         available: true,
@@ -139,39 +138,54 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
     // Try to enumerate audio output devices using Web Audio API
     if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
       try {
-        // Request permissions first to get device labels
-        await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {
-          console.log("[v0] Microphone permission denied, device labels may be limited")
-        })
+        console.log("[v0] Requesting audio permissions for device enumeration...")
+        try {
+          await navigator.mediaDevices.getUserMedia({ audio: true })
+          console.log("[v0] Audio permissions granted")
+        } catch (permError) {
+          console.log("[v0] Audio permission denied:", permError)
+          console.log("[v0] Device labels may be limited without microphone permission")
+        }
 
         const mediaDevices = await navigator.mediaDevices.enumerateDevices()
-        console.log("[v0] Found media devices:", mediaDevices.length)
+        console.log("[v0] Total media devices found:", mediaDevices.length)
+        console.log(
+          "[v0] All devices:",
+          mediaDevices.map((d) => ({ kind: d.kind, label: d.label, id: d.deviceId })),
+        )
 
         const audioOutputs = mediaDevices.filter((device) => device.kind === "audiooutput")
-        console.log("[v0] Audio output devices:", audioOutputs)
+        console.log("[v0] Audio output devices found:", audioOutputs.length)
+        audioOutputs.forEach((device) => {
+          console.log("[v0] Audio output:", {
+            label: device.label,
+            deviceId: device.deviceId,
+            groupId: device.groupId,
+          })
+        })
 
         const detectedDevices: AudioDevice[] = audioOutputs
           .filter((device) => device.deviceId !== "default" && device.deviceId !== "communications")
           .map((device) => {
             const deviceType = detectDeviceType(device.label)
-            console.log("[v0] Device:", device.label, "Type:", deviceType, "ID:", device.deviceId)
+            console.log("[v0] Mapped device:", device.label, "→ Type:", deviceType)
             return {
               id: device.deviceId,
-              name: device.label || "Audio Output",
+              name: device.label || "Unknown Audio Device",
               type: deviceType,
               connected: false,
               available: true,
             }
           })
 
+        console.log("[v0] Detected devices after filtering:", detectedDevices.length)
         setDevices([...defaultDevices, ...detectedDevices])
-        console.log("[v0] Total devices loaded:", defaultDevices.length + detectedDevices.length)
       } catch (error) {
-        console.log("[v0] Could not enumerate devices:", error)
+        console.error("[v0] Error enumerating devices:", error)
         setDevices(defaultDevices)
       }
     } else {
-      console.log("[v0] MediaDevices API not available")
+      console.log("[v0] MediaDevices API not supported in this browser")
       setDevices(defaultDevices)
     }
 
@@ -425,19 +439,32 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
           )}
 
           {/* Info Section */}
-          <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-            <h4 className="font-semibold text-sm">How to connect WiFi devices</h4>
-            <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-              <li>
-                <strong>Bluetooth devices:</strong> Pair them in your device settings first, then they'll appear here
-              </li>
-              <li>
-                <strong>Chromecast/Cast devices:</strong> Make sure they're on the same WiFi network
-              </li>
-              <li>
-                <strong>Other WiFi speakers:</strong> May require their own app or AirPlay (iOS/Mac only)
-              </li>
-            </ul>
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <h4 className="font-semibold text-sm">About WiFi Audio Devices</h4>
+            <div className="text-xs text-muted-foreground space-y-2">
+              <p>
+                <strong>Why aren't my WiFi speakers showing up?</strong>
+              </p>
+              <p>Web browsers have limited access to network devices for security reasons. Here's what works:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li>
+                  <strong>Bluetooth:</strong> Pair in your device settings first, then refresh this list
+                </li>
+                <li>
+                  <strong>Chromecast/Google Cast:</strong> Should appear automatically if on same WiFi
+                </li>
+                <li>
+                  <strong>AirPlay speakers:</strong> Only work on iOS/Mac Safari (not available in web apps)
+                </li>
+                <li>
+                  <strong>Other WiFi speakers:</strong> Require their manufacturer's app (Sonos, Bose, etc.)
+                </li>
+              </ul>
+              <p className="mt-2 pt-2 border-t border-border">
+                <strong>Permissions needed:</strong> Microphone access (to see device names), Location (for Bluetooth on
+                Android)
+              </p>
+            </div>
           </div>
         </div>
       </DrawerContent>
