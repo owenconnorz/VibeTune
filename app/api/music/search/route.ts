@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { searchMusic, convertToAppFormat } from "@/lib/invidious"
+import { searchMusic } from "@/lib/piped"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -14,19 +14,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log(`[v0] Searching with Invidious API for: ${query}`)
+    console.log(`[v0] Searching with Piped API for: ${query}`)
 
     const page = pageToken ? Number.parseInt(pageToken) : 1
     const result = await searchMusic(query, page)
 
-    const videos = result.videos.map(convertToAppFormat)
+    const videos = result.items
 
-    console.log(`[v0] Invidious returned ${videos.length} videos`)
+    console.log(`[v0] Piped returned ${videos.length} videos`)
 
     return NextResponse.json(
       {
         videos,
-        nextPageToken: result.hasMore ? String(page + 1) : null,
+        nextPageToken: result.nextPage ? String(page + 1) : null,
       },
       {
         headers: {

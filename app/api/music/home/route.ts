@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getTrending, getPopularMusic, getMusicByGenre, convertToAppFormat } from "@/lib/invidious"
+import { getTrending, getPopularMusic, getMusicByGenre } from "@/lib/piped"
 
 export const runtime = "nodejs"
 export const revalidate = 60
@@ -84,7 +84,7 @@ function getMockHomeFeed() {
 
 export async function GET() {
   try {
-    console.log("[v0] Fetching home feed from Invidious...")
+    console.log("[v0] Fetching home feed from Piped...")
 
     const [trending, popular, genreMusic] = await Promise.all([
       getTrending().catch(() => []),
@@ -92,9 +92,9 @@ export async function GET() {
       getMusicByGenre("top hits").catch(() => []),
     ])
 
-    const trendingItems = trending.slice(0, 5).map(convertToAppFormat)
-    const popularItems = popular.slice(0, 5).map(convertToAppFormat)
-    const quickPicks = genreMusic.slice(0, 3).map(convertToAppFormat)
+    const trendingItems = trending.slice(0, 5)
+    const popularItems = popular.slice(0, 5)
+    const quickPicks = genreMusic.slice(0, 3)
 
     if (trendingItems.length > 0 || popularItems.length > 0) {
       console.log("[v0] Successfully fetched real home feed data")
