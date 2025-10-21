@@ -23,6 +23,7 @@ export interface YouTubeVideo {
   thumbnail: string
   duration: string
   channelTitle: string
+  channelId?: string // Added channelId for artist navigation
   audioUrl?: string
 }
 
@@ -69,6 +70,7 @@ export async function getHomeFeed(): Promise<HomeFeedResult> {
 
                 const title = item.title?.text || item.title || "Unknown Title"
                 const artist = item.artists?.[0]?.name || item.subtitle?.text || "Unknown Artist"
+                const channelId = item.artists?.[0]?.id // Added channelId for artist navigation
                 const thumbnail = item.thumbnails?.[0]?.url || item.thumbnail?.[0]?.url || ""
                 const duration = item.duration?.text || "0:00"
 
@@ -76,6 +78,7 @@ export async function getHomeFeed(): Promise<HomeFeedResult> {
                   id: videoId,
                   title,
                   artist,
+                  channelId,
                   thumbnail,
                   duration,
                   channelTitle: artist,
@@ -122,6 +125,7 @@ export async function searchMusic(query: string, continuation?: string): Promise
       const videoId = item.id
       const title = item.title?.text || "Unknown Title"
       const artist = item.artists?.[0]?.name || item.author?.name || "Unknown Artist"
+      const channelId = item.artists?.[0]?.id // Added channelId for artist navigation
       const thumbnail = item.thumbnails?.[0]?.url || ""
       const duration = item.duration?.text || "0:00"
 
@@ -129,6 +133,7 @@ export async function searchMusic(query: string, continuation?: string): Promise
         id: videoId,
         title,
         artist,
+        channelId,
         thumbnail,
         duration,
         channelTitle: artist,
@@ -159,6 +164,7 @@ export async function getAudioStream(videoId: string): Promise<{ audioUrl: strin
       id: videoId,
       title: info.basic_info.title || "Unknown Title",
       artist: info.basic_info.author || "Unknown Artist",
+      channelId: info.basic_info.channel_id, // Added channelId for artist navigation
       thumbnail: info.basic_info.thumbnail?.[0]?.url || "",
       duration: formatDuration(info.basic_info.duration || 0),
       channelTitle: info.basic_info.author || "Unknown Artist",

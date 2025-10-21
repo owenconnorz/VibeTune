@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
 
     const searchData = await searchResponse.json()
 
-    // Get video details for duration
     const videoIds = searchData.items?.map((item: any) => item.id.videoId).join(",") || ""
     if (!videoIds) {
       return NextResponse.json({ videos: [] })
@@ -45,6 +44,7 @@ export async function GET(request: NextRequest) {
         id: item.id,
         title: item.snippet.title,
         artist: item.snippet.channelTitle,
+        channelId: item.snippet.channelId, // Added channelId for artist navigation
         thumbnail:
           item.snippet.thumbnails.maxres?.url ||
           item.snippet.thumbnails.standard?.url ||
