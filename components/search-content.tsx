@@ -137,12 +137,11 @@ export function SearchContent() {
   }
 
   const handleResultClick = (video: YouTubeVideo) => {
-    const isArtist = video.artist && video.title === video.artist
+    const isArtist = (video as any).browseId && (video as any).type === "artist"
 
     if (isArtist) {
-      // Convert artist name to URL-friendly ID
-      const artistId = video.artist.toLowerCase().replace(/\s+/g, "-")
-      router.push(`/dashboard/artist/${artistId}`)
+      // Navigate to artist page using the browse ID from InnerTube
+      router.push(`/dashboard/artist/${(video as any).browseId}`)
     } else {
       playVideo(video)
     }

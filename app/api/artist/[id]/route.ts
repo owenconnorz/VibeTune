@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getArtistData } from "@/lib/innertube"
 
 // Mock artist data
 const mockArtists: Record<string, any> = {
@@ -114,16 +115,36 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   try {
     const artistId = params.id
 
-    // Return mock data for now
-    const artist = mockArtists[artistId]
+    console.log("[v0] Fetching artist data for:", artistId)
 
-    if (!artist) {
-      return NextResponse.json({ error: "Artist not found" }, { status: 404 })
+    // Convert URL-friendly ID to browse ID format
+    // For now, we'll need to search for the artist first to get their browse ID
+    // This is a simplified approach - in production, you'd store the browse ID from search results
+
+    // Try to fetch artist data using the ID as a browse ID
+    // YouTube Music artist browse IDs typically start with "UC" or "MPLA"
+    const browseId = artistId
+
+    // If the ID is URL-friendly (like "red-hot-chili-peppers"), we need to convert it
+    // For now, return a helpful error message
+    if (!artistId.startsWith("UC") && !artistId.startsWith("MPLA")) {
+      return NextResponse.json(
+        {
+          error: "Invalid artist ID format. Please navigate to artist from search results.",
+          message: "Artist pages must be accessed through search results to get the correct browse ID.",
+        },
+        { status: 400 },
+      )
     }
 
-    return NextResponse.json({ artist })
+    const artistData = await getArtistData(browseId)
+
+    return NextResponse.json({ artist: artistData })
   } catch (error) {
     console.error("[v0] Error fetching artist:", error)
-    return NextResponse.json({ error: "Failed to fetch artist" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to fetch artist data", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 },
+    )
   }
 }
