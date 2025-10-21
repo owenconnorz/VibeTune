@@ -104,7 +104,6 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
         setNetworkDevices([])
       }
     } catch (error) {
-      console.error("[v0] Error loading network devices:", error)
       setNetworkDevices([])
     }
   }
@@ -228,13 +227,21 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
     setTimeout(() => setScanning(false), 1000)
   }
 
+  const categorizeDevices = () => {
+    const categories = {
+      current: devices.filter((d) => d.id === "this-device"),
+      local: devices.filter((d) => d.id !== "this-device"),
+      sonos: networkDevices.filter((d) => d.networkType === "sonos"),
+      chromecast: networkDevices.filter((d) => d.networkType === "chromecast"),
+      other: networkDevices.filter((d) => !["sonos", "chromecast"].includes(d.networkType || "")),
+    }
+    return categories
+  }
+
   if (!mounted) return null
 
-  const availableDevices = devices.filter((device) => device.id !== "this-device")
-
-  const sonosDevices = networkDevices.filter((d) => d.networkType === "sonos")
-  const chromecastDevices = networkDevices.filter((d) => d.networkType === "chromecast")
-  const otherNetworkDevices = networkDevices.filter((d) => !["sonos", "chromecast"].includes(d.networkType || ""))
+  const { current, local, sonos, chromecast, other } = categorizeDevices()
+  const hasDevices = local.length > 0 || networkDevices.length > 0
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -253,224 +260,58 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
 
         <div className="overflow-y-auto px-4 py-4 space-y-6">
           {/* Current Device */}
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">CURRENT DEVICE</h3>
-            <div className="space-y-2">
-              {devices
-                .filter((device) => device.id === "this-device")
-                .map((device) => {
-                  const Icon = getDeviceIcon(device)
-                  const isSelected = selectedDevice === device.id
+          <DeviceSection
+            title="CURRENT DEVICE"
+            devices={current}
+            selectedDevice={selectedDevice}
+            onSelect={handleDeviceSelect}
+            getIcon={getDeviceIcon}
+          />
 
-                  return (
-                    <button
-                      key={device.id}
-                      onClick={() => handleDeviceSelect(device.id)}
-                      className={cn(
-                        "w-full flex items-center gap-4 p-4 rounded-lg transition-colors",
-                        isSelected
-                          ? "bg-primary/10 border-2 border-primary"
-                          : "bg-card hover:bg-accent border-2 border-transparent",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center",
-                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted",
-                        )}
-                      >
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="font-semibold">{device.name}</div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-2">
-                          {isSelected && (
-                            <>
-                              <Radio className="w-3 h-3 text-primary animate-pulse" />
-                              <span className="text-primary">Playing</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      {isSelected && <Check className="w-6 h-6 text-primary" />}
-                    </button>
-                  )
-                })}
-            </div>
-          </div>
-
-          {sonosDevices.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">
-                SONOS SPEAKERS ({sonosDevices.length})
-              </h3>
-              <div className="space-y-2">
-                {sonosDevices.map((device) => {
-                  const Icon = getDeviceIcon(device)
-                  const isSelected = selectedDevice === device.id
-
-                  return (
-                    <button
-                      key={device.id}
-                      onClick={() => handleDeviceSelect(device.id)}
-                      className={cn(
-                        "w-full flex items-center gap-4 p-4 rounded-lg transition-colors",
-                        isSelected
-                          ? "bg-primary/10 border-2 border-primary"
-                          : "bg-card hover:bg-accent border-2 border-transparent",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center",
-                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted",
-                        )}
-                      >
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="font-semibold">{device.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {device.model} • {device.ipAddress}
-                        </div>
-                      </div>
-                      {isSelected && <Check className="w-6 h-6 text-primary" />}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+          {/* Network Devices */}
+          {sonos.length > 0 && (
+            <DeviceSection
+              title={`SONOS SPEAKERS (${sonos.length})`}
+              devices={sonos}
+              selectedDevice={selectedDevice}
+              onSelect={handleDeviceSelect}
+              getIcon={getDeviceIcon}
+            />
           )}
 
-          {chromecastDevices.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">
-                CHROMECAST ({chromecastDevices.length})
-              </h3>
-              <div className="space-y-2">
-                {chromecastDevices.map((device) => {
-                  const Icon = getDeviceIcon(device)
-                  const isSelected = selectedDevice === device.id
-
-                  return (
-                    <button
-                      key={device.id}
-                      onClick={() => handleDeviceSelect(device.id)}
-                      className={cn(
-                        "w-full flex items-center gap-4 p-4 rounded-lg transition-colors",
-                        isSelected
-                          ? "bg-primary/10 border-2 border-primary"
-                          : "bg-card hover:bg-accent border-2 border-transparent",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center",
-                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted",
-                        )}
-                      >
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="font-semibold">{device.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {device.model} • {device.ipAddress}
-                        </div>
-                      </div>
-                      {isSelected && <Check className="w-6 h-6 text-primary" />}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+          {chromecast.length > 0 && (
+            <DeviceSection
+              title={`CHROMECAST (${chromecast.length})`}
+              devices={chromecast}
+              selectedDevice={selectedDevice}
+              onSelect={handleDeviceSelect}
+              getIcon={getDeviceIcon}
+            />
           )}
 
-          {otherNetworkDevices.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">
-                NETWORK DEVICES ({otherNetworkDevices.length})
-              </h3>
-              <div className="space-y-2">
-                {otherNetworkDevices.map((device) => {
-                  const Icon = getDeviceIcon(device)
-                  const isSelected = selectedDevice === device.id
-
-                  return (
-                    <button
-                      key={device.id}
-                      onClick={() => handleDeviceSelect(device.id)}
-                      className={cn(
-                        "w-full flex items-center gap-4 p-4 rounded-lg transition-colors",
-                        isSelected
-                          ? "bg-primary/10 border-2 border-primary"
-                          : "bg-card hover:bg-accent border-2 border-transparent",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center",
-                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted",
-                        )}
-                      >
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="font-semibold">{device.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {device.model} • {device.ipAddress}
-                        </div>
-                      </div>
-                      {isSelected && <Check className="w-6 h-6 text-primary" />}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+          {other.length > 0 && (
+            <DeviceSection
+              title={`NETWORK DEVICES (${other.length})`}
+              devices={other}
+              selectedDevice={selectedDevice}
+              onSelect={handleDeviceSelect}
+              getIcon={getDeviceIcon}
+            />
           )}
 
-          {/* Local Devices Section */}
-          {availableDevices.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">
-                LOCAL DEVICES ({availableDevices.length})
-              </h3>
-              <div className="space-y-2">
-                {availableDevices.map((device) => {
-                  const Icon = getDeviceIcon(device)
-                  const isSelected = selectedDevice === device.id
-
-                  return (
-                    <button
-                      key={device.id}
-                      onClick={() => handleDeviceSelect(device.id)}
-                      className={cn(
-                        "w-full flex items-center gap-4 p-4 rounded-lg transition-colors",
-                        isSelected
-                          ? "bg-primary/10 border-2 border-primary"
-                          : "bg-card hover:bg-accent border-2 border-transparent",
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center",
-                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted",
-                        )}
-                      >
-                        <Icon className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1 text-left">
-                        <div className="font-semibold">{device.name}</div>
-                        <div className="text-sm text-muted-foreground capitalize">{device.type}</div>
-                      </div>
-                      {isSelected && <Check className="w-6 h-6 text-primary" />}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
+          {/* Local Devices */}
+          {local.length > 0 && (
+            <DeviceSection
+              title={`LOCAL DEVICES (${local.length})`}
+              devices={local}
+              selectedDevice={selectedDevice}
+              onSelect={handleDeviceSelect}
+              getIcon={getDeviceIcon}
+            />
           )}
 
-          {availableDevices.length === 0 && networkDevices.length === 0 && (
+          {/* No Devices Found */}
+          {!hasDevices && (
             <div className="bg-muted/50 rounded-lg p-6 text-center space-y-3">
               <Speaker className="w-12 h-12 mx-auto text-muted-foreground/50" />
               <h4 className="font-semibold">No devices found</h4>
@@ -486,5 +327,69 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
         </div>
       </DrawerContent>
     </Drawer>
+  )
+}
+
+function DeviceSection({
+  title,
+  devices,
+  selectedDevice,
+  onSelect,
+  getIcon,
+}: {
+  title: string
+  devices: AudioDevice[]
+  selectedDevice: string
+  onSelect: (id: string) => void
+  getIcon: (device: AudioDevice) => any
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">{title}</h3>
+      <div className="space-y-2">
+        {devices.map((device) => {
+          const Icon = getIcon(device)
+          const isSelected = selectedDevice === device.id
+
+          return (
+            <button
+              key={device.id}
+              onClick={() => onSelect(device.id)}
+              className={cn(
+                "w-full flex items-center gap-4 p-4 rounded-lg transition-colors",
+                isSelected
+                  ? "bg-primary/10 border-2 border-primary"
+                  : "bg-card hover:bg-accent border-2 border-transparent",
+              )}
+            >
+              <div
+                className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center",
+                  isSelected ? "bg-primary text-primary-foreground" : "bg-muted",
+                )}
+              >
+                <Icon className="w-6 h-6" />
+              </div>
+              <div className="flex-1 text-left">
+                <div className="font-semibold">{device.name}</div>
+                <div className="text-sm text-muted-foreground">
+                  {isSelected && device.id === "this-device" ? (
+                    <span className="flex items-center gap-2">
+                      <Radio className="w-3 h-3 text-primary animate-pulse" />
+                      <span className="text-primary">Playing</span>
+                    </span>
+                  ) : device.model && device.ipAddress ? (
+                    `${device.model} • ${device.ipAddress}`
+                  ) : (
+                    <span className="capitalize">{device.type}</span>
+                  )}
+                </div>
+              </div>
+              {isSelected && <Check className="w-6 h-6 text-primary" />}
+            </button>
+          )
+        })}
+      </div>
+    </div>
   )
 }

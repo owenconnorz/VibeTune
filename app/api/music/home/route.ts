@@ -88,15 +88,13 @@ export async function GET() {
   console.log("[v0] Runtime:", runtime)
   console.log("[v0] Timestamp:", new Date().toISOString())
 
-  try {
-    console.log("[v0] Fetching home feed from InnerTube API...")
+  console.log("[v0] Fetching home feed from InnerTube API...")
 
+  try {
     const homeFeed = await getHomeFeed()
 
-    console.log("[v0] Home feed result:", homeFeed?.sections?.length || 0, "sections")
-
     if (homeFeed?.sections && homeFeed.sections.length > 0) {
-      console.log("[v0] Successfully fetched real data from InnerTube API")
+      console.log("[v0] Successfully fetched", homeFeed.sections.length, "sections")
       return NextResponse.json(homeFeed, {
         headers: {
           "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
@@ -104,27 +102,22 @@ export async function GET() {
       })
     }
 
-    console.log("[v0] InnerTube API returned no results")
+    console.log("[v0] No sections returned from InnerTube")
     return NextResponse.json(
       { sections: [] },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
         },
       },
     )
   } catch (error: any) {
     console.error("[v0] ===== HOME FEED ERROR =====")
-    console.error("[v0] Error:", error)
-    if (error instanceof Error) {
-      console.error("[v0] Error message:", error.message)
-      console.error("[v0] Error stack:", error.stack)
-    }
+    console.error("[v0] Home feed error:", error.message)
 
     return NextResponse.json(
-      { sections: [], error: "Failed to load home feed" },
+      { sections: [] },
       {
-        status: 500,
         headers: {
           "Cache-Control": "no-cache, no-store, must-revalidate",
         },

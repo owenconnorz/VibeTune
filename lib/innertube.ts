@@ -27,8 +27,6 @@ async function makeInnerTubeRequest(endpoint: string, params: any = {}) {
     ...params,
   }
 
-  console.log(`[v0] InnerTube ${endpoint} request:`, JSON.stringify(body, null, 2))
-
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -44,22 +42,18 @@ async function makeInnerTubeRequest(endpoint: string, params: any = {}) {
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error(`[v0] InnerTube ${endpoint} error:`, response.status, errorText)
-    throw new Error(`InnerTube API error: ${response.status} - ${errorText}`)
+    console.error(`[v0] InnerTube ${endpoint} error:`, response.status)
+    throw new Error(`InnerTube API error: ${response.status}`)
   }
 
-  const data = await response.json()
-  console.log(`[v0] InnerTube ${endpoint} response received`)
-  return data
+  return response.json()
 }
 
 function extractVideoInfo(item: any) {
   try {
-    // Try to extract from musicResponsiveListItemRenderer
     const renderer = item.musicResponsiveListItemRenderer
     if (!renderer) return null
 
-    // Extract video ID
     const videoId =
       renderer.playlistItemData?.videoId ||
       renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
@@ -67,16 +61,9 @@ function extractVideoInfo(item: any) {
 
     if (!videoId) return null
 
-    // Extract title
     const title = renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
-
-    // Extract artist
     const artist = renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
-
-    // Extract thumbnail
     const thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url
-
-    // Extract duration
     const durationText =
       renderer.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text || "0:00"
 
@@ -88,18 +75,15 @@ function extractVideoInfo(item: any) {
       duration: durationText,
     }
   } catch (error) {
-    console.error("[v0] Error extracting video info:", error)
     return null
   }
 }
 
 export async function searchMusic(query: string, continuation?: string) {
   try {
-    console.log(`[v0] Searching InnerTube for: ${query}`)
-
     const params: any = {
       query,
-      params: "EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D", // Music filter
+      params: "EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D",
     }
 
     if (continuation) {
@@ -109,11 +93,9 @@ export async function searchMusic(query: string, continuation?: string) {
     const data = await makeInnerTubeRequest("search", params)
 
     if (!data || typeof data !== "object") {
-      console.error("[v0] Invalid InnerTube response:", data)
       return { videos: [], continuation: null }
     }
 
-    // Extract videos from response
     const contents =
       data.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents ||
       data.continuationContents?.musicShelfContinuation?.contents ||
@@ -129,12 +111,10 @@ export async function searchMusic(query: string, continuation?: string) {
           try {
             const artistRenderer = item.musicResponsiveListItemRenderer
             if (artistRenderer) {
-              // Check if this is an artist result
               const navigationEndpoint = artistRenderer.navigationEndpoint
               const browseId = navigationEndpoint?.browseEndpoint?.browseId
 
               if (browseId && (browseId.startsWith("UC") || browseId.startsWith("MPLA"))) {
-                // This is likely an artist
                 const title =
                   artistRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
                 const thumbnail =
@@ -142,7 +122,6 @@ export async function searchMusic(query: string, continuation?: string) {
                 const subscribers =
                   artistRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
 
-                // Check if this looks like an artist (has "subscribers" or "Artist" in subtitle)
                 const isArtist =
                   subscribers?.toLowerCase().includes("subscriber") || subscribers?.toLowerCase().includes("artist")
 
@@ -161,49 +140,36 @@ export async function searchMusic(query: string, continuation?: string) {
               }
             }
 
-            // Otherwise, extract as video
             const videoInfo = extractVideoInfo(item)
             if (videoInfo) {
               videos.push(videoInfo)
             }
-          } catch (itemError: any) {
-            console.error("[v0] Error processing search item:", itemError.message)
-            // Continue processing other items
+          } catch (itemError) {
+            continue
           }
         }
-      } catch (sectionError: any) {
-        console.error("[v0] Error processing search section:", sectionError.message)
-        // Continue processing other sections
+      } catch (sectionError) {
+        continue
       }
     }
 
-    // Extract continuation token
     const continuationToken =
       data.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
         ?.continuations?.[0]?.nextContinuationData?.continuation ||
       data.continuationContents?.musicShelfContinuation?.continuations?.[0]?.nextContinuationData?.continuation
-
-    console.log(`[v0] InnerTube search returned ${videos.length} results`)
 
     return {
       videos,
       continuation: continuationToken || null,
     }
   } catch (error: any) {
-    console.error("[v0] InnerTube search error:", {
-      message: error.message,
-      stack: error.stack,
-      query,
-      continuation,
-    })
+    console.error("[v0] Search error:", error.message)
     throw error
   }
 }
 
 export async function getArtistData(browseId: string) {
   try {
-    console.log(`[v0] Fetching artist data for: ${browseId}`)
-
     const data = await makeInnerTubeRequest("browse", {
       browseId,
     })
@@ -213,14 +179,12 @@ export async function getArtistData(browseId: string) {
       data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
         ?.contents || []
 
-    // Extract artist info
     const artistName = header?.title?.runs?.[0]?.text || "Unknown Artist"
     const thumbnail = header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
     const banner = header?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
     const subscribers = header?.subscriptionButton?.subscribeButtonRenderer?.subscriberCountText?.runs?.[0]?.text || ""
     const description = header?.description?.runs?.[0]?.text || ""
 
-    // Extract top songs
     const topSongs: any[] = []
     const videos: any[] = []
     const albums: any[] = []
@@ -233,7 +197,6 @@ export async function getArtistData(browseId: string) {
 
       const title = shelf.title?.runs?.[0]?.text || ""
 
-      // Top songs section
       if (title.toLowerCase().includes("song") || title.toLowerCase().includes("track")) {
         const items = shelf.contents || []
         for (const item of items) {
@@ -247,7 +210,6 @@ export async function getArtistData(browseId: string) {
         }
       }
 
-      // Videos section
       if (title.toLowerCase().includes("video") || title.toLowerCase().includes("music video")) {
         const items = shelf.contents || []
         for (const item of items) {
@@ -271,7 +233,6 @@ export async function getArtistData(browseId: string) {
         }
       }
 
-      // Albums section
       if (title.toLowerCase().includes("album")) {
         const items = shelf.contents || []
         for (const item of items) {
@@ -295,7 +256,6 @@ export async function getArtistData(browseId: string) {
         }
       }
 
-      // Singles section
       if (title.toLowerCase().includes("single") || title.toLowerCase().includes("ep")) {
         const items = shelf.contents || []
         for (const item of items) {
@@ -320,10 +280,6 @@ export async function getArtistData(browseId: string) {
       }
     }
 
-    console.log(
-      `[v0] Artist data extracted: ${topSongs.length} songs, ${videos.length} videos, ${albums.length} albums`,
-    )
-
     return {
       id: browseId,
       name: artistName,
@@ -337,15 +293,13 @@ export async function getArtistData(browseId: string) {
       singles,
     }
   } catch (error) {
-    console.error("[v0] Error fetching artist data:", error)
+    console.error("[v0] Artist data error:", error)
     throw error
   }
 }
 
 export async function getHomeFeed() {
   try {
-    console.log("[v0] Fetching home feed from InnerTube")
-
     const data = await makeInnerTubeRequest("browse", {
       browseId: "FEmusic_home",
     })
@@ -369,7 +323,6 @@ export async function getHomeFeed() {
 
         for (const item of shelfContents) {
           try {
-            // Try musicTwoRowItemRenderer (for albums, playlists, artists)
             const twoRowRenderer = item.musicTwoRowItemRenderer
             if (twoRowRenderer) {
               const videoId =
@@ -393,14 +346,12 @@ export async function getHomeFeed() {
               continue
             }
 
-            // Try musicResponsiveListItemRenderer (for songs)
             const videoInfo = extractVideoInfo(item)
             if (videoInfo) {
               items.push(videoInfo)
             }
-          } catch (itemError: any) {
-            console.error("[v0] Error processing home feed item:", itemError.message)
-            // Continue processing other items
+          } catch (itemError) {
+            continue
           }
         }
 
@@ -410,20 +361,14 @@ export async function getHomeFeed() {
             items,
           })
         }
-      } catch (sectionError: any) {
-        console.error("[v0] Error processing home feed section:", sectionError.message)
-        // Continue processing other sections
+      } catch (sectionError) {
+        continue
       }
     }
 
-    console.log(`[v0] InnerTube home feed returned ${sections.length} sections`)
-
     return { sections }
   } catch (error: any) {
-    console.error("[v0] InnerTube home feed error:", {
-      message: error.message,
-      stack: error.stack,
-    })
+    console.error("[v0] Home feed error:", error.message)
     throw error
   }
 }
