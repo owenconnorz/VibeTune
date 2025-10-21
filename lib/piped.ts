@@ -1,8 +1,3 @@
-// Piped API client for YouTube content without quota limits
-// Piped is an open-source YouTube proxy with REST API
-
-import { pipedStorage, PIPED_INSTANCES } from "@/lib/piped-storage"
-
 interface PipedVideo {
   url: string
   title: string
@@ -32,43 +27,24 @@ function extractVideoId(url: string): string {
   return match ? match[1] : url.replace("/watch?v=", "")
 }
 
-// Try multiple Piped instances with fallback
-async function fetchWithFallback(path: string, options?: RequestInit): Promise<any> {
-  const settings = pipedStorage.getSettings()
-  const errors: string[] = []
+async function fetchWithProxy(path: string): Promise<any> {
+  try {
+    console.log(`[v0] Fetching via proxy: ${path}`)
 
-  // Try preferred instance first
-  const preferredInstance = settings.preferredInstance
-  const otherInstances = PIPED_INSTANCES.filter((i) => i !== preferredInstance)
-  const instancesToTry = [preferredInstance, ...(settings.autoFallback ? otherInstances : [])]
+    const response = await fetch(`/api/proxy/piped?path=${encodeURIComponent(path)}`)
 
-  for (const instanceUrl of instancesToTry) {
-    try {
-      console.log(`[v0] Trying Piped instance: ${instanceUrl}${path}`)
-      const response = await fetch(`${instanceUrl}${path}`, {
-        ...options,
-        headers: {
-          "Content-Type": "application/json",
-          ...options?.headers,
-        },
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        errors.push(`${instanceUrl}: ${response.status} ${errorText}`)
-        continue
-      }
-
-      const data = await response.json()
-      console.log(`[v0] Piped instance ${instanceUrl} succeeded`)
-      return data
-    } catch (error) {
-      errors.push(`${instanceUrl}: ${error}`)
-      continue
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || `Proxy request failed: ${response.status}`)
     }
-  }
 
-  throw new Error(`All Piped instances failed:\n${errors.join("\n")}`)
+    const data = await response.json()
+    console.log(`[v0] Proxy request succeeded for: ${path}`)
+    return data
+  } catch (error) {
+    console.error(`[v0] Proxy request error for ${path}:`, error)
+    throw error
+  }
 }
 
 // Convert Piped video to our app format
@@ -90,7 +66,7 @@ export async function searchMusic(query: string, page = 1): Promise<any> {
     // Add "music" to query if not already present
     const musicQuery = query.toLowerCase().includes("music") ? query : `${query} music`
 
-    const data: PipedSearchResponse = await fetchWithFallback(
+    const data: PipedSearchResponse = await fetchWithProxy(
       `/search?q=${encodeURIComponent(musicQuery)}&filter=music_songs`,
     )
 
@@ -108,7 +84,7 @@ export async function searchMusic(query: string, page = 1): Promise<any> {
 // Get trending music videos
 export async function getTrending(region = "US"): Promise<any> {
   try {
-    const data: PipedTrendingResponse = await fetchWithFallback(`/trending?region=${region}`)
+    const data: PipedTrendingResponse = await fetchWithProxy(`/trending?region=${region}`)
 
     // Filter for music-related content
     const musicVideos = data.filter(
@@ -133,7 +109,7 @@ export async function getTrending(region = "US"): Promise<any> {
 export async function getMusicByGenre(genre: string): Promise<any> {
   try {
     const searchQuery = `${genre} music`
-    const data: PipedSearchResponse = await fetchWithFallback(
+    const data: PipedSearchResponse = await fetchWithProxy(
       `/search?q=${encodeURIComponent(searchQuery)}&filter=music_songs`,
     )
 
@@ -147,7 +123,7 @@ export async function getMusicByGenre(genre: string): Promise<any> {
 // Get popular music (search for "popular music")
 export async function getPopularMusic(): Promise<any> {
   try {
-    const data: PipedSearchResponse = await fetchWithFallback(
+    const data: PipedSearchResponse = await fetchWithProxy(
       `/search?q=${encodeURIComponent("popular music 2024")}&filter=music_songs`,
     )
 

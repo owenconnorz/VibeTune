@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { searchYouTube } from "@/lib/youtube"
+import { getTrending, getPopularMusic, getMusicByGenre } from "@/lib/piped"
 
 export const runtime = "nodejs"
 export const revalidate = 60
@@ -84,20 +84,29 @@ function getMockHomeFeed() {
 
 export async function GET() {
   try {
-    console.log("[v0] Attempting to fetch from YouTube Data API...")
+    console.log("[v0] Fetching home feed from Piped API...")
 
     const [trending, popular, topHits] = await Promise.all([
-      searchYouTube("trending music 2024").catch(() => ({ videos: [] })),
-      searchYouTube("popular music").catch(() => ({ videos: [] })),
-      searchYouTube("top hits music").catch(() => ({ videos: [] })),
+      getTrending().catch((err) => {
+        console.error("[v0] Piped trending error:", err)
+        return []
+      }),
+      getPopularMusic().catch((err) => {
+        console.error("[v0] Piped popular error:", err)
+        return []
+      }),
+      getMusicByGenre("pop").catch((err) => {
+        console.error("[v0] Piped genre error:", err)
+        return []
+      }),
     ])
 
-    const trendingItems = trending.videos.slice(0, 5)
-    const popularItems = popular.videos.slice(0, 5)
-    const quickPicks = topHits.videos.slice(0, 3)
+    const trendingItems = trending.slice(0, 5)
+    const popularItems = popular.slice(0, 5)
+    const quickPicks = topHits.slice(0, 3)
 
     if (trendingItems.length > 0 || popularItems.length > 0) {
-      console.log("[v0] Successfully fetched real data from YouTube API")
+      console.log("[v0] Successfully fetched real data from Piped API")
       return NextResponse.json(
         {
           sections: [
@@ -123,7 +132,7 @@ export async function GET() {
       )
     }
 
-    console.log("[v0] YouTube API returned no results, using mock data")
+    console.log("[v0] Piped API returned no results, using mock data")
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",

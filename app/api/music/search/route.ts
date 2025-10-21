@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { searchYouTube } from "@/lib/youtube"
+import { searchMusic } from "@/lib/piped"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -7,23 +7,24 @@ export const dynamic = "force-dynamic"
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const query = searchParams.get("q")
-  const pageToken = searchParams.get("pageToken")
+  const page = searchParams.get("page")
 
   if (!query) {
     return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
   }
 
   try {
-    console.log(`[v0] Searching with YouTube Data API for: ${query}`)
+    console.log(`[v0] Searching with Piped API for: ${query}`)
 
-    const result = await searchYouTube(query, pageToken || undefined)
+    const pageNum = page ? Number.parseInt(page) : 1
+    const result = await searchMusic(query, pageNum)
 
-    console.log(`[v0] YouTube API returned ${result.videos.length} videos`)
+    console.log(`[v0] Piped API returned ${result.length} videos`)
 
     return NextResponse.json(
       {
-        videos: result.videos,
-        nextPageToken: result.nextPageToken || null,
+        videos: result,
+        nextPageToken: result.length >= 20 ? String(pageNum + 1) : null,
       },
       {
         headers: {
@@ -36,14 +37,9 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("[v0] Search error:", error)
 
-    const isQuotaError = error.status === 403 && error.data?.error?.errors?.[0]?.reason === "quotaExceeded"
-
     return NextResponse.json(
       {
-        error: isQuotaError
-          ? "YouTube API quota exceeded. Please try again later."
-          : "Failed to search. Please try again.",
-        quotaExceeded: isQuotaError,
+        error: "Failed to search. Please try again or check API settings.",
         videos: [],
         nextPageToken: null,
       },
