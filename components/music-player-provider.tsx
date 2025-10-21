@@ -45,6 +45,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const playerRef = useRef<any>(null)
   const playerContainerRef = useRef<HTMLDivElement | null>(null)
   const timeUpdateInterval = useRef<NodeJS.Timeout | null>(null)
+  const isManualStateChange = useRef(false)
 
   useEffect(() => {
     if (!window.YT) {
@@ -151,14 +152,19 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
             if (event.data === window.YT.PlayerState.ENDED) {
               playNext()
             } else if (event.data === window.YT.PlayerState.PLAYING) {
-              setIsPlaying(true)
+              if (!isManualStateChange.current) {
+                setIsPlaying(true)
+              }
               setDuration(event.target.getDuration())
               if ("mediaSession" in navigator) {
                 navigator.mediaSession.playbackState = "playing"
               }
             } else if (event.data === window.YT.PlayerState.PAUSED) {
-              setIsPlaying(false)
+              if (!isManualStateChange.current) {
+                setIsPlaying(false)
+              }
             }
+            isManualStateChange.current = false
           },
         },
       })
@@ -169,6 +175,8 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!playerRef.current || !playerRef.current.playVideo) return
+
+    isManualStateChange.current = true
 
     if (isPlaying) {
       playerRef.current.playVideo()
@@ -255,9 +263,11 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
       setCurrentVideo(nextVideo)
       setQueue(queue.slice(1))
+      isManualStateChange.current = true
       setIsPlaying(true)
     } else {
       console.log("[v0] No more songs in queue")
+      isManualStateChange.current = true
       setIsPlaying(false)
     }
   }

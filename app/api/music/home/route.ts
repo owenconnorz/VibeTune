@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
-import { getTrendingMusic, searchMusicVideos } from "@/lib/youtube"
+import { getHomeFeed } from "@/lib/youtube-api"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-export const revalidate = 3600 // Cache for 1 hour to save quota
+export const revalidate = 3600 // Cache for 1 hour
 
 function getMockHomeFeed() {
   return {
@@ -84,69 +84,46 @@ function getMockHomeFeed() {
 }
 
 export async function GET() {
+  console.log("[v0] ===== HOME API ROUTE CALLED =====")
+  console.log("[v0] Runtime:", runtime)
+  console.log("[v0] Timestamp:", new Date().toISOString())
+
   try {
     console.log("[v0] Fetching home feed from YouTube Data API...")
 
-    const [trending, popular, topHits] = await Promise.all([
-      getTrendingMusic().catch((err) => {
-        console.error("[v0] YouTube trending error:", err)
-        return []
-      }),
-      searchMusicVideos("popular music 2024", 10).catch((err) => {
-        console.error("[v0] YouTube popular error:", err)
-        return []
-      }),
-      searchMusicVideos("top hits", 10).catch((err) => {
-        console.error("[v0] YouTube top hits error:", err)
-        return []
-      }),
-    ])
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("API route timeout after 20s")), 20000),
+    )
 
-    const trendingItems = trending.slice(0, 5)
-    const popularItems = popular.slice(0, 5)
-    const quickPicks = topHits.slice(0, 3)
+    const homeFeed = (await Promise.race([getHomeFeed(), timeoutPromise])) as any
 
-    if (trendingItems.length > 0 || popularItems.length > 0) {
+    console.log("[v0] Home feed result:", homeFeed?.sections?.length || 0, "sections")
+
+    if (homeFeed?.sections && homeFeed.sections.length > 0) {
       console.log("[v0] Successfully fetched real data from YouTube Data API")
-      return NextResponse.json(
-        {
-          sections: [
-            {
-              title: "Quick picks",
-              items: quickPicks.length > 0 ? quickPicks : getMockHomeFeed().sections[0].items,
-            },
-            {
-              title: "Trending Now",
-              items: trendingItems.length > 0 ? trendingItems : getMockHomeFeed().sections[1].items,
-            },
-            {
-              title: "Top Hits",
-              items: popularItems.length > 0 ? popularItems : getMockHomeFeed().sections[2].items,
-            },
-          ],
+      return NextResponse.json(homeFeed, {
+        headers: {
+          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
         },
-        {
-          headers: {
-            "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
-          },
-        },
-      )
+      })
     }
 
-    console.log("[v0] YouTube API returned no results, using mock data")
+    console.log("[v0] YouTube Data API returned no results (likely quota exceeded), using mock data")
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
         "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
       },
     })
   } catch (error: any) {
-    console.error("[v0] Home feed error:", error)
-
-    if (error?.status === 403 && error?.data?.error?.errors?.[0]?.reason === "quotaExceeded") {
-      console.log("[v0] YouTube API quota exceeded, using mock data")
-    } else {
-      console.log("[v0] Falling back to mock data")
+    console.error("[v0] ===== HOME FEED ERROR =====")
+    console.error("[v0] Error type:", typeof error)
+    console.error("[v0] Error:", error)
+    if (error instanceof Error) {
+      console.error("[v0] Error name:", error.name)
+      console.error("[v0] Error message:", error.message)
+      console.error("[v0] Error stack:", error.stack)
     }
+    console.log("[v0] Falling back to mock data")
 
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
