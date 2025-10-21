@@ -45,14 +45,7 @@ export function BottomNav() {
             isActive("/dashboard/library") ? "text-foreground" : "text-muted-foreground",
           )}
         >
-          <div
-            className={cn(
-              "w-12 h-12 rounded-xl flex items-center justify-center",
-              isActive("/dashboard/library") ? "bg-primary" : "bg-secondary",
-            )}
-          >
-            <Library className="w-6 h-6" />
-          </div>
+          <Library className="w-6 h-6" />
           <span className="text-xs font-medium">Library</span>
         </Link>
       </div>

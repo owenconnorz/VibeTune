@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, ArrowLeft, Globe, Clock, ArrowUpRight } from "lucide-react"
+import { Search, Clock, ArrowUpRight } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -68,7 +68,6 @@ export function SearchContent() {
   }
 
   const handleResultClick = (video: YouTubeVideo) => {
-    // Check if this looks like an artist channel (you can enhance this logic)
     const isArtistChannel = video.artist && !video.title.includes("Official Video")
 
     if (isArtistChannel && video.channelId) {
@@ -80,47 +79,38 @@ export function SearchContent() {
 
   return (
     <div className="min-h-screen pb-32">
-      <div className="sticky top-0 bg-background z-30 border-b border-border/50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => router.back()}>
-              <ArrowLeft className="w-6 h-6" />
-            </Button>
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value)
-                  setShowSuggestions(true)
-                }}
-                onFocus={() => setShowSuggestions(true)}
-                placeholder="Search YouTube Music..."
-                className="pl-10 bg-secondary border-0 h-12 rounded-full"
-              />
-              {showSuggestions && query.length >= 2 && suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50">
-                  {suggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-secondary/50 transition-colors text-left"
-                    >
-                      <Search className="w-5 h-5 text-muted-foreground" />
-                      <span className="flex-1">{suggestion}</span>
-                      <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <Button variant="ghost" size="icon">
-              <Globe className="w-6 h-6" />
-            </Button>
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setShowSuggestions(true)
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              placeholder="Search YouTube Music..."
+              className="pl-10 bg-secondary border-0 h-12 rounded-full"
+            />
+            {showSuggestions && query.length >= 2 && suggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50">
+                {suggestions.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="w-full flex items-center gap-3 p-3 hover:bg-secondary/50 transition-colors text-left"
+                  >
+                    <Search className="w-5 h-5 text-muted-foreground" />
+                    <span className="flex-1">{suggestion}</span>
+                    <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </div>
-      <div className="container mx-auto px-4 py-6">
+
         {!query.trim() && history.length > 0 && (
           <div className="space-y-3 mb-6">
             <div className="flex items-center justify-between">
