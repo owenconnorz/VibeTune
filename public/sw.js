@@ -5,7 +5,6 @@ const DYNAMIC_CACHE = "opentune-dynamic-v1"
 
 // Assets to cache on install
 const STATIC_ASSETS = [
-  "/",
   "/dashboard",
   "/dashboard/search",
   "/dashboard/library",
@@ -51,12 +50,14 @@ self.addEventListener("fetch", (event) => {
   // Skip chrome extensions and other protocols
   if (!url.protocol.startsWith("http")) return
 
+  // Skip external requests
+  if (url.origin !== self.location.origin) return
+
   // API requests - network first, cache fallback
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Clone and cache successful responses
           if (response.ok) {
             const responseClone = response.clone()
             caches.open(DYNAMIC_CACHE).then((cache) => {
@@ -66,8 +67,16 @@ self.addEventListener("fetch", (event) => {
           return response
         })
         .catch(() => {
-          // Fallback to cache if network fails
-          return caches.match(request)
+          return caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) {
+              return cachedResponse
+            }
+            // Return a basic error response if no cache available
+            return new Response(JSON.stringify({ error: "Offline" }), {
+              status: 503,
+              headers: { "Content-Type": "application/json" },
+            })
+          })
         }),
     )
     return
@@ -80,20 +89,26 @@ self.addEventListener("fetch", (event) => {
         return cachedResponse
       }
 
-      return fetch(request).then((response) => {
-        // Don't cache non-successful responses
-        if (!response || response.status !== 200 || response.type === "error") {
+      return fetch(request)
+        .then((response) => {
+          if (!response || response.status !== 200 || response.type === "error") {
+            return response
+          }
+
+          const responseClone = response.clone()
+          caches.open(DYNAMIC_CACHE).then((cache) => {
+            cache.put(request, responseClone)
+          })
+
           return response
-        }
-
-        // Clone and cache the response
-        const responseClone = response.clone()
-        caches.open(DYNAMIC_CACHE).then((cache) => {
-          cache.put(request, responseClone)
         })
-
-        return response
-      })
+        .catch(() => {
+          // If offline and no cache, return to dashboard
+          if (url.pathname === "/") {
+            return caches.match("/dashboard")
+          }
+          return new Response("Offline", { status: 503 })
+        })
     }),
   )
 })
