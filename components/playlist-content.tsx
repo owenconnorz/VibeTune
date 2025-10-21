@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   ArrowLeft,
   Search,
@@ -15,13 +15,25 @@ import {
   Play,
   MoreVertical,
   Heart,
+  ImageIcon,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import { getPlaylists, deletePlaylist, type Playlist } from "@/lib/playlist-storage"
+import { getPlaylists, deletePlaylist, updatePlaylist, type Playlist } from "@/lib/playlist-storage"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
 import { isLiked } from "@/lib/liked-storage"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 interface PlaylistContentProps {
   playlistId: string
@@ -33,6 +45,9 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const [playlist, setPlaylist] = useState<Playlist | null>(null)
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [likedStates, setLikedStates] = useState<Record<string, boolean>>({})
+  const [showCoverDialog, setShowCoverDialog] = useState(false)
+  const [coverImageUrl, setCoverImageUrl] = useState("")
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const playlists = getPlaylists()
@@ -96,6 +111,63 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
     return formatDuration(total)
   }
 
+  const handleUpdateCover = () => {
+    if (!playlist) return
+    const updated = updatePlaylist(playlistId, {
+      coverImage: coverImageUrl.trim() || undefined,
+    })
+    if (updated) {
+      setPlaylist(updated)
+    }
+    setShowCoverDialog(false)
+    setCoverImageUrl("")
+  }
+
+  const handleRemoveCover = () => {
+    if (!playlist) return
+    const updated = updatePlaylist(playlistId, {
+      coverImage: undefined,
+    })
+    if (updated) {
+      setPlaylist(updated)
+    }
+    setShowCoverDialog(false)
+    setCoverImageUrl("")
+  }
+
+  const handleEditCover = () => {
+    setCoverImageUrl(playlist?.coverImage || "")
+    setShowCoverDialog(true)
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file")
+      return
+    }
+
+    // Validate file size (max 2MB to avoid localStorage limits)
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image size must be less than 2MB")
+      return
+    }
+
+    // Read file and convert to base64
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string
+      setCoverImageUrl(base64)
+    }
+    reader.onerror = () => {
+      alert("Failed to read image file")
+    }
+    reader.readAsDataURL(file)
+  }
+
   if (!playlist) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -118,27 +190,47 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
 
       {/* Playlist Info */}
       <div className="p-6 space-y-6">
-        {/* Thumbnail Grid */}
-        <div className="w-64 h-64 rounded-2xl overflow-hidden bg-secondary mx-auto">
-          <div className="grid grid-cols-2 h-full">
-            {playlist.videos.slice(0, 4).map((video, index) => (
-              <div
-                key={video.id}
-                className="relative bg-cover bg-center"
-                style={{
-                  backgroundImage: video.thumbnail ? `url(${video.thumbnail})` : "none",
-                  backgroundColor: !video.thumbnail ? `hsl(var(--primary) / ${0.2 + index * 0.1})` : undefined,
-                }}
-              />
-            ))}
-            {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, index) => (
-              <div
-                key={`placeholder-${index}`}
-                className="bg-secondary"
-                style={{ backgroundColor: `hsl(var(--primary) / ${0.2 + (playlist.videos.length + index) * 0.1})` }}
-              />
-            ))}
-          </div>
+        <div className="relative w-64 h-64 rounded-2xl overflow-hidden bg-secondary mx-auto group">
+          {playlist.coverImage ? (
+            // Custom cover image
+            <Image
+              src={playlist.coverImage || "/placeholder.svg"}
+              alt={playlist.name}
+              fill
+              className="object-cover"
+              unoptimized
+            />
+          ) : (
+            // Default grid of song thumbnails
+            <div className="grid grid-cols-2 h-full">
+              {playlist.videos.slice(0, 4).map((video, index) => (
+                <div
+                  key={video.id}
+                  className="relative bg-cover bg-center"
+                  style={{
+                    backgroundImage: video.thumbnail ? `url(${video.thumbnail})` : "none",
+                    backgroundColor: !video.thumbnail ? `hsl(var(--primary) / ${0.2 + index * 0.1})` : undefined,
+                  }}
+                />
+              ))}
+              {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, index) => (
+                <div
+                  key={`placeholder-${index}`}
+                  className="bg-secondary"
+                  style={{ backgroundColor: `hsl(var(--primary) / ${0.2 + (playlist.videos.length + index) * 0.1})` }}
+                />
+              ))}
+            </div>
+          )}
+          <button
+            onClick={handleEditCover}
+            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          >
+            <div className="flex flex-col items-center gap-2 text-white">
+              <ImageIcon className="w-8 h-8" />
+              <span className="text-sm font-medium">Change cover</span>
+            </div>
+          </button>
         </div>
 
         {/* Playlist Details */}
@@ -153,7 +245,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           <Button variant="ghost" size="icon" onClick={handleDelete}>
             <Trash2 className="w-6 h-6" />
           </Button>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={handleEditCover}>
             <Pencil className="w-6 h-6" />
           </Button>
           <Button variant="ghost" size="icon" onClick={handleShuffle}>
@@ -271,6 +363,83 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           </div>
         )}
       </div>
+
+      <Dialog open={showCoverDialog} onOpenChange={setShowCoverDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change playlist cover</DialogTitle>
+            <DialogDescription>
+              Upload an image from your device, enter an image URL, or remove the custom cover.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Upload from device</Label>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+              <Button variant="outline" className="w-full bg-transparent" onClick={() => fileInputRef.current?.click()}>
+                <ImageIcon className="w-4 h-4 mr-2" />
+                Choose image file
+              </Button>
+              <p className="text-xs text-muted-foreground">Maximum file size: 2MB</p>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cover-url">Image URL</Label>
+              <Input
+                id="cover-url"
+                placeholder="https://example.com/image.jpg"
+                value={coverImageUrl}
+                onChange={(e) => setCoverImageUrl(e.target.value)}
+              />
+            </div>
+
+            {coverImageUrl && (
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                <div className="relative w-full h-48 rounded-lg overflow-hidden bg-secondary">
+                  <Image
+                    src={coverImageUrl || "/placeholder.svg"}
+                    alt="Cover preview"
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
+              </div>
+            )}
+
+            {playlist.coverImage && !coverImageUrl && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ImageIcon className="w-4 h-4" />
+                <span>Current cover will be replaced</span>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            {playlist.coverImage && (
+              <Button variant="outline" onClick={handleRemoveCover}>
+                <X className="w-4 h-4 mr-2" />
+                Remove cover
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowCoverDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateCover} disabled={!coverImageUrl.trim()}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

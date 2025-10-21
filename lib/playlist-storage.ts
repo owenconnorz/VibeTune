@@ -4,6 +4,7 @@ export interface Playlist {
   id: string
   name: string
   description?: string
+  coverImage?: string
   videos: YouTubeVideo[]
   createdAt: string
   updatedAt: string
