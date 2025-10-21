@@ -14,10 +14,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    console.log(`[v0] Searching with Invidious API for: ${query}`)
+
     const page = pageToken ? Number.parseInt(pageToken) : 1
     const result = await searchMusic(query, page)
 
     const videos = result.videos.map(convertToAppFormat)
+
+    console.log(`[v0] Invidious returned ${videos.length} videos`)
 
     return NextResponse.json(
       {
@@ -26,7 +30,9 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+          Pragma: "no-cache",
+          Expires: "0",
         },
       },
     )
@@ -39,7 +45,12 @@ export async function GET(request: NextRequest) {
         videos: [],
         nextPageToken: null,
       },
-      { status: 200 },
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        },
+      },
     )
   }
 }

@@ -3,6 +3,8 @@
 
 const INVIDIOUS_INSTANCES = ["https://yewtu.be", "https://inv.nadeko.net", "https://invidious.nerdvpn.de"]
 
+let lastSuccessfulInstance = INVIDIOUS_INSTANCES[0]
+
 // Try multiple instances in case one is down
 async function fetchFromInvidious(path: string): Promise<any> {
   let lastError: Error | null = null
@@ -24,6 +26,7 @@ async function fetchFromInvidious(path: string): Promise<any> {
 
       const data = await response.json()
       console.log(`[v0] Successfully fetched from ${instance}`)
+      lastSuccessfulInstance = instance
       return data
     } catch (error) {
       console.error(`[v0] Failed to fetch from ${instance}:`, error)
@@ -113,11 +116,18 @@ export function convertToAppFormat(video: InvidiousVideo) {
   const thumbnail =
     video.videoThumbnails?.find((t) => t.quality === "medium" || t.quality === "high") || video.videoThumbnails?.[0]
 
+  let thumbnailUrl = thumbnail?.url || `https://i.ytimg.com/vi/${video.videoId}/mqdefault.jpg`
+
+  // If the URL is relative (starts with /), prepend the Invidious instance
+  if (thumbnailUrl.startsWith("/")) {
+    thumbnailUrl = `${lastSuccessfulInstance}${thumbnailUrl}`
+  }
+
   return {
     id: video.videoId,
     title: video.title,
     artist: video.author,
-    thumbnail: thumbnail?.url || `https://i.ytimg.com/vi/${video.videoId}/mqdefault.jpg`,
+    thumbnail: thumbnailUrl,
     duration: video.lengthSeconds,
     views: video.viewCount,
     publishedAt: new Date(video.published * 1000).toISOString(),
