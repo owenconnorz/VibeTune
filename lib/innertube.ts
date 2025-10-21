@@ -312,46 +312,116 @@ export async function getHomeFeed() {
 
     for (const section of contents) {
       try {
-        const shelf = section.musicCarouselShelfRenderer
+        const carouselShelf = section.musicCarouselShelfRenderer
+        const immersiveCarousel = section.musicImmersiveCarouselShelfRenderer
+        const shelf = section.musicShelfRenderer
 
-        if (!shelf) continue
-
-        const title = shelf.title?.runs?.[0]?.text || "Recommended"
+        let title = ""
         const items: any[] = []
+        let sectionType = "carousel" // Default type
 
-        const shelfContents = shelf.contents || []
+        // Parse carousel shelf (horizontal scrolling sections)
+        if (carouselShelf) {
+          title = carouselShelf.header?.musicCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]?.text || "Recommended"
+          const shelfContents = carouselShelf.contents || []
 
-        for (const item of shelfContents) {
-          try {
-            const twoRowRenderer = item.musicTwoRowItemRenderer
-            if (twoRowRenderer) {
-              const videoId =
-                twoRowRenderer.navigationEndpoint?.watchEndpoint?.videoId ||
-                twoRowRenderer.navigationEndpoint?.watchPlaylistEndpoint?.videoId
-              const browseId = twoRowRenderer.navigationEndpoint?.browseEndpoint?.browseId
-              const itemTitle = twoRowRenderer.title?.runs?.[0]?.text
-              const itemSubtitle = twoRowRenderer.subtitle?.runs?.[0]?.text
-              const itemThumbnail =
-                twoRowRenderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+          for (const item of shelfContents) {
+            try {
+              const twoRowRenderer = item.musicTwoRowItemRenderer
+              if (twoRowRenderer) {
+                const videoId =
+                  twoRowRenderer.navigationEndpoint?.watchEndpoint?.videoId ||
+                  twoRowRenderer.navigationEndpoint?.watchPlaylistEndpoint?.videoId
+                const browseId = twoRowRenderer.navigationEndpoint?.browseEndpoint?.browseId
+                const playlistId = twoRowRenderer.navigationEndpoint?.watchPlaylistEndpoint?.playlistId
+                const itemTitle = twoRowRenderer.title?.runs?.[0]?.text
+                const itemSubtitle = twoRowRenderer.subtitle?.runs?.[0]?.text
+                const itemThumbnail =
+                  twoRowRenderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
 
-              if ((videoId || browseId) && itemTitle) {
-                items.push({
-                  id: videoId || browseId,
-                  title: itemTitle,
-                  artist: itemSubtitle || "Unknown Artist",
-                  thumbnail: itemThumbnail || "/placeholder.svg",
-                  duration: "",
-                })
+                // Determine item type based on aspect ratio and navigation
+                const aspectRatio = twoRowRenderer.aspectRatio || "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE"
+                const isPlaylist = playlistId || browseId?.startsWith("VLRDCLAK") || browseId?.startsWith("VLPL")
+                const isAlbum = browseId?.startsWith("MPREb_")
+                const isArtist = browseId?.startsWith("UC") || browseId?.startsWith("MPLA")
+
+                if ((videoId || browseId || playlistId) && itemTitle) {
+                  items.push({
+                    id: videoId || browseId || playlistId,
+                    title: itemTitle,
+                    artist: itemSubtitle || "Unknown Artist",
+                    thumbnail: itemThumbnail || "/placeholder.svg",
+                    duration: "",
+                    type: isPlaylist ? "playlist" : isAlbum ? "album" : isArtist ? "artist" : "song",
+                    aspectRatio: aspectRatio.includes("RECTANGLE") ? "video" : "square",
+                  })
+                }
+                continue
               }
+
+              const videoInfo = extractVideoInfo(item)
+              if (videoInfo) {
+                items.push({ ...videoInfo, type: "song", aspectRatio: "square" })
+              }
+            } catch (itemError) {
               continue
             }
+          }
+        }
 
-            const videoInfo = extractVideoInfo(item)
-            if (videoInfo) {
-              items.push(videoInfo)
+        // Parse immersive carousel (large hero sections)
+        if (immersiveCarousel) {
+          title =
+            immersiveCarousel.header?.musicImmersiveCarouselShelfBasicHeaderRenderer?.title?.runs?.[0]?.text ||
+            "Featured"
+          sectionType = "immersive"
+          const carouselContents = immersiveCarousel.contents || []
+
+          for (const item of carouselContents) {
+            try {
+              const renderer = item.musicTwoRowItemRenderer
+              if (renderer) {
+                const videoId = renderer.navigationEndpoint?.watchEndpoint?.videoId
+                const browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId
+                const playlistId = renderer.navigationEndpoint?.watchPlaylistEndpoint?.playlistId
+                const itemTitle = renderer.title?.runs?.[0]?.text
+                const itemSubtitle = renderer.subtitle?.runs?.[0]?.text
+                const itemThumbnail =
+                  renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+                if ((videoId || browseId || playlistId) && itemTitle) {
+                  items.push({
+                    id: videoId || browseId || playlistId,
+                    title: itemTitle,
+                    artist: itemSubtitle || "",
+                    thumbnail: itemThumbnail || "/placeholder.svg",
+                    duration: "",
+                    type: "featured",
+                    aspectRatio: "wide",
+                  })
+                }
+              }
+            } catch (itemError) {
+              continue
             }
-          } catch (itemError) {
-            continue
+          }
+        }
+
+        // Parse shelf (vertical list sections like "Quick picks")
+        if (shelf) {
+          title = shelf.title?.runs?.[0]?.text || "Quick picks"
+          sectionType = "list"
+          const shelfContents = shelf.contents || []
+
+          for (const item of shelfContents) {
+            try {
+              const videoInfo = extractVideoInfo(item)
+              if (videoInfo) {
+                items.push({ ...videoInfo, type: "song", aspectRatio: "square" })
+              }
+            } catch (itemError) {
+              continue
+            }
           }
         }
 
@@ -359,6 +429,7 @@ export async function getHomeFeed() {
           sections.push({
             title,
             items,
+            type: sectionType,
           })
         }
       } catch (sectionError) {

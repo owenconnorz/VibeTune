@@ -95,6 +95,8 @@ export async function GET() {
 
     if (homeFeed?.sections && homeFeed.sections.length > 0) {
       console.log("[v0] Successfully fetched", homeFeed.sections.length, "sections")
+      console.log("[v0] Sections:", homeFeed.sections.map((s) => s.title).join(", "))
+
       return NextResponse.json(homeFeed, {
         headers: {
           "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",

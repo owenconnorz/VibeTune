@@ -12,12 +12,15 @@ const categories = ["Podcasts", "Energize", "Feel good", "Relax", "Workout", "Co
 
 interface HomeFeedSection {
   title: string
+  type?: string
   items: Array<{
     id: string
     title: string
     artist: string
     thumbnail: string
     duration: string
+    type?: string
+    aspectRatio?: string
   }>
 }
 
@@ -64,8 +67,8 @@ export function HomeContent() {
         homeFeed.map((section, sectionIndex) => (
           <div key={sectionIndex} className="px-4 space-y-4">
             <h2 className="text-2xl font-bold">{section.title}</h2>
-            {sectionIndex === 0 ? (
-              // First section as list view (Quick picks style)
+            {section.type === "list" || sectionIndex === 0 ? (
+              // List view for Quick picks and similar sections
               <div className="space-y-3">
                 {section.items.slice(0, 6).map((song) => (
                   <div
@@ -107,19 +110,19 @@ export function HomeContent() {
                   </div>
                 ))}
               </div>
-            ) : (
-              // Other sections as horizontal scroll (carousel style)
+            ) : section.type === "immersive" ? (
+              // Large cards for featured/immersive sections
               <ScrollArea className="w-full">
-                <div className="flex gap-3 pb-4">
+                <div className="flex gap-4 pb-4">
                   {section.items.map((item) => (
                     <div
                       key={item.id}
-                      className="w-40 flex-shrink-0 cursor-pointer group"
+                      className="w-72 flex-shrink-0 cursor-pointer group"
                       onClick={() =>
                         playVideo({ id: item.id, title: item.title, artist: item.artist, thumbnail: item.thumbnail })
                       }
                     >
-                      <div className="relative aspect-square rounded-lg overflow-hidden mb-2">
+                      <div className="relative aspect-video rounded-lg overflow-hidden mb-3">
                         <Image
                           src={item.thumbnail || "/placeholder.svg"}
                           alt={item.title}
@@ -127,13 +130,51 @@ export function HomeContent() {
                           className="object-cover"
                         />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Play className="w-8 h-8 fill-white text-white" />
+                          <Play className="w-12 h-12 fill-white text-white" />
                         </div>
                       </div>
-                      <h3 className="font-semibold text-sm truncate">{item.title}</h3>
-                      <p className="text-xs text-muted-foreground truncate">{item.artist}</p>
+                      <h3 className="font-semibold text-base truncate">{item.title}</h3>
+                      {item.artist && <p className="text-sm text-muted-foreground truncate">{item.artist}</p>}
                     </div>
                   ))}
+                </div>
+                <ScrollBar orientation="horizontal" />
+              </ScrollArea>
+            ) : (
+              // Standard carousel for other sections (albums, playlists, etc.)
+              <ScrollArea className="w-full">
+                <div className="flex gap-3 pb-4">
+                  {section.items.map((item) => {
+                    // Determine card size based on item type
+                    const isVideo = item.aspectRatio === "video"
+                    const cardWidth = isVideo ? "w-56" : "w-40"
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`${cardWidth} flex-shrink-0 cursor-pointer group`}
+                        onClick={() =>
+                          playVideo({ id: item.id, title: item.title, artist: item.artist, thumbnail: item.thumbnail })
+                        }
+                      >
+                        <div
+                          className={`relative ${isVideo ? "aspect-video" : "aspect-square"} rounded-lg overflow-hidden mb-2`}
+                        >
+                          <Image
+                            src={item.thumbnail || "/placeholder.svg"}
+                            alt={item.title}
+                            fill
+                            className="object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Play className="w-8 h-8 fill-white text-white" />
+                          </div>
+                        </div>
+                        <h3 className="font-semibold text-sm truncate">{item.title}</h3>
+                        <p className="text-xs text-muted-foreground truncate">{item.artist}</p>
+                      </div>
+                    )
+                  })}
                 </div>
                 <ScrollBar orientation="horizontal" />
               </ScrollArea>
