@@ -7,16 +7,9 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import Link from "next/link"
 import { CreatePlaylistDialog } from "@/components/create-playlist-dialog"
 import { getPlaylists, type Playlist } from "@/lib/playlist-storage"
+import { getLikedSongsCount } from "@/lib/liked-storage"
 
 const tabs = ["Playlists", "Songs", "Albums", "Artists"]
-
-const systemPlaylists = [
-  { id: "liked", name: "Liked", icon: Heart, count: 0 },
-  { id: "downloaded", name: "Downloaded", icon: CheckCircle, count: 0 },
-  { id: "top10", name: "My top 10", icon: TrendingUp, count: 0 },
-  { id: "cached", name: "Cached", icon: RefreshCw, count: 0 },
-  { id: "uploaded", name: "Uploaded", icon: Cloud, count: 0 },
-]
 
 export function LibraryContent() {
   const [selectedTab, setSelectedTab] = useState("Playlists")
@@ -24,9 +17,11 @@ export function LibraryContent() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([])
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [likedCount, setLikedCount] = useState(0)
 
   useEffect(() => {
     setUserPlaylists(getPlaylists())
+    setLikedCount(getLikedSongsCount())
     const savedView = localStorage.getItem("library-view-mode")
     if (savedView === "list" || savedView === "grid") {
       setViewMode(savedView)
@@ -42,6 +37,14 @@ export function LibraryContent() {
     setViewMode(newMode)
     localStorage.setItem("library-view-mode", newMode)
   }
+
+  const systemPlaylists = [
+    { id: "liked", name: "Liked", icon: Heart, count: likedCount },
+    { id: "downloaded", name: "Downloaded", icon: CheckCircle, count: 0 },
+    { id: "top10", name: "My top 10", icon: TrendingUp, count: 0 },
+    { id: "cached", name: "Cached", icon: RefreshCw, count: 0 },
+    { id: "uploaded", name: "Uploaded", icon: Cloud, count: 0 },
+  ]
 
   return (
     <>
@@ -90,6 +93,7 @@ export function LibraryContent() {
                   <playlist.icon className="w-16 h-16 text-muted-foreground" />
                 </div>
                 <h3 className="font-semibold mt-2">{playlist.name}</h3>
+                {playlist.count > 0 && <p className="text-sm text-muted-foreground">{playlist.count} songs</p>}
               </Link>
             ))}
 
@@ -126,6 +130,7 @@ export function LibraryContent() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold">{playlist.name}</h3>
+                    {playlist.count > 0 && <p className="text-sm text-muted-foreground">{playlist.count} songs</p>}
                   </div>
                   <Button variant="ghost" size="icon" className="flex-shrink-0">
                     <MoreVertical className="w-5 h-5" />

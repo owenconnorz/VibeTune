@@ -5,6 +5,7 @@ import type { YouTubeVideo } from "@/lib/innertube"
 import { historyStorage } from "@/lib/history-storage"
 import { extractColorsFromImage, type ExtractedColors } from "@/lib/color-extractor"
 import { themeStorage } from "@/lib/theme-storage"
+import { getLikedSongs, toggleLikedSong as toggleLikedSongStorage, isLiked } from "@/lib/liked-storage"
 
 declare global {
   interface Window {
@@ -21,6 +22,9 @@ interface MusicPlayerContextType {
   duration: number
   volume: number
   themeColors: ExtractedColors | null
+  likedSongs: YouTubeVideo[]
+  isCurrentLiked: boolean
+  repeatMode: "off" | "all" | "one"
   playVideo: (video: YouTubeVideo) => void
   togglePlay: () => void
   playNext: () => void
@@ -29,6 +33,8 @@ interface MusicPlayerContextType {
   clearQueue: () => void
   seekTo: (time: number) => void
   setVolume: (volume: number) => void
+  toggleLikedSong: (video: YouTubeVideo) => void
+  toggleRepeatMode: () => void
 }
 
 const MusicPlayerContext = createContext<MusicPlayerContextType | undefined>(undefined)
@@ -40,8 +46,23 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const [previousTracks, setPreviousTracks] = useState<YouTubeVideo[]>([])
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [volume, setVolumeState] = useState(100)
+  const [volume, setVolumeState] = useState(() => {
+    if (typeof window !== "undefined") {
+      const savedVolume = localStorage.getItem("opentune_volume")
+      return savedVolume ? Number.parseInt(savedVolume, 10) : 100
+    }
+    return 100
+  })
   const [themeColors, setThemeColors] = useState<ExtractedColors | null>(null)
+  const [likedSongs, setLikedSongs] = useState<YouTubeVideo[]>([])
+  const [isCurrentLiked, setIsCurrentLiked] = useState(false)
+  const [repeatMode, setRepeatMode] = useState<"off" | "all" | "one">(() => {
+    if (typeof window !== "undefined") {
+      const savedMode = localStorage.getItem("opentune_repeat_mode")
+      return (savedMode as "off" | "all" | "one") || "off"
+    }
+    return "off"
+  })
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const playerRef = useRef<any>(null)
   const playerContainerRef = useRef<HTMLDivElement | null>(null)
@@ -53,6 +74,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     if (!audioRef.current) {
       audioRef.current = new Audio()
       audioRef.current.volume = volume / 100
+      console.log("[v0] Audio element created with volume:", volume / 100)
 
       audioRef.current.addEventListener("timeupdate", () => {
         if (audioRef.current) {
@@ -91,7 +113,6 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
       audioRef.current.addEventListener("error", (e) => {
         console.error("[v0] Audio error:", e)
-        // Fallback to YouTube IFrame if audio fails
         setUseAudioElement(false)
       })
     }
@@ -130,18 +151,17 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       if (useAudioElement && audioRef.current) {
         try {
           console.log("[v0] Loading audio stream for:", currentVideo.title)
-          // Fetch audio stream URL from API
           const response = await fetch(`/api/video/${currentVideo.id}/stream`)
           const data = await response.json()
 
           if (data.audioUrl) {
             audioRef.current.src = data.audioUrl
+            audioRef.current.volume = volume / 100
             audioRef.current.load()
 
             if (isPlaying) {
               audioRef.current.play().catch((error) => {
                 console.error("[v0] Error playing audio:", error)
-                // Fallback to YouTube IFrame
                 setUseAudioElement(false)
               })
             }
@@ -151,11 +171,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
           }
         } catch (error) {
           console.error("[v0] Error loading audio stream:", error)
-          // Fallback to YouTube IFrame
           setUseAudioElement(false)
         }
       } else {
-        // Use YouTube IFrame API
         initPlayer()
       }
     }
@@ -167,21 +185,22 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (playerRef.current) {
-        // Ensure the player has the loadVideoById method before calling it
         if (typeof playerRef.current.loadVideoById === "function") {
           playerRef.current.loadVideoById(currentVideo.id)
+          if (typeof playerRef.current.setVolume === "function") {
+            playerRef.current.setVolume(volume)
+            console.log("[v0] YouTube player volume set to:", volume)
+          }
           if (isPlaying) {
             playerRef.current.playVideo()
           }
         } else {
-          // Player exists but not ready yet, wait and retry
           console.log("[v0] Player not ready yet, retrying...")
           setTimeout(initPlayer, 100)
         }
         return
       }
 
-      // Create hidden container for player
       if (!playerContainerRef.current) {
         playerContainerRef.current = document.createElement("div")
         playerContainerRef.current.id = "youtube-player"
@@ -207,6 +226,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
           onReady: async (event: any) => {
             console.log("[v0] Player ready")
             event.target.setVolume(volume)
+            console.log("[v0] YouTube player volume set to:", volume)
             setDuration(event.target.getDuration())
 
             try {
@@ -364,7 +384,21 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   const playNext = () => {
-    console.log("[v0] Play next called, queue length:", queue.length)
+    console.log("[v0] Play next called, queue length:", queue.length, "repeat mode:", repeatMode)
+
+    if (repeatMode === "one" && currentVideo) {
+      console.log("[v0] Repeat one: replaying current song")
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0
+        audioRef.current.play()
+      } else if (playerRef.current && playerRef.current.seekTo) {
+        playerRef.current.seekTo(0)
+        playerRef.current.playVideo()
+      }
+      setIsPlaying(true)
+      return
+    }
+
     if (queue.length > 0) {
       const nextVideo = queue[0]
       console.log("[v0] Playing next video:", nextVideo.title)
@@ -376,7 +410,22 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       isManualStateChange.current = true
       setIsPlaying(true)
     } else {
-      console.log("[v0] No more songs in queue")
+      if (repeatMode === "all" && previousTracks.length > 0) {
+        console.log("[v0] Repeat all: restarting from beginning")
+        const allTracks = [...previousTracks]
+        if (currentVideo) {
+          allTracks.push(currentVideo)
+        }
+        const firstTrack = allTracks[0]
+        setCurrentVideo(firstTrack)
+        setQueue(allTracks.slice(1))
+        setPreviousTracks([])
+        isManualStateChange.current = true
+        setIsPlaying(true)
+        return
+      }
+
+      console.log("[v0] No more songs in queue, playback stopped")
       isManualStateChange.current = true
       setIsPlaying(false)
     }
@@ -436,19 +485,23 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   const setVolume = (newVolume: number) => {
+    console.log("[v0] Setting volume to:", newVolume)
     setVolumeState(newVolume)
 
     if (audioRef.current) {
       audioRef.current.volume = newVolume / 100
-    } else if (playerRef.current && playerRef.current.setVolume) {
+      console.log("[v0] Audio element volume set to:", newVolume / 100)
+    }
+
+    if (playerRef.current && typeof playerRef.current.setVolume === "function") {
       playerRef.current.setVolume(newVolume)
+      console.log("[v0] YouTube player volume set to:", newVolume)
     }
   }
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) return
 
-    // Register action handlers immediately, even without a current video
     navigator.mediaSession.setActionHandler("play", () => {
       console.log("[v0] Media Session: play")
       setIsPlaying(true)
@@ -488,7 +541,6 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
     })
 
-    // Cleanup on unmount
     return () => {
       if ("mediaSession" in navigator) {
         navigator.mediaSession.setActionHandler("play", null)
@@ -547,15 +599,47 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }, [currentTime, duration])
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && isPlaying) {
-        console.log("[v0] Page hidden, continuing playback")
-      }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("opentune_volume", volume.toString())
+      console.log("[v0] Volume saved to localStorage:", volume)
     }
+  }, [volume])
 
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
-  }, [isPlaying])
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("opentune_repeat_mode", repeatMode)
+      console.log("[v0] Repeat mode saved:", repeatMode)
+    }
+  }, [repeatMode])
+
+  useEffect(() => {
+    setLikedSongs(getLikedSongs())
+  }, [])
+
+  useEffect(() => {
+    if (currentVideo) {
+      setIsCurrentLiked(isLiked(currentVideo.id))
+    } else {
+      setIsCurrentLiked(false)
+    }
+  }, [currentVideo])
+
+  const toggleLikedSong = (video: YouTubeVideo) => {
+    const nowLiked = toggleLikedSongStorage(video)
+    setLikedSongs(getLikedSongs())
+    if (currentVideo && currentVideo.id === video.id) {
+      setIsCurrentLiked(nowLiked)
+    }
+    console.log("[v0] Toggled liked song:", video.title, "Now liked:", nowLiked)
+  }
+
+  const toggleRepeatMode = () => {
+    setRepeatMode((current) => {
+      if (current === "off") return "all"
+      if (current === "all") return "one"
+      return "off"
+    })
+  }
 
   return (
     <MusicPlayerContext.Provider
@@ -567,6 +651,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         duration,
         volume,
         themeColors,
+        likedSongs,
+        isCurrentLiked,
+        repeatMode,
         playVideo,
         togglePlay,
         playNext,
@@ -575,6 +662,8 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         clearQueue,
         seekTo,
         setVolume,
+        toggleLikedSong,
+        toggleRepeatMode,
       }}
     >
       {children}

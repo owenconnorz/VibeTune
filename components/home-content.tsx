@@ -7,8 +7,31 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
 import { useAPI } from "@/lib/use-api"
+import Link from "next/link"
 
 const categories = ["Podcasts", "Energize", "Feel good", "Relax", "Workout", "Commute"]
+
+const moods = [
+  { id: "happy", name: "Happy", color: "from-yellow-500 to-orange-500", query: "happy upbeat music" },
+  { id: "sad", name: "Sad", color: "from-blue-500 to-indigo-600", query: "sad emotional music" },
+  { id: "energetic", name: "Energetic", color: "from-red-500 to-pink-500", query: "energetic workout music" },
+  { id: "calm", name: "Calm", color: "from-green-400 to-teal-500", query: "calm relaxing music" },
+  { id: "romantic", name: "Romantic", color: "from-pink-400 to-rose-500", query: "romantic love songs" },
+  { id: "party", name: "Party", color: "from-purple-500 to-pink-500", query: "party dance music" },
+  { id: "focus", name: "Focus", color: "from-cyan-500 to-blue-500", query: "focus study music" },
+  { id: "sleep", name: "Sleep", color: "from-indigo-500 to-purple-600", query: "sleep meditation music" },
+]
+
+const genres = [
+  { id: "pop", name: "Pop", color: "from-pink-500 to-rose-500", query: "pop music hits" },
+  { id: "rock", name: "Rock", color: "from-gray-700 to-gray-900", query: "rock music" },
+  { id: "hiphop", name: "Hip Hop", color: "from-orange-500 to-red-600", query: "hip hop rap music" },
+  { id: "jazz", name: "Jazz", color: "from-amber-600 to-yellow-700", query: "jazz music" },
+  { id: "electronic", name: "Electronic", color: "from-cyan-500 to-blue-600", query: "electronic edm music" },
+  { id: "classical", name: "Classical", color: "from-purple-600 to-indigo-700", query: "classical music" },
+  { id: "country", name: "Country", color: "from-yellow-600 to-orange-600", query: "country music" },
+  { id: "rnb", name: "R&B", color: "from-rose-500 to-pink-600", query: "r&b soul music" },
+]
 
 interface HomeFeedSection {
   title: string
@@ -29,8 +52,8 @@ export function HomeContent() {
   const { playVideo } = useMusicPlayer()
 
   const { data, isLoading, error } = useAPI<{ sections: HomeFeedSection[] }>("/api/music/home", {
-    refreshInterval: 60000, // Refresh every 60 seconds
-    revalidateOnMount: true, // Always fetch fresh data on mount
+    refreshInterval: 60000,
+    revalidateOnMount: true,
   })
 
   const homeFeed = data?.sections || []
@@ -53,6 +76,62 @@ export function HomeContent() {
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
+
+      {/* Moods section */}
+      <div className="px-4 space-y-4">
+        <h2 className="text-2xl font-bold">Moods</h2>
+        <ScrollArea className="w-full">
+          <div className="flex gap-3 pb-4">
+            {moods.map((mood) => (
+              <Link
+                key={mood.id}
+                href={`/dashboard/mood/${mood.id}`}
+                className="w-40 flex-shrink-0 cursor-pointer group"
+              >
+                <div
+                  className={`relative aspect-square rounded-lg overflow-hidden mb-2 bg-gradient-to-br ${mood.color}`}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <h3 className="text-white font-bold text-xl">{mood.name}</h3>
+                  </div>
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Play className="w-12 h-12 fill-white text-white" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </div>
+
+      {/* Genres section */}
+      <div className="px-4 space-y-4">
+        <h2 className="text-2xl font-bold">Genres</h2>
+        <ScrollArea className="w-full">
+          <div className="flex gap-3 pb-4">
+            {genres.map((genre) => (
+              <Link
+                key={genre.id}
+                href={`/dashboard/genre/${genre.id}`}
+                className="w-40 flex-shrink-0 cursor-pointer group"
+              >
+                <div
+                  className={`relative aspect-square rounded-lg overflow-hidden mb-2 bg-gradient-to-br ${genre.color}`}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <h3 className="text-white font-bold text-xl">{genre.name}</h3>
+                  </div>
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Play className="w-12 h-12 fill-white text-white" />
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </div>
 
       {isLoading ? (
         <div className="px-4 py-8 text-center text-muted-foreground">Loading recommendations...</div>

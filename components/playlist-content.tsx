@@ -1,11 +1,27 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
-import { ArrowLeft, Search, Trash2, Pencil, ShuffleIcon, Download, ListOrdered, Lock, Play } from "lucide-react"
+import {
+  ArrowLeft,
+  Search,
+  Trash2,
+  Pencil,
+  ShuffleIcon,
+  Download,
+  ListOrdered,
+  Lock,
+  Play,
+  MoreVertical,
+  Heart,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { getPlaylists, deletePlaylist, type Playlist } from "@/lib/playlist-storage"
 import { useMusicPlayer } from "@/components/music-player-provider"
+import Image from "next/image"
+import { isLiked } from "@/lib/liked-storage"
 
 interface PlaylistContentProps {
   playlistId: string
@@ -13,14 +29,23 @@ interface PlaylistContentProps {
 
 export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const router = useRouter()
-  const { playVideo } = useMusicPlayer()
+  const { playVideo, toggleLikedSong } = useMusicPlayer()
   const [playlist, setPlaylist] = useState<Playlist | null>(null)
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [likedStates, setLikedStates] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const playlists = getPlaylists()
     const found = playlists.find((p) => p.id === playlistId)
     setPlaylist(found || null)
+
+    if (found) {
+      const states: Record<string, boolean> = {}
+      found.videos.forEach((video) => {
+        states[video.id] = isLiked(video.id)
+      })
+      setLikedStates(states)
+    }
   }, [playlistId])
 
   const handleDelete = () => {
@@ -43,17 +68,29 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
     }
   }
 
+  const handleLikeToggle = (video: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    toggleLikedSong(video)
+    setLikedStates((prev) => ({
+      ...prev,
+      [video.id]: !prev[video.id],
+    }))
+  }
+
   const formatDuration = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const seconds = totalSeconds % 60
-    return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+    }
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`
   }
 
   const getTotalDuration = () => {
-    if (!playlist) return "0:00:00"
+    if (!playlist) return "0:00"
     const total = playlist.videos.reduce((acc, video) => {
-      // Assuming each video has a duration in seconds (you may need to adjust this)
       return acc + (video.duration || 0)
     }, 0)
     return formatDuration(total)
@@ -119,7 +156,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           <Button variant="ghost" size="icon">
             <Pencil className="w-6 h-6" />
           </Button>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={handleShuffle}>
             <ShuffleIcon className="w-6 h-6" />
           </Button>
           <Button variant="ghost" size="icon">
@@ -171,8 +208,63 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           <Lock className="w-5 h-5 text-muted-foreground" />
         </div>
 
-        {/* Empty State */}
-        {playlist.videos.length === 0 && (
+        {/* Song List Rendering */}
+        {playlist.videos.length > 0 ? (
+          <div className="space-y-2 pb-32">
+            {playlist.videos.map((video, index) => (
+              <div
+                key={video.id}
+                className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors"
+                onClick={() => playVideo(video)}
+              >
+                {/* Thumbnail */}
+                <div className="relative w-12 h-12 rounded overflow-hidden flex-shrink-0 bg-secondary">
+                  {video.thumbnail ? (
+                    <Image
+                      src={video.thumbnail || "/placeholder.svg"}
+                      alt={video.title}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Play className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Song Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{video.title}</p>
+                  <p className="text-sm text-muted-foreground truncate">{video.artist}</p>
+                </div>
+
+                {/* Duration, Heart & Menu */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {video.duration && (
+                    <span className="text-sm text-muted-foreground">{formatDuration(video.duration)}</span>
+                  )}
+                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={(e) => handleLikeToggle(video, e)}>
+                    <Heart className={`w-4 h-4 ${likedStates[video.id] ? "fill-red-500 text-red-500" : ""}`} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      // TODO: Open song menu
+                    }}
+                  >
+                    <MoreVertical className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          // Empty State
           <div className="text-center py-12">
             <p className="text-muted-foreground text-lg">No songs in this playlist yet</p>
             <p className="text-muted-foreground text-sm mt-2">Add songs to get started</p>

@@ -14,6 +14,7 @@ import {
   Moon,
   Sliders,
   Repeat,
+  Repeat1,
   MoreVertical,
   Volume2,
   Cast,
@@ -48,6 +49,10 @@ export function NowPlayingContent() {
     seekTo,
     volume,
     setVolume,
+    isCurrentLiked,
+    toggleLikedSong,
+    repeatMode,
+    toggleRepeatMode,
   } = useMusicPlayer()
   const router = useRouter()
 
@@ -145,8 +150,13 @@ export function NowPlayingContent() {
                 <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                   <Share2 className="w-5 h-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                  <Heart className="w-5 h-5" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full h-9 w-9"
+                  onClick={() => currentVideo && toggleLikedSong(currentVideo)}
+                >
+                  <Heart className={`w-5 h-5 ${isCurrentLiked ? "fill-red-500 text-red-500" : ""}`} />
                 </Button>
               </div>
             </div>
@@ -198,8 +208,13 @@ export function NowPlayingContent() {
               <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                 <Sliders className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                <Repeat className="w-5 h-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`rounded-full h-9 w-9 ${repeatMode !== "off" ? "text-primary" : ""}`}
+                onClick={toggleRepeatMode}
+              >
+                {repeatMode === "one" ? <Repeat1 className="w-5 h-5" /> : <Repeat className="w-5 h-5" />}
               </Button>
               <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setMenuOpen(true)}>
                 <MoreVertical className="w-5 h-5" />

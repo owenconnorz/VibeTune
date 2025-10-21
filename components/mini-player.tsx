@@ -18,7 +18,8 @@ const AudioDevicePicker = dynamic(
 )
 
 export function MiniPlayer() {
-  const { currentVideo, isPlaying, togglePlay, playNext, playPrevious } = useMusicPlayer()
+  const { currentVideo, isPlaying, togglePlay, playNext, playPrevious, isCurrentLiked, toggleLikedSong } =
+    useMusicPlayer()
   const router = useRouter()
 
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
@@ -133,8 +134,13 @@ export function MiniPlayer() {
               <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setDevicePickerOpen(true)}>
                 <Cast className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <Heart className="w-5 h-5" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={() => currentVideo && toggleLikedSong(currentVideo)}
+              >
+                <Heart className={`w-5 h-5 ${isCurrentLiked ? "fill-red-500 text-red-500" : ""}`} />
               </Button>
               <Button size="icon" onClick={togglePlay} className="rounded-full w-12 h-12">
                 {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 fill-current" />}
