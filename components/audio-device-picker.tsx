@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
-import { Smartphone, Wifi, Bluetooth, Speaker, Laptop, Check, Radio, RefreshCw, Cast } from "lucide-react"
+import { Smartphone, Wifi, Bluetooth, Speaker, Laptop, Check, Radio, RefreshCw, Cast, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface AudioDevice {
   id: string
@@ -25,6 +26,8 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
   const [mounted, setMounted] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [castAvailable, setCastAvailable] = useState(false)
+  const [bluetoothDevices, setBluetoothDevices] = useState<AudioDevice[]>([])
+  const [showBluetoothHelp, setShowBluetoothHelp] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -33,20 +36,17 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
   }, [])
 
   const initializeCast = () => {
-    // Check if Cast API is available
     if (window.chrome && window.chrome.cast) {
       console.log("[v0] Google Cast API is available")
       setCastAvailable(true)
       initializeCastApi()
     } else {
       console.log("[v0] Google Cast API not available, loading SDK...")
-      // Load Cast SDK
       const script = document.createElement("script")
       script.src = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"
       script.onload = () => {
         console.log("[v0] Cast SDK loaded")
         setCastAvailable(true)
-        // Wait for API to initialize
         setTimeout(() => {
           initializeCastApi()
         }, 1000)
@@ -98,9 +98,6 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
 
   const scanForCastDevices = () => {
     console.log("[v0] Scanning for Cast devices...")
-    // Note: The Cast API doesn't provide a direct way to list devices
-    // Devices are discovered automatically by the Cast SDK
-    // We can only show that Cast is available
     if (castAvailable) {
       setDevices((prev) => {
         const hasCastDevice = prev.some((d) => d.type === "cast")
@@ -135,44 +132,49 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
       },
     ]
 
-    // Try to enumerate audio output devices using Web Audio API
     if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
       try {
-        console.log("[v0] Enumerating audio devices without requesting microphone permission...")
+        console.log("[v0] Enumerating audio devices...")
 
         const mediaDevices = await navigator.mediaDevices.enumerateDevices()
         console.log("[v0] Total media devices found:", mediaDevices.length)
-        console.log(
-          "[v0] All devices:",
-          mediaDevices.map((d) => ({ kind: d.kind, label: d.label, id: d.deviceId })),
-        )
 
         const audioOutputs = mediaDevices.filter((device) => device.kind === "audiooutput")
         console.log("[v0] Audio output devices found:", audioOutputs.length)
+
+        const detectedDevices: AudioDevice[] = []
+        const bluetoothDevs: AudioDevice[] = []
+
         audioOutputs.forEach((device) => {
-          console.log("[v0] Audio output:", {
-            label: device.label,
-            deviceId: device.deviceId,
-            groupId: device.groupId,
-          })
+          if (device.deviceId === "default" || device.deviceId === "communications") {
+            return
+          }
+
+          const deviceType = detectDeviceType(device.label)
+          const deviceInfo: AudioDevice = {
+            id: device.deviceId,
+            name: device.label || "Unknown Audio Device",
+            type: deviceType,
+            connected: false,
+            available: true,
+          }
+
+          console.log("[v0] Detected device:", device.label, "→ Type:", deviceType)
+
+          if (deviceType === "bluetooth") {
+            bluetoothDevs.push(deviceInfo)
+          }
+
+          detectedDevices.push(deviceInfo)
         })
 
-        const detectedDevices: AudioDevice[] = audioOutputs
-          .filter((device) => device.deviceId !== "default" && device.deviceId !== "communications")
-          .map((device) => {
-            const deviceType = detectDeviceType(device.label)
-            console.log("[v0] Mapped device:", device.label, "→ Type:", deviceType)
-            return {
-              id: device.deviceId,
-              name: device.label || "Unknown Audio Device",
-              type: deviceType,
-              connected: false,
-              available: true,
-            }
-          })
-
-        console.log("[v0] Detected devices after filtering:", detectedDevices.length)
+        console.log("[v0] Bluetooth devices found:", bluetoothDevs.length)
+        setBluetoothDevices(bluetoothDevs)
         setDevices([...defaultDevices, ...detectedDevices])
+
+        if (bluetoothDevs.length === 0) {
+          console.log("[v0] No Bluetooth devices detected. User may need to pair devices first.")
+        }
       } catch (error) {
         console.error("[v0] Error enumerating devices:", error)
         setDevices(defaultDevices)
@@ -187,14 +189,33 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
 
   const detectDeviceType = (label: string): AudioDevice["type"] => {
     const lowerLabel = label.toLowerCase()
-    if (lowerLabel.includes("bluetooth") || lowerLabel.includes("bt")) return "bluetooth"
-    if (lowerLabel.includes("airpods") || lowerLabel.includes("buds") || lowerLabel.includes("headphone")) {
+
+    const bluetoothKeywords = [
+      "bluetooth",
+      "bt",
+      "airpods",
+      "buds",
+      "headphone",
+      "headset",
+      "earphone",
+      "earbud",
+      "wireless",
+      "jbl",
+      "bose",
+      "sony",
+      "beats",
+      "jabra",
+      "sennheiser",
+      "anker",
+      "soundcore",
+    ]
+
+    if (bluetoothKeywords.some((keyword) => lowerLabel.includes(keyword))) {
       return "bluetooth"
     }
+
     if (lowerLabel.includes("speaker") || lowerLabel.includes("audio")) return "speaker"
-    if (lowerLabel.includes("wifi") || lowerLabel.includes("wireless") || lowerLabel.includes("network")) {
-      return "wifi"
-    }
+    if (lowerLabel.includes("wifi") || lowerLabel.includes("network")) return "wifi"
     if (lowerLabel.includes("cast") || lowerLabel.includes("chromecast")) return "cast"
     return "computer"
   }
@@ -222,7 +243,6 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
     console.log("[v0] Selecting device:", deviceId)
     setSelectedDevice(deviceId)
 
-    // Handle Cast device selection
     if (deviceId === "cast-device") {
       try {
         if (window.chrome?.cast?.isAvailable) {
@@ -247,17 +267,14 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
       return
     }
 
-    // Try to set the audio output device using setSinkId (if supported)
     if (deviceId !== "this-device") {
       try {
-        // Get all audio elements
         const audioElements = document.querySelectorAll("audio")
         const videoElements = document.querySelectorAll("video")
 
         console.log("[v0] Found audio elements:", audioElements.length)
         console.log("[v0] Found video elements:", videoElements.length)
 
-        // Set sink ID for all audio/video elements
         for (const element of audioElements) {
           if ("setSinkId" in element) {
             await (element as any).setSinkId(deviceId)
@@ -274,7 +291,6 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
           }
         }
 
-        // Update device connection status
         setDevices((prev) =>
           prev.map((device) => ({
             ...device,
@@ -285,7 +301,6 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
         console.log("[v0] Could not set audio output:", error)
       }
     } else {
-      // Reset to default device
       console.log("[v0] Resetting to default device")
       setDevices((prev) =>
         prev.map((device) => ({
@@ -307,6 +322,8 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
   if (!mounted) return null
 
   const availableDevices = devices.filter((device) => device.id !== "this-device")
+  const bluetoothAvailableDevices = availableDevices.filter((d) => d.type === "bluetooth")
+  const otherDevices = availableDevices.filter((d) => d.type !== "bluetooth")
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -324,7 +341,6 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
         </DrawerHeader>
 
         <div className="overflow-y-auto px-4 py-4 space-y-6">
-          {/* Current Device Section */}
           <div>
             <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">CURRENT DEVICE</h3>
             <div className="space-y-2">
@@ -371,14 +387,78 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
             </div>
           </div>
 
-          {/* Available Devices Section */}
-          {availableDevices.length > 0 ? (
+          {bluetoothAvailableDevices.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3 px-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">
+                  BLUETOOTH DEVICES ({bluetoothAvailableDevices.length})
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowBluetoothHelp(!showBluetoothHelp)}
+                  className="h-6 px-2"
+                >
+                  <Info className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {showBluetoothHelp && (
+                <Alert className="mb-3 bg-blue-500/10 border-blue-500/20">
+                  <Bluetooth className="h-4 w-4 text-blue-500" />
+                  <AlertDescription className="text-xs">
+                    Bluetooth devices must be paired in your device settings first. After pairing, refresh this list to
+                    see them here.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="space-y-2">
+                {bluetoothAvailableDevices.map((device) => {
+                  const Icon = getDeviceIcon(device.type)
+                  const isSelected = selectedDevice === device.id
+
+                  return (
+                    <button
+                      key={device.id}
+                      onClick={() => handleDeviceSelect(device.id)}
+                      className={cn(
+                        "w-full flex items-center gap-4 p-4 rounded-lg transition-colors",
+                        isSelected
+                          ? "bg-primary/10 border-2 border-primary"
+                          : "bg-card hover:bg-accent border-2 border-transparent",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "w-12 h-12 rounded-full flex items-center justify-center",
+                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted",
+                        )}
+                      >
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="font-semibold">{device.name}</div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Bluetooth className="w-3 h-3" />
+                          <span>Bluetooth</span>
+                        </div>
+                      </div>
+                      {isSelected && <Check className="w-6 h-6 text-primary" />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {otherDevices.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">
-                AVAILABLE DEVICES ({availableDevices.length})
+                OTHER DEVICES ({otherDevices.length})
               </h3>
               <div className="space-y-2">
-                {availableDevices.map((device) => {
+                {otherDevices.map((device) => {
                   const Icon = getDeviceIcon(device.type)
                   const isSelected = selectedDevice === device.id
 
@@ -404,7 +484,6 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
                       <div className="flex-1 text-left">
                         <div className="font-semibold">{device.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          {device.type === "bluetooth" && "Bluetooth"}
                           {device.type === "wifi" && "WiFi"}
                           {device.type === "speaker" && "Speaker"}
                           {device.type === "computer" && "Computer"}
@@ -417,45 +496,78 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
                 })}
               </div>
             </div>
-          ) : (
-            <div className="bg-muted/50 rounded-lg p-6 text-center space-y-2">
-              <Wifi className="w-12 h-12 mx-auto text-muted-foreground/50" />
-              <h4 className="font-semibold">No devices found</h4>
-              <p className="text-sm text-muted-foreground">
-                Make sure your devices are turned on and connected to the same network
-              </p>
-              <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-4 bg-transparent">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Scan Again
-              </Button>
+          )}
+
+          {availableDevices.length === 0 && (
+            <div className="space-y-4">
+              <div className="bg-muted/50 rounded-lg p-6 text-center space-y-3">
+                <Bluetooth className="w-12 h-12 mx-auto text-muted-foreground/50" />
+                <h4 className="font-semibold">No devices found</h4>
+                <p className="text-sm text-muted-foreground">
+                  Pair Bluetooth devices in your device settings, then refresh this list
+                </p>
+                <Button variant="outline" size="sm" onClick={handleRefresh} className="mt-4 bg-transparent">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Scan Again
+                </Button>
+              </div>
+
+              <Alert className="bg-blue-500/10 border-blue-500/20">
+                <Bluetooth className="h-4 w-4 text-blue-500" />
+                <AlertDescription className="text-sm space-y-2">
+                  <p className="font-semibold">How to connect Bluetooth devices:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-xs ml-2">
+                    <li>Open your device's Settings app</li>
+                    <li>Go to Bluetooth settings</li>
+                    <li>Turn on Bluetooth if it's off</li>
+                    <li>Put your speaker/headphones in pairing mode</li>
+                    <li>Select the device from the list to pair</li>
+                    <li>Return here and tap "Scan Again"</li>
+                  </ol>
+                </AlertDescription>
+              </Alert>
             </div>
           )}
 
-          {/* Info Section */}
           <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-            <h4 className="font-semibold text-sm">About WiFi Audio Devices</h4>
+            <h4 className="font-semibold text-sm">Device Connection Guide</h4>
             <div className="text-xs text-muted-foreground space-y-2">
-              <p>
-                <strong>Why aren't my WiFi speakers showing up?</strong>
-              </p>
-              <p>Web browsers have limited access to network devices for security reasons. Here's what works:</p>
-              <ul className="list-disc list-inside space-y-1 ml-2">
-                <li>
-                  <strong>Bluetooth:</strong> Pair in your device settings first, then refresh this list
-                </li>
-                <li>
-                  <strong>Chromecast/Google Cast:</strong> Should appear automatically if on same WiFi
-                </li>
-                <li>
-                  <strong>AirPlay speakers:</strong> Only work on iOS/Mac Safari (not available in web apps)
-                </li>
-                <li>
-                  <strong>Other WiFi speakers:</strong> Require their manufacturer's app (Sonos, Bose, etc.)
-                </li>
-              </ul>
-              <p className="mt-2 pt-2 border-t border-border">
-                <strong>Note:</strong> Device names may show as "Unknown" without additional permissions. Bluetooth
-                devices must be paired in your device settings first.
+              <div className="space-y-1">
+                <p className="font-semibold flex items-center gap-2">
+                  <Bluetooth className="w-3 h-3" />
+                  Bluetooth Devices
+                </p>
+                <p className="ml-5">
+                  Pair in your device settings first. Once paired, they'll appear here automatically. Refresh the list
+                  after pairing.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="font-semibold flex items-center gap-2">
+                  <Cast className="w-3 h-3" />
+                  Chromecast / Google Cast
+                </p>
+                <p className="ml-5">
+                  Devices on the same WiFi network should appear automatically. Make sure your Cast device is powered
+                  on.
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="font-semibold flex items-center gap-2">
+                  <Wifi className="w-3 h-3" />
+                  Other WiFi Speakers
+                </p>
+                <p className="ml-5">
+                  AirPlay, Sonos, and other WiFi speakers require their manufacturer's app and cannot be controlled
+                  directly from web browsers.
+                </p>
+              </div>
+
+              <p className="mt-3 pt-3 border-t border-border text-xs">
+                <strong>Note:</strong> Device names may show as "Unknown" without additional permissions. This is normal
+                and doesn't affect functionality.
               </p>
             </div>
           </div>

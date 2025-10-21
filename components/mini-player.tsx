@@ -18,49 +18,78 @@ const AudioDevicePicker = dynamic(
 )
 
 export function MiniPlayer() {
-  const { currentVideo, isPlaying, togglePlay } = useMusicPlayer()
+  const { currentVideo, isPlaying, togglePlay, playNext, playPrevious } = useMusicPlayer()
   const router = useRouter()
-  const [touchStart, setTouchStart] = useState<number | null>(null)
-  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [dragOffset, setDragOffset] = useState(0)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [devicePickerOpen, setDevicePickerOpen] = useState(false)
 
   const minSwipeDistance = 50
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null)
-    setTouchStart(e.targetTouches[0].clientY)
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY,
+    })
     setIsDragging(true)
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchStart) return
-    const currentTouch = e.targetTouches[0].clientY
-    const diff = touchStart - currentTouch
 
-    if (diff > 0) {
-      setDragOffset(Math.min(diff, 100))
+    const currentX = e.targetTouches[0].clientX
+    const currentY = e.targetTouches[0].clientY
+    const diffX = currentX - touchStart.x
+    const diffY = touchStart.y - currentY
+
+    // Determine if swipe is more horizontal or vertical
+    const isHorizontal = Math.abs(diffX) > Math.abs(diffY)
+
+    if (isHorizontal) {
+      // Horizontal swipe for skip/previous
+      setDragOffset({ x: diffX, y: 0 })
+    } else if (diffY > 0) {
+      // Vertical swipe up for now-playing
+      setDragOffset({ x: 0, y: Math.min(diffY, 100) })
     }
-    setTouchEnd(currentTouch)
+
+    setTouchEnd({ x: currentX, y: currentY })
   }
 
   const handleTouchEnd = () => {
     if (!touchStart || !touchEnd) {
       setIsDragging(false)
-      setDragOffset(0)
+      setDragOffset({ x: 0, y: 0 })
       return
     }
 
-    const distance = touchStart - touchEnd
-    const isUpSwipe = distance > minSwipeDistance
+    const distanceX = touchEnd.x - touchStart.x
+    const distanceY = touchStart.y - touchEnd.y
 
-    if (isUpSwipe) {
+    const isHorizontal = Math.abs(distanceX) > Math.abs(distanceY)
+    const isLeftSwipe = distanceX < -minSwipeDistance
+    const isRightSwipe = distanceX > minSwipeDistance
+    const isUpSwipe = distanceY > minSwipeDistance
+
+    if (isHorizontal) {
+      if (isLeftSwipe) {
+        console.log("[v0] Swiped left - playing next song")
+        playNext()
+      } else if (isRightSwipe) {
+        console.log("[v0] Swiped right - playing previous song")
+        playPrevious()
+      }
+    } else if (isUpSwipe) {
+      // Handle vertical swipe for now-playing
       router.push("/dashboard/now-playing")
     }
 
     setIsDragging(false)
-    setDragOffset(0)
+    setDragOffset({ x: 0, y: 0 })
     setTouchStart(null)
     setTouchEnd(null)
   }
@@ -72,7 +101,7 @@ export function MiniPlayer() {
       <div
         className="fixed bottom-20 left-0 right-0 bg-card border-t border-border z-30 transition-transform touch-none"
         style={{
-          transform: `translateY(-${dragOffset}px)`,
+          transform: `translate(${dragOffset.x}px, -${dragOffset.y}px)`,
           opacity: isDragging ? 0.9 : 1,
         }}
         onTouchStart={handleTouchStart}
