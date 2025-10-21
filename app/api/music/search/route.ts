@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { searchYouTube } from "@/lib/youtube"
+import { searchMusic, convertToAppFormat } from "@/lib/invidious"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -14,35 +14,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await searchYouTube(query, pageToken || undefined)
+    const page = pageToken ? Number.parseInt(pageToken) : 1
+    const result = await searchMusic(query, page)
+
+    const videos = result.videos.map(convertToAppFormat)
 
     return NextResponse.json(
       {
-        videos: result.videos,
-        nextPageToken: result.nextPageToken || null,
+        videos,
+        nextPageToken: result.hasMore ? String(page + 1) : null,
       },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
         },
       },
     )
   } catch (error: any) {
-    console.error("[v0] Search API error:", error)
-
-    const isQuotaError = error?.message?.includes("quota") || error?.message?.includes("403")
-
-    if (isQuotaError) {
-      return NextResponse.json(
-        {
-          error: "YouTube API quota exceeded. Please try again later.",
-          quotaExceeded: true,
-          videos: [],
-          nextPageToken: null,
-        },
-        { status: 200 },
-      )
-    }
+    console.error("[v0] Search error:", error)
 
     return NextResponse.json(
       {

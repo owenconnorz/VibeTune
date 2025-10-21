@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getTrending, getPopular, convertToAppFormat } from "@/lib/invidious"
 
 export const runtime = "nodejs"
 export const revalidate = 1800
@@ -82,9 +83,54 @@ function getMockHomeFeed() {
 }
 
 export async function GET() {
-  return NextResponse.json(getMockHomeFeed(), {
-    headers: {
-      "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
-    },
-  })
+  try {
+    console.log("[v0] Fetching home feed from Invidious...")
+
+    const [trending, popular] = await Promise.all([getTrending().catch(() => []), getPopular().catch(() => [])])
+
+    const trendingItems = trending.slice(0, 5).map(convertToAppFormat)
+    const popularItems = popular.slice(0, 5).map(convertToAppFormat)
+    const quickPicks = [...trending.slice(5, 8), ...popular.slice(5, 8)].map(convertToAppFormat).slice(0, 3)
+
+    if (trendingItems.length > 0 || popularItems.length > 0) {
+      console.log("[v0] Successfully fetched real home feed data")
+      return NextResponse.json(
+        {
+          sections: [
+            {
+              title: "Quick picks",
+              items: quickPicks.length > 0 ? quickPicks : getMockHomeFeed().sections[0].items,
+            },
+            {
+              title: "Trending Now",
+              items: trendingItems.length > 0 ? trendingItems : getMockHomeFeed().sections[1].items,
+            },
+            {
+              title: "Top Hits",
+              items: popularItems.length > 0 ? popularItems : getMockHomeFeed().sections[2].items,
+            },
+          ],
+        },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+          },
+        },
+      )
+    }
+
+    console.log("[v0] Falling back to mock data")
+    return NextResponse.json(getMockHomeFeed(), {
+      headers: {
+        "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+      },
+    })
+  } catch (error) {
+    console.error("[v0] Home feed error:", error)
+    return NextResponse.json(getMockHomeFeed(), {
+      headers: {
+        "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+      },
+    })
+  }
 }
