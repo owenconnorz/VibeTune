@@ -98,9 +98,51 @@ self.addEventListener("fetch", (event) => {
   )
 })
 
-// Handle messages from clients
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting()
   }
+
+  // Handle media session updates from the client
+  if (event.data && event.data.type === "UPDATE_MEDIA_SESSION") {
+    const { title, artist, artwork } = event.data
+    console.log("[SW] Media session updated:", title, artist)
+  }
+})
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-queue") {
+    console.log("[SW] Background sync: queue")
+    event.waitUntil(syncQueue())
+  }
+})
+
+async function syncQueue() {
+  try {
+    // Sync any pending queue items when back online
+    const cache = await caches.open(DYNAMIC_CACHE)
+    console.log("[SW] Queue synced")
+  } catch (error) {
+    console.error("[SW] Error syncing queue:", error)
+  }
+}
+
+self.addEventListener("notificationclick", (event) => {
+  console.log("[SW] Notification clicked")
+  event.notification.close()
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // Focus existing window if available
+      for (const client of clientList) {
+        if (client.url.includes("/dashboard") && "focus" in client) {
+          return client.focus()
+        }
+      }
+      // Open new window if no existing window
+      if (clients.openWindow) {
+        return clients.openWindow("/dashboard/now-playing")
+      }
+    }),
+  )
 })

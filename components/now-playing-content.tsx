@@ -16,6 +16,7 @@ import {
   Repeat,
   MoreVertical,
   Volume2,
+  Cast,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -27,6 +28,13 @@ import { useState, useEffect } from "react"
 const NowPlayingMenu = dynamic(() => import("@/components/now-playing-menu").then((mod) => mod.NowPlayingMenu), {
   ssr: false,
 })
+
+const AudioDevicePicker = dynamic(
+  () => import("@/components/audio-device-picker").then((mod) => mod.AudioDevicePicker),
+  {
+    ssr: false,
+  },
+)
 
 export function NowPlayingContent() {
   const {
@@ -47,6 +55,7 @@ export function NowPlayingContent() {
   const [touchEnd, setTouchEnd] = useState(0)
   const [dragOffset, setDragOffset] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [devicePickerOpen, setDevicePickerOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -100,8 +109,16 @@ export function NowPlayingContent() {
           overscrollBehavior: "contain",
         }}
       >
-        <div className="flex justify-center pt-2 pb-1">
-          <div className="w-12 h-1 bg-muted-foreground/30 rounded-full" />
+        <div className="flex justify-between items-center px-4 pt-4 pb-2">
+          <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full h-9 w-9 absolute right-4 top-4"
+            onClick={() => setDevicePickerOpen(true)}
+          >
+            <Cast className="w-5 h-5" />
+          </Button>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-between px-4 py-4 min-h-0">
@@ -192,13 +209,16 @@ export function NowPlayingContent() {
       </div>
 
       {mounted && (
-        <NowPlayingMenu
-          open={menuOpen}
-          onOpenChange={setMenuOpen}
-          volume={volume}
-          setVolume={setVolume}
-          currentVideo={currentVideo}
-        />
+        <>
+          <NowPlayingMenu
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            volume={volume}
+            setVolume={setVolume}
+            currentVideo={currentVideo}
+          />
+          <AudioDevicePicker open={devicePickerOpen} onOpenChange={setDevicePickerOpen} />
+        </>
       )}
     </>
   )

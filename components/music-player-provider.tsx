@@ -250,6 +250,105 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  useEffect(() => {
+    if (!currentVideo || !("mediaSession" in navigator)) return
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentVideo.title,
+      artist: currentVideo.artist || currentVideo.channelTitle,
+      album: currentVideo.channelTitle,
+      artwork: [
+        { src: currentVideo.thumbnail, sizes: "96x96", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "128x128", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "192x192", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "256x256", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "384x384", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "512x512", type: "image/jpeg" },
+      ],
+    })
+
+    navigator.mediaSession.setActionHandler("play", () => {
+      console.log("[v0] Media Session: play")
+      setIsPlaying(true)
+    })
+
+    navigator.mediaSession.setActionHandler("pause", () => {
+      console.log("[v0] Media Session: pause")
+      setIsPlaying(false)
+    })
+
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      console.log("[v0] Media Session: previous track")
+      playPrevious()
+    })
+
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      console.log("[v0] Media Session: next track")
+      playNext()
+    })
+
+    navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+      console.log("[v0] Media Session: seek backward")
+      const skipTime = details.seekOffset || 10
+      seekTo(Math.max(currentTime - skipTime, 0))
+    })
+
+    navigator.mediaSession.setActionHandler("seekforward", (details) => {
+      console.log("[v0] Media Session: seek forward")
+      const skipTime = details.seekOffset || 10
+      seekTo(Math.min(currentTime + skipTime, duration))
+    })
+
+    navigator.mediaSession.setActionHandler("seekto", (details) => {
+      if (details.seekTime !== undefined) {
+        console.log("[v0] Media Session: seek to", details.seekTime)
+        seekTo(details.seekTime)
+      }
+    })
+
+    return () => {
+      navigator.mediaSession.metadata = null
+      navigator.mediaSession.setActionHandler("play", null)
+      navigator.mediaSession.setActionHandler("pause", null)
+      navigator.mediaSession.setActionHandler("previoustrack", null)
+      navigator.mediaSession.setActionHandler("nexttrack", null)
+      navigator.mediaSession.setActionHandler("seekbackward", null)
+      navigator.mediaSession.setActionHandler("seekforward", null)
+      navigator.mediaSession.setActionHandler("seekto", null)
+    }
+  }, [currentVideo, currentTime, duration])
+
+  useEffect(() => {
+    if ("mediaSession" in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused"
+    }
+  }, [isPlaying])
+
+  useEffect(() => {
+    if ("mediaSession" in navigator && "setPositionState" in navigator.mediaSession && duration > 0) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: 1.0,
+          position: currentTime,
+        })
+      } catch (error) {
+        console.error("[v0] Error setting position state:", error)
+      }
+    }
+  }, [currentTime, duration])
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isPlaying) {
+        console.log("[v0] Page hidden, continuing playback")
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
+  }, [isPlaying])
+
   return (
     <MusicPlayerContext.Provider
       value={{

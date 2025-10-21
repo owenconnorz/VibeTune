@@ -21,7 +21,10 @@ export function SettingsContent() {
     },
     {
       title: "Privacy & Security",
-      items: [{ icon: Shield, label: "Privacy" }],
+      items: [
+        { icon: Shield, label: "Privacy" },
+        { icon: Shield, label: "Permissions", href: "/dashboard/settings/permissions" },
+      ],
     },
     {
       title: "Storage & Data",
