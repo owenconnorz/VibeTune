@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { searchMusic } from "@/lib/piped"
+import { searchYouTube } from "@/lib/youtube"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -14,19 +14,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log(`[v0] Searching with Piped API for: ${query}`)
+    console.log(`[v0] Searching with YouTube Data API for: ${query}`)
 
-    const page = pageToken ? Number.parseInt(pageToken) : 1
-    const result = await searchMusic(query, page)
+    const result = await searchYouTube(query, pageToken || undefined)
 
-    const videos = result.items
-
-    console.log(`[v0] Piped returned ${videos.length} videos`)
+    console.log(`[v0] YouTube API returned ${result.videos.length} videos`)
 
     return NextResponse.json(
       {
-        videos,
-        nextPageToken: result.nextPage ? String(page + 1) : null,
+        videos: result.videos,
+        nextPageToken: result.nextPageToken || null,
       },
       {
         headers: {
@@ -39,9 +36,14 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error("[v0] Search error:", error)
 
+    const isQuotaError = error.status === 403 && error.data?.error?.errors?.[0]?.reason === "quotaExceeded"
+
     return NextResponse.json(
       {
-        error: "Failed to search. Please try again.",
+        error: isQuotaError
+          ? "YouTube API quota exceeded. Please try again later."
+          : "Failed to search. Please try again.",
+        quotaExceeded: isQuotaError,
         videos: [],
         nextPageToken: null,
       },

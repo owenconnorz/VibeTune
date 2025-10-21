@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getTrending, getPopularMusic, getMusicByGenre } from "@/lib/piped"
+import { searchYouTube } from "@/lib/youtube"
 
 export const runtime = "nodejs"
 export const revalidate = 60
@@ -84,20 +84,20 @@ function getMockHomeFeed() {
 
 export async function GET() {
   try {
-    console.log("[v0] Fetching home feed from Piped...")
+    console.log("[v0] Attempting to fetch from YouTube Data API...")
 
-    const [trending, popular, genreMusic] = await Promise.all([
-      getTrending().catch(() => []),
-      getPopularMusic().catch(() => []),
-      getMusicByGenre("top hits").catch(() => []),
+    const [trending, popular, topHits] = await Promise.all([
+      searchYouTube("trending music 2024").catch(() => ({ videos: [] })),
+      searchYouTube("popular music").catch(() => ({ videos: [] })),
+      searchYouTube("top hits music").catch(() => ({ videos: [] })),
     ])
 
-    const trendingItems = trending.slice(0, 5)
-    const popularItems = popular.slice(0, 5)
-    const quickPicks = genreMusic.slice(0, 3)
+    const trendingItems = trending.videos.slice(0, 5)
+    const popularItems = popular.videos.slice(0, 5)
+    const quickPicks = topHits.videos.slice(0, 3)
 
     if (trendingItems.length > 0 || popularItems.length > 0) {
-      console.log("[v0] Successfully fetched real home feed data")
+      console.log("[v0] Successfully fetched real data from YouTube API")
       return NextResponse.json(
         {
           sections: [
@@ -123,7 +123,7 @@ export async function GET() {
       )
     }
 
-    console.log("[v0] Falling back to mock data")
+    console.log("[v0] YouTube API returned no results, using mock data")
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
@@ -131,6 +131,7 @@ export async function GET() {
     })
   } catch (error) {
     console.error("[v0] Home feed error:", error)
+    console.log("[v0] Falling back to mock data")
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",

@@ -1,12 +1,7 @@
 // Piped API client for YouTube content without quota limits
 // Piped is an open-source YouTube proxy with REST API
 
-const PIPED_INSTANCES = [
-  "https://pipedapi.kavin.rocks", // Official instance
-  "https://pipedapi.tokhmi.xyz",
-  "https://pipedapi.moomoo.me",
-  "https://api-piped.mha.fi",
-]
+import { pipedStorage, PIPED_INSTANCES } from "@/lib/piped-storage"
 
 interface PipedVideo {
   url: string
@@ -39,12 +34,18 @@ function extractVideoId(url: string): string {
 
 // Try multiple Piped instances with fallback
 async function fetchWithFallback(path: string, options?: RequestInit): Promise<any> {
+  const settings = pipedStorage.getSettings()
   const errors: string[] = []
 
-  for (const instance of PIPED_INSTANCES) {
+  // Try preferred instance first
+  const preferredInstance = settings.preferredInstance
+  const otherInstances = PIPED_INSTANCES.filter((i) => i !== preferredInstance)
+  const instancesToTry = [preferredInstance, ...(settings.autoFallback ? otherInstances : [])]
+
+  for (const instanceUrl of instancesToTry) {
     try {
-      console.log(`[v0] Trying Piped instance: ${instance}${path}`)
-      const response = await fetch(`${instance}${path}`, {
+      console.log(`[v0] Trying Piped instance: ${instanceUrl}${path}`)
+      const response = await fetch(`${instanceUrl}${path}`, {
         ...options,
         headers: {
           "Content-Type": "application/json",
@@ -54,15 +55,15 @@ async function fetchWithFallback(path: string, options?: RequestInit): Promise<a
 
       if (!response.ok) {
         const errorText = await response.text()
-        errors.push(`${instance}: ${response.status} ${errorText}`)
+        errors.push(`${instanceUrl}: ${response.status} ${errorText}`)
         continue
       }
 
       const data = await response.json()
-      console.log(`[v0] Piped instance ${instance} succeeded`)
+      console.log(`[v0] Piped instance ${instanceUrl} succeeded`)
       return data
     } catch (error) {
-      errors.push(`${instance}: ${error}`)
+      errors.push(`${instanceUrl}: ${error}`)
       continue
     }
   }
