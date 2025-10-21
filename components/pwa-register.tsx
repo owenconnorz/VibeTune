@@ -5,29 +5,40 @@ import { useEffect } from "react"
 export function PWARegister() {
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/sw.js")
+      // First check if the service worker file exists
+      fetch("/sw.js", { method: "HEAD" })
+        .then((response) => {
+          // Only register if the file exists and is JavaScript
+          if (response.ok && response.headers.get("content-type")?.includes("javascript")) {
+            return navigator.serviceWorker.register("/sw.js")
+          }
+          // Silently skip registration if file doesn't exist or wrong type
+          return null
+        })
         .then((registration) => {
-          console.log("[v0] Service Worker registered:", registration.scope)
+          if (registration) {
+            console.log("[v0] Service Worker registered:", registration.scope)
 
-          // Check for updates periodically
-          setInterval(() => {
-            registration.update()
-          }, 60000) // Check every minute
+            // Check for updates periodically
+            setInterval(() => {
+              registration.update()
+            }, 60000) // Check every minute
 
-          if ("sync" in registration) {
-            registration.sync
-              .register("sync-queue")
-              .then(() => {
-                console.log("[v0] Background sync registered")
-              })
-              .catch((error) => {
-                console.error("[v0] Background sync registration failed:", error)
-              })
+            if ("sync" in registration) {
+              registration.sync
+                .register("sync-queue")
+                .then(() => {
+                  console.log("[v0] Background sync registered")
+                })
+                .catch((error) => {
+                  console.error("[v0] Background sync registration failed:", error)
+                })
+            }
           }
         })
         .catch((error) => {
-          console.error("[v0] Service Worker registration failed:", error)
+          // Silently fail - service worker is optional
+          console.log("[v0] Service Worker not available:", error.message)
         })
     }
 
