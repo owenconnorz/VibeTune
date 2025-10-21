@@ -446,22 +446,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    if (!currentVideo || !("mediaSession" in navigator)) return
+    if (!("mediaSession" in navigator)) return
 
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentVideo.title,
-      artist: currentVideo.artist || currentVideo.channelTitle,
-      album: currentVideo.channelTitle,
-      artwork: [
-        { src: currentVideo.thumbnail, sizes: "96x96", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "128x128", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "192x192", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "256x256", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "384x384", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "512x512", type: "image/jpeg" },
-      ],
-    })
-
+    // Register action handlers immediately, even without a current video
     navigator.mediaSession.setActionHandler("play", () => {
       console.log("[v0] Media Session: play")
       setIsPlaying(true)
@@ -501,17 +488,43 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
     })
 
+    // Cleanup on unmount
     return () => {
-      navigator.mediaSession.metadata = null
-      navigator.mediaSession.setActionHandler("play", null)
-      navigator.mediaSession.setActionHandler("pause", null)
-      navigator.mediaSession.setActionHandler("previoustrack", null)
-      navigator.mediaSession.setActionHandler("nexttrack", null)
-      navigator.mediaSession.setActionHandler("seekbackward", null)
-      navigator.mediaSession.setActionHandler("seekforward", null)
-      navigator.mediaSession.setActionHandler("seekto", null)
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.setActionHandler("play", null)
+        navigator.mediaSession.setActionHandler("pause", null)
+        navigator.mediaSession.setActionHandler("previoustrack", null)
+        navigator.mediaSession.setActionHandler("nexttrack", null)
+        navigator.mediaSession.setActionHandler("seekbackward", null)
+        navigator.mediaSession.setActionHandler("seekforward", null)
+        navigator.mediaSession.setActionHandler("seekto", null)
+      }
     }
-  }, [currentVideo, currentTime, duration, previousTracks, queue])
+  }, []) // Empty dependency array - register once on mount
+
+  useEffect(() => {
+    if (!currentVideo || !("mediaSession" in navigator)) return
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentVideo.title,
+      artist: currentVideo.artist || currentVideo.channelTitle,
+      album: currentVideo.channelTitle,
+      artwork: [
+        { src: currentVideo.thumbnail, sizes: "96x96", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "128x128", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "192x192", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "256x256", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "384x384", type: "image/jpeg" },
+        { src: currentVideo.thumbnail, sizes: "512x512", type: "image/jpeg" },
+      ],
+    })
+
+    return () => {
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.metadata = null
+      }
+    }
+  }, [currentVideo])
 
   useEffect(() => {
     if ("mediaSession" in navigator) {
