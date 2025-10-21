@@ -342,4 +342,90 @@ export async function getArtistData(browseId: string) {
   }
 }
 
+export async function getHomeFeed() {
+  try {
+    console.log("[v0] Fetching home feed from InnerTube")
+
+    const data = await makeInnerTubeRequest("browse", {
+      browseId: "FEmusic_home",
+    })
+
+    const contents =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+        ?.contents || []
+
+    const sections: any[] = []
+
+    for (const section of contents) {
+      try {
+        const shelf = section.musicCarouselShelfRenderer
+
+        if (!shelf) continue
+
+        const title = shelf.title?.runs?.[0]?.text || "Recommended"
+        const items: any[] = []
+
+        const shelfContents = shelf.contents || []
+
+        for (const item of shelfContents) {
+          try {
+            // Try musicTwoRowItemRenderer (for albums, playlists, artists)
+            const twoRowRenderer = item.musicTwoRowItemRenderer
+            if (twoRowRenderer) {
+              const videoId =
+                twoRowRenderer.navigationEndpoint?.watchEndpoint?.videoId ||
+                twoRowRenderer.navigationEndpoint?.watchPlaylistEndpoint?.videoId
+              const browseId = twoRowRenderer.navigationEndpoint?.browseEndpoint?.browseId
+              const itemTitle = twoRowRenderer.title?.runs?.[0]?.text
+              const itemSubtitle = twoRowRenderer.subtitle?.runs?.[0]?.text
+              const itemThumbnail =
+                twoRowRenderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+              if ((videoId || browseId) && itemTitle) {
+                items.push({
+                  id: videoId || browseId,
+                  title: itemTitle,
+                  artist: itemSubtitle || "Unknown Artist",
+                  thumbnail: itemThumbnail || "/placeholder.svg",
+                  duration: "",
+                })
+              }
+              continue
+            }
+
+            // Try musicResponsiveListItemRenderer (for songs)
+            const videoInfo = extractVideoInfo(item)
+            if (videoInfo) {
+              items.push(videoInfo)
+            }
+          } catch (itemError: any) {
+            console.error("[v0] Error processing home feed item:", itemError.message)
+            // Continue processing other items
+          }
+        }
+
+        if (items.length > 0) {
+          sections.push({
+            title,
+            items,
+          })
+        }
+      } catch (sectionError: any) {
+        console.error("[v0] Error processing home feed section:", sectionError.message)
+        // Continue processing other sections
+      }
+    }
+
+    console.log(`[v0] InnerTube home feed returned ${sections.length} sections`)
+
+    return { sections }
+  } catch (error: any) {
+    console.error("[v0] InnerTube home feed error:", {
+      message: error.message,
+      stack: error.stack,
+    })
+    throw error
+  }
+}
+
 export { getVideoDetails as getAudioStream } from "./youtube-api"

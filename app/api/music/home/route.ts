@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
-import { getHomeFeed } from "@/lib/youtube-api"
+import { getHomeFeed } from "@/lib/innertube"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-export const revalidate = 3600 // Cache for 1 hour
+export const revalidate = 300 // Cache for 5 minutes
 
 function getMockHomeFeed() {
   return {
@@ -89,46 +89,46 @@ export async function GET() {
   console.log("[v0] Timestamp:", new Date().toISOString())
 
   try {
-    console.log("[v0] Fetching home feed from YouTube Data API...")
+    console.log("[v0] Fetching home feed from InnerTube API...")
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("API route timeout after 20s")), 20000),
-    )
-
-    const homeFeed = (await Promise.race([getHomeFeed(), timeoutPromise])) as any
+    const homeFeed = await getHomeFeed()
 
     console.log("[v0] Home feed result:", homeFeed?.sections?.length || 0, "sections")
 
     if (homeFeed?.sections && homeFeed.sections.length > 0) {
-      console.log("[v0] Successfully fetched real data from YouTube Data API")
+      console.log("[v0] Successfully fetched real data from InnerTube API")
       return NextResponse.json(homeFeed, {
         headers: {
-          "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
         },
       })
     }
 
-    console.log("[v0] YouTube Data API returned no results (likely quota exceeded), using mock data")
-    return NextResponse.json(getMockHomeFeed(), {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+    console.log("[v0] InnerTube API returned no results")
+    return NextResponse.json(
+      { sections: [] },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
       },
-    })
+    )
   } catch (error: any) {
     console.error("[v0] ===== HOME FEED ERROR =====")
-    console.error("[v0] Error type:", typeof error)
     console.error("[v0] Error:", error)
     if (error instanceof Error) {
-      console.error("[v0] Error name:", error.name)
       console.error("[v0] Error message:", error.message)
       console.error("[v0] Error stack:", error.stack)
     }
-    console.log("[v0] Falling back to mock data")
 
-    return NextResponse.json(getMockHomeFeed(), {
-      headers: {
-        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
+    return NextResponse.json(
+      { sections: [], error: "Failed to load home feed" },
+      {
+        status: 500,
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
       },
-    })
+    )
   }
 }
