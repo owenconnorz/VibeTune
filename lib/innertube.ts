@@ -475,7 +475,44 @@ export async function getHomeFeed() {
   }
 }
 
-export async function getAudioStream(videoId: string) {
-  const { getVideoDetails } = await import("./youtube-api")
-  return getVideoDetails(videoId)
+export async function getAudioStream(videoId: string): Promise<string | null> {
+  try {
+    console.log("[v0] Fetching audio stream for video:", videoId)
+
+    const data = await makeInnerTubeRequest("player", {
+      videoId,
+      params: "8AEB", // Audio only parameter
+    })
+
+    if (!data || !data.streamingData) {
+      console.error("[v0] No streaming data available")
+      return null
+    }
+
+    // Get adaptive formats (separate audio and video streams)
+    const adaptiveFormats = data.streamingData.adaptiveFormats || []
+
+    // Find the best audio-only format
+    const audioFormats = adaptiveFormats.filter((format: any) => format.mimeType?.includes("audio") && format.url)
+
+    if (audioFormats.length === 0) {
+      console.error("[v0] No audio formats available")
+      return null
+    }
+
+    // Sort by bitrate (highest first) and get the best quality
+    audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+    const bestAudio = audioFormats[0]
+
+    console.log("[v0] Found audio stream:", {
+      mimeType: bestAudio.mimeType,
+      bitrate: bestAudio.bitrate,
+      audioQuality: bestAudio.audioQuality,
+    })
+
+    return bestAudio.url
+  } catch (error: any) {
+    console.error("[v0] Error fetching audio stream:", error.message)
+    return null
+  }
 }
