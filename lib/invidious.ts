@@ -58,8 +58,9 @@ export interface InvidiousVideo {
 export async function searchMusic(query: string, page = 1): Promise<{ videos: InvidiousVideo[]; hasMore: boolean }> {
   try {
     const encodedQuery = encodeURIComponent(query)
-    // Use type=video and filter for music category
-    const path = `/api/v1/search?q=${encodedQuery}&type=video&page=${page}`
+    const musicQuery = query.toLowerCase().includes("music") ? query : `${query} music`
+    const encodedMusicQuery = encodeURIComponent(musicQuery)
+    const path = `/api/v1/search?q=${encodedMusicQuery}&type=video&page=${page}`
 
     const results = await fetchFromInvidious(path)
 
@@ -99,14 +100,29 @@ export async function getTrending(): Promise<InvidiousVideo[]> {
   }
 }
 
-export async function getPopular(): Promise<InvidiousVideo[]> {
+export async function getMusicByGenre(genre: string): Promise<InvidiousVideo[]> {
   try {
-    // Get popular videos (fallback if trending fails)
-    const path = `/api/v1/popular`
+    // Search for music by genre
+    const path = `/api/v1/search?q=${encodeURIComponent(genre + " music")}&type=video`
+    const data = await fetchFromInvidious(path)
+    return Array.isArray(data) ? data.slice(0, 10) : []
+  } catch (error) {
+    console.error(`[v0] Invidious ${genre} music error:`, error)
+    throw error
+  }
+}
+
+export async function getPopularMusic(): Promise<InvidiousVideo[]> {
+  try {
+    // Fetch popular music from different genres
+    const genres = ["pop music hits", "rock music", "hip hop music", "electronic music"]
+    const randomGenre = genres[Math.floor(Math.random() * genres.length)]
+
+    const path = `/api/v1/search?q=${encodeURIComponent(randomGenre)}&type=video&sort_by=view_count`
     const data = await fetchFromInvidious(path)
     return Array.isArray(data) ? data.slice(0, 20) : []
   } catch (error) {
-    console.error("[v0] Invidious popular error:", error)
+    console.error("[v0] Invidious popular music error:", error)
     throw error
   }
 }

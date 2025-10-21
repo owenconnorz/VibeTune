@@ -26,7 +26,8 @@ export function HomeContent() {
   const { playVideo } = useMusicPlayer()
 
   const { data, isLoading, error } = useAPI<{ sections: HomeFeedSection[] }>("/api/music/home", {
-    refreshInterval: 300000, // Refresh every 5 minutes
+    refreshInterval: 60000, // Refresh every 60 seconds
+    revalidateOnMount: true, // Always fetch fresh data on mount
   })
 
   const homeFeed = data?.sections || []

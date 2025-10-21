@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
-import { getTrending, getPopular, convertToAppFormat } from "@/lib/invidious"
+import { getTrending, getPopularMusic, getMusicByGenre, convertToAppFormat } from "@/lib/invidious"
 
 export const runtime = "nodejs"
-export const revalidate = 1800
+export const revalidate = 60
 
 function getMockHomeFeed() {
   return {
@@ -86,11 +86,15 @@ export async function GET() {
   try {
     console.log("[v0] Fetching home feed from Invidious...")
 
-    const [trending, popular] = await Promise.all([getTrending().catch(() => []), getPopular().catch(() => [])])
+    const [trending, popular, genreMusic] = await Promise.all([
+      getTrending().catch(() => []),
+      getPopularMusic().catch(() => []),
+      getMusicByGenre("top hits").catch(() => []),
+    ])
 
     const trendingItems = trending.slice(0, 5).map(convertToAppFormat)
     const popularItems = popular.slice(0, 5).map(convertToAppFormat)
-    const quickPicks = [...trending.slice(5, 8), ...popular.slice(5, 8)].map(convertToAppFormat).slice(0, 3)
+    const quickPicks = genreMusic.slice(0, 3).map(convertToAppFormat)
 
     if (trendingItems.length > 0 || popularItems.length > 0) {
       console.log("[v0] Successfully fetched real home feed data")
@@ -113,7 +117,7 @@ export async function GET() {
         },
         {
           headers: {
-            "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
           },
         },
       )
@@ -122,14 +126,14 @@ export async function GET() {
     console.log("[v0] Falling back to mock data")
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
-        "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
       },
     })
   } catch (error) {
     console.error("[v0] Home feed error:", error)
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
-        "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600",
+        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
       },
     })
   }
