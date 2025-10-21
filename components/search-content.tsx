@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Search, Clock, ArrowUpRight, Loader2, AlertCircle } from "lucide-react"
+import { Search, Clock, ArrowUpRight, Loader2, AlertCircle, MoreVertical, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -13,21 +13,24 @@ import { searchHistory } from "@/lib/cache"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
+type FilterType = "all" | "songs" | "videos" | "albums" | "artists"
+
 export function SearchContent() {
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [history, setHistory] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [allResults, setAllResults] = useState<YouTubeVideo[]>([])
+  const [paginatedResults, setPaginatedResults] = useState<YouTubeVideo[]>([])
   const [nextPageToken, setNextPageToken] = useState<string | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all")
 
   const router = useRouter()
   const { playVideo } = useMusicPlayer()
 
   const { data: suggestionsData } = useAPI<{ suggestions: string[] }>(
-    query.length >= 2 ? `/api/music/suggestions?q=${encodeURIComponent(query)}` : null,
+    query.length >= 2 && showSuggestions ? `/api/music/suggestions?q=${encodeURIComponent(query)}` : null,
   )
 
   const { data, isLoading, error } = useAPI<{
@@ -41,23 +44,11 @@ export function SearchContent() {
 
   useEffect(() => {
     if (data) {
-      console.log("[v0] Search response:", {
-        videosCount: data.videos.length,
-        nextPageToken: data.nextPageToken,
-        error: data.error,
-        quotaExceeded: data.quotaExceeded,
-      })
-
       if (data.error) {
         setApiError(data.error)
-        // Don't clear existing results if we have an error
-        if (data.videos.length === 0 && allResults.length === 0) {
-          // Only set empty if we truly have no results
-          setAllResults([])
-        }
       } else {
         setApiError(null)
-        setAllResults(data.videos)
+        setPaginatedResults([])
         setNextPageToken(data.nextPageToken)
       }
     }
@@ -65,15 +56,15 @@ export function SearchContent() {
 
   useEffect(() => {
     if (error) {
-      console.error("[v0] Search API error:", error)
       setApiError("Failed to search. Please try again.")
     }
   }, [error])
 
+  const allResults = data?.videos ? [...data.videos, ...paginatedResults] : paginatedResults
+
   const loadMoreResults = useCallback(async () => {
     if (!nextPageToken || isLoadingMore || !debouncedQuery) return
 
-    console.log("[v0] Loading more results with pageToken:", nextPageToken)
     setIsLoadingMore(true)
 
     try {
@@ -83,17 +74,14 @@ export function SearchContent() {
       const newData = await response.json()
 
       if (newData.error) {
-        console.error("[v0] Error loading more results:", newData.error)
         setApiError(newData.error)
         setIsLoadingMore(false)
         return
       }
 
-      console.log("[v0] Loaded", newData.videos.length, "more results")
-      setAllResults((prev) => [...prev, ...newData.videos])
+      setPaginatedResults((prev) => [...prev, ...newData.videos])
       setNextPageToken(newData.nextPageToken)
     } catch (error) {
-      console.error("[v0] Error loading more results:", error)
       setApiError("Failed to load more results")
     } finally {
       setIsLoadingMore(false)
@@ -121,9 +109,10 @@ export function SearchContent() {
         setHistory(searchHistory.get())
         setShowSuggestions(false)
         setApiError(null)
+        setPaginatedResults([])
       } else {
         setDebouncedQuery("")
-        setAllResults([])
+        setPaginatedResults([])
         setNextPageToken(null)
         setApiError(null)
       }
@@ -158,11 +147,25 @@ export function SearchContent() {
   }
 
   return (
-    <div className="min-h-screen pb-32">
-      <div className="container mx-auto px-4 py-6">
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+    <div className="min-h-screen pb-32 bg-background">
+      <div className="sticky top-0 z-50 bg-background border-b border-border">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="flex-shrink-0">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </Button>
+          <div className="relative flex-1">
             <Input
               value={query}
               onChange={(e) => {
@@ -170,27 +173,91 @@ export function SearchContent() {
                 setShowSuggestions(true)
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Search YouTube Music..."
-              className="pl-10 bg-secondary border-0 h-12 rounded-full"
+              placeholder="Search"
+              className="bg-secondary/50 border-0 h-10 pr-10"
             />
-            {showSuggestions && query.length >= 2 && suggestions.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50">
-                {suggestions.map((suggestion, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="w-full flex items-center gap-3 p-3 hover:bg-secondary/50 transition-colors text-left"
-                  >
-                    <Search className="w-5 h-5 text-muted-foreground" />
-                    <span className="flex-1">{suggestion}</span>
-                    <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
-                  </button>
-                ))}
+            {query && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setQuery("")
+                  setDebouncedQuery("")
+                }}
+                className="absolute right-0 top-0 h-10 w-10"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+            {showSuggestions && (query.length >= 2 || history.length > 0) && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-background border-t border-border shadow-lg overflow-hidden z-50 max-h-[60vh] overflow-y-auto">
+                {/* History items */}
+                {query.length < 2 && history.length > 0 && (
+                  <>
+                    {history.map((item, index) => (
+                      <button
+                        key={`history-${index}`}
+                        onClick={() => handleHistoryClick(item)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
+                      >
+                        <Clock className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                        <span className="flex-1 truncate">{item}</span>
+                        <X
+                          className="w-4 h-4 text-muted-foreground flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const newHistory = history.filter((_, i) => i !== index)
+                            searchHistory.clear()
+                            newHistory.forEach((h) => searchHistory.add(h))
+                            setHistory(newHistory)
+                          }}
+                        />
+                        <ArrowUpRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      </button>
+                    ))}
+                  </>
+                )}
+                {/* Suggestions */}
+                {query.length >= 2 && suggestions.length > 0 && (
+                  <>
+                    {suggestions.map((suggestion, index) => (
+                      <button
+                        key={`suggestion-${index}`}
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
+                      >
+                        <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                        <span className="flex-1 truncate">{suggestion}</span>
+                        <ArrowUpRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      </button>
+                    ))}
+                  </>
+                )}
               </div>
             )}
           </div>
         </div>
 
+        {debouncedQuery && (
+          <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
+            {(["all", "songs", "videos", "albums", "artists"] as FilterType[]).map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setActiveFilter(filter)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  activeFilter === filter
+                    ? "bg-primary/20 text-primary"
+                    : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="container mx-auto px-4 py-4">
         {apiError && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
@@ -198,42 +265,20 @@ export function SearchContent() {
           </Alert>
         )}
 
-        {!query.trim() && history.length > 0 && (
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-muted-foreground">Recent Searches</h3>
-              <Button variant="ghost" size="sm" onClick={clearHistory}>
-                Clear
-              </Button>
-            </div>
-            <div className="space-y-2">
-              {history.map((item, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleHistoryClick(item)}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors text-left"
-                >
-                  <Clock className="w-5 h-5 text-muted-foreground" />
-                  <span className="flex-1">{item}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         {isLoading ? (
           <div className="flex items-center justify-center h-96">
-            <p className="text-muted-foreground">Searching...</p>
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : allResults.length > 0 ? (
           <div className="space-y-6">
             {topResult && (
               <div>
-                <h2 className="text-lg font-semibold mb-3 text-primary">Top result</h2>
+                <h2 className="text-xl font-bold mb-4 text-primary">Top result</h2>
                 <button
                   onClick={() => handleResultClick(topResult)}
-                  className="w-full flex items-center gap-4 p-4 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors text-left"
+                  className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
                 >
-                  <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
                     <Image
                       src={topResult.thumbnail || "/placeholder.svg"}
                       alt={topResult.title}
@@ -242,24 +287,35 @@ export function SearchContent() {
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg truncate">{topResult.title}</h3>
+                    <h3 className="font-semibold text-base truncate">{topResult.title}</h3>
                     <p className="text-sm text-muted-foreground truncate">{topResult.artist}</p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      // Menu functionality
+                    }}
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </Button>
                 </button>
               </div>
             )}
 
             {otherResults.length > 0 && (
               <div>
-                <h2 className="text-lg font-semibold mb-3 text-muted-foreground">Other</h2>
-                <div className="space-y-2">
+                <h2 className="text-xl font-bold mb-4 text-muted-foreground">Other</h2>
+                <div className="space-y-1">
                   {otherResults.map((video) => (
                     <button
                       key={video.id}
                       onClick={() => handleResultClick(video)}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 transition-colors text-left"
+                      className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
                     >
-                      <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0">
+                      <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
                         <Image
                           src={video.thumbnail || "/placeholder.svg"}
                           alt={video.title}
@@ -268,10 +324,22 @@ export function SearchContent() {
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{video.title}</h3>
-                        <p className="text-sm text-muted-foreground truncate">{video.artist}</p>
+                        <h3 className="font-semibold text-base truncate">{video.title}</h3>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {video.artist} • {video.duration}
+                        </p>
                       </div>
-                      <span className="text-sm text-muted-foreground">{video.duration}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          // Menu functionality
+                        }}
+                      >
+                        <MoreVertical className="w-5 h-5" />
+                      </Button>
                     </button>
                   ))}
                 </div>

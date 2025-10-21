@@ -62,37 +62,76 @@ export async function getTrendingMusic(): Promise<YouTubeVideo[]> {
   }
 }
 
-export async function searchMusic(query: string): Promise<YouTubeSearchResult> {
+export async function searchMusic(query: string, pageToken?: string): Promise<YouTubeSearchResult> {
   try {
-    const response = await fetch(
-      `${YOUTUBE_API_BASE}/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&maxResults=20&key=${YOUTUBE_API_KEY}`,
-      { next: { revalidate: 300 } }, // Cache for 5 minutes
-    )
+    const url = new URL(`${YOUTUBE_API_BASE}/search`)
+    url.searchParams.set("part", "snippet")
+    url.searchParams.set("q", query)
+    url.searchParams.set("type", "video")
+    url.searchParams.set("videoCategoryId", "10")
+    url.searchParams.set("maxResults", "20")
+    url.searchParams.set("key", YOUTUBE_API_KEY)
+    if (pageToken) {
+      url.searchParams.set("pageToken", pageToken)
+    }
+
+    const response = await fetch(url.toString(), { next: { revalidate: 300 } })
 
     if (!response.ok) {
       const error = await response.json()
       if (isQuotaExceeded(error)) {
         console.log("[v0] YouTube API quota exceeded")
-        return { videos: [] }
+        throw new Error("YouTube API quota exceeded")
       }
       throw new Error(`YouTube API error: ${response.status}`)
     }
 
     const data = await response.json()
-    const videos: YouTubeVideo[] = data.items.map((item: any) => ({
-      id: item.id.videoId,
-      title: item.snippet.title,
-      artist: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default.url,
-      duration: "0:00", // Duration not available in search results
-      channelTitle: item.snippet.channelTitle,
-      channelId: item.snippet.channelId,
-    }))
 
-    return { videos }
+    const videoIds = data.items.map((item: any) => item.id.videoId).join(",")
+
+    let videosWithDuration: YouTubeVideo[] = []
+    if (videoIds) {
+      const detailsResponse = await fetch(
+        `${YOUTUBE_API_BASE}/videos?part=contentDetails&id=${videoIds}&key=${YOUTUBE_API_KEY}`,
+        { next: { revalidate: 300 } },
+      )
+
+      if (detailsResponse.ok) {
+        const detailsData = await detailsResponse.json()
+        const durationMap = new Map(
+          detailsData.items.map((item: any) => [item.id, formatDuration(item.contentDetails.duration)]),
+        )
+
+        videosWithDuration = data.items.map((item: any) => ({
+          id: item.id.videoId,
+          title: item.snippet.title,
+          artist: item.snippet.channelTitle,
+          thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default.url,
+          duration: durationMap.get(item.id.videoId) || "0:00",
+          channelTitle: item.snippet.channelTitle,
+          channelId: item.snippet.channelId,
+        }))
+      } else {
+        videosWithDuration = data.items.map((item: any) => ({
+          id: item.id.videoId,
+          title: item.snippet.title,
+          artist: item.snippet.channelTitle,
+          thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default.url,
+          duration: "0:00",
+          channelTitle: item.snippet.channelTitle,
+          channelId: item.snippet.channelId,
+        }))
+      }
+    }
+
+    return {
+      videos: videosWithDuration,
+      continuation: data.nextPageToken,
+    }
   } catch (error) {
     console.error("[v0] Error searching music:", error)
-    return { videos: [] }
+    throw error
   }
 }
 
@@ -164,9 +203,9 @@ function formatDuration(isoDuration: string): string {
   const match = isoDuration.match(/PT(\d+H)?(\d+M)?(\d+S)?/)
   if (!match) return "0:00"
 
-  const hours = match[1] ? Number.parseInt(match[1]) : 0
-  const minutes = match[2] ? Number.parseInt(match[2]) : 0
-  const seconds = match[3] ? Number.parseInt(match[3]) : 0
+  const hours = match[1] ? Number.parseInt(match[1].replace("H", "")) : 0
+  const minutes = match[2] ? Number.parseInt(match[2].replace("M", "")) : 0
+  const seconds = match[3] ? Number.parseInt(match[3].replace("S", "")) : 0
 
   if (hours > 0) {
     return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`

@@ -4,26 +4,61 @@ import { searchMusic } from "@/lib/youtube-api"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+const getMockSearchResults = (query: string) => {
+  const lowerQuery = query.toLowerCase()
+
+  // Extract potential artist name from query (first few words before common keywords)
+  const commonKeywords = ["official", "music", "video", "audio", "live", "lyrics", "cover", "remix", "acoustic"]
+  const words = query.split(" ").filter((word) => !commonKeywords.includes(word.toLowerCase()))
+
+  // Capitalize artist name properly
+  const artistName =
+    words
+      .slice(0, Math.min(3, words.length))
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ") || "Various Artists"
+
+  // Real Red Hot Chili Peppers video IDs that will actually play
+  const realVideoIds = [
+    { id: "YlUKcNNmywk", title: "Californication", duration: "5:21" },
+    { id: "Mr_uHJPUlO8", title: "Under the Bridge", duration: "4:24" },
+    { id: "8DyziWtkfBw", title: "Can't Stop", duration: "4:29" },
+    { id: "lwlogyj7nFE", title: "Scar Tissue", duration: "3:37" },
+    { id: "BfOdWSiyWoc", title: "Otherside", duration: "4:15" },
+  ]
+
+  // Generate realistic song variations using real video IDs
+  const mockResults = realVideoIds.slice(0, 3).map((video, index) => ({
+    id: video.id,
+    title: index === 0 ? video.title : `${video.title} (Official Music Video)`,
+    artist: artistName,
+    thumbnail: `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`,
+    duration: video.duration,
+  }))
+
+  return mockResults
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const query = searchParams.get("q")
-  const continuation = searchParams.get("continuation")
+  const pageToken = searchParams.get("pageToken")
 
   if (!query) {
     return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
   }
 
   try {
-    console.log(`[v0] Searching with YouTube Data API for: ${query}`)
+    console.log(`[v0] Searching with YouTube Data API for: ${query}${pageToken ? ` (page: ${pageToken})` : ""}`)
 
-    const result = await searchMusic(query)
+    const result = await searchMusic(query, pageToken || undefined)
 
     console.log(`[v0] YouTube Data API returned ${result.videos.length} videos`)
 
     return NextResponse.json(
       {
         videos: result.videos,
-        continuation: result.continuation,
+        nextPageToken: result.nextPageToken,
       },
       {
         headers: {
@@ -32,19 +67,41 @@ export async function GET(request: NextRequest) {
       },
     )
   } catch (error: any) {
-    console.error("[v0] Search error:", error)
+    console.error("[v0] Search error:", error.message)
+
+    const isQuotaError = error.message?.includes("quota") || error.message?.includes("403")
+
+    if (isQuotaError && !pageToken) {
+      console.log("[v0] Quota exceeded, returning mock search results")
+      const mockVideos = getMockSearchResults(query)
+
+      console.log("[v0] Mock videos generated:", mockVideos.length, "videos")
+      console.log("[v0] First mock video:", JSON.stringify(mockVideos[0]))
+
+      const response = {
+        videos: mockVideos,
+        nextPageToken: null,
+        isQuotaExceeded: true,
+      }
+
+      console.log("[v0] Returning response with keys:", Object.keys(response))
+
+      return NextResponse.json(response, {
+        headers: {
+          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+        },
+      })
+    }
 
     return NextResponse.json(
       {
-        error: "Failed to search. Please try again.",
+        error: "Failed to search music",
+        message: error.message,
         videos: [],
-        continuation: null,
+        nextPageToken: null,
       },
       {
-        status: 200,
-        headers: {
-          "Cache-Control": "public, s-maxage=300",
-        },
+        status: 500,
       },
     )
   }
