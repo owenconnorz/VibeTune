@@ -1,18 +1,6 @@
 "use client"
 
-import {
-  ArrowLeft,
-  Palette,
-  Play,
-  Globe,
-  Shield,
-  HardDrive,
-  Cloud,
-  LinkIcon,
-  RefreshCw,
-  Info,
-  Server,
-} from "lucide-react"
+import { ArrowLeft, Palette, Play, Globe, Shield, HardDrive, Cloud, LinkIcon, RefreshCw, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 
@@ -48,7 +36,6 @@ export function SettingsContent() {
     {
       title: "System & About",
       items: [
-        { icon: Server, label: "API Settings", href: "/dashboard/settings/api" },
         { icon: LinkIcon, label: "Open supported links" },
         { icon: RefreshCw, label: "Updater" },
         { icon: Info, label: "About" },

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getTrending, getPopularMusic, getMusicByGenre } from "@/lib/piped"
+import { getTrending, getPopularMusic, getMusicByGenre } from "@/lib/invidious"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -85,19 +85,19 @@ function getMockHomeFeed() {
 
 export async function GET() {
   try {
-    console.log("[v0] Fetching home feed from Piped API...")
+    console.log("[v0] Fetching home feed from Invidious API...")
 
     const [trending, popular, topHits] = await Promise.all([
       getTrending().catch((err) => {
-        console.error("[v0] Piped trending error:", err)
+        console.error("[v0] Invidious trending error:", err)
         return []
       }),
       getPopularMusic().catch((err) => {
-        console.error("[v0] Piped popular error:", err)
+        console.error("[v0] Invidious popular error:", err)
         return []
       }),
       getMusicByGenre("pop").catch((err) => {
-        console.error("[v0] Piped genre error:", err)
+        console.error("[v0] Invidious genre error:", err)
         return []
       }),
     ])
@@ -107,7 +107,7 @@ export async function GET() {
     const quickPicks = topHits.slice(0, 3)
 
     if (trendingItems.length > 0 || popularItems.length > 0) {
-      console.log("[v0] Successfully fetched real data from Piped API")
+      console.log("[v0] Successfully fetched real data from Invidious API")
       return NextResponse.json(
         {
           sections: [
@@ -133,7 +133,7 @@ export async function GET() {
       )
     }
 
-    console.log("[v0] Piped API returned no results, using mock data")
+    console.log("[v0] Invidious API returned no results, using mock data")
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
         "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",

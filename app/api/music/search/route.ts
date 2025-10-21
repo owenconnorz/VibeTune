@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { searchMusic } from "@/lib/piped"
+import { searchMusic } from "@/lib/invidious"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -7,24 +7,22 @@ export const dynamic = "force-dynamic"
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const query = searchParams.get("q")
-  const page = searchParams.get("page")
 
   if (!query) {
     return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
   }
 
   try {
-    console.log(`[v0] Searching with Piped API for: ${query}`)
+    console.log(`[v0] Searching with Invidious API for: ${query}`)
 
-    const pageNum = page ? Number.parseInt(page) : 1
-    const result = await searchMusic(query, pageNum)
+    const result = await searchMusic(query)
 
-    console.log(`[v0] Piped API returned ${result.length} videos`)
+    console.log(`[v0] Invidious API returned ${result.length} videos`)
 
     return NextResponse.json(
       {
         videos: result,
-        nextPageToken: result.length >= 20 ? String(pageNum + 1) : null,
+        nextPageToken: null,
       },
       {
         headers: {
@@ -39,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error: "Failed to search. Please try again or check API settings.",
+        error: "Failed to search. Please try again.",
         videos: [],
         nextPageToken: null,
       },
