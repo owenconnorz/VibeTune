@@ -19,7 +19,6 @@ export function SearchContent() {
   const [query, setQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [history, setHistory] = useState<string[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
   const [paginatedResults, setPaginatedResults] = useState<YouTubeVideo[]>([])
   const [nextPageToken, setNextPageToken] = useState<string | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -30,7 +29,7 @@ export function SearchContent() {
   const { playVideo } = useMusicPlayer()
 
   const { data: suggestionsData } = useAPI<{ suggestions: string[] }>(
-    query.length >= 2 && showSuggestions ? `/api/music/suggestions?q=${encodeURIComponent(query)}` : null,
+    query.length >= 1 ? `/api/music/suggestions?q=${encodeURIComponent(query)}` : null,
   )
 
   const { data, isLoading, error } = useAPI<{
@@ -38,7 +37,7 @@ export function SearchContent() {
     nextPageToken: string | null
     error?: string
     quotaExceeded?: boolean
-  }>(debouncedQuery ? `/api/music/search?q=${encodeURIComponent(debouncedQuery)}` : null)
+  }>(query.length >= 1 ? `/api/music/search?q=${encodeURIComponent(query)}` : null)
 
   const suggestions = suggestionsData?.suggestions || []
 
@@ -94,41 +93,28 @@ export function SearchContent() {
     isLoading: isLoadingMore,
   })
 
-  const topResult = allResults[0]
-  const otherResults = allResults.slice(1)
-
   useEffect(() => {
     setHistory(searchHistory.get())
   }, [])
 
   useEffect(() => {
-    const searchTimeout = setTimeout(() => {
-      if (query.trim()) {
-        setDebouncedQuery(query.trim())
-        searchHistory.add(query.trim())
-        setHistory(searchHistory.get())
-        setShowSuggestions(false)
-        setApiError(null)
-        setPaginatedResults([])
-      } else {
-        setDebouncedQuery("")
-        setPaginatedResults([])
-        setNextPageToken(null)
-        setApiError(null)
-      }
-    }, 500)
-
-    return () => clearTimeout(searchTimeout)
+    if (query.trim()) {
+      searchHistory.add(query.trim())
+      setHistory(searchHistory.get())
+      setApiError(null)
+    } else {
+      setPaginatedResults([])
+      setNextPageToken(null)
+      setApiError(null)
+    }
   }, [query])
 
   const handleHistoryClick = (historyQuery: string) => {
     setQuery(historyQuery)
-    setShowSuggestions(false)
   }
 
   const handleSuggestionClick = (suggestion: string) => {
     setQuery(suggestion)
-    setShowSuggestions(false)
   }
 
   const clearHistory = () => {
@@ -140,7 +126,6 @@ export function SearchContent() {
     const isArtist = (video as any).browseId && (video as any).type === "artist"
 
     if (isArtist) {
-      // Navigate to artist page using the browse ID from InnerTube
       router.push(`/dashboard/artist/${(video as any).browseId}`)
     } else {
       playVideo(video)
@@ -169,93 +154,23 @@ export function SearchContent() {
           <div className="relative flex-1">
             <Input
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value)
-                setShowSuggestions(true)
-              }}
-              onFocus={() => setShowSuggestions(true)}
-              placeholder="Search"
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search YouTube Music..."
               className="bg-secondary/50 border-0 h-10 pr-10"
+              autoFocus
             />
             {query && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => {
-                  setQuery("")
-                  setDebouncedQuery("")
-                }}
+                onClick={() => setQuery("")}
                 className="absolute right-0 top-0 h-10 w-10"
               >
                 <X className="w-4 h-4" />
               </Button>
             )}
-            {showSuggestions && (query.length >= 2 || history.length > 0) && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-background border-t border-border shadow-lg overflow-hidden z-50 max-h-[60vh] overflow-y-auto">
-                {/* History items */}
-                {query.length < 2 && history.length > 0 && (
-                  <>
-                    {history.map((item, index) => (
-                      <button
-                        key={`history-${index}`}
-                        onClick={() => handleHistoryClick(item)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
-                      >
-                        <Clock className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                        <span className="flex-1 truncate">{item}</span>
-                        <X
-                          className="w-4 h-4 text-muted-foreground flex-shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            const newHistory = history.filter((_, i) => i !== index)
-                            searchHistory.clear()
-                            newHistory.forEach((h) => searchHistory.add(h))
-                            setHistory(newHistory)
-                          }}
-                        />
-                        <ArrowUpRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      </button>
-                    ))}
-                  </>
-                )}
-                {/* Suggestions */}
-                {query.length >= 2 && suggestions.length > 0 && (
-                  <>
-                    {suggestions.map((suggestion, index) => (
-                      <button
-                        key={`suggestion-${index}`}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-secondary/50 transition-colors text-left"
-                      >
-                        <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                        <span className="flex-1 truncate">{suggestion}</span>
-                        <ArrowUpRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                      </button>
-                    ))}
-                  </>
-                )}
-              </div>
-            )}
           </div>
         </div>
-
-        {debouncedQuery && (
-          <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
-            {(["all", "songs", "videos", "albums", "artists"] as FilterType[]).map((filter) => (
-              <button
-                key={filter}
-                onClick={() => setActiveFilter(filter)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeFilter === filter
-                    ? "bg-primary/20 text-primary"
-                    : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
-                }`}
-              >
-                {filter.charAt(0).toUpperCase() + filter.slice(1)}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="container mx-auto px-4 py-4">
@@ -266,145 +181,95 @@ export function SearchContent() {
           </Alert>
         )}
 
-        {isLoading ? (
-          <div className="flex items-center justify-center h-96">
+        {!query && history.length > 0 && (
+          <div className="space-y-1">
+            {history.map((item, index) => (
+              <button
+                key={`history-${index}`}
+                onClick={() => handleHistoryClick(item)}
+                className="w-full flex items-center gap-3 px-2 py-3 hover:bg-secondary/50 transition-colors text-left rounded-lg"
+              >
+                <Clock className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                <span className="flex-1 truncate">{item}</span>
+                <ArrowUpRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {query && suggestions.length > 0 && (
+          <div className="space-y-1 mb-6">
+            {suggestions.slice(0, 6).map((suggestion, index) => (
+              <button
+                key={`suggestion-${index}`}
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="w-full flex items-center gap-3 px-2 py-3 hover:bg-secondary/50 transition-colors text-left rounded-lg"
+              >
+                <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                <span className="flex-1 truncate">{suggestion}</span>
+                <ArrowUpRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {query && isLoading && allResults.length === 0 ? (
+          <div className="flex items-center justify-center h-40">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : allResults.length > 0 ? (
-          <div className="space-y-6">
-            {topResult && (
-              <div>
-                <h2 className="text-xl font-bold mb-4 text-primary">Top result</h2>
-                {(topResult as any).type === "artist" ? (
-                  <button
-                    onClick={() => handleResultClick(topResult)}
-                    className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
-                  >
-                    <div className="relative w-24 h-24 rounded-full overflow-hidden flex-shrink-0">
-                      <Image
-                        src={topResult.thumbnail || "/placeholder.svg"}
-                        alt={topResult.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-2xl truncate">{topResult.title}</h3>
-                      {(topResult as any).subscribers && (
-                        <p className="text-sm text-muted-foreground mt-1">{(topResult as any).subscribers}</p>
-                      )}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Menu functionality
-                      }}
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </Button>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleResultClick(topResult)}
-                    className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
-                  >
-                    <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image
-                        src={topResult.thumbnail || "/placeholder.svg"}
-                        alt={topResult.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-base truncate">{topResult.title}</h3>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {topResult.artist} • {topResult.duration}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Menu functionality
-                      }}
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </Button>
-                  </button>
-                )}
-              </div>
-            )}
+        ) : query && allResults.length > 0 ? (
+          <div className="space-y-1">
+            {allResults.map((video, index) => {
+              const isArtist = (video as any).type === "artist"
 
-            {otherResults.length > 0 && (
-              <div>
-                <h2 className="text-xl font-bold mb-4 text-muted-foreground">Other</h2>
-                <div className="space-y-1">
-                  {otherResults.map((video) => (
-                    <button
-                      key={video.id}
-                      onClick={() => handleResultClick(video)}
-                      className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
-                    >
-                      <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image
-                          src={video.thumbnail || "/placeholder.svg"}
-                          alt={video.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-base truncate">{video.title}</h3>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {video.artist} • {video.duration}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          // Menu functionality
-                        }}
-                      >
-                        <MoreVertical className="w-5 h-5" />
-                      </Button>
-                    </button>
-                  ))}
-                </div>
-                {!apiError && (
-                  <div ref={loadMoreRef} className="py-8 flex justify-center">
-                    {isLoadingMore && (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        <span>Loading more songs...</span>
-                      </div>
-                    )}
-                    {!isLoadingMore && nextPageToken && (
-                      <p className="text-sm text-muted-foreground">Scroll for more</p>
-                    )}
-                    {!nextPageToken && allResults.length > 20 && (
-                      <p className="text-sm text-muted-foreground">No more results</p>
-                    )}
+              return (
+                <button
+                  key={`${video.id}-${index}`}
+                  onClick={() => handleResultClick(video)}
+                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
+                >
+                  <div
+                    className={`relative w-14 h-14 ${isArtist ? "rounded-full" : "rounded-lg"} overflow-hidden flex-shrink-0`}
+                  >
+                    <Image
+                      src={video.thumbnail || "/placeholder.svg"}
+                      alt={video.title}
+                      fill
+                      className="object-cover"
+                    />
                   </div>
-                )}
-              </div>
-            )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-base truncate flex items-center gap-2">
+                      {(video as any).isExplicit && (
+                        <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold border border-muted-foreground text-muted-foreground rounded-sm flex-shrink-0">
+                          E
+                        </span>
+                      )}
+                      {video.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {isArtist && (video as any).subscribers
+                        ? (video as any).subscribers
+                        : `${video.artist}${video.duration ? ` • ${video.duration}` : ""}`}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                    }}
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </Button>
+                </button>
+              )
+            })}
           </div>
-        ) : query.trim() && !isLoading ? (
-          <div className="flex items-center justify-center h-96 text-muted-foreground">
+        ) : query && !isLoading && allResults.length === 0 ? (
+          <div className="flex items-center justify-center h-40 text-muted-foreground">
             <p>No results found</p>
-          </div>
-        ) : !query.trim() ? (
-          <div className="flex items-center justify-center h-96 text-muted-foreground">
-            <p>Start typing to search for music...</p>
           </div>
         ) : null}
       </div>
