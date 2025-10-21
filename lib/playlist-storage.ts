@@ -7,6 +7,7 @@ export interface Playlist {
   videos: YouTubeVideo[]
   createdAt: string
   updatedAt: string
+  synced?: boolean
 }
 
 const STORAGE_KEY = "opentune_playlists"
@@ -24,6 +25,7 @@ export function savePlaylist(playlist: Omit<Playlist, "id" | "createdAt" | "upda
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    synced: playlist.description?.includes("Synced with YouTube Music"),
   }
   playlists.push(newPlaylist)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(playlists))
