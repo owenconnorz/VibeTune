@@ -63,7 +63,7 @@ function extractVideoInfo(item: any) {
 
     const title = renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
     const artist = renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
-    const thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.[0]?.url
+    const thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
     const durationText =
       renderer.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text || "0:00"
 
@@ -71,7 +71,7 @@ function extractVideoInfo(item: any) {
       id: videoId,
       title: title || "Unknown Title",
       artist: artist || "Unknown Artist",
-      thumbnail: thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      thumbnail: thumbnail || `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
       duration: durationText,
     }
   } catch (error) {
@@ -225,7 +225,7 @@ export async function getArtistData(browseId: string) {
               videos.push({
                 id: videoId,
                 title: videoTitle,
-                thumbnail: videoThumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+                thumbnail: videoThumbnail || `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
                 views: videoViews,
               })
             }
@@ -475,4 +475,7 @@ export async function getHomeFeed() {
   }
 }
 
-export { getVideoDetails as getAudioStream } from "./youtube-api"
+export async function getAudioStream(videoId: string) {
+  const { getVideoDetails } = await import("./youtube-api")
+  return getVideoDetails(videoId)
+}

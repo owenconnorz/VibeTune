@@ -61,7 +61,8 @@ export function PWARegister() {
             console.log("[v0] Wake lock released")
           })
         } catch (error) {
-          console.error("[v0] Wake lock request failed:", error)
+          // Wake lock is optional - fail silently in preview/iframe environments
+          // This is expected behavior and not a critical error
         }
       }
     }

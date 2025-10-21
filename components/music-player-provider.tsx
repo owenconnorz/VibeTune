@@ -76,9 +76,16 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
 
       if (playerRef.current) {
-        playerRef.current.loadVideoById(currentVideo.id)
-        if (isPlaying) {
-          playerRef.current.playVideo()
+        // Ensure the player has the loadVideoById method before calling it
+        if (typeof playerRef.current.loadVideoById === "function") {
+          playerRef.current.loadVideoById(currentVideo.id)
+          if (isPlaying) {
+            playerRef.current.playVideo()
+          }
+        } else {
+          // Player exists but not ready yet, wait and retry
+          console.log("[v0] Player not ready yet, retrying...")
+          setTimeout(initPlayer, 100)
         }
         return
       }
