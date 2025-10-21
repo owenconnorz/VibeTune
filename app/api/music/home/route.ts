@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getTrending, getPopularMusic, getMusicByGenre } from "@/lib/piped"
 
 export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
 export const revalidate = 60
 
 function getMockHomeFeed() {

@@ -31,7 +31,22 @@ async function fetchWithProxy(path: string): Promise<any> {
   try {
     console.log(`[v0] Fetching via proxy: ${path}`)
 
-    const response = await fetch(`/api/proxy/piped?path=${encodeURIComponent(path)}`)
+    const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
+      ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000"
+
+    const proxyUrl = `${baseUrl}/api/proxy/piped?path=${encodeURIComponent(path)}`
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
+    const response = await fetch(proxyUrl, {
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       const errorData = await response.json()
