@@ -116,3 +116,108 @@ function formatDuration(duration: string): string {
 
   return `${minutes || "0"}:${seconds.padStart(2, "0")}`
 }
+
+export async function getTrendingMusic(): Promise<YouTubeVideo[]> {
+  try {
+    const params = new URLSearchParams({
+      part: "snippet",
+      chart: "mostPopular",
+      videoCategoryId: "10", // Music category
+      regionCode: "US",
+      maxResults: "20",
+      key: process.env.YOUTUBE_API_KEY!,
+    })
+
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?${params}`)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = errorData?.error?.message || "Failed to get trending music"
+      const error: any = new Error(errorMessage)
+      error.status = response.status
+      error.data = errorData
+      throw error
+    }
+
+    const data = await response.json()
+
+    const videos: YouTubeVideo[] = data.items.map((item: any) => ({
+      id: item.id,
+      title: item.snippet.title,
+      artist: item.snippet.channelTitle,
+      thumbnail: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
+      duration: formatDuration(item.contentDetails?.duration || "PT0S"),
+      channelTitle: item.snippet.channelTitle,
+    }))
+
+    return videos
+  } catch (error) {
+    console.error("[v0] YouTube trending error:", error)
+    throw error
+  }
+}
+
+export async function searchMusicVideos(query: string, maxResults = 20): Promise<YouTubeVideo[]> {
+  try {
+    const params = new URLSearchParams({
+      part: "snippet",
+      q: `${query} music`,
+      type: "video",
+      videoCategoryId: "10", // Music category
+      maxResults: maxResults.toString(),
+      key: process.env.YOUTUBE_API_KEY!,
+    })
+
+    const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = errorData?.error?.message || "Failed to search music"
+      const error: any = new Error(errorMessage)
+      error.status = response.status
+      error.data = errorData
+      throw error
+    }
+
+    const data = await response.json()
+
+    // Get video details for duration
+    const videoIds = data.items.map((item: any) => item.id.videoId).join(",")
+
+    if (!videoIds) {
+      return []
+    }
+
+    const detailsResponse = await fetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${process.env.YOUTUBE_API_KEY}`,
+    )
+
+    if (!detailsResponse.ok) {
+      const errorData = await detailsResponse.json().catch(() => ({}))
+      const errorMessage = errorData?.error?.message || "Failed to get video details"
+      const error: any = new Error(errorMessage)
+      error.status = detailsResponse.status
+      error.data = errorData
+      throw error
+    }
+
+    const detailsData = await detailsResponse.json()
+
+    const videos: YouTubeVideo[] = data.items.map((item: any, index: number) => {
+      const duration = detailsData.items[index]?.contentDetails?.duration || "PT0S"
+      return {
+        id: item.id.videoId,
+        title: item.snippet.title,
+        artist: item.snippet.channelTitle,
+        thumbnail: item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
+        duration: formatDuration(duration),
+        channelTitle: item.snippet.channelTitle,
+      }
+    })
+
+    return videos
+  } catch (error) {
+    console.error("[v0] YouTube search error:", error)
+    throw error
+  }
+}

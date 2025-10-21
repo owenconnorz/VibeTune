@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server"
-import { getTrending, getPopularMusic, getMusicByGenre } from "@/lib/invidious"
+import { getTrendingMusic, searchMusicVideos } from "@/lib/youtube"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
-export const revalidate = 60
+export const revalidate = 3600 // Cache for 1 hour to save quota
 
 function getMockHomeFeed() {
   return {
@@ -85,19 +85,19 @@ function getMockHomeFeed() {
 
 export async function GET() {
   try {
-    console.log("[v0] Fetching home feed from Invidious API...")
+    console.log("[v0] Fetching home feed from YouTube Data API...")
 
     const [trending, popular, topHits] = await Promise.all([
-      getTrending().catch((err) => {
-        console.error("[v0] Invidious trending error:", err)
+      getTrendingMusic().catch((err) => {
+        console.error("[v0] YouTube trending error:", err)
         return []
       }),
-      getPopularMusic().catch((err) => {
-        console.error("[v0] Invidious popular error:", err)
+      searchMusicVideos("popular music 2024", 10).catch((err) => {
+        console.error("[v0] YouTube popular error:", err)
         return []
       }),
-      getMusicByGenre("pop").catch((err) => {
-        console.error("[v0] Invidious genre error:", err)
+      searchMusicVideos("top hits", 10).catch((err) => {
+        console.error("[v0] YouTube top hits error:", err)
         return []
       }),
     ])
@@ -107,7 +107,7 @@ export async function GET() {
     const quickPicks = topHits.slice(0, 3)
 
     if (trendingItems.length > 0 || popularItems.length > 0) {
-      console.log("[v0] Successfully fetched real data from Invidious API")
+      console.log("[v0] Successfully fetched real data from YouTube Data API")
       return NextResponse.json(
         {
           sections: [
@@ -127,24 +127,30 @@ export async function GET() {
         },
         {
           headers: {
-            "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+            "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
           },
         },
       )
     }
 
-    console.log("[v0] Invidious API returned no results, using mock data")
+    console.log("[v0] YouTube API returned no results, using mock data")
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
       },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error("[v0] Home feed error:", error)
-    console.log("[v0] Falling back to mock data")
+
+    if (error?.status === 403 && error?.data?.error?.errors?.[0]?.reason === "quotaExceeded") {
+      console.log("[v0] YouTube API quota exceeded, using mock data")
+    } else {
+      console.log("[v0] Falling back to mock data")
+    }
+
     return NextResponse.json(getMockHomeFeed(), {
       headers: {
-        "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=7200",
       },
     })
   }
