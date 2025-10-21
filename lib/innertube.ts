@@ -108,6 +108,11 @@ export async function searchMusic(query: string, continuation?: string) {
 
     const data = await makeInnerTubeRequest("search", params)
 
+    if (!data || typeof data !== "object") {
+      console.error("[v0] Invalid InnerTube response:", data)
+      return { videos: [], continuation: null }
+    }
+
     // Extract videos from response
     const contents =
       data.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents ||
@@ -117,47 +122,58 @@ export async function searchMusic(query: string, continuation?: string) {
     const videos: any[] = []
 
     for (const section of contents) {
-      const items = section.musicShelfRenderer?.contents || section.musicCardShelfRenderer?.contents || [section]
+      try {
+        const items = section.musicShelfRenderer?.contents || section.musicCardShelfRenderer?.contents || [section]
 
-      for (const item of items) {
-        const artistRenderer = item.musicResponsiveListItemRenderer
-        if (artistRenderer) {
-          // Check if this is an artist result
-          const navigationEndpoint = artistRenderer.navigationEndpoint
-          const browseId = navigationEndpoint?.browseEndpoint?.browseId
+        for (const item of items) {
+          try {
+            const artistRenderer = item.musicResponsiveListItemRenderer
+            if (artistRenderer) {
+              // Check if this is an artist result
+              const navigationEndpoint = artistRenderer.navigationEndpoint
+              const browseId = navigationEndpoint?.browseEndpoint?.browseId
 
-          if (browseId && (browseId.startsWith("UC") || browseId.startsWith("MPLA"))) {
-            // This is likely an artist
-            const title =
-              artistRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
-            const thumbnail = artistRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
-            const subscribers =
-              artistRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
+              if (browseId && (browseId.startsWith("UC") || browseId.startsWith("MPLA"))) {
+                // This is likely an artist
+                const title =
+                  artistRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
+                const thumbnail =
+                  artistRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+                const subscribers =
+                  artistRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
 
-            // Check if this looks like an artist (has "subscribers" or "Artist" in subtitle)
-            const isArtist =
-              subscribers?.toLowerCase().includes("subscriber") || subscribers?.toLowerCase().includes("artist")
+                // Check if this looks like an artist (has "subscribers" or "Artist" in subtitle)
+                const isArtist =
+                  subscribers?.toLowerCase().includes("subscriber") || subscribers?.toLowerCase().includes("artist")
 
-            if (isArtist) {
-              videos.push({
-                id: browseId,
-                title: title || "Unknown Artist",
-                artist: title || "Unknown Artist",
-                thumbnail: thumbnail || "/placeholder.svg",
-                duration: "",
-                browseId: browseId,
-                type: "artist",
-              })
-              continue
+                if (isArtist) {
+                  videos.push({
+                    id: browseId,
+                    title: title || "Unknown Artist",
+                    artist: title || "Unknown Artist",
+                    thumbnail: thumbnail || "/placeholder.svg",
+                    duration: "",
+                    browseId: browseId,
+                    type: "artist",
+                  })
+                  continue
+                }
+              }
             }
+
+            // Otherwise, extract as video
+            const videoInfo = extractVideoInfo(item)
+            if (videoInfo) {
+              videos.push(videoInfo)
+            }
+          } catch (itemError: any) {
+            console.error("[v0] Error processing search item:", itemError.message)
+            // Continue processing other items
           }
         }
-
-        // Otherwise, extract as video
-        const videoInfo = extractVideoInfo(item)
-        if (videoInfo) {
-          videos.push(videoInfo)
-        }
+      } catch (sectionError: any) {
+        console.error("[v0] Error processing search section:", sectionError.message)
+        // Continue processing other sections
       }
     }
 
@@ -173,8 +189,13 @@ export async function searchMusic(query: string, continuation?: string) {
       videos,
       continuation: continuationToken || null,
     }
-  } catch (error) {
-    console.error("[v0] InnerTube search error:", error)
+  } catch (error: any) {
+    console.error("[v0] InnerTube search error:", {
+      message: error.message,
+      stack: error.stack,
+      query,
+      continuation,
+    })
     throw error
   }
 }

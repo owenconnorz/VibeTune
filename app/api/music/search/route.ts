@@ -67,8 +67,14 @@ export async function GET(request: NextRequest) {
       },
     )
   } catch (error: any) {
-    console.error("[v0] Search error:", error.message)
+    console.error("[v0] Search error details:", {
+      message: error.message,
+      stack: error.stack,
+      query,
+      pageToken,
+    })
 
+    // Return a valid response even on error to prevent UI breaking
     return NextResponse.json(
       {
         error: "Failed to search music",
@@ -77,7 +83,7 @@ export async function GET(request: NextRequest) {
         nextPageToken: null,
       },
       {
-        status: 500,
+        status: 200, // Return 200 with empty results instead of 500 to prevent UI errors
       },
     )
   }
