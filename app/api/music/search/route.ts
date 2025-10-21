@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const apiKey = process.env.YOUTUBE_API_KEY
     if (!apiKey) {
       console.error("[v0] YouTube API key not found")
-      return NextResponse.json({ videos: [], nextPageToken: null })
+      return NextResponse.json({ error: "API key not configured", videos: [], nextPageToken: null }, { status: 500 })
     }
 
     let searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoCategoryId=10&maxResults=20&key=${apiKey}`
@@ -27,9 +27,31 @@ export async function GET(request: NextRequest) {
     }
 
     const searchResponse = await fetch(searchUrl)
+
     if (!searchResponse.ok) {
-      console.error("[v0] YouTube API search failed:", searchResponse.status)
-      return NextResponse.json({ videos: [], nextPageToken: null })
+      const errorData = await searchResponse.json().catch(() => ({}))
+      console.error("[v0] YouTube API search failed:", searchResponse.status, errorData)
+
+      if (searchResponse.status === 403 && errorData.error?.errors?.[0]?.reason === "quotaExceeded") {
+        return NextResponse.json(
+          {
+            error: "YouTube API quota exceeded. Please try again later.",
+            quotaExceeded: true,
+            videos: [],
+            nextPageToken: null,
+          },
+          { status: 403 },
+        )
+      }
+
+      return NextResponse.json(
+        {
+          error: `YouTube API error: ${searchResponse.status}`,
+          videos: [],
+          nextPageToken: null,
+        },
+        { status: searchResponse.status },
+      )
     }
 
     const searchData = await searchResponse.json()
@@ -41,6 +63,33 @@ export async function GET(request: NextRequest) {
 
     const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${apiKey}`
     const detailsResponse = await fetch(detailsUrl)
+
+    if (!detailsResponse.ok) {
+      const errorData = await detailsResponse.json().catch(() => ({}))
+      console.error("[v0] YouTube API details failed:", detailsResponse.status, errorData)
+
+      if (detailsResponse.status === 403 && errorData.error?.errors?.[0]?.reason === "quotaExceeded") {
+        return NextResponse.json(
+          {
+            error: "YouTube API quota exceeded. Please try again later.",
+            quotaExceeded: true,
+            videos: [],
+            nextPageToken: null,
+          },
+          { status: 403 },
+        )
+      }
+
+      return NextResponse.json(
+        {
+          error: `YouTube API error: ${detailsResponse.status}`,
+          videos: [],
+          nextPageToken: null,
+        },
+        { status: detailsResponse.status },
+      )
+    }
+
     const detailsData = await detailsResponse.json()
 
     const videos =
@@ -70,7 +119,14 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error("[v0] Search error:", error)
-    return NextResponse.json({ videos: [], nextPageToken: null })
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : "Search failed",
+        videos: [],
+        nextPageToken: null,
+      },
+      { status: 500 },
+    )
   }
 }
 

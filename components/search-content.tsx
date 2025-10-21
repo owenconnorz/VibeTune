@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Search, Clock, ArrowUpRight, Loader2 } from "lucide-react"
+import { Search, Clock, ArrowUpRight, Loader2, AlertCircle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -11,6 +11,7 @@ import Image from "next/image"
 import { useAPI } from "@/lib/use-api"
 import { searchHistory } from "@/lib/cache"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export function SearchContent() {
   const [query, setQuery] = useState("")
@@ -20,6 +21,7 @@ export function SearchContent() {
   const [allResults, setAllResults] = useState<YouTubeVideo[]>([])
   const [nextPageToken, setNextPageToken] = useState<string | null>(null)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [apiError, setApiError] = useState<string | null>(null)
 
   const router = useRouter()
   const { playVideo } = useMusicPlayer()
@@ -28,19 +30,45 @@ export function SearchContent() {
     query.length >= 2 ? `/api/music/suggestions?q=${encodeURIComponent(query)}` : null,
   )
 
-  const { data, isLoading } = useAPI<{ videos: YouTubeVideo[]; nextPageToken: string | null }>(
-    debouncedQuery ? `/api/music/search?q=${encodeURIComponent(debouncedQuery)}` : null,
-  )
+  const { data, isLoading, error } = useAPI<{
+    videos: YouTubeVideo[]
+    nextPageToken: string | null
+    error?: string
+    quotaExceeded?: boolean
+  }>(debouncedQuery ? `/api/music/search?q=${encodeURIComponent(debouncedQuery)}` : null)
 
   const suggestions = suggestionsData?.suggestions || []
 
   useEffect(() => {
     if (data) {
-      console.log("[v0] Initial search results:", data.videos.length, "nextPageToken:", data.nextPageToken)
-      setAllResults(data.videos)
-      setNextPageToken(data.nextPageToken)
+      console.log("[v0] Search response:", {
+        videosCount: data.videos.length,
+        nextPageToken: data.nextPageToken,
+        error: data.error,
+        quotaExceeded: data.quotaExceeded,
+      })
+
+      if (data.error) {
+        setApiError(data.error)
+        // Don't clear existing results if we have an error
+        if (data.videos.length === 0 && allResults.length === 0) {
+          // Only set empty if we truly have no results
+          setAllResults([])
+        }
+      } else {
+        setApiError(null)
+        setAllResults(data.videos)
+        setNextPageToken(data.nextPageToken)
+      }
     }
   }, [data])
+
+  useEffect(() => {
+    if (error) {
+      console.error("[v0] Search API error:", error)
+      setApiError("Failed to search. Please try again.")
+    }
+  }, [error])
 
   const loadMoreResults = useCallback(async () => {
     if (!nextPageToken || isLoadingMore || !debouncedQuery) return
@@ -54,11 +82,19 @@ export function SearchContent() {
       )
       const newData = await response.json()
 
+      if (newData.error) {
+        console.error("[v0] Error loading more results:", newData.error)
+        setApiError(newData.error)
+        setIsLoadingMore(false)
+        return
+      }
+
       console.log("[v0] Loaded", newData.videos.length, "more results")
       setAllResults((prev) => [...prev, ...newData.videos])
       setNextPageToken(newData.nextPageToken)
     } catch (error) {
       console.error("[v0] Error loading more results:", error)
+      setApiError("Failed to load more results")
     } finally {
       setIsLoadingMore(false)
     }
@@ -84,10 +120,12 @@ export function SearchContent() {
         searchHistory.add(query.trim())
         setHistory(searchHistory.get())
         setShowSuggestions(false)
+        setApiError(null)
       } else {
         setDebouncedQuery("")
         setAllResults([])
         setNextPageToken(null)
+        setApiError(null)
       }
     }, 500)
 
@@ -152,6 +190,13 @@ export function SearchContent() {
             )}
           </div>
         </div>
+
+        {apiError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{apiError}</AlertDescription>
+          </Alert>
+        )}
 
         {!query.trim() && history.length > 0 && (
           <div className="space-y-3 mb-6">
@@ -230,30 +275,34 @@ export function SearchContent() {
                     </button>
                   ))}
                 </div>
-                <div ref={loadMoreRef} className="py-8 flex justify-center">
-                  {isLoadingMore && (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Loading more songs...</span>
-                    </div>
-                  )}
-                  {!isLoadingMore && nextPageToken && <p className="text-sm text-muted-foreground">Scroll for more</p>}
-                  {!nextPageToken && allResults.length > 20 && (
-                    <p className="text-sm text-muted-foreground">No more results</p>
-                  )}
-                </div>
+                {!apiError && (
+                  <div ref={loadMoreRef} className="py-8 flex justify-center">
+                    {isLoadingMore && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Loading more songs...</span>
+                      </div>
+                    )}
+                    {!isLoadingMore && nextPageToken && (
+                      <p className="text-sm text-muted-foreground">Scroll for more</p>
+                    )}
+                    {!nextPageToken && allResults.length > 20 && (
+                      <p className="text-sm text-muted-foreground">No more results</p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
-        ) : query.trim() ? (
+        ) : query.trim() && !isLoading ? (
           <div className="flex items-center justify-center h-96 text-muted-foreground">
             <p>No results found</p>
           </div>
-        ) : (
+        ) : !query.trim() ? (
           <div className="flex items-center justify-center h-96 text-muted-foreground">
             <p>Start typing to search for music...</p>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )
