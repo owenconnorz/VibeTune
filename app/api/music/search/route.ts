@@ -27,8 +27,30 @@ export async function GET(request: NextRequest) {
         },
       },
     )
-  } catch (error) {
-    console.error("Search error:", error)
-    return NextResponse.json({ videos: [], nextPageToken: null }, { status: 200 })
+  } catch (error: any) {
+    console.error("[v0] Search API error:", error)
+
+    const isQuotaError = error?.message?.includes("quota") || error?.message?.includes("403")
+
+    if (isQuotaError) {
+      return NextResponse.json(
+        {
+          error: "YouTube API quota exceeded. Please try again later.",
+          quotaExceeded: true,
+          videos: [],
+          nextPageToken: null,
+        },
+        { status: 200 },
+      )
+    }
+
+    return NextResponse.json(
+      {
+        error: "Failed to search. Please try again.",
+        videos: [],
+        nextPageToken: null,
+      },
+      { status: 200 },
+    )
   }
 }

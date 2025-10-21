@@ -29,7 +29,12 @@ export async function searchYouTube(query: string, pageToken?: string): Promise<
   const response = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`)
 
   if (!response.ok) {
-    throw new Error("Failed to search YouTube")
+    const errorData = await response.json().catch(() => ({}))
+    const errorMessage = errorData?.error?.message || "Failed to search YouTube"
+    const error: any = new Error(errorMessage)
+    error.status = response.status
+    error.data = errorData
+    throw error
   }
 
   const data = await response.json()
@@ -39,6 +44,15 @@ export async function searchYouTube(query: string, pageToken?: string): Promise<
   const detailsResponse = await fetch(
     `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${videoIds}&key=${process.env.YOUTUBE_API_KEY}`,
   )
+
+  if (!detailsResponse.ok) {
+    const errorData = await detailsResponse.json().catch(() => ({}))
+    const errorMessage = errorData?.error?.message || "Failed to get video details"
+    const error: any = new Error(errorMessage)
+    error.status = detailsResponse.status
+    error.data = errorData
+    throw error
+  }
 
   const detailsData = await detailsResponse.json()
 
