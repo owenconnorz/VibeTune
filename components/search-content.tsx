@@ -137,10 +137,12 @@ export function SearchContent() {
   }
 
   const handleResultClick = (video: YouTubeVideo) => {
-    const isArtistChannel = video.artist && !video.title.includes("Official Video")
+    const isArtist = video.artist && video.title === video.artist
 
-    if (isArtistChannel && video.channelId) {
-      router.push(`/dashboard/artist/${video.channelId}`)
+    if (isArtist) {
+      // Convert artist name to URL-friendly ID
+      const artistId = video.artist.toLowerCase().replace(/\s+/g, "-")
+      router.push(`/dashboard/artist/${artistId}`)
     } else {
       playVideo(video)
     }

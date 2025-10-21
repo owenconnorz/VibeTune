@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { searchMusic } from "@/lib/youtube-api"
+import { searchMusic } from "@/lib/innertube"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -49,16 +49,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log(`[v0] Searching with YouTube Data API for: ${query}${pageToken ? ` (page: ${pageToken})` : ""}`)
+    console.log(`[v0] Searching with InnerTube API for: ${query}${pageToken ? ` (continuation: ${pageToken})` : ""}`)
 
     const result = await searchMusic(query, pageToken || undefined)
 
-    console.log(`[v0] YouTube Data API returned ${result.videos.length} videos`)
+    console.log(`[v0] InnerTube API returned ${result.videos.length} videos`)
 
     return NextResponse.json(
       {
         videos: result.videos,
-        nextPageToken: result.nextPageToken,
+        nextPageToken: result.continuation,
       },
       {
         headers: {
@@ -68,30 +68,6 @@ export async function GET(request: NextRequest) {
     )
   } catch (error: any) {
     console.error("[v0] Search error:", error.message)
-
-    const isQuotaError = error.message?.includes("quota") || error.message?.includes("403")
-
-    if (isQuotaError && !pageToken) {
-      console.log("[v0] Quota exceeded, returning mock search results")
-      const mockVideos = getMockSearchResults(query)
-
-      console.log("[v0] Mock videos generated:", mockVideos.length, "videos")
-      console.log("[v0] First mock video:", JSON.stringify(mockVideos[0]))
-
-      const response = {
-        videos: mockVideos,
-        nextPageToken: null,
-        isQuotaExceeded: true,
-      }
-
-      console.log("[v0] Returning response with keys:", Object.keys(response))
-
-      return NextResponse.json(response, {
-        headers: {
-          "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120",
-        },
-      })
-    }
 
     return NextResponse.json(
       {
