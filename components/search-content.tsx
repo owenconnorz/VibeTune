@@ -275,34 +275,69 @@ export function SearchContent() {
             {topResult && (
               <div>
                 <h2 className="text-xl font-bold mb-4 text-primary">Top result</h2>
-                <button
-                  onClick={() => handleResultClick(topResult)}
-                  className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
-                >
-                  <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
-                    <Image
-                      src={topResult.thumbnail || "/placeholder.svg"}
-                      alt={topResult.title}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base truncate">{topResult.title}</h3>
-                    <p className="text-sm text-muted-foreground truncate">{topResult.artist}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      // Menu functionality
-                    }}
+                {(topResult as any).type === "artist" ? (
+                  <button
+                    onClick={() => handleResultClick(topResult)}
+                    className="w-full flex items-center gap-4 p-4 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
                   >
-                    <MoreVertical className="w-5 h-5" />
-                  </Button>
-                </button>
+                    <div className="relative w-24 h-24 rounded-full overflow-hidden flex-shrink-0">
+                      <Image
+                        src={topResult.thumbnail || "/placeholder.svg"}
+                        alt={topResult.title}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-2xl truncate">{topResult.title}</h3>
+                      {(topResult as any).subscribers && (
+                        <p className="text-sm text-muted-foreground mt-1">{(topResult as any).subscribers}</p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // Menu functionality
+                      }}
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </Button>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleResultClick(topResult)}
+                    className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
+                  >
+                    <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                      <Image
+                        src={topResult.thumbnail || "/placeholder.svg"}
+                        alt={topResult.title}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-base truncate">{topResult.title}</h3>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {topResult.artist} • {topResult.duration}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // Menu functionality
+                      }}
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </Button>
+                  </button>
+                )}
               </div>
             )}
 
