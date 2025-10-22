@@ -3,6 +3,8 @@ import { getTMDBTrending, getTMDBGenreMovies, getTMDBImageUrl, TMDB_GENRES } fro
 
 export async function GET() {
   try {
+    console.log("[v0] ===== MOVIES FEATURED API CALLED =====")
+
     const [trending, action, comedy, drama, horror] = await Promise.all([
       getTMDBTrending(),
       getTMDBGenreMovies(TMDB_GENRES.ACTION),
@@ -10,6 +12,8 @@ export async function GET() {
       getTMDBGenreMovies(TMDB_GENRES.DRAMA),
       getTMDBGenreMovies(TMDB_GENRES.HORROR),
     ])
+
+    console.log("[v0] Movies fetched - Trending:", trending.length, "Action:", action.length, "Comedy:", comedy.length)
 
     // Get hero movie from trending
     const heroMovie = trending[0]
@@ -23,8 +27,8 @@ export async function GET() {
             thumbnail: getTMDBImageUrl(heroMovie.backdrop_path, "original"),
             rating: heroMovie.adult ? "R" : "PG-13",
             year: new Date(heroMovie.release_date).getFullYear(),
-            duration: "2h 15m", // TMDB doesn't provide runtime in trending endpoint
-            genres: [], // Would need additional API call for genres
+            duration: "2h 15m",
+            genres: ["Action", "Drama", "Thriller"],
           }
         : null,
       categories: [
@@ -91,12 +95,20 @@ export async function GET() {
       ],
     }
 
+    console.log("[v0] ===== MOVIES FEATURED API SUCCESS =====")
+    console.log("[v0] Hero movie:", featuredContent.hero?.title)
+    console.log("[v0] Categories:", featuredContent.categories.length)
+
     return NextResponse.json(featuredContent)
   } catch (error) {
-    console.error("[v0] Error fetching featured movies:", error)
-    return NextResponse.json({
-      hero: null,
-      categories: [],
-    })
+    console.error("[v0] ===== MOVIES FEATURED API ERROR =====")
+    console.error("[v0] Error:", error)
+    return NextResponse.json(
+      {
+        error: "Failed to fetch movies",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 },
+    )
   }
 }

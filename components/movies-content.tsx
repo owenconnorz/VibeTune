@@ -33,6 +33,7 @@ export function MoviesContent() {
   const [content, setContent] = useState<FeaturedContent | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchContent = async (isRefresh = false) => {
     if (isRefresh) {
@@ -41,14 +42,28 @@ export function MoviesContent() {
       setLoading(true)
     }
 
+    setError(null)
+
     try {
+      console.log("[v0] Fetching movies from /api/movies/featured")
       const response = await fetch("/api/movies/featured", {
-        cache: "no-store", // Force fresh data on refresh
+        cache: "no-store",
       })
+
+      console.log("[v0] Movies API response status:", response.status)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error("[v0] Movies API error:", errorData)
+        throw new Error(errorData.message || "Failed to fetch movies")
+      }
+
       const data = await response.json()
+      console.log("[v0] Movies data received:", data.hero?.title, "categories:", data.categories?.length)
       setContent(data)
     } catch (error) {
       console.error("[v0] Error fetching movies:", error)
+      setError(error instanceof Error ? error.message : "Failed to load movies")
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -108,15 +123,39 @@ export function MoviesContent() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-muted-foreground">Loading movies...</div>
+        <div className="text-center space-y-2">
+          <div className="text-muted-foreground">Loading movies...</div>
+          <div className="text-xs text-muted-foreground">Fetching from TMDB</div>
+        </div>
       </div>
     )
   }
 
-  if (!content) {
+  if (error) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-muted-foreground">Failed to load movies</div>
+        <div className="text-center space-y-4">
+          <div className="text-muted-foreground">Failed to load movies</div>
+          <div className="text-xs text-muted-foreground">{error}</div>
+          <Button onClick={() => fetchContent()} variant="secondary">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!content || !content.hero) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="text-muted-foreground">No movies available</div>
+          <Button onClick={() => fetchContent()} variant="secondary">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
     )
   }
