@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Search, Library } from "lucide-react"
+import { Home, Search, Library, Film } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -37,6 +37,16 @@ export function BottomNav() {
         >
           <Search className="w-6 h-6" />
           <span className="text-xs font-medium">Search</span>
+        </Link>
+        <Link
+          href="/movies"
+          className={cn(
+            "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors",
+            isActive("/movies") ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          <Film className="w-6 h-6" />
+          <span className="text-xs font-medium">Movies</span>
         </Link>
         <Link
           href="/dashboard/library"

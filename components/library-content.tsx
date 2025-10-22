@@ -100,12 +100,29 @@ export function LibraryContent() {
             {userPlaylists.map((playlist) => (
               <Link key={playlist.id} href={`/dashboard/playlist/${playlist.id}`}>
                 <div className="aspect-square rounded-2xl bg-secondary overflow-hidden hover:opacity-80 transition-opacity">
-                  <div className="grid grid-cols-2 h-full">
-                    <div className="bg-primary/20" />
-                    <div className="bg-primary/30" />
-                    <div className="bg-primary/40" />
-                    <div className="bg-primary/50" />
-                  </div>
+                  {playlist.coverImage ? (
+                    <img
+                      src={playlist.coverImage || "/placeholder.svg"}
+                      alt={playlist.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 h-full">
+                      {playlist.videos.slice(0, 4).map((video, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={video.thumbnail || "/placeholder.svg"}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ))}
+                      {/* Fill empty slots if less than 4 videos */}
+                      {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, idx) => (
+                        <div key={`empty-${idx}`} className="bg-primary/20" />
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <h3 className="font-semibold mt-2">{playlist.name}</h3>
                 <p className="text-sm text-muted-foreground">{playlist.videos.length} songs</p>
@@ -143,12 +160,29 @@ export function LibraryContent() {
               <Link key={playlist.id} href={`/dashboard/playlist/${playlist.id}`}>
                 <div className="flex items-center gap-4 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
                   <div className="w-14 h-14 rounded-lg bg-secondary overflow-hidden flex-shrink-0">
-                    <div className="grid grid-cols-2 h-full">
-                      <div className="bg-primary/20" />
-                      <div className="bg-primary/30" />
-                      <div className="bg-primary/40" />
-                      <div className="bg-primary/50" />
-                    </div>
+                    {playlist.coverImage ? (
+                      <img
+                        src={playlist.coverImage || "/placeholder.svg"}
+                        alt={playlist.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="grid grid-cols-2 h-full">
+                        {playlist.videos.slice(0, 4).map((video, idx) => (
+                          <div key={idx} className="relative">
+                            <img
+                              src={video.thumbnail || "/placeholder.svg"}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ))}
+                        {/* Fill empty slots if less than 4 videos */}
+                        {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, idx) => (
+                          <div key={`empty-${idx}`} className="bg-primary/20" />
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold truncate">{playlist.name}</h3>

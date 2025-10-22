@@ -1,7 +1,9 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
-import { Play, ChevronRight } from "lucide-react"
+import { Play, ChevronRight, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { useMusicPlayer } from "@/components/music-player-provider"
@@ -55,16 +57,77 @@ interface HomeFeedSection {
 export function HomeContent() {
   const [selectedCategory, setSelectedCategory] = useState("Podcasts")
   const { playVideo } = useMusicPlayer()
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [pullDistance, setPullDistance] = useState(0)
+  const [startY, setStartY] = useState(0)
 
-  const { data, isLoading, error } = useAPI<{ sections: HomeFeedSection[] }>("/api/music/home", {
+  const { data, isLoading, error, mutate } = useAPI<{ sections: HomeFeedSection[] }>("/api/music/home", {
     refreshInterval: 60000,
     revalidateOnMount: true,
   })
 
   const homeFeed = data?.sections || []
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    await mutate()
+    setTimeout(() => setIsRefreshing(false), 500)
+  }
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const scrollTop = (e.currentTarget as HTMLElement).scrollTop
+    if (scrollTop === 0) {
+      setStartY(e.touches[0].clientY)
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (startY === 0) return
+    const currentY = e.touches[0].clientY
+    const distance = currentY - startY
+    if (distance > 0 && distance < 150) {
+      setPullDistance(distance)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (pullDistance > 80) {
+      handleRefresh()
+    }
+    setPullDistance(0)
+    setStartY(0)
+  }
+
   return (
-    <div className="space-y-6">
+    <div
+      className="space-y-6 relative"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {pullDistance > 0 && (
+        <div
+          className="absolute top-0 left-0 right-0 flex justify-center transition-opacity z-50"
+          style={{
+            transform: `translateY(${Math.min(pullDistance - 40, 40)}px)`,
+            opacity: Math.min(pullDistance / 80, 1),
+          }}
+        >
+          <div className="bg-background/95 backdrop-blur-sm rounded-full p-2 shadow-lg border">
+            <RefreshCw className={`w-5 h-5 ${pullDistance > 80 ? "text-primary" : "text-muted-foreground"}`} />
+          </div>
+        </div>
+      )}
+
+      <Button
+        size="icon"
+        className="fixed bottom-24 right-4 z-50 rounded-full shadow-lg"
+        onClick={handleRefresh}
+        disabled={isRefreshing}
+      >
+        <RefreshCw className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
+      </Button>
+
       {/* Categories */}
       <ScrollArea className="w-full">
         <div className="flex gap-2 px-4 py-4">
