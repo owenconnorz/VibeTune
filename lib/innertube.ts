@@ -766,14 +766,46 @@ export async function getPlaylistData(playlistId: string) {
       console.log(`[v0] Fetching page ${pageCount} with continuation token`)
 
       try {
-        const continuationData = await makeInnerTubeRequest("browse", {
-          continuation: currentContinuation,
+        // Use the continuation endpoint instead of browse
+        const url = `https://music.youtube.com/youtubei/v1/browse?key=${INNERTUBE_API_KEY}`
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": INNERTUBE_API_KEY,
+            "X-Youtube-Client-Name": "67",
+            "X-Youtube-Client-Version": INNERTUBE_CLIENT_VERSION,
+            Origin: "https://music.youtube.com",
+            Referer: "https://music.youtube.com/",
+          },
+          body: JSON.stringify({
+            context: createContext(),
+            continuation: currentContinuation,
+          }),
+        })
+
+        if (!response.ok) {
+          console.error(`[v0] Continuation request failed:`, response.status)
+          break
+        }
+
+        const continuationData = await response.json()
+
+        console.log(`[v0] Continuation response structure:`, {
+          hasContinuationContents: !!continuationData.continuationContents,
+          keys: continuationData.continuationContents ? Object.keys(continuationData.continuationContents) : [],
         })
 
         const continuationContents =
           continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents || []
 
         console.log(`[v0] Page ${pageCount} items:`, continuationContents.length)
+
+        if (continuationContents.length === 0) {
+          console.log(`[v0] No items in page ${pageCount}, stopping`)
+          break
+        }
 
         let hasMorePages = false
 
