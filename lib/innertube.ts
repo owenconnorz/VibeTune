@@ -414,58 +414,44 @@ export async function getHomeFeed() {
 
     const sections: any[] = []
 
+    const searchWithTimeout = async (query: string, title: string, type: string) => {
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error(`Search timeout: ${query}`)), 8000)
+      })
+
+      try {
+        const result = (await Promise.race([searchMusic(query), timeoutPromise])) as any
+
+        return { title, result, type, query }
+      } catch (error: any) {
+        console.error(`[v0] Search failed for "${query}":`, error.message)
+        return { title, result: { videos: [], continuation: null }, type, query }
+      }
+    }
+
     const searchPromises = [
-      searchMusic("trending music 2024").then((result) => ({
-        title: "Quick picks",
-        result,
-        type: "list",
-        query: "trending music 2024",
-      })),
-      searchMusic("top charts 2024").then((result) => ({
-        title: "Top Charts",
-        result,
-        type: "carousel",
-        query: "top charts 2024",
-      })),
-      searchMusic("popular music 2024").then((result) => ({
-        title: "Popular Music",
-        result,
-        type: "carousel",
-        query: "popular music 2024",
-      })),
-      searchMusic("feel good music").then((result) => ({
-        title: "Feel Good",
-        result,
-        type: "carousel",
-        query: "feel good music",
-      })),
-      searchMusic("workout music").then((result) => ({
-        title: "Workout Mix",
-        result,
-        type: "carousel",
-        query: "workout music",
-      })),
+      searchWithTimeout("trending music 2024", "Quick picks", "list"),
+      searchWithTimeout("top charts 2024", "Top Charts", "carousel"),
+      searchWithTimeout("popular music 2024", "Popular Music", "carousel"),
+      searchWithTimeout("feel good music", "Feel Good", "carousel"),
+      searchWithTimeout("workout music", "Workout Mix", "carousel"),
     ]
 
-    const results = await Promise.allSettled(searchPromises)
+    const results = await Promise.all(searchPromises)
 
-    results.forEach((promiseResult, index) => {
-      if (promiseResult.status === "fulfilled") {
-        const { title, result, type, query } = promiseResult.value
-        if (result.videos.length > 0) {
-          sections.push({
-            title,
-            items: result.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-            type,
-            continuation: result.continuation,
-            query,
-          })
-          console.log(`[v0] ${title}: ${result.videos.length} items, continuation: ${!!result.continuation}`)
-        } else {
-          console.log(`[v0] ${title}: No items found`)
-        }
+    results.forEach((searchResult) => {
+      const { title, result, type, query } = searchResult
+      if (result.videos.length > 0) {
+        sections.push({
+          title,
+          items: result.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          type,
+          continuation: result.continuation,
+          query,
+        })
+        console.log(`[v0] ${title}: ${result.videos.length} items, continuation: ${!!result.continuation}`)
       } else {
-        console.error(`[v0] Search ${index} failed:`, promiseResult.reason)
+        console.log(`[v0] ${title}: No items found`)
       }
     })
 
@@ -549,44 +535,93 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
 
 export async function getPlaylistDetails(playlistId: string) {
   try {
-    console.log("[v0] Fetching playlist details for:", playlistId)
+    console.log("[v0] ===== FETCHING PLAYLIST DETAILS =====")
+    console.log("[v0] Input playlist ID:", playlistId)
+
+    let browseId = playlistId
+    if (!playlistId.startsWith("VL")) {
+      browseId = `VL${playlistId}`
+    }
+
+    console.log("[v0] Browse ID for API request:", browseId)
 
     const data = await makeInnerTubeRequest("browse", {
-      browseId: `VL${playlistId}`,
+      browseId: browseId,
     })
+
+    console.log("[v0] API response received:", !!data)
 
     if (!data) {
       console.error("[v0] No data returned for playlist")
       return null
     }
 
-    // Extract playlist header info
+    console.log("[v0] Full response keys:", Object.keys(data))
+    console.log("[v0] Response structure:", {
+      hasHeader: !!data.header,
+      hasContents: !!data.contents,
+      headerType: data.header ? Object.keys(data.header)[0] : "none",
+      contentsType: data.contents ? Object.keys(data.contents)[0] : "none",
+    })
+
     const header = data.header?.musicDetailHeaderRenderer || data.header?.musicEditablePlaylistDetailHeaderRenderer
+
+    if (!header) {
+      console.error("[v0] No header found in response")
+      console.log("[v0] Available header types:", data.header ? Object.keys(data.header) : "none")
+    }
+
     const title = header?.title?.runs?.[0]?.text || "Untitled Playlist"
     const description = header?.description?.runs?.[0]?.text || ""
     const thumbnail = header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
 
-    // Extract playlist items
+    console.log("[v0] Playlist title:", title)
+    console.log("[v0] Playlist thumbnail:", !!thumbnail)
+
     const contents =
       data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
-        ?.contents || []
+        ?.contents ||
+      data.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents ||
+      []
+
+    console.log("[v0] Number of content sections:", contents.length)
+
+    if (contents.length > 0) {
+      console.log("[v0] First section keys:", Object.keys(contents[0]))
+      const firstShelf = contents[0].musicShelfRenderer || contents[0].musicPlaylistShelfRenderer
+      if (firstShelf) {
+        console.log("[v0] First shelf has", firstShelf.contents?.length || 0, "items")
+        if (firstShelf.contents?.[0]) {
+          console.log("[v0] First item keys:", Object.keys(firstShelf.contents[0]))
+        }
+      }
+    }
 
     const videos: any[] = []
 
     for (const section of contents) {
       const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
-      if (!shelf) continue
+      if (!shelf) {
+        console.log("[v0] Section has no shelf renderer, skipping")
+        continue
+      }
 
       const items = shelf.contents || []
+      console.log("[v0] Processing shelf with", items.length, "items")
+
       for (const item of items) {
         const videoInfo = extractVideoInfo(item)
         if (videoInfo) {
           videos.push(videoInfo)
+        } else {
+          console.log("[v0] Failed to extract video info from item:", Object.keys(item))
         }
       }
     }
 
-    console.log("[v0] Playlist fetched:", title, `(${videos.length} videos)`)
+    console.log("[v0] ===== PLAYLIST FETCH COMPLETE =====")
+    console.log("[v0] Playlist:", title)
+    console.log("[v0] Total videos extracted:", videos.length)
 
     return {
       id: playlistId,
@@ -596,7 +631,9 @@ export async function getPlaylistDetails(playlistId: string) {
       videos,
     }
   } catch (error: any) {
-    console.error("[v0] Error fetching playlist details:", error.message)
+    console.error("[v0] ===== PLAYLIST FETCH ERROR =====")
+    console.error("[v0] Error message:", error.message)
+    console.error("[v0] Error stack:", error.stack)
     throw error
   }
 }

@@ -50,36 +50,55 @@ export function ImportYouTubePlaylistDialog({ open, onOpenChange }: ImportYouTub
     }
 
     setIsImporting(true)
-    console.log("[v0] Importing YouTube playlist:", playlistId)
+    console.log("[v0] ===== STARTING PLAYLIST IMPORT =====")
+    console.log("[v0] Original URL:", url)
+    console.log("[v0] Extracted playlist ID:", playlistId)
 
     try {
       // Fetch playlist data from YouTube Music API
-      const response = await fetch(`/api/music/playlist/${playlistId}`)
+      const apiUrl = `/api/music/playlist/${playlistId}`
+      console.log("[v0] Fetching from API:", apiUrl)
+
+      const response = await fetch(apiUrl)
+      console.log("[v0] API response status:", response.status)
 
       if (!response.ok) {
-        throw new Error("Failed to fetch playlist")
+        const errorText = await response.text()
+        console.error("[v0] API error response:", errorText)
+        throw new Error(`Failed to fetch playlist: ${response.status}`)
       }
 
       const data = await response.json()
+      console.log("[v0] Playlist data received:", {
+        title: data.title,
+        videoCount: data.videos?.length || 0,
+        hasVideos: !!data.videos,
+      })
 
       if (!data.videos || data.videos.length === 0) {
+        console.error("[v0] Playlist has no videos")
         throw new Error("Playlist is empty or not found")
       }
 
       // Save playlist locally
+      console.log("[v0] Saving playlist locally...")
       const newPlaylist = savePlaylist({
         name: data.title || "Imported Playlist",
         videos: data.videos,
       })
 
-      console.log("[v0] Playlist imported successfully:", newPlaylist.id)
+      console.log("[v0] ===== PLAYLIST IMPORT COMPLETE =====")
+      console.log("[v0] New playlist ID:", newPlaylist.id)
+      console.log("[v0] Playlist name:", newPlaylist.name)
+      console.log("[v0] Video count:", newPlaylist.videos.length)
 
       // Navigate to the new playlist
       router.push(`/dashboard/playlist/${newPlaylist.id}`)
       onOpenChange(false)
       setUrl("")
     } catch (err) {
-      console.error("[v0] Error importing playlist:", err)
+      console.error("[v0] ===== PLAYLIST IMPORT ERROR =====")
+      console.error("[v0] Error:", err)
       setError(err instanceof Error ? err.message : "Failed to import playlist")
     } finally {
       setIsImporting(false)

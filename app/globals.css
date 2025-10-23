@@ -107,10 +107,34 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* Prevent all zoom and ensure fixed device screen layout */
+  html {
+    /* Prevent text size adjustment on orientation change */
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Prevent zoom on double tap */
+    touch-action: manipulation;
+  }
+
   body {
     @apply bg-background text-foreground;
     /* Prevent pull-to-refresh on mobile browsers */
     overscroll-behavior: contain;
+    /* Prevent zoom on double tap and allow only pan gestures */
     touch-action: pan-x pan-y;
+    /* Prevent text selection that can trigger zoom */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Allow text selection in input fields and content areas */
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
   }
 }

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { Play, Pause, Heart, Cast } from "lucide-react"
+import { Play, Pause, Heart, Cast, SkipBack, SkipForward } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
@@ -100,6 +100,32 @@ export function MiniPlayer() {
     setDevicePickerOpen(true)
   }
 
+  const handlePreviousClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    console.log("[v0] Previous button clicked in mini player")
+    playPrevious()
+  }
+
+  const handleNextClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    console.log("[v0] Next button clicked in mini player")
+    playNext()
+  }
+
+  const handlePlayPauseClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    console.log("[v0] Play/Pause button clicked in mini player")
+    togglePlay()
+  }
+
+  const handleLikeClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (currentVideo) {
+      console.log("[v0] Like button clicked in mini player")
+      toggleLikedSong(currentVideo)
+    }
+  }
+
   if (!currentVideo) return null
 
   return (
@@ -135,20 +161,21 @@ export function MiniPlayer() {
                 <p className="text-xs text-muted-foreground truncate">{currentVideo.artist}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="rounded-full" onClick={handleCastClick}>
-                <Cast className="w-5 h-5" />
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={handleLikeClick}>
+                <Heart className={`w-4 h-4 ${isCurrentLiked ? "fill-red-500 text-red-500" : ""}`} />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                onClick={() => currentVideo && toggleLikedSong(currentVideo)}
-              >
-                <Heart className={`w-5 h-5 ${isCurrentLiked ? "fill-red-500 text-red-500" : ""}`} />
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={handlePreviousClick}>
+                <SkipBack className="w-4 h-4" />
               </Button>
-              <Button size="icon" onClick={togglePlay} className="rounded-full w-12 h-12">
+              <Button size="icon" onClick={handlePlayPauseClick} className="rounded-full w-11 h-11">
                 {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 fill-current" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={handleNextClick}>
+                <SkipForward className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={handleCastClick}>
+                <Cast className="w-4 h-4" />
               </Button>
             </div>
           </div>

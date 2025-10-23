@@ -4,7 +4,16 @@ import { useEffect } from "react"
 
 export function PWARegister() {
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
+    if ("serviceWorker" in navigator && typeof window !== "undefined") {
+      // Check if we're in a preview/iframe environment
+      const isPreview =
+        window.location.hostname.includes("vusercontent.net") || window.location.hostname.includes("preview")
+
+      if (isPreview) {
+        console.log("[v0] Service Worker disabled in preview environment")
+        return
+      }
+
       navigator.serviceWorker
         .register("/sw.js", {
           scope: "/",
@@ -25,7 +34,6 @@ export function PWARegister() {
           }
         })
         .catch((error) => {
-          // Service worker registration failed - app will still work without it
           console.log("[v0] Service Worker registration failed (app will work without it):", error.message)
         })
     }
@@ -49,13 +57,11 @@ export function PWARegister() {
             console.log("[v0] Wake lock released")
           })
         } catch (error) {
-          // Wake lock is optional - fail silently in preview/iframe environments
-          // This is expected behavior and not a critical error
+          // Wake lock is optional - fail silently
         }
       }
     }
 
-    // Request wake lock when page becomes visible
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden && wakeLock === null) {
         requestWakeLock()
@@ -65,7 +71,6 @@ export function PWARegister() {
     if ("mediaDevices" in navigator) {
       navigator.mediaDevices.addEventListener("devicechange", () => {
         console.log("[v0] Audio device changed")
-        // Pause playback when headphones are disconnected
         navigator.mediaDevices.enumerateDevices().then((devices) => {
           const audioOutputs = devices.filter((device) => device.kind === "audiooutput")
           console.log("[v0] Audio outputs:", audioOutputs.length)
