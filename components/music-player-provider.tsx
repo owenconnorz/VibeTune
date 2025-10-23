@@ -420,11 +420,13 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
       navigator.mediaSession.setActionHandler("previoustrack", () => {
         console.log("[v0] Media Session: previous track action triggered")
+        console.log("[v0] Previous tracks available:", previousTracks.length)
         playPreviousRef.current()
       })
 
       navigator.mediaSession.setActionHandler("nexttrack", () => {
         console.log("[v0] Media Session: next track action triggered")
+        console.log("[v0] Queue length:", queue.length)
         playNextRef.current()
       })
 
@@ -451,6 +453,8 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       })
 
       console.log("[v0] ✓ All Media Session action handlers registered successfully")
+      console.log("[v0] Current queue length:", queue.length)
+      console.log("[v0] Previous tracks length:", previousTracks.length)
     } catch (error) {
       console.error("[v0] ✗ Error registering action handlers:", error)
     }
@@ -471,7 +475,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-  }, [])
+  }, [queue.length, previousTracks.length]) // Re-register when queue changes
 
   useEffect(() => {
     playNextRef.current = playNext

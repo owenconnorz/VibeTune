@@ -161,30 +161,7 @@ export function NowPlayingContent() {
 
         <div className="flex-1 flex flex-col items-center px-6 py-2 min-h-0 overflow-y-auto">
           <div className="w-full max-w-sm flex flex-col gap-4 pb-safe">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Now Playing</p>
-              <div className="overflow-x-auto scrollbar-hide px-2">
-                <h1 className="text-xl font-bold whitespace-nowrap inline-block min-w-full text-center">
-                  {currentVideo.title}
-                </h1>
-              </div>
-              <p className="text-base text-muted-foreground line-clamp-1">{currentVideo.artist}</p>
-              <div className="flex items-center justify-center gap-4 pt-1">
-                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                  <Share2 className="w-5 h-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full h-9 w-9"
-                  onClick={() => currentVideo && toggleLikedSong(currentVideo)}
-                >
-                  <Heart className={`w-5 h-5 ${isCurrentLiked ? "fill-red-500 text-red-500" : ""}`} />
-                </Button>
-              </div>
-            </div>
-
-            <div className="relative w-full aspect-square max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl">
+            <div className="relative w-full aspect-square rounded-3xl overflow-hidden shadow-2xl flex-shrink-0">
               <Image
                 src={currentVideo.thumbnail || "/placeholder.svg"}
                 alt={currentVideo.title}
@@ -192,6 +169,33 @@ export function NowPlayingContent() {
                 className="object-cover"
                 priority
               />
+            </div>
+
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="overflow-x-auto scrollbar-hide">
+                  <h1 className="text-5xl font-bold whitespace-nowrap">{currentVideo.title}</h1>
+                </div>
+                <p className="text-2xl text-muted-foreground mt-1 line-clamp-1">{currentVideo.artist}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0 pt-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full h-12 w-12"
+                  onClick={() => currentVideo && toggleLikedSong(currentVideo)}
+                >
+                  <Heart className={`w-6 h-6 ${isCurrentLiked ? "fill-red-500 text-red-500" : ""}`} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full h-12 w-12"
+                  onClick={() => setMenuOpen(true)}
+                >
+                  <MoreVertical className="w-6 h-6" />
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -255,8 +259,8 @@ export function NowPlayingContent() {
               >
                 {repeatMode === "one" ? <Repeat1 className="w-5 h-5" /> : <Repeat className="w-5 h-5" />}
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setMenuOpen(true)}>
-                <MoreVertical className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                <Share2 className="w-5 h-5" />
               </Button>
             </div>
           </div>
