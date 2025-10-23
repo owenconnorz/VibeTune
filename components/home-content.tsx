@@ -1,13 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { Play, ChevronRight, Loader2 } from "lucide-react"
+import { ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import { useMusicPlayer } from "@/components/music-player-provider"
 import { useAPI } from "@/lib/use-api"
 import Link from "next/link"
-import { ProgressiveImage } from "@/components/progressive-image"
+import { HomeFeedSection } from "@/components/home-feed-section"
 
 const categories = ["Podcasts", "Energize", "Feel good", "Relax", "Workout", "Commute"]
 
@@ -38,7 +37,7 @@ const moodAndGenres = [
   { id: "kpop", name: "K-Pop", query: "k-pop korean music" },
 ]
 
-interface HomeFeedSection {
+interface HomeFeedSectionProps {
   title: string
   type?: string
   items: Array<{
@@ -56,12 +55,11 @@ interface HomeFeedSection {
 
 export function HomeContent() {
   const [selectedCategory, setSelectedCategory] = useState("Podcasts")
-  const { playVideo } = useMusicPlayer()
   const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({})
   const [sectionContinuations, setSectionContinuations] = useState<Record<string, string | null>>({})
   const [loadingMore, setLoadingMore] = useState<Record<string, boolean>>({})
 
-  const { data, isLoading, error } = useAPI<{ sections: HomeFeedSection[] }>("/api/music/home", {
+  const { data, isLoading, error } = useAPI<{ sections: HomeFeedSectionProps[] }>("/api/music/home", {
     refreshInterval: 60000,
     revalidateOnMount: true,
   })
@@ -161,208 +159,16 @@ export function HomeContent() {
       ) : (
         homeFeed.map((section, sectionIndex) => {
           const sectionKey = `${sectionIndex}-${section.title}`
-          const allItems = [...section.items, ...(sectionItems[sectionKey] || [])]
-          const hasContinuation =
-            sectionContinuations[sectionKey] !== undefined ? sectionContinuations[sectionKey] : section.continuation
-          const isLoadingMore = loadingMore[sectionKey]
-
           return (
-            <div key={sectionIndex} className="px-4 space-y-4">
-              <h2 className="text-2xl font-bold">{section.title}</h2>
-              {section.type === "list" || sectionIndex === 0 ? (
-                <div className="space-y-3">
-                  {allItems.slice(0, 20).map((song, songIndex) => (
-                    <div
-                      key={song.id}
-                      className="flex items-center gap-3 group cursor-pointer"
-                      onClick={() => {
-                        const remainingSongs = allItems.slice(songIndex + 1, 20).map((s) => ({
-                          id: s.id,
-                          title: s.title,
-                          artist: s.artist,
-                          thumbnail: s.thumbnail,
-                        }))
-                        playVideo(
-                          { id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail },
-                          remainingSongs,
-                        )
-                      }}
-                    >
-                      <div className="relative w-14 h-14 flex-shrink-0">
-                        <ProgressiveImage src={song.thumbnail || "/placeholder.svg"} alt={song.title} rounded="lg" />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                          <Play className="w-6 h-6 fill-white text-white" />
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{song.title}</h3>
-                        <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                          />
-                        </svg>
-                      </Button>
-                    </div>
-                  ))}
-                  {hasContinuation && allItems.length >= 20 && (
-                    <Button
-                      variant="outline"
-                      className="w-full bg-transparent"
-                      onClick={() => loadMoreForSection(sectionIndex)}
-                      disabled={isLoadingMore}
-                    >
-                      {isLoadingMore ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        "Load More"
-                      )}
-                    </Button>
-                  )}
-                </div>
-              ) : section.type === "immersive" ? (
-                <>
-                  <ScrollArea className="w-full">
-                    <div className="flex gap-4 pb-4">
-                      {allItems.map((item) => (
-                        <div
-                          key={item.id}
-                          className="w-72 flex-shrink-0 cursor-pointer group"
-                          onClick={() => {
-                            const itemIndex = allItems.findIndex((i) => i.id === item.id)
-                            const remainingItems = allItems.slice(itemIndex + 1).map((i) => ({
-                              id: i.id,
-                              title: i.title,
-                              artist: i.artist,
-                              thumbnail: i.thumbnail,
-                            }))
-                            playVideo(
-                              {
-                                id: item.id,
-                                title: item.title,
-                                artist: item.artist,
-                                thumbnail: item.thumbnail,
-                              },
-                              remainingItems,
-                            )
-                          }}
-                        >
-                          <div className="relative aspect-video mb-3">
-                            <ProgressiveImage
-                              src={item.thumbnail || "/placeholder.svg"}
-                              alt={item.title}
-                              rounded="lg"
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                              <Play className="w-12 h-12 fill-white text-white" />
-                            </div>
-                          </div>
-                          <h3 className="font-semibold text-base truncate">{item.title}</h3>
-                          {item.artist && <p className="text-sm text-muted-foreground truncate">{item.artist}</p>}
-                        </div>
-                      ))}
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
-                  {hasContinuation && (
-                    <Button
-                      variant="outline"
-                      className="w-full bg-transparent"
-                      onClick={() => loadMoreForSection(sectionIndex)}
-                      disabled={isLoadingMore}
-                    >
-                      {isLoadingMore ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        "Load More"
-                      )}
-                    </Button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <ScrollArea className="w-full">
-                    <div className="flex gap-3 pb-4">
-                      {allItems.map((item) => {
-                        const isVideo = item.aspectRatio === "video"
-                        const cardWidth = isVideo ? "w-56" : "w-40"
-
-                        return (
-                          <div
-                            key={item.id}
-                            className={`${cardWidth} flex-shrink-0 cursor-pointer group`}
-                            onClick={() => {
-                              const itemIndex = allItems.findIndex((i) => i.id === item.id)
-                              const remainingItems = allItems.slice(itemIndex + 1).map((i) => ({
-                                id: i.id,
-                                title: i.title,
-                                artist: i.artist,
-                                thumbnail: i.thumbnail,
-                              }))
-                              playVideo(
-                                {
-                                  id: item.id,
-                                  title: item.title,
-                                  artist: item.artist,
-                                  thumbnail: item.thumbnail,
-                                },
-                                remainingItems,
-                              )
-                            }}
-                          >
-                            <div className={`relative ${isVideo ? "aspect-video" : "aspect-square"} mb-2`}>
-                              <ProgressiveImage
-                                src={item.thumbnail || "/placeholder.svg"}
-                                alt={item.title}
-                                rounded="lg"
-                              />
-                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                <Play className="w-8 h-8 fill-white text-white" />
-                              </div>
-                            </div>
-                            <h3 className="font-semibold text-sm truncate">{item.title}</h3>
-                            <p className="text-xs text-muted-foreground truncate">{item.artist}</p>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
-                  {hasContinuation && (
-                    <Button
-                      variant="outline"
-                      className="w-full bg-transparent"
-                      onClick={() => loadMoreForSection(sectionIndex)}
-                      disabled={isLoadingMore}
-                    >
-                      {isLoadingMore ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        "Load More"
-                      )}
-                    </Button>
-                  )}
-                </>
-              )}
-            </div>
+            <HomeFeedSection
+              key={sectionKey}
+              section={section}
+              sectionIndex={sectionIndex}
+              onLoadMore={loadMoreForSection}
+              additionalItems={sectionItems[sectionKey] || []}
+              continuationToken={sectionContinuations[sectionKey]}
+              isLoadingMore={loadingMore[sectionKey] || false}
+            />
           )
         })
       )}

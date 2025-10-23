@@ -1,13 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useMusicPlayer } from "@/components/music-player-provider"
 import { useAPI } from "@/lib/use-api"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import Link from "next/link"
-import { ProgressiveImage } from "@/components/progressive-image"
+import { CategorySubcategory } from "@/components/category-subcategory"
 
 interface CategoryPageProps {
   params: { id: string }
@@ -36,7 +34,6 @@ interface CategoryData {
 
 export default function CategoryPage({ params }: CategoryPageProps) {
   const { id } = params
-  const { playVideo } = useMusicPlayer()
   const [subcategoryItems, setSubcategoryItems] = useState<Record<number, Playlist[]>>({})
   const [subcategoryContinuations, setSubcategoryContinuations] = useState<Record<number, string | null>>({})
   const [loadingMore, setLoadingMore] = useState<Record<number, boolean>>({})
@@ -90,62 +87,17 @@ export default function CategoryPage({ params }: CategoryPageProps) {
         {isLoading ? (
           <div className="py-12 text-center text-muted-foreground">Loading playlists...</div>
         ) : data?.subcategories && data.subcategories.length > 0 ? (
-          data.subcategories.map((subcategory, index) => {
-            const allPlaylists = [...subcategory.playlists, ...(subcategoryItems[index] || [])]
-            const hasContinuation =
-              subcategoryContinuations[index] !== undefined ? subcategoryContinuations[index] : subcategory.continuation
-            const isLoadingMore = loadingMore[index]
-
-            return (
-              <div key={index} className="space-y-4">
-                <h2 className="text-xl font-bold">{subcategory.title}</h2>
-                <ScrollArea className="w-full">
-                  <div className="flex gap-4 pb-4">
-                    {allPlaylists.map((playlist) => (
-                      <div
-                        key={playlist.id}
-                        className="flex-shrink-0 w-40 cursor-pointer group"
-                        onClick={() => playVideo(playlist)}
-                      >
-                        <div className="relative aspect-square rounded-lg overflow-hidden mb-2">
-                          <ProgressiveImage
-                            src={playlist.thumbnail || "/placeholder.svg"}
-                            alt={playlist.title}
-                            rounded="lg"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                            <svg className="w-12 h-12 fill-white text-white" viewBox="0 0 24 24">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <h3 className="font-semibold text-sm line-clamp-2 mb-1">{playlist.title}</h3>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{playlist.artist}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-                {hasContinuation && (
-                  <Button
-                    variant="outline"
-                    className="w-full bg-transparent"
-                    onClick={() => loadMoreForSubcategory(index, hasContinuation)}
-                    disabled={isLoadingMore}
-                  >
-                    {isLoadingMore ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      "Load More"
-                    )}
-                  </Button>
-                )}
-              </div>
-            )
-          })
+          data.subcategories.map((subcategory, index) => (
+            <CategorySubcategory
+              key={index}
+              subcategory={subcategory}
+              subcategoryIndex={index}
+              onLoadMore={loadMoreForSubcategory}
+              additionalPlaylists={subcategoryItems[index] || []}
+              continuationToken={subcategoryContinuations[index]}
+              isLoadingMore={loadingMore[index] || false}
+            />
+          ))
         ) : (
           <div className="py-12 text-center text-muted-foreground">No playlists found</div>
         )}

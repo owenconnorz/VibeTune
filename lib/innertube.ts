@@ -527,230 +527,136 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
   }
 }
 
-export async function getPlaylistDetails(playlistId: string) {
+export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
   try {
-    console.log("[v0] Fetching playlist:", playlistId)
+    console.log("[v0] ===== STARTING PLAYLIST IMPORT =====")
+    console.log("[v0] Using YouTube Data API v3 for reliable pagination")
+    console.log("[v0] Playlist ID:", playlistId)
 
-    let browseId = playlistId
-    if (!playlistId.startsWith("VL")) {
-      browseId = `VL${playlistId}`
+    const apiKey = process.env.YOUTUBE_API_KEY
+    if (!apiKey) {
+      throw new Error("YOUTUBE_API_KEY environment variable is not set")
     }
-
-    const data = await makeInnerTubeRequest("browse", {
-      browseId: browseId,
-    })
-
-    if (!data) {
-      console.error("[v0] No data returned for playlist")
-      return null
-    }
-
-    const header = data.header?.musicDetailHeaderRenderer || data.header?.musicEditablePlaylistDetailHeaderRenderer
-
-    const title = header?.title?.runs?.[0]?.text || "Untitled Playlist"
-    const description = header?.description?.runs?.[0]?.text || ""
-    const thumbnail = header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
-
-    const sectionListRenderer =
-      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer ||
-      data.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer
-
-    const contents = sectionListRenderer?.contents || []
 
     const videos: any[] = []
+    let pageToken: string | null = null
     let totalPages = 0
-    let hadContinuation = false
-    let lastError: string | null = null
-    let shelfStructure: any = null
-    let sectionLevelContinuation: any = null
-    const continuationResponses: any[] = []
+    let playlistTitle = "Untitled Playlist"
+    let playlistDescription = ""
+    let playlistThumbnail = ""
 
-    for (const section of contents) {
-      const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
-      if (!shelf) continue
+    // Fetch playlist metadata
+    try {
+      const playlistUrl = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}&key=${apiKey}`
+      const playlistResponse = await fetch(playlistUrl)
 
-      shelfStructure = {
-        keys: Object.keys(shelf),
-        hasContinuations: "continuations" in shelf,
-        continuationsLength: shelf.continuations?.length || 0,
-        continuationsData: shelf.continuations ? JSON.parse(JSON.stringify(shelf.continuations)) : null,
-        itemCount: shelf.contents?.length || 0,
-      }
-
-      const items = shelf.contents || []
-      totalPages = 1
-      console.log("[v0] Processing", items.length, "items from initial page")
-
-      for (const item of items) {
-        const videoInfo = extractVideoInfo(item)
-        if (videoInfo) {
-          videos.push(videoInfo)
-        }
-      }
-
-      // Shelf-level token points to more items in the same playlist
-      // Section-level token might point to other sections like "Related playlists"
-      let continuationToken =
-        shelf.continuations?.[0]?.nextContinuationData?.continuation ||
-        sectionListRenderer?.continuations?.[0]?.nextContinuationData?.continuation
-
-      if (continuationToken) {
-        hadContinuation = true
-        const tokenSource = shelf.continuations?.[0]
-          ? "shelf-level (playlist items)"
-          : "section-level (may include other sections)"
-        console.log(`[v0] ===== CONTINUATION TOKEN FOUND =====`)
-        console.log(`[v0] Token source: ${tokenSource}`)
-        console.log(`[v0] Token length: ${continuationToken.length}`)
-        console.log(`[v0] Token preview: ${continuationToken.substring(0, 50)}...`)
+      if (!playlistResponse.ok) {
+        console.error("[v0] Failed to fetch playlist metadata:", playlistResponse.status)
       } else {
-        console.log(`[v0] No continuation token found`)
-      }
-
-      while (continuationToken) {
-        totalPages++
-        console.log(`[v0] ===== FETCHING PAGE ${totalPages} =====`)
-        console.log(`[v0] Using continuation token: ${continuationToken.substring(0, 50)}...`)
-
-        try {
-          const continuationData = await makeInnerTubeRequest("browse", {
-            continuation: continuationToken,
-          })
-
-          const responseType = continuationData?.continuationContents?.musicPlaylistShelfContinuation
-            ? "musicPlaylistShelfContinuation (playlist items)"
-            : continuationData?.continuationContents?.sectionListContinuation
-              ? "sectionListContinuation (mixed content)"
-              : "unknown"
-
-          continuationResponses.push({
-            pageNumber: totalPages,
-            token: continuationToken.substring(0, 50) + "...",
-            responseType,
-            responseKeys: Object.keys(continuationData || {}),
-            hasContinuationContents: !!continuationData?.continuationContents,
-            continuationContentsKeys: continuationData?.continuationContents
-              ? Object.keys(continuationData.continuationContents)
-              : [],
-            itemsFound: continuationData?.continuationContents?.musicPlaylistShelfContinuation?.contents?.length || 0,
-            hasNextToken:
-              !!continuationData?.continuationContents?.musicPlaylistShelfContinuation?.continuations?.[0]
-                ?.nextContinuationData?.continuation,
-          })
-
-          console.log(`[v0] Continuation response received`)
-          console.log(`[v0] Response type: ${responseType}`)
-          console.log(`[v0] Response keys:`, Object.keys(continuationData || {}))
-
-          if (!continuationData?.continuationContents) {
-            console.log(`[v0] ⚠️ No continuationContents in response!`)
-            console.log(`[v0] Available response paths:`, Object.keys(continuationData || {}))
-            break
-          }
-
-          console.log(`[v0] continuationContents keys:`, Object.keys(continuationData.continuationContents))
-
-          if (continuationData.continuationContents.sectionListContinuation) {
-            console.log(`[v0] ⚠️ WARNING: Received sectionListContinuation instead of musicPlaylistShelfContinuation`)
-            console.log(
-              `[v0] This usually means the continuation token is pointing to other page sections (like "Related playlists")`,
-            )
-            console.log(`[v0] Stopping pagination as we've reached the end of the actual playlist items`)
-            break
-          }
-
-          if (continuationData.continuationContents.musicPlaylistShelfContinuation) {
-            const continuation = continuationData.continuationContents.musicPlaylistShelfContinuation
-            console.log(`[v0] musicPlaylistShelfContinuation keys:`, Object.keys(continuation))
-            console.log(`[v0] Contents length:`, continuation.contents?.length || 0)
-            console.log(`[v0] Has continuations:`, "continuations" in continuation)
-            console.log(`[v0] Continuations length:`, continuation.continuations?.length || 0)
-
-            const continuationContents = continuation.contents || []
-
-            console.log(`[v0] Page ${totalPages}: ${continuationContents.length} items`)
-            if (continuationContents.length === 0) {
-              console.log(`[v0] ⚠️ WARNING: Page ${totalPages} returned 0 items - stopping pagination`)
-              break
-            }
-
-            for (const item of continuationContents) {
-              const videoInfo = extractVideoInfo(item)
-              if (videoInfo) {
-                videos.push(videoInfo)
-              }
-            }
-
-            console.log(`[v0] Total videos so far: ${videos.length}`)
-
-            const nextToken = continuation.continuations?.[0]?.nextContinuationData?.continuation
-
-            if (nextToken) {
-              console.log(`[v0] Found next continuation token: ${nextToken.substring(0, 50)}...`)
-              continuationToken = nextToken
-            } else {
-              console.log(`[v0] No more continuation tokens - reached end of playlist`)
-              continuationToken = null
-            }
-
-            if (!continuationToken) {
-              console.log(`[v0] Pagination complete: ${totalPages} pages, ${videos.length} total videos`)
-            }
-          } else {
-            console.log(`[v0] ⚠️ WARNING: Unknown continuation response type`)
-            console.log(`[v0] Available keys:`, Object.keys(continuationData.continuationContents))
-            break
-          }
-        } catch (error: any) {
-          lastError = error.message
-          console.error(`[v0] ===== CONTINUATION ERROR =====`)
-          console.error(`[v0] Error fetching page ${totalPages}:`, error.message)
-          console.error(`[v0] Error stack:`, error.stack)
-          continuationResponses.push({
-            pageNumber: totalPages,
-            token: continuationToken.substring(0, 50) + "...",
-            error: error.message,
-            errorStack: error.stack,
-          })
-          break
+        const playlistData = await playlistResponse.json()
+        if (playlistData.items && playlistData.items.length > 0) {
+          const snippet = playlistData.items[0].snippet
+          playlistTitle = snippet.title || playlistTitle
+          playlistDescription = snippet.description || ""
+          playlistThumbnail = snippet.thumbnails?.high?.url || snippet.thumbnails?.default?.url || ""
+          console.log("[v0] Playlist title:", playlistTitle)
         }
       }
+    } catch (error) {
+      console.error("[v0] Error fetching playlist metadata:", error)
     }
 
-    if (sectionListRenderer?.continuations) {
-      sectionLevelContinuation = {
-        hasContinuations: true,
-        continuationsLength: sectionListRenderer.continuations.length,
-        continuationsData: JSON.parse(JSON.stringify(sectionListRenderer.continuations)),
+    // Fetch all playlist items with pagination
+    do {
+      totalPages++
+      console.log(`[v0] Fetching page ${totalPages}${pageToken ? ` (token: ${pageToken.substring(0, 20)}...)` : ""}`)
+
+      const url = new URL("https://www.googleapis.com/youtube/v3/playlistItems")
+      url.searchParams.set("part", "snippet,contentDetails")
+      url.searchParams.set("playlistId", playlistId)
+      url.searchParams.set("maxResults", "50")
+      url.searchParams.set("key", apiKey)
+      if (pageToken) {
+        url.searchParams.set("pageToken", pageToken)
       }
-      console.log("[v0] Found section-level continuations:", sectionLevelContinuation)
-    } else {
-      console.log("[v0] No section-level continuations found")
-    }
 
-    console.log("[v0] Playlist complete:", title, "-", videos.length, "videos")
+      const response = await fetch(url.toString())
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("[v0] YouTube API error:", response.status, errorText)
+        throw new Error(`YouTube API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      console.log(`[v0] Page ${totalPages}: ${data.items?.length || 0} items received`)
+
+      if (data.items && data.items.length > 0) {
+        for (const item of data.items) {
+          const snippet = item.snippet
+          const videoId = snippet.resourceId?.videoId
+
+          if (!videoId) continue
+
+          // Skip private/deleted videos
+          if (snippet.title === "Private video" || snippet.title === "Deleted video") {
+            console.log(`[v0] Skipping ${snippet.title}`)
+            continue
+          }
+
+          const thumbnail =
+            snippet.thumbnails?.high?.url ||
+            snippet.thumbnails?.medium?.url ||
+            snippet.thumbnails?.default?.url ||
+            `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+
+          videos.push({
+            id: videoId,
+            title: snippet.title || "Unknown Title",
+            artist: snippet.videoOwnerChannelTitle || "Unknown Artist",
+            thumbnail,
+            duration: "0:00", // YouTube Data API doesn't provide duration in playlist items
+          })
+        }
+      }
+
+      pageToken = data.nextPageToken || null
+      console.log(`[v0] Total videos so far: ${videos.length}`)
+      console.log(`[v0] Has next page: ${!!pageToken}`)
+    } while (pageToken)
+
+    console.log("[v0] ===== PLAYLIST IMPORT COMPLETE =====")
+    console.log("[v0] Total pages fetched:", totalPages)
+    console.log("[v0] Total videos:", videos.length)
     console.log(
-      `[v0] Pagination summary: ${totalPages} pages fetched, hadContinuation: ${hadContinuation}, lastError: ${lastError || "none"}`,
+      "[v0] First 3 video titles:",
+      videos.slice(0, 3).map((v) => v.title),
+    )
+    console.log(
+      "[v0] Last 3 video titles:",
+      videos.slice(-3).map((v) => v.title),
     )
 
     return {
       id: playlistId,
-      title,
-      description,
-      thumbnail,
+      title: playlistTitle,
+      description: playlistDescription,
+      thumbnail: playlistThumbnail,
       videos,
       _debug: {
         totalPages,
-        hadContinuation,
-        lastError,
         videoCount: videos.length,
-        shelfStructure,
-        sectionLevelContinuation,
-        continuationResponses,
+        apiVersion: "YouTube Data API v3",
       },
     }
   } catch (error: any) {
-    console.error("[v0] Playlist fetch error:", error.message)
+    console.error("[v0] YouTube Data API playlist fetch error:", error.message)
     throw error
   }
+}
+
+export async function getPlaylistDetails(playlistId: string) {
+  // This provides reliable pagination and can fetch all 280+ songs
+  return getPlaylistDetailsFromYouTubeAPI(playlistId)
 }
