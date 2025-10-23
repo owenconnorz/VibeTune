@@ -32,6 +32,7 @@ function Slider({
 
     const handleStyleChange = (e: Event) => {
       const customEvent = e as CustomEvent<SliderStyle>
+      console.log("[v0] Slider style changed to:", customEvent.detail)
       setSliderStyle(customEvent.detail)
     }
 
@@ -50,12 +51,10 @@ function Slider({
         return cn(
           baseClasses,
           "data-[orientation=horizontal]:h-2 data-[orientation=vertical]:w-2",
-          "rounded-none relative",
-          "before:content-[''] before:absolute before:inset-0 before:bg-muted",
-          "before:[mask-image:url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0wLDEwIFEyLjUsNSA1LDEwIFQxMCwxMCBUMTUsMTAgVDIwLDEwIFQyNSwxMCBUMzAsMTAgVDM1LDEwIFQ0MCwxMCBUNDUsMTAgVDUwLDEwIFQ1NSwxMCBUNjAsMTAgVDY1LDEwIFQ3MCwxMCBUNzUsMTAgVDgwLDEwIFQ4NSwxMCBUOTAsMTAgVDk1LDEwIFQxMDAsMTAgTDEwMCwyMCBMMCwyMCBaIiBmaWxsPSJibGFjayIvPjwvc3ZnPg==')]",
-          "before:[mask-size:200%_100%]",
-          "before:[mask-repeat:repeat-x]",
-          "before:animate-[wave_3s_linear_infinite]",
+          "rounded-sm",
+          "[background:linear-gradient(90deg,var(--muted)_0%,var(--muted)_50%,transparent_50%,transparent_100%)]",
+          "[background-size:20px_100%]",
+          "animate-[wave-slide_1s_linear_infinite]",
         )
       case "default":
       default:
@@ -70,12 +69,10 @@ function Slider({
       case "squiggly":
         return cn(
           baseClasses,
-          "relative",
-          "before:content-[''] before:absolute before:inset-0 before:bg-primary",
-          "before:[mask-image:url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0wLDEwIFEyLjUsNSA1LDEwIFQxMCwxMCBUMTUsMTAgVDIwLDEwIFQyNSwxMCBUMzAsMTAgVDM1LDEwIFQ0MCwxMCBUNDUsMTAgVDUwLDEwIFQ1NSwxMCBUNjAsMTAgVDY1LDEwIFQ3MCwxMCBUNzUsMTAgVDgwLDEwIFQ4NSwxMCBUOTAsMTAgVDk1LDEwIFQxMDAsMTAgTDEwMCwyMCBMMCwyMCBaIiBmaWxsPSJibGFjayIvPjwvc3ZnPg==')]",
-          "before:[mask-size:200%_100%]",
-          "before:[mask-repeat:repeat-x]",
-          "before:animate-[wave_3s_linear_infinite]",
+          "rounded-sm",
+          "[background:linear-gradient(90deg,var(--primary)_0%,var(--primary)_50%,transparent_50%,transparent_100%)]",
+          "[background-size:20px_100%]",
+          "animate-[wave-slide_1s_linear_infinite]",
         )
       default:
         return baseClasses

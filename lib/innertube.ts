@@ -621,38 +621,73 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
 
     const data = await makeInnerTubeRequest("player", {
       videoId,
-      params: "8AEB", // Audio only parameter
+      // Removed params: "8AEB" to get all formats
     })
 
-    if (!data || !data.streamingData) {
-      console.error("[v0] No streaming data available")
+    console.log("[v0] Player response received:", {
+      hasStreamingData: !!data?.streamingData,
+      hasAdaptiveFormats: !!data?.streamingData?.adaptiveFormats,
+      hasFormats: !!data?.streamingData?.formats,
+      playabilityStatus: data?.playabilityStatus?.status,
+    })
+
+    if (!data) {
+      console.error("[v0] No data returned from player endpoint")
       return null
     }
 
-    // Get adaptive formats (separate audio and video streams)
-    const adaptiveFormats = data.streamingData.adaptiveFormats || []
+    if (data.playabilityStatus?.status !== "OK") {
+      console.error("[v0] Video not playable:", data.playabilityStatus?.status, data.playabilityStatus?.reason)
+      return null
+    }
 
-    // Find the best audio-only format
+    if (!data.streamingData) {
+      console.error("[v0] No streaming data in response")
+      console.log("[v0] Response keys:", Object.keys(data))
+      return null
+    }
+
+    const adaptiveFormats = data.streamingData.adaptiveFormats || []
     const audioFormats = adaptiveFormats.filter((format: any) => format.mimeType?.includes("audio") && format.url)
 
-    if (audioFormats.length === 0) {
-      console.error("[v0] No audio formats available")
-      return null
+    if (audioFormats.length > 0) {
+      // Sort by bitrate (highest first) and get the best quality
+      audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+      const bestAudio = audioFormats[0]
+
+      console.log("[v0] Found audio stream (adaptive):", {
+        mimeType: bestAudio.mimeType,
+        bitrate: bestAudio.bitrate,
+        audioQuality: bestAudio.audioQuality,
+      })
+
+      return bestAudio.url
     }
 
-    // Sort by bitrate (highest first) and get the best quality
-    audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-    const bestAudio = audioFormats[0]
+    const formats = data.streamingData.formats || []
+    const audioVideoFormats = formats.filter((format: any) => format.mimeType?.includes("audio") && format.url)
 
-    console.log("[v0] Found audio stream:", {
-      mimeType: bestAudio.mimeType,
-      bitrate: bestAudio.bitrate,
-      audioQuality: bestAudio.audioQuality,
-    })
+    if (audioVideoFormats.length > 0) {
+      // Sort by quality and get the best one
+      audioVideoFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+      const bestFormat = audioVideoFormats[0]
 
-    return bestAudio.url
+      console.log("[v0] Found audio stream (combined):", {
+        mimeType: bestFormat.mimeType,
+        bitrate: bestFormat.bitrate,
+        quality: bestFormat.quality,
+      })
+
+      return bestFormat.url
+    }
+
+    console.error("[v0] No audio formats available in response")
+    console.log("[v0] Adaptive formats count:", adaptiveFormats.length)
+    console.log("[v0] Regular formats count:", formats.length)
+    return null
   } catch (error: any) {
     console.error("[v0] Error fetching audio stream:", error.message)
+    console.error("[v0] Error stack:", error.stack)
     return null
   }
 }

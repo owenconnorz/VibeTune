@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { SettingsIcon, Shield, Plus, RefreshCw, LinkIcon } from "lucide-react"
+import { SettingsIcon, Shield, Plus, RefreshCw, Puzzle } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -29,7 +29,7 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 animate-in fade-in duration-200">
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold">OpenTune</h2>
+          <h2 className="text-3xl font-bold">Metrolist</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-6 h-6" />
           </Button>
@@ -39,25 +39,22 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
           {/* User Profile */}
           <div className="flex items-center justify-between bg-card rounded-2xl p-6">
             <div className="flex items-center gap-4">
-              <Avatar className="w-16 h-16">
+              <Avatar className="w-14 h-14">
                 <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
                 <AvatarFallback className="text-xl">{user?.name?.charAt(0) || "U"}</AvatarFallback>
               </Avatar>
-              <div>
-                <h3 className="font-semibold text-lg">{user?.name || "Guest"}</h3>
-                <p className="text-sm text-muted-foreground">{user?.email || "guest@opentune.app"}</p>
-              </div>
+              <h3 className="font-semibold text-xl">{user?.name || "User"}</h3>
             </div>
             {user ? (
               <Button
                 variant="outline"
-                className="rounded-full px-6 bg-transparent"
+                className="rounded-full px-8 py-2 h-auto border-2 bg-transparent"
                 onClick={() => signOut({ callbackUrl: "/" })}
               >
                 Log out
               </Button>
             ) : (
-              <Button variant="outline" className="rounded-full px-6 bg-transparent" asChild>
+              <Button variant="outline" className="rounded-full px-8 py-2 h-auto border-2 bg-transparent" asChild>
                 <Link href="/auth/signin">Sign in</Link>
               </Button>
             )}
@@ -68,7 +65,7 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
             <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
               <Shield className="w-6 h-6" />
             </div>
-            <span className="font-medium">Tap to show token</span>
+            <span className="font-medium text-lg">Tap to show token</span>
           </button>
 
           {/* More Content */}
@@ -77,7 +74,7 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
               <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
                 <Plus className="w-6 h-6" />
               </div>
-              <span className="font-medium">More content</span>
+              <span className="font-medium text-lg">More content</span>
             </div>
             <Switch checked={moreContent} onCheckedChange={setMoreContent} />
           </div>
@@ -88,7 +85,7 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
               <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
                 <RefreshCw className="w-6 h-6" />
               </div>
-              <span className="font-medium">Auto sync with account</span>
+              <span className="font-medium text-lg">Auto sync with account</span>
             </div>
             <Switch checked={autoSync} onCheckedChange={setAutoSync} />
           </div>
@@ -96,9 +93,9 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
           {/* Integrations */}
           <button className="w-full flex items-center gap-4 bg-card rounded-2xl p-6 hover:bg-card/80 transition-colors">
             <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
-              <LinkIcon className="w-6 h-6" />
+              <Puzzle className="w-6 h-6" />
             </div>
-            <span className="font-medium">Integrations</span>
+            <span className="font-medium text-lg">Integrations</span>
           </button>
 
           {/* Settings */}
@@ -107,7 +104,7 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
               <div className="w-12 h-12 rounded-xl bg-secondary flex items-center justify-center">
                 <SettingsIcon className="w-6 h-6" />
               </div>
-              <span className="font-medium">Settings</span>
+              <span className="font-medium text-lg">Settings</span>
             </button>
           </Link>
         </div>

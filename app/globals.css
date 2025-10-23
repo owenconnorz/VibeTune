@@ -124,3 +124,13 @@
     mask-position: 100% 0%;
   }
 }
+
+/* Updated wave animation to slide background position for visible wave effect */
+@keyframes wave-slide {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 20px 0;
+  }
+}
