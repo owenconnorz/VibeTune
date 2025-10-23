@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Play, ChevronRight } from "lucide-react"
+import { Play, ChevronRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { useMusicPlayer } from "@/components/music-player-provider"
@@ -50,11 +50,16 @@ interface HomeFeedSection {
     type?: string
     aspectRatio?: string
   }>
+  continuation?: string | null
+  query?: string
 }
 
 export function HomeContent() {
   const [selectedCategory, setSelectedCategory] = useState("Podcasts")
   const { playVideo } = useMusicPlayer()
+  const [sectionItems, setSectionItems] = useState<Record<string, any[]>>({})
+  const [sectionContinuations, setSectionContinuations] = useState<Record<string, string | null>>({})
+  const [loadingMore, setLoadingMore] = useState<Record<string, boolean>>({})
 
   const { data, isLoading, error } = useAPI<{ sections: HomeFeedSection[] }>("/api/music/home", {
     refreshInterval: 60000,
@@ -62,6 +67,38 @@ export function HomeContent() {
   })
 
   const homeFeed = data?.sections || []
+
+  const loadMoreForSection = async (sectionIndex: number) => {
+    const section = homeFeed[sectionIndex]
+    if (!section || !section.continuation || !section.query) return
+
+    const sectionKey = `${sectionIndex}-${section.title}`
+    if (loadingMore[sectionKey]) return
+
+    setLoadingMore((prev) => ({ ...prev, [sectionKey]: true }))
+
+    try {
+      const response = await fetch(
+        `/api/music/search?q=${encodeURIComponent(section.query)}&continuation=${section.continuation}`,
+      )
+      const newData = await response.json()
+
+      if (newData.videos && newData.videos.length > 0) {
+        setSectionItems((prev) => ({
+          ...prev,
+          [sectionKey]: [...(prev[sectionKey] || []), ...newData.videos],
+        }))
+        setSectionContinuations((prev) => ({
+          ...prev,
+          [sectionKey]: newData.continuation || null,
+        }))
+      }
+    } catch (error) {
+      console.error("[v0] Error loading more items:", error)
+    } finally {
+      setLoadingMore((prev) => ({ ...prev, [sectionKey]: false }))
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -82,6 +119,7 @@ export function HomeContent() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
+      {/* Mood and Genres */}
       <div className="px-4 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Mood and Genres</h2>
@@ -89,7 +127,6 @@ export function HomeContent() {
         </div>
         <ScrollArea className="w-full">
           <div className="flex gap-4 pb-4">
-            {/* Create pages of 8 items (4 rows x 2 columns) */}
             {Array.from({ length: Math.ceil(moodAndGenres.length / 8) }).map((_, pageIndex) => (
               <div
                 key={pageIndex}
@@ -122,106 +159,183 @@ export function HomeContent() {
       ) : homeFeed.length === 0 ? (
         <div className="px-4 py-8 text-center text-muted-foreground">No recommendations available</div>
       ) : (
-        homeFeed.map((section, sectionIndex) => (
-          <div key={sectionIndex} className="px-4 space-y-4">
-            <h2 className="text-2xl font-bold">{section.title}</h2>
-            {section.type === "list" || sectionIndex === 0 ? (
-              // List view for Quick picks and similar sections
-              <div className="space-y-3">
-                {section.items.slice(0, 6).map((song) => (
-                  <div
-                    key={song.id}
-                    className="flex items-center gap-3 group cursor-pointer"
-                    onClick={() =>
-                      playVideo({ id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail })
-                    }
-                  >
-                    <div className="relative w-14 h-14 flex-shrink-0">
-                      <ProgressiveImage src={song.thumbnail || "/placeholder.svg"} alt={song.title} rounded="lg" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                        <Play className="w-6 h-6 fill-white text-white" />
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{song.title}</h3>
-                      <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                        />
-                      </svg>
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : section.type === "immersive" ? (
-              // Large cards for featured/immersive sections
-              <ScrollArea className="w-full">
-                <div className="flex gap-4 pb-4">
-                  {section.items.map((item) => (
+        homeFeed.map((section, sectionIndex) => {
+          const sectionKey = `${sectionIndex}-${section.title}`
+          const allItems = [...section.items, ...(sectionItems[sectionKey] || [])]
+          const hasContinuation =
+            sectionContinuations[sectionKey] !== undefined ? sectionContinuations[sectionKey] : section.continuation
+          const isLoadingMore = loadingMore[sectionKey]
+
+          return (
+            <div key={sectionIndex} className="px-4 space-y-4">
+              <h2 className="text-2xl font-bold">{section.title}</h2>
+              {section.type === "list" || sectionIndex === 0 ? (
+                <div className="space-y-3">
+                  {allItems.slice(0, 20).map((song) => (
                     <div
-                      key={item.id}
-                      className="w-72 flex-shrink-0 cursor-pointer group"
+                      key={song.id}
+                      className="flex items-center gap-3 group cursor-pointer"
                       onClick={() =>
-                        playVideo({ id: item.id, title: item.title, artist: item.artist, thumbnail: item.thumbnail })
+                        playVideo({ id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail })
                       }
                     >
-                      <div className="relative aspect-video mb-3">
-                        <ProgressiveImage src={item.thumbnail || "/placeholder.svg"} alt={item.title} rounded="lg" />
+                      <div className="relative w-14 h-14 flex-shrink-0">
+                        <ProgressiveImage src={song.thumbnail || "/placeholder.svg"} alt={song.title} rounded="lg" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                          <Play className="w-12 h-12 fill-white text-white" />
+                          <Play className="w-6 h-6 fill-white text-white" />
                         </div>
                       </div>
-                      <h3 className="font-semibold text-base truncate">{item.title}</h3>
-                      {item.artist && <p className="text-sm text-muted-foreground truncate">{item.artist}</p>}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate">{song.title}</h3>
+                        <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                          />
+                        </svg>
+                      </Button>
                     </div>
                   ))}
+                  {hasContinuation && allItems.length >= 20 && (
+                    <Button
+                      variant="outline"
+                      className="w-full bg-transparent"
+                      onClick={() => loadMoreForSection(sectionIndex)}
+                      disabled={isLoadingMore}
+                    >
+                      {isLoadingMore ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Load More"
+                      )}
+                    </Button>
+                  )}
                 </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            ) : (
-              // Standard carousel for other sections (albums, playlists, etc.)
-              <ScrollArea className="w-full">
-                <div className="flex gap-3 pb-4">
-                  {section.items.map((item) => {
-                    // Determine card size based on item type
-                    const isVideo = item.aspectRatio === "video"
-                    const cardWidth = isVideo ? "w-56" : "w-40"
-
-                    return (
-                      <div
-                        key={item.id}
-                        className={`${cardWidth} flex-shrink-0 cursor-pointer group`}
-                        onClick={() =>
-                          playVideo({ id: item.id, title: item.title, artist: item.artist, thumbnail: item.thumbnail })
-                        }
-                      >
-                        <div className={`relative ${isVideo ? "aspect-video" : "aspect-square"} mb-2`}>
-                          <ProgressiveImage src={item.thumbnail || "/placeholder.svg"} alt={item.title} rounded="lg" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                            <Play className="w-8 h-8 fill-white text-white" />
+              ) : section.type === "immersive" ? (
+                <>
+                  <ScrollArea className="w-full">
+                    <div className="flex gap-4 pb-4">
+                      {allItems.map((item) => (
+                        <div
+                          key={item.id}
+                          className="w-72 flex-shrink-0 cursor-pointer group"
+                          onClick={() =>
+                            playVideo({
+                              id: item.id,
+                              title: item.title,
+                              artist: item.artist,
+                              thumbnail: item.thumbnail,
+                            })
+                          }
+                        >
+                          <div className="relative aspect-video mb-3">
+                            <ProgressiveImage
+                              src={item.thumbnail || "/placeholder.svg"}
+                              alt={item.title}
+                              rounded="lg"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                              <Play className="w-12 h-12 fill-white text-white" />
+                            </div>
                           </div>
+                          <h3 className="font-semibold text-base truncate">{item.title}</h3>
+                          {item.artist && <p className="text-sm text-muted-foreground truncate">{item.artist}</p>}
                         </div>
-                        <h3 className="font-semibold text-sm truncate">{item.title}</h3>
-                        <p className="text-xs text-muted-foreground truncate">{item.artist}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            )}
-          </div>
-        ))
+                      ))}
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                  {hasContinuation && (
+                    <Button
+                      variant="outline"
+                      className="w-full bg-transparent"
+                      onClick={() => loadMoreForSection(sectionIndex)}
+                      disabled={isLoadingMore}
+                    >
+                      {isLoadingMore ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Load More"
+                      )}
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <ScrollArea className="w-full">
+                    <div className="flex gap-3 pb-4">
+                      {allItems.map((item) => {
+                        const isVideo = item.aspectRatio === "video"
+                        const cardWidth = isVideo ? "w-56" : "w-40"
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`${cardWidth} flex-shrink-0 cursor-pointer group`}
+                            onClick={() =>
+                              playVideo({
+                                id: item.id,
+                                title: item.title,
+                                artist: item.artist,
+                                thumbnail: item.thumbnail,
+                              })
+                            }
+                          >
+                            <div className={`relative ${isVideo ? "aspect-video" : "aspect-square"} mb-2`}>
+                              <ProgressiveImage
+                                src={item.thumbnail || "/placeholder.svg"}
+                                alt={item.title}
+                                rounded="lg"
+                              />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                <Play className="w-8 h-8 fill-white text-white" />
+                              </div>
+                            </div>
+                            <h3 className="font-semibold text-sm truncate">{item.title}</h3>
+                            <p className="text-xs text-muted-foreground truncate">{item.artist}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                  {hasContinuation && (
+                    <Button
+                      variant="outline"
+                      className="w-full bg-transparent"
+                      onClick={() => loadMoreForSection(sectionIndex)}
+                      disabled={isLoadingMore}
+                    >
+                      {isLoadingMore ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        "Load More"
+                      )}
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })
       )}
     </div>
   )

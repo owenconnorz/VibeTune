@@ -27,14 +27,19 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
   const [devices, setDevices] = useState<AudioDevice[]>([])
   const [networkDevices, setNetworkDevices] = useState<AudioDevice[]>([])
   const [selectedDevice, setSelectedDevice] = useState<string>("this-device")
-  const [mounted, setMounted] = useState(false)
   const [scanning, setScanning] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
+    console.log("[v0] AudioDevicePicker mounted, open:", open)
     loadDevices()
     loadNetworkDevices()
   }, [])
+
+  useEffect(() => {
+    if (open) {
+      console.log("[v0] Device picker opened")
+    }
+  }, [open])
 
   const loadDevices = async () => {
     console.log("[v0] Loading audio devices...")
@@ -104,6 +109,7 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
         setNetworkDevices([])
       }
     } catch (error) {
+      console.error("[v0] Error loading network devices:", error)
       setNetworkDevices([])
     }
   }
@@ -237,8 +243,6 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
     }
     return categories
   }
-
-  if (!mounted) return null
 
   const { current, local, sonos, chromecast, other } = categorizeDevices()
   const hasDevices = local.length > 0 || networkDevices.length > 0

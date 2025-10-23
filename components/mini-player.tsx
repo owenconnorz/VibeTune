@@ -95,6 +95,11 @@ export function MiniPlayer() {
     setTouchEnd(null)
   }
 
+  const handleCastClick = () => {
+    console.log("[v0] Cast button clicked, opening device picker")
+    setDevicePickerOpen(true)
+  }
+
   if (!currentVideo) return null
 
   return (
@@ -131,7 +136,7 @@ export function MiniPlayer() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setDevicePickerOpen(true)}>
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={handleCastClick}>
                 <Cast className="w-5 h-5" />
               </Button>
               <Button

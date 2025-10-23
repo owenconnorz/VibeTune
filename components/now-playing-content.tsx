@@ -96,6 +96,11 @@ export function NowPlayingContent() {
     setDragOffset(0)
   }
 
+  const handleCastClick = () => {
+    console.log("[v0] Cast button clicked in now playing, opening device picker")
+    setDevicePickerOpen(true)
+  }
+
   if (!currentVideo) {
     router.push("/dashboard")
     return null
@@ -120,7 +125,7 @@ export function NowPlayingContent() {
             variant="ghost"
             size="icon"
             className="rounded-full h-9 w-9 absolute right-4 top-safe"
-            onClick={() => setDevicePickerOpen(true)}
+            onClick={handleCastClick}
           >
             <Cast className="w-5 h-5" />
           </Button>

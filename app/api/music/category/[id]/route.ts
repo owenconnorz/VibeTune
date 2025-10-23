@@ -148,7 +148,7 @@ const categoryConfig: Record<
     name: "1960s",
     subcategories: [
       { title: "60s classics", query: "1960s music classics" },
-      { title: "60s rock", query: "1960s rock music" },
+      { title: "60s rock", query: "1960s rock and roll" },
     ],
   },
   "1950s": {
@@ -190,6 +190,10 @@ const categoryConfig: Record<
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const { searchParams } = new URL(request.url)
+  const continuation = searchParams.get("continuation")
+  const subcategoryIndex = searchParams.get("subcategoryIndex")
+
   const category = categoryConfig[id]
 
   if (!category) {
@@ -197,22 +201,52 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   try {
+    if (continuation && subcategoryIndex !== null) {
+      const index = Number.parseInt(subcategoryIndex)
+      const subcategory = category.subcategories[index]
+
+      if (!subcategory) {
+        return NextResponse.json({ error: "Subcategory not found" }, { status: 404 })
+      }
+
+      console.log(`[v0] Fetching more items for subcategory: ${subcategory.title}`)
+      const result = await searchMusic(subcategory.query, continuation)
+
+      return NextResponse.json(
+        {
+          playlists: result.videos,
+          continuation: result.continuation,
+        },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=600, stale-while-revalidate=1200",
+          },
+        },
+      )
+    }
+
     console.log(`[v0] Fetching category: ${category.name}`)
 
     // Fetch playlists for each subcategory
     const subcategoriesWithPlaylists = await Promise.all(
-      category.subcategories.map(async (subcategory) => {
+      category.subcategories.map(async (subcategory, index) => {
         try {
           const result = await searchMusic(subcategory.query, undefined)
           return {
             title: subcategory.title,
-            playlists: result.videos.slice(0, 10), // Limit to 10 playlists per subcategory
+            playlists: result.videos.slice(0, 10),
+            continuation: result.continuation,
+            query: subcategory.query,
+            index,
           }
         } catch (error) {
           console.error(`[v0] Error fetching subcategory ${subcategory.title}:`, error)
           return {
             title: subcategory.title,
             playlists: [],
+            continuation: null,
+            query: subcategory.query,
+            index,
           }
         }
       }),

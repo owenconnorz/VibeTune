@@ -110,7 +110,7 @@ function extractVideoInfo(item: any) {
 
 export async function searchMusic(query: string, continuation?: string) {
   try {
-    console.log(`[v0] Searching for: "${query}"`)
+    console.log(`[v0] Searching for: "${query}"${continuation ? " (continuation)" : ""}`)
 
     const params: any = {
       query,
@@ -191,7 +191,9 @@ export async function searchMusic(query: string, continuation?: string) {
         ?.continuations?.[0]?.nextContinuationData?.continuation ||
       data.continuationContents?.musicShelfContinuation?.continuations?.[0]?.nextContinuationData?.continuation
 
-    console.log(`[v0] Search complete for "${query}": ${videos.length} items found`)
+    console.log(
+      `[v0] Search complete for "${query}": ${videos.length} items found, continuation: ${!!continuationToken}`,
+    )
 
     return {
       videos,
@@ -413,25 +415,52 @@ export async function getHomeFeed() {
     const sections: any[] = []
 
     const searchPromises = [
-      searchMusic("trending music 2024").then((result) => ({ title: "Quick picks", result, type: "list" })),
-      searchMusic("top charts 2024").then((result) => ({ title: "Top Charts", result, type: "carousel" })),
-      searchMusic("popular music 2024").then((result) => ({ title: "Popular Music", result, type: "carousel" })),
-      searchMusic("feel good music").then((result) => ({ title: "Feel Good", result, type: "carousel" })),
-      searchMusic("workout music").then((result) => ({ title: "Workout Mix", result, type: "carousel" })),
+      searchMusic("trending music 2024").then((result) => ({
+        title: "Quick picks",
+        result,
+        type: "list",
+        query: "trending music 2024",
+      })),
+      searchMusic("top charts 2024").then((result) => ({
+        title: "Top Charts",
+        result,
+        type: "carousel",
+        query: "top charts 2024",
+      })),
+      searchMusic("popular music 2024").then((result) => ({
+        title: "Popular Music",
+        result,
+        type: "carousel",
+        query: "popular music 2024",
+      })),
+      searchMusic("feel good music").then((result) => ({
+        title: "Feel Good",
+        result,
+        type: "carousel",
+        query: "feel good music",
+      })),
+      searchMusic("workout music").then((result) => ({
+        title: "Workout Mix",
+        result,
+        type: "carousel",
+        query: "workout music",
+      })),
     ]
 
     const results = await Promise.allSettled(searchPromises)
 
     results.forEach((promiseResult, index) => {
       if (promiseResult.status === "fulfilled") {
-        const { title, result, type } = promiseResult.value
+        const { title, result, type, query } = promiseResult.value
         if (result.videos.length > 0) {
           sections.push({
             title,
             items: result.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
             type,
+            continuation: result.continuation,
+            query,
           })
-          console.log(`[v0] ${title}: ${result.videos.length} items`)
+          console.log(`[v0] ${title}: ${result.videos.length} items, continuation: ${!!result.continuation}`)
         } else {
           console.log(`[v0] ${title}: No items found`)
         }
@@ -452,6 +481,8 @@ export async function getHomeFeed() {
             title: "Popular Music",
             items: [],
             type: "carousel",
+            continuation: null,
+            query: "popular music 2024",
           },
         ],
       }
@@ -469,6 +500,8 @@ export async function getHomeFeed() {
           title: "Popular Music",
           items: [],
           type: "carousel",
+          continuation: null,
+          query: "popular music 2024",
         },
       ],
     }
