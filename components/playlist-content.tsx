@@ -23,6 +23,7 @@ import { getPlaylists, deletePlaylist, updatePlaylist, type Playlist } from "@/l
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
 import { isLiked } from "@/lib/liked-storage"
+import { downloadSong, isDownloaded } from "@/lib/download-storage"
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,8 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const [showCoverDialog, setShowCoverDialog] = useState(false)
   const [coverImageUrl, setCoverImageUrl] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [downloadingPlaylist, setDownloadingPlaylist] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 })
 
   useEffect(() => {
     const playlists = getPlaylists()
@@ -93,27 +96,22 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   }
 
   const parseDuration = (duration: any): number => {
-    // If duration is already a number, return it
     if (typeof duration === "number") {
       return duration
     }
 
-    // If duration is a string like "3:40" or "1:23:45", parse it
     if (typeof duration === "string") {
       const parts = duration.split(":").map((p) => Number.parseInt(p, 10))
 
       if (parts.length === 2) {
-        // Format: "MM:SS"
         const [minutes, seconds] = parts
         return minutes * 60 + seconds
       } else if (parts.length === 3) {
-        // Format: "HH:MM:SS"
         const [hours, minutes, seconds] = parts
         return hours * 3600 + minutes * 60 + seconds
       }
     }
 
-    // If we can't parse it, return 0
     return 0
   }
 
@@ -175,19 +173,16 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       alert("Please select an image file")
       return
     }
 
-    // Validate file size (max 5MB to avoid localStorage limits)
     if (file.size > 5 * 1024 * 1024) {
       alert("Image size must be less than 5MB")
       return
     }
 
-    // Read file and convert to base64
     const reader = new FileReader()
     reader.onload = (event) => {
       const base64 = event.target?.result as string
@@ -197,6 +192,67 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
       alert("Failed to read image file")
     }
     reader.readAsDataURL(file)
+  }
+
+  const handleDownloadPlaylist = async () => {
+    if (!playlist || playlist.videos.length === 0) {
+      alert("No songs to download")
+      return
+    }
+
+    if (
+      !confirm(
+        `This will download ${playlist.videos.length} songs for offline playback. This may take a while and use storage space. Continue?`,
+      )
+    ) {
+      return
+    }
+
+    setDownloadingPlaylist(true)
+    setDownloadProgress({ current: 0, total: playlist.videos.length })
+
+    let successCount = 0
+    let failCount = 0
+
+    for (let i = 0; i < playlist.videos.length; i++) {
+      const video = playlist.videos[i]
+      console.log(`[v0] Downloading ${i + 1}/${playlist.videos.length}: ${video.title}`)
+
+      const alreadyDownloaded = await isDownloaded(video.id)
+      if (alreadyDownloaded) {
+        console.log(`[v0] Song already downloaded, skipping: ${video.title}`)
+        successCount++
+        setDownloadProgress({ current: i + 1, total: playlist.videos.length })
+        continue
+      }
+
+      const success = await downloadSong(
+        video.id,
+        video.title,
+        video.artist || "Unknown Artist",
+        video.thumbnail,
+        video.duration,
+      )
+
+      if (success) {
+        successCount++
+      } else {
+        failCount++
+      }
+
+      setDownloadProgress({ current: i + 1, total: playlist.videos.length })
+
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+
+    setDownloadingPlaylist(false)
+    setDownloadProgress({ current: 0, total: 0 })
+
+    if (failCount === 0) {
+      alert(`Successfully downloaded all ${successCount} songs!`)
+    } else {
+      alert(`Downloaded ${successCount} songs. ${failCount} songs failed to download.`)
+    }
   }
 
   if (!playlist) {
@@ -223,7 +279,6 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
       <div className="p-6 space-y-6">
         <div className="relative w-64 h-64 rounded-2xl overflow-hidden bg-secondary mx-auto group">
           {playlist.coverImage ? (
-            // Custom cover image
             <Image
               src={playlist.coverImage || "/placeholder.svg"}
               alt={playlist.name}
@@ -232,7 +287,6 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
               unoptimized
             />
           ) : (
-            // Default grid of song thumbnails
             <div className="grid grid-cols-2 h-full">
               {playlist.videos.slice(0, 4).map((video, index) => (
                 <div
@@ -282,7 +336,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           <Button variant="ghost" size="icon" onClick={handleShuffle}>
             <ShuffleIcon className="w-6 h-6" />
           </Button>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={handleDownloadPlaylist} disabled={downloadingPlaylist}>
             <Download className="w-6 h-6" />
           </Button>
           <Button variant="ghost" size="icon">
@@ -330,6 +384,24 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           </Button>
           <Lock className="w-5 h-5 text-muted-foreground" />
         </div>
+
+        {/* Download Progress Indicator */}
+        {downloadingPlaylist && (
+          <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span>Downloading playlist...</span>
+              <span>
+                {downloadProgress.current} / {downloadProgress.total}
+              </span>
+            </div>
+            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-[hsl(var(--chart-2))] h-full transition-all duration-300"
+                style={{ width: `${(downloadProgress.current / downloadProgress.total) * 100}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Song List Rendering */}
         {playlist.videos.length > 0 ? (
@@ -392,7 +464,6 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
             })}
           </div>
         ) : (
-          // Empty State
           <div className="text-center py-12">
             <p className="text-muted-foreground text-lg">No songs in this playlist yet</p>
             <p className="text-muted-foreground text-sm mt-2">Add songs to get started</p>

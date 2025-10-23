@@ -1,19 +1,14 @@
 "use client"
 
-import { useState } from "react"
-import { Radio, ListPlus, Share2, Heart, MoreVertical, PlayCircle, ListMusic } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Radio, ListPlus, Share2, Heart, MoreVertical, PlayCircle, ListMusic, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import type { YouTubeVideo } from "@/lib/innertube"
 import { AddToPlaylistDialog } from "@/components/add-to-playlist-dialog"
 import { isLiked } from "@/lib/liked-storage"
+import { downloadSong, isDownloaded } from "@/lib/download-storage"
 
 interface SongMenuProps {
   video: YouTubeVideo
@@ -22,23 +17,37 @@ interface SongMenuProps {
 
 export function SongMenu({ video, onLikeToggle }: SongMenuProps) {
   const { addToQueue, playVideo, queue, toggleLikedSong } = useMusicPlayer()
+  const [showMenu, setShowMenu] = useState(false)
   const [showAddToPlaylist, setShowAddToPlaylist] = useState(false)
   const liked = isLiked(video.id)
+  const [downloaded, setDownloaded] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+
+  useEffect(() => {
+    const checkDownloaded = async () => {
+      const isDownloadedStatus = await isDownloaded(video.id)
+      setDownloaded(isDownloadedStatus)
+    }
+    checkDownloaded()
+  }, [video.id])
 
   const handleStartRadio = () => {
     playVideo(video)
     console.log("[v0] Starting radio for:", video.title)
+    setShowMenu(false)
   }
 
   const handlePlayNext = () => {
     const newQueue = [video, ...queue]
     console.log("[v0] Added to play next:", video.title)
     addToQueue(video)
+    setShowMenu(false)
   }
 
   const handleAddToQueue = () => {
     addToQueue(video)
     console.log("[v0] Added to queue:", video.title)
+    setShowMenu(false)
   }
 
   const handleShare = async () => {
@@ -54,10 +63,10 @@ export function SongMenu({ video, onLikeToggle }: SongMenuProps) {
         console.log("[v0] Share cancelled or failed:", error)
       }
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(shareUrl)
       alert("Link copied to clipboard!")
     }
+    setShowMenu(false)
   }
 
   const handleLike = () => {
@@ -65,74 +74,119 @@ export function SongMenu({ video, onLikeToggle }: SongMenuProps) {
     onLikeToggle?.()
   }
 
+  const handleAddToPlaylist = () => {
+    setShowMenu(false)
+    setShowAddToPlaylist(true)
+  }
+
+  const handleDownload = async () => {
+    if (downloaded) {
+      alert("This song is already downloaded")
+      setShowMenu(false)
+      return
+    }
+
+    setDownloading(true)
+    console.log("[v0] Starting download:", video.title)
+
+    const success = await downloadSong(
+      video.id,
+      video.title,
+      video.artist || "Unknown Artist",
+      video.thumbnail,
+      video.duration,
+    )
+
+    if (success) {
+      setDownloaded(true)
+      alert("Song downloaded successfully!")
+      console.log("[v0] Download complete:", video.title)
+    } else {
+      alert("Failed to download song. Please try again.")
+      console.error("[v0] Download failed:", video.title)
+    }
+
+    setDownloading(false)
+    setShowMenu(false)
+  }
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="w-9 h-9">
-            <MoreVertical className="w-5 h-5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <div className="p-3 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="relative w-12 h-12 rounded-md overflow-hidden bg-secondary flex-shrink-0">
-                {video.thumbnail && (
-                  <img
-                    src={video.thumbnail || "/placeholder.svg"}
-                    alt={video.title}
-                    className="w-full h-full object-cover"
-                  />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{video.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{video.artist || "Unknown Artist"}</p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-8 h-8 flex-shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleLike()
-                }}
-              >
-                <Heart className={`w-5 h-5 ${liked ? "fill-red-500 text-red-500" : ""}`} />
-              </Button>
+      <Button variant="ghost" size="icon" className="w-9 h-9" onClick={() => setShowMenu(true)}>
+        <MoreVertical className="w-5 h-5" />
+      </Button>
+
+      <Sheet open={showMenu} onOpenChange={setShowMenu}>
+        <SheetContent side="bottom" className="h-auto rounded-t-2xl">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Song Options</SheetTitle>
+          </SheetHeader>
+
+          <div className="flex items-center gap-3 p-4 border-b border-border">
+            <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-secondary flex-shrink-0">
+              {video.thumbnail && (
+                <img
+                  src={video.thumbnail || "/placeholder.svg"}
+                  alt={video.title}
+                  className="w-full h-full object-cover"
+                />
+              )}
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-base truncate">{video.title}</p>
+              <p className="text-sm text-muted-foreground truncate">{video.artist || "Unknown Artist"}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-10 h-10 flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleLike()
+              }}
+            >
+              <Heart className={`w-6 h-6 ${liked ? "fill-red-500 text-red-500" : ""}`} />
+            </Button>
           </div>
 
-          <div className="p-2">
-            <DropdownMenuItem onClick={handleStartRadio} className="gap-3 py-3">
-              <Radio className="w-5 h-5" />
+          <div className="p-4 space-y-1">
+            <Button variant="ghost" className="w-full justify-start gap-4 h-14 text-base" onClick={handleStartRadio}>
+              <Radio className="w-6 h-6" />
               <span>Start radio</span>
-            </DropdownMenuItem>
+            </Button>
 
-            <DropdownMenuItem onClick={handlePlayNext} className="gap-3 py-3">
-              <PlayCircle className="w-5 h-5" />
+            <Button variant="ghost" className="w-full justify-start gap-4 h-14 text-base" onClick={handlePlayNext}>
+              <PlayCircle className="w-6 h-6" />
               <span>Play next</span>
-            </DropdownMenuItem>
+            </Button>
 
-            <DropdownMenuItem onClick={handleAddToQueue} className="gap-3 py-3">
-              <ListMusic className="w-5 h-5" />
+            <Button variant="ghost" className="w-full justify-start gap-4 h-14 text-base" onClick={handleAddToQueue}>
+              <ListMusic className="w-6 h-6" />
               <span>Add to queue</span>
-            </DropdownMenuItem>
+            </Button>
 
-            <DropdownMenuSeparator />
-
-            <DropdownMenuItem onClick={() => setShowAddToPlaylist(true)} className="gap-3 py-3">
-              <ListPlus className="w-5 h-5" />
+            <Button variant="ghost" className="w-full justify-start gap-4 h-14 text-base" onClick={handleAddToPlaylist}>
+              <ListPlus className="w-6 h-6" />
               <span>Add to playlist</span>
-            </DropdownMenuItem>
+            </Button>
 
-            <DropdownMenuItem onClick={handleShare} className="gap-3 py-3">
-              <Share2 className="w-5 h-5" />
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-4 h-14 text-base"
+              onClick={handleDownload}
+              disabled={downloading}
+            >
+              <Download className="w-6 h-6" />
+              <span>{downloading ? "Downloading..." : downloaded ? "Downloaded" : "Download"}</span>
+            </Button>
+
+            <Button variant="ghost" className="w-full justify-start gap-4 h-14 text-base" onClick={handleShare}>
+              <Share2 className="w-6 h-6" />
               <span>Share</span>
-            </DropdownMenuItem>
+            </Button>
           </div>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </SheetContent>
+      </Sheet>
 
       <AddToPlaylistDialog open={showAddToPlaylist} onOpenChange={setShowAddToPlaylist} video={video} />
     </>

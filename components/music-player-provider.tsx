@@ -593,7 +593,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         navigator.mediaSession.setActionHandler("seekto", null)
       }
     }
-  }, []) // Empty dependency array - register once on mount
+  }, [currentTime, duration]) // Updated dependencies
 
   useEffect(() => {
     if (!currentVideo || !("mediaSession" in navigator)) return
@@ -626,18 +626,35 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }, [isPlaying])
 
   useEffect(() => {
-    if ("mediaSession" in navigator && "setPositionState" in navigator.mediaSession && duration > 0) {
+    if (!("mediaSession" in navigator) || !("setPositionState" in navigator.mediaSession)) return
+    if (!currentVideo || duration <= 0) return
+
+    const updatePositionState = () => {
       try {
         navigator.mediaSession.setPositionState({
           duration: duration,
           playbackRate: 1.0,
-          position: currentTime,
+          position: Math.min(currentTime, duration),
         })
       } catch (error) {
         console.error("[v0] Error setting position state:", error)
       }
     }
-  }, [currentTime, duration])
+
+    updatePositionState()
+
+    // Update position state every second while playing
+    let intervalId: NodeJS.Timeout | null = null
+    if (isPlaying) {
+      intervalId = setInterval(updatePositionState, 1000)
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId)
+      }
+    }
+  }, [currentTime, duration, isPlaying, currentVideo]) // Updated effect for smoother progress updates
 
   useEffect(() => {
     if (typeof window !== "undefined") {
