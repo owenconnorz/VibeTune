@@ -28,7 +28,7 @@ async function makeInnerTubeRequest(endpoint: string, params: any = {}) {
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 10000)
 
   try {
     const response = await fetch(url, {
@@ -81,17 +81,13 @@ function extractVideoInfo(item: any) {
 
     let thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
 
-    // Handle protocol-relative URLs (starting with //)
     if (thumbnail && thumbnail.startsWith("//")) {
       thumbnail = `https:${thumbnail}`
     }
 
-    // Fallback to YouTube thumbnail if not available
     if (!thumbnail) {
       thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
     }
-
-    console.log(`[v0] Extracted thumbnail for ${videoId}:`, thumbnail)
 
     const durationText =
       renderer.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text || "0:00"
@@ -533,48 +529,27 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
 
 export async function getPlaylistDetails(playlistId: string) {
   try {
-    console.log("[v0] ===== FETCHING PLAYLIST DETAILS =====")
-    console.log("[v0] Input playlist ID:", playlistId)
+    console.log("[v0] Fetching playlist:", playlistId)
 
     let browseId = playlistId
     if (!playlistId.startsWith("VL")) {
       browseId = `VL${playlistId}`
     }
 
-    console.log("[v0] Browse ID for API request:", browseId)
-
     const data = await makeInnerTubeRequest("browse", {
       browseId: browseId,
     })
-
-    console.log("[v0] API response received:", !!data)
 
     if (!data) {
       console.error("[v0] No data returned for playlist")
       return null
     }
 
-    console.log("[v0] Full response keys:", Object.keys(data))
-    console.log("[v0] Response structure:", {
-      hasHeader: !!data.header,
-      hasContents: !!data.contents,
-      headerType: data.header ? Object.keys(data.header)[0] : "none",
-      contentsType: data.contents ? Object.keys(data.contents)[0] : "none",
-    })
-
     const header = data.header?.musicDetailHeaderRenderer || data.header?.musicEditablePlaylistDetailHeaderRenderer
-
-    if (!header) {
-      console.error("[v0] No header found in response")
-      console.log("[v0] Available header types:", data.header ? Object.keys(data.header) : "none")
-    }
 
     const title = header?.title?.runs?.[0]?.text || "Untitled Playlist"
     const description = header?.description?.runs?.[0]?.text || ""
     const thumbnail = header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
-
-    console.log("[v0] Playlist title:", title)
-    console.log("[v0] Playlist thumbnail:", !!thumbnail)
 
     const contents =
       data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
@@ -582,37 +557,19 @@ export async function getPlaylistDetails(playlistId: string) {
       data.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents ||
       []
 
-    console.log("[v0] Number of content sections:", contents.length)
-
-    if (contents.length > 0) {
-      console.log("[v0] First section keys:", Object.keys(contents[0]))
-      const firstShelf = contents[0].musicShelfRenderer || contents[0].musicPlaylistShelfRenderer
-      if (firstShelf) {
-        console.log("[v0] First shelf has", firstShelf.contents?.length || 0, "items")
-        if (firstShelf.contents?.[0]) {
-          console.log("[v0] First item keys:", Object.keys(firstShelf.contents[0]))
-        }
-      }
-    }
-
     const videos: any[] = []
 
     for (const section of contents) {
       const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
-      if (!shelf) {
-        console.log("[v0] Section has no shelf renderer, skipping")
-        continue
-      }
+      if (!shelf) continue
 
       const items = shelf.contents || []
-      console.log("[v0] Processing shelf with", items.length, "items")
+      console.log("[v0] Processing", items.length, "items from initial page")
 
       for (const item of items) {
         const videoInfo = extractVideoInfo(item)
         if (videoInfo) {
           videos.push(videoInfo)
-        } else {
-          console.log("[v0] Failed to extract video info from item:", Object.keys(item))
         }
       }
 
@@ -621,12 +578,17 @@ export async function getPlaylistDetails(playlistId: string) {
 
       while (continuationToken) {
         pageCount++
-        console.log(`[v0] Fetching page ${pageCount} with continuation token...`)
+        console.log(`[v0] Fetching page ${pageCount}...`)
 
         try {
           const continuationData = await makeInnerTubeRequest("browse", {
             continuation: continuationToken,
           })
+
+          if (!continuationData) {
+            console.error(`[v0] No data for page ${pageCount}`)
+            break
+          }
 
           const continuationContents =
             continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents || []
@@ -640,12 +602,14 @@ export async function getPlaylistDetails(playlistId: string) {
             }
           }
 
+          console.log(`[v0] Total videos: ${videos.length}`)
+
           continuationToken =
             continuationData.continuationContents?.musicPlaylistShelfContinuation?.continuations?.[0]
               ?.nextContinuationData?.continuation
 
           if (!continuationToken) {
-            console.log(`[v0] No more pages to fetch. Total pages: ${pageCount}`)
+            console.log(`[v0] Fetched all ${pageCount} pages, total: ${videos.length} videos`)
           }
         } catch (error: any) {
           console.error(`[v0] Error fetching page ${pageCount}:`, error.message)
@@ -654,9 +618,7 @@ export async function getPlaylistDetails(playlistId: string) {
       }
     }
 
-    console.log("[v0] ===== PLAYLIST FETCH COMPLETE =====")
-    console.log("[v0] Playlist:", title)
-    console.log("[v0] Total videos extracted:", videos.length)
+    console.log("[v0] Playlist complete:", title, "-", videos.length, "videos")
 
     return {
       id: playlistId,
@@ -666,9 +628,7 @@ export async function getPlaylistDetails(playlistId: string) {
       videos,
     }
   } catch (error: any) {
-    console.error("[v0] ===== PLAYLIST FETCH ERROR =====")
-    console.error("[v0] Error message:", error.message)
-    console.error("[v0] Error stack:", error.stack)
+    console.error("[v0] Playlist fetch error:", error.message)
     throw error
   }
 }

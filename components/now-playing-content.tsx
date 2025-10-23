@@ -173,7 +173,12 @@ export function NowPlayingContent() {
 
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h1 className="text-3xl font-bold truncate">{currentVideo.title}</h1>
+                <div className="overflow-hidden">
+                  <div className="inline-flex animate-marquee whitespace-nowrap">
+                    <h1 className="text-3xl font-bold pr-8">{currentVideo.title}</h1>
+                    <h1 className="text-3xl font-bold pr-8">{currentVideo.title}</h1>
+                  </div>
+                </div>
                 <p className="text-lg text-muted-foreground mt-1 truncate">{currentVideo.artist}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 pt-2">
