@@ -62,6 +62,7 @@ export function NowPlayingContent() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [devicePickerOpen, setDevicePickerOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [touchStartedOnSlider, setTouchStartedOnSlider] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -74,11 +75,24 @@ export function NowPlayingContent() {
   }
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement
+    const isSlider = target.closest('[data-slot="slider"]') !== null
+    setTouchStartedOnSlider(isSlider)
+
+    if (isSlider) {
+      console.log("[v0] Touch started on slider, ignoring swipe")
+      return
+    }
+
     setTouchStart(e.touches[0].clientY)
     setTouchEnd(e.touches[0].clientY)
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartedOnSlider) {
+      return
+    }
+
     setTouchEnd(e.touches[0].clientY)
     const offset = e.touches[0].clientY - touchStart
 
@@ -89,6 +103,11 @@ export function NowPlayingContent() {
   }
 
   const handleTouchEnd = () => {
+    if (touchStartedOnSlider) {
+      setTouchStartedOnSlider(false)
+      return
+    }
+
     const swipeDistance = touchEnd - touchStart
     if (swipeDistance > 100) {
       router.back()
@@ -171,8 +190,12 @@ export function NowPlayingContent() {
                 value={[currentTime]}
                 max={duration || 100}
                 step={1}
-                onValueChange={(value) => seekTo(value[0])}
+                onValueChange={(value) => {
+                  console.log("[v0] Seek bar changed to:", value[0])
+                  seekTo(value[0])
+                }}
                 className="w-full"
+                data-slot="slider"
               />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{formatTime(currentTime)}</span>
@@ -200,6 +223,7 @@ export function NowPlayingContent() {
                 step={1}
                 onValueChange={(value) => setVolume(value[0] / 100)}
                 className="flex-1"
+                data-slot="slider"
               />
             </div>
 
