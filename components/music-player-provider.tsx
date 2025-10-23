@@ -71,6 +71,14 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const isManualStateChange = useRef(false)
   const [useAudioElement, setUseAudioElement] = useState(true)
 
+  const playNextRef = useRef<() => void>(() => {})
+  const playPreviousRef = useRef<() => void>(() => {})
+  const seekToRef = useRef<(time: number) => void>(() => {})
+
+  const setVolume = (volume: number) => {
+    setVolumeState(volume)
+  }
+
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio()
@@ -525,23 +533,16 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const setVolume = (newVolume: number) => {
-    console.log("[v0] Setting volume to:", newVolume)
-    setVolumeState(newVolume)
-
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume / 100
-      console.log("[v0] Audio element volume set to:", newVolume / 100)
-    }
-
-    if (playerRef.current && typeof playerRef.current.setVolume === "function") {
-      playerRef.current.setVolume(newVolume)
-      console.log("[v0] YouTube player volume set to:", newVolume)
-    }
-  }
+  useEffect(() => {
+    playNextRef.current = playNext
+    playPreviousRef.current = playPrevious
+    seekToRef.current = seekTo
+  })
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) return
+
+    console.log("[v0] Registering Media Session action handlers")
 
     navigator.mediaSession.setActionHandler("play", () => {
       console.log("[v0] Media Session: play")
@@ -555,34 +556,38 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
     navigator.mediaSession.setActionHandler("previoustrack", () => {
       console.log("[v0] Media Session: previous track")
-      playPrevious()
+      playPreviousRef.current()
     })
 
     navigator.mediaSession.setActionHandler("nexttrack", () => {
       console.log("[v0] Media Session: next track")
-      playNext()
+      playNextRef.current()
     })
 
     navigator.mediaSession.setActionHandler("seekbackward", (details) => {
       console.log("[v0] Media Session: seek backward")
       const skipTime = details.seekOffset || 10
-      seekTo(Math.max(currentTime - skipTime, 0))
+      const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
+      seekToRef.current(Math.max(currentTimeValue - skipTime, 0))
     })
 
     navigator.mediaSession.setActionHandler("seekforward", (details) => {
       console.log("[v0] Media Session: seek forward")
       const skipTime = details.seekOffset || 10
-      seekTo(Math.min(currentTime + skipTime, duration))
+      const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
+      const durationValue = audioRef.current?.duration || playerRef.current?.getDuration?.() || 0
+      seekToRef.current(Math.min(currentTimeValue + skipTime, durationValue))
     })
 
     navigator.mediaSession.setActionHandler("seekto", (details) => {
       if (details.seekTime !== undefined) {
         console.log("[v0] Media Session: seek to", details.seekTime)
-        seekTo(details.seekTime)
+        seekToRef.current(details.seekTime)
       }
     })
 
     return () => {
+      console.log("[v0] Unregistering Media Session action handlers")
       if ("mediaSession" in navigator) {
         navigator.mediaSession.setActionHandler("play", null)
         navigator.mediaSession.setActionHandler("pause", null)
@@ -593,48 +598,23 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         navigator.mediaSession.setActionHandler("seekto", null)
       }
     }
-  }, [currentTime, duration]) // Updated dependencies
-
-  useEffect(() => {
-    if (!currentVideo || !("mediaSession" in navigator)) return
-
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentVideo.title,
-      artist: currentVideo.artist || currentVideo.channelTitle,
-      album: currentVideo.channelTitle,
-      artwork: [
-        { src: currentVideo.thumbnail, sizes: "96x96", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "128x128", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "192x192", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "256x256", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "384x384", type: "image/jpeg" },
-        { src: currentVideo.thumbnail, sizes: "512x512", type: "image/jpeg" },
-      ],
-    })
-
-    return () => {
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.metadata = null
-      }
-    }
-  }, [currentVideo])
-
-  useEffect(() => {
-    if ("mediaSession" in navigator) {
-      navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused"
-    }
-  }, [isPlaying])
+  }, []) // Empty dependency array since we're using refs
 
   useEffect(() => {
     if (!("mediaSession" in navigator) || !("setPositionState" in navigator.mediaSession)) return
     if (!currentVideo || duration <= 0) return
 
+    console.log("[v0] Setting up position state updates")
+
     const updatePositionState = () => {
       try {
+        const position = Math.min(Math.max(currentTime, 0), duration)
+        console.log("[v0] Updating position state - position:", position, "duration:", duration)
+
         navigator.mediaSession.setPositionState({
           duration: duration,
           playbackRate: 1.0,
-          position: Math.min(currentTime, duration),
+          position: position,
         })
       } catch (error) {
         console.error("[v0] Error setting position state:", error)
@@ -646,15 +626,17 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     // Update position state every second while playing
     let intervalId: NodeJS.Timeout | null = null
     if (isPlaying) {
+      console.log("[v0] Starting position state interval")
       intervalId = setInterval(updatePositionState, 1000)
     }
 
     return () => {
       if (intervalId) {
+        console.log("[v0] Clearing position state interval")
         clearInterval(intervalId)
       }
     }
-  }, [currentTime, duration, isPlaying, currentVideo]) // Updated effect for smoother progress updates
+  }, [currentTime, duration, isPlaying, currentVideo])
 
   useEffect(() => {
     if (typeof window !== "undefined") {

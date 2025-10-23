@@ -48,21 +48,43 @@ export async function downloadSong(
     console.log("[v0] Downloading song for offline playback:", title)
 
     // Fetch the audio stream
+    console.log("[v0] Fetching audio stream from API...")
     const response = await fetch(`/api/video/${id}/stream`)
-    const data = await response.json()
 
-    if (!data.audioUrl) {
-      console.error("[v0] No audio URL available")
+    if (!response.ok) {
+      console.error("[v0] API response not OK:", response.status, response.statusText)
       return false
     }
 
+    const data = await response.json()
+    console.log("[v0] API response data:", data)
+
+    if (!data.audioUrl) {
+      console.error("[v0] No audio URL available in response")
+      return false
+    }
+
+    console.log("[v0] Fetching audio file from:", data.audioUrl)
     // Fetch the actual audio file
     const audioResponse = await fetch(data.audioUrl)
+
+    if (!audioResponse.ok) {
+      console.error("[v0] Audio fetch failed:", audioResponse.status, audioResponse.statusText)
+      return false
+    }
+
     const audioBlob = await audioResponse.blob()
 
     console.log("[v0] Audio blob size:", audioBlob.size, "bytes")
+    console.log("[v0] Audio blob type:", audioBlob.type)
+
+    if (audioBlob.size === 0) {
+      console.error("[v0] Audio blob is empty")
+      return false
+    }
 
     // Store in IndexedDB
+    console.log("[v0] Opening IndexedDB...")
     const database = await openDB()
     const transaction = database.transaction([STORE_NAME], "readwrite")
     const store = transaction.objectStore(STORE_NAME)
@@ -78,16 +100,27 @@ export async function downloadSong(
       size: audioBlob.size,
     }
 
+    console.log("[v0] Storing song in IndexedDB...")
     await new Promise((resolve, reject) => {
       const request = store.put(downloadedSong)
-      request.onsuccess = () => resolve(request.result)
-      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        console.log("[v0] IndexedDB store success")
+        resolve(request.result)
+      }
+      request.onerror = () => {
+        console.error("[v0] IndexedDB store error:", request.error)
+        reject(request.error)
+      }
     })
 
     console.log("[v0] Song downloaded successfully:", title)
     return true
   } catch (error) {
     console.error("[v0] Error downloading song:", error)
+    if (error instanceof Error) {
+      console.error("[v0] Error message:", error.message)
+      console.error("[v0] Error stack:", error.stack)
+    }
     return false
   }
 }
