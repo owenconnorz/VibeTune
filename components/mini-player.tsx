@@ -6,8 +6,8 @@ import { Play, Pause, Heart, Cast, SkipBack, SkipForward } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 
 const AudioDevicePicker = dynamic(
@@ -21,6 +21,7 @@ export function MiniPlayer() {
   const { currentVideo, isPlaying, togglePlay, playNext, playPrevious, isCurrentLiked, toggleLikedSong } =
     useMusicPlayer()
   const router = useRouter()
+  const pathname = usePathname()
 
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null)
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null)
@@ -28,8 +29,21 @@ export function MiniPlayer() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [devicePickerOpen, setDevicePickerOpen] = useState(false)
   const [touchStartedOnButton, setTouchStartedOnButton] = useState(false)
+  const [isVisible, setIsVisible] = useState(false)
 
-  const minSwipeDistance = 50
+  const minSwipeDistance = 30
+  const expandThreshold = 100 // Distance to trigger full expansion
+
+  const isPlaylistPage = pathname?.includes("/playlist/")
+
+  useEffect(() => {
+    if (isPlaylistPage && currentVideo) {
+      const timer = setTimeout(() => setIsVisible(true), 100)
+      return () => clearTimeout(timer)
+    } else {
+      setIsVisible(true)
+    }
+  }, [isPlaylistPage, currentVideo])
 
   const handleTouchStart = (e: React.TouchEvent) => {
     const target = e.target as HTMLElement
@@ -37,7 +51,6 @@ export function MiniPlayer() {
     setTouchStartedOnButton(isButton)
 
     if (isButton) {
-      console.log("[v0] Touch started on button, ignoring swipe gesture")
       return
     }
 
@@ -55,17 +68,22 @@ export function MiniPlayer() {
     const currentX = e.targetTouches[0].clientX
     const currentY = e.targetTouches[0].clientY
     const diffX = currentX - touchStart.x
-    const diffY = touchStart.y - currentY
+    const diffY = touchStart.y - currentY // Positive when swiping up
 
-    // Determine if swipe is more horizontal or vertical
     const isHorizontal = Math.abs(diffX) > Math.abs(diffY)
 
     if (isHorizontal) {
-      // Horizontal swipe for skip/previous
       setDragOffset({ x: diffX, y: 0 })
     } else if (diffY > 0) {
-      // Vertical swipe up for now-playing
-      setDragOffset({ x: 0, y: Math.min(diffY, 100) })
+      // Swiping up - allow drag with resistance
+      const resistance = 0.6 // Add resistance to make it feel natural
+      const adjustedY = Math.min(diffY * resistance, window.innerHeight * 0.8)
+      setDragOffset({ x: 0, y: adjustedY })
+
+      // Prevent page scroll when dragging
+      if (diffY > 10) {
+        e.preventDefault()
+      }
     }
 
     setTouchEnd({ x: currentX, y: currentY })
@@ -93,16 +111,16 @@ export function MiniPlayer() {
     const isRightSwipe = distanceX > minSwipeDistance
     const isUpSwipe = distanceY > minSwipeDistance
 
-    if (isHorizontal) {
+    if (!isHorizontal && distanceY > expandThreshold) {
+      // Smooth transition to now-playing
+      router.push("/dashboard/now-playing")
+    } else if (isHorizontal) {
       if (isLeftSwipe) {
-        console.log("[v0] Swiped left - playing next song")
         playNext()
       } else if (isRightSwipe) {
-        console.log("[v0] Swiped right - playing previous song")
         playPrevious()
       }
     } else if (isUpSwipe) {
-      // Handle vertical swipe for now-playing
       router.push("/dashboard/now-playing")
     }
 
@@ -114,28 +132,24 @@ export function MiniPlayer() {
   }
 
   const handleCastClick = () => {
-    console.log("[v0] Cast button clicked, opening device picker")
     setDevicePickerOpen(true)
   }
 
   const handlePreviousClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
-    console.log("[v0] Previous button clicked in mini player")
     playPrevious()
   }
 
   const handleNextClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
-    console.log("[v0] Next button clicked in mini player")
     playNext()
   }
 
   const handlePlayPauseClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
-    console.log("[v0] Play/Pause button clicked in mini player")
     togglePlay()
   }
 
@@ -143,20 +157,31 @@ export function MiniPlayer() {
     e.stopPropagation()
     e.preventDefault()
     if (currentVideo) {
-      console.log("[v0] Like button clicked in mini player")
       toggleLikedSong(currentVideo)
     }
   }
 
   if (!currentVideo) return null
 
+  const dragProgress = Math.min(dragOffset.y / expandThreshold, 1)
+  const scale = 1 + dragProgress * 0.05 // Slight scale up
+  const miniPlayerOpacity = 1 - dragProgress * 0.3 // Fade out slightly
+
   return (
     <>
       <div
-        className="fixed bottom-20 left-0 right-0 bg-card border-t border-border z-30 transition-transform touch-none"
+        className={`fixed left-0 right-0 bg-card border-t border-border z-30 touch-none ${
+          isPlaylistPage ? `bottom-0 ${isVisible ? "translate-y-0" : "translate-y-full"}` : "bottom-20"
+        }`}
         style={{
-          transform: `translate(${dragOffset.x}px, -${dragOffset.y}px)`,
-          opacity: isDragging ? 0.9 : 1,
+          transform: isDragging
+            ? `translate(${dragOffset.x}px, -${dragOffset.y}px) scale(${scale})`
+            : isPlaylistPage && !isVisible
+              ? "translateY(100%)"
+              : "translateY(0)",
+          opacity: isDragging ? miniPlayerOpacity : 1,
+          transition: isDragging ? "none" : "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          transformOrigin: "center bottom",
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

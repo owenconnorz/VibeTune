@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import { SongMenu } from "@/components/song-menu"
 import { useState, useEffect, useRef } from "react"
 import {
   ArrowLeft,
@@ -13,7 +13,6 @@ import {
   ListOrdered,
   Lock,
   Play,
-  MoreVertical,
   Heart,
   ImageIcon,
   X,
@@ -334,7 +333,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
 
         {/* Song List Rendering */}
         {playlist.videos.length > 0 ? (
-          <div className="space-y-0 pb-32">
+          <div className="space-y-0 pb-24">
             {playlist.videos.map((video, index) => {
               const isCurrentlyPlaying = currentVideo?.id === video.id
 
@@ -378,17 +377,15 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
                     <Button variant="ghost" size="icon" className="w-9 h-9" onClick={(e) => handleLikeToggle(video, e)}>
                       <Heart className={`w-5 h-5 ${likedStates[video.id] ? "fill-red-500 text-red-500" : ""}`} />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="w-9 h-9"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // TODO: Open song menu
+                    <SongMenu
+                      video={video}
+                      onLikeToggle={() => {
+                        setLikedStates((prev) => ({
+                          ...prev,
+                          [video.id]: !prev[video.id],
+                        }))
                       }}
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </Button>
+                    />
                   </div>
                 </div>
               )

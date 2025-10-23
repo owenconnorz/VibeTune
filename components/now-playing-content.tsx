@@ -62,9 +62,12 @@ export function NowPlayingContent() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [devicePickerOpen, setDevicePickerOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isEntering, setIsEntering] = useState(true)
 
   useEffect(() => {
     setMounted(true)
+    const timer = setTimeout(() => setIsEntering(false), 50)
+    return () => clearTimeout(timer)
   }, [])
 
   const formatTime = (seconds: number) => {
@@ -76,12 +79,10 @@ export function NowPlayingContent() {
   const handleTouchStart = (e: React.TouchEvent) => {
     const target = e.target as HTMLElement
 
-    // Check if touch is on a slider or any interactive element
     const isSlider = target.closest('[role="slider"]') !== null
     const isButton = target.closest("button") !== null
 
     if (isSlider || isButton) {
-      console.log("[v0] Touch on interactive element, ignoring swipe")
       return
     }
 
@@ -102,20 +103,20 @@ export function NowPlayingContent() {
 
     if (offset > 0) {
       e.preventDefault()
-      setDragOffset(offset)
+      const resistance = 0.7
+      setDragOffset(offset * resistance)
     }
   }
 
   const handleTouchEnd = () => {
     const swipeDistance = touchEnd - touchStart
-    if (swipeDistance > 100) {
+    if (swipeDistance > 80) {
       router.back()
     }
     setDragOffset(0)
   }
 
   const handleCastClick = () => {
-    console.log("[v0] Cast button clicked in now playing, opening device picker")
     setDevicePickerOpen(true)
   }
 
@@ -123,6 +124,9 @@ export function NowPlayingContent() {
     router.push("/dashboard")
     return null
   }
+
+  const dragProgress = Math.min(dragOffset / 200, 1)
+  const contentOpacity = 1 - dragProgress * 0.5
 
   return (
     <>
@@ -132,8 +136,14 @@ export function NowPlayingContent() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         style={{
-          transform: `translateY(${dragOffset}px)`,
-          transition: dragOffset === 0 ? "transform 0.3s ease-out" : "none",
+          transform: isEntering ? "translateY(100%)" : `translateY(${dragOffset}px)`,
+          transition:
+            dragOffset === 0 && !isEntering
+              ? "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+              : isEntering
+                ? "transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)"
+                : "none",
+          opacity: contentOpacity,
           overscrollBehavior: "contain",
         }}
       >
