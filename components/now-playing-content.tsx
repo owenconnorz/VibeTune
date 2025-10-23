@@ -62,7 +62,6 @@ export function NowPlayingContent() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [devicePickerOpen, setDevicePickerOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [touchStartedOnSlider, setTouchStartedOnSlider] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -76,26 +75,25 @@ export function NowPlayingContent() {
 
   const handleTouchStart = (e: React.TouchEvent) => {
     const target = e.target as HTMLElement
-    const isSliderElement =
-      target.closest('[data-slot="slider"]') !== null ||
-      target.closest('[data-slot="slider-track"]') !== null ||
-      target.closest('[data-slot="slider-range"]') !== null ||
-      target.closest('[data-slot="slider-thumb"]') !== null ||
-      target.closest("[data-slider-container]") !== null
 
-    if (isSliderElement) {
-      console.log("[v0] Touch on slider detected, ignoring swipe gesture")
-      setTouchStartedOnSlider(true)
+    // Check if touch is on a slider or any interactive element
+    const isSlider = target.closest('[role="slider"]') !== null
+    const isButton = target.closest("button") !== null
+
+    if (isSlider || isButton) {
+      console.log("[v0] Touch on interactive element, ignoring swipe")
       return
     }
 
-    setTouchStartedOnSlider(false)
     setTouchStart(e.touches[0].clientY)
     setTouchEnd(e.touches[0].clientY)
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartedOnSlider) {
+    const target = e.target as HTMLElement
+    const isSlider = target.closest('[role="slider"]') !== null
+
+    if (isSlider) {
       return
     }
 
@@ -109,11 +107,6 @@ export function NowPlayingContent() {
   }
 
   const handleTouchEnd = () => {
-    if (touchStartedOnSlider) {
-      setTouchStartedOnSlider(false)
-      return
-    }
-
     const swipeDistance = touchEnd - touchStart
     if (swipeDistance > 100) {
       router.back()
@@ -192,32 +185,16 @@ export function NowPlayingContent() {
             </div>
 
             <div className="space-y-1">
-              <div
-                data-slider-container
-                onTouchStart={(e) => {
-                  console.log("[v0] Touch started on seek slider container")
-                  e.stopPropagation()
+              <Slider
+                value={[currentTime]}
+                max={duration || 100}
+                step={1}
+                onValueChange={(value) => {
+                  console.log("[v0] Seek slider changed to:", value[0])
+                  seekTo(value[0])
                 }}
-                onTouchMove={(e) => {
-                  e.stopPropagation()
-                }}
-                onTouchEnd={(e) => {
-                  console.log("[v0] Touch ended on seek slider container")
-                  e.stopPropagation()
-                }}
-              >
-                <Slider
-                  value={[currentTime]}
-                  max={duration || 100}
-                  step={1}
-                  onValueChange={(value) => {
-                    console.log("[v0] Seek bar changed to:", value[0])
-                    seekTo(value[0])
-                  }}
-                  className="w-full"
-                  data-slot="slider"
-                />
-              </div>
+                className="w-full"
+              />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{formatTime(currentTime)}</span>
                 <span>{formatTime(duration)}</span>
@@ -238,30 +215,16 @@ export function NowPlayingContent() {
 
             <div className="flex items-center gap-3">
               <Volume2 className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-              <div
-                data-slider-container
+              <Slider
+                value={[volume * 100]}
+                max={100}
+                step={1}
+                onValueChange={(value) => {
+                  console.log("[v0] Volume slider changed to:", value[0])
+                  setVolume(value[0] / 100)
+                }}
                 className="flex-1"
-                onTouchStart={(e) => {
-                  console.log("[v0] Touch started on volume slider container")
-                  e.stopPropagation()
-                }}
-                onTouchMove={(e) => {
-                  e.stopPropagation()
-                }}
-                onTouchEnd={(e) => {
-                  console.log("[v0] Touch ended on volume slider container")
-                  e.stopPropagation()
-                }}
-              >
-                <Slider
-                  value={[volume * 100]}
-                  max={100}
-                  step={1}
-                  onValueChange={(value) => setVolume(value[0] / 100)}
-                  className="flex-1"
-                  data-slot="slider"
-                />
-              </div>
+              />
             </div>
 
             <div className="flex items-center justify-around pt-1">

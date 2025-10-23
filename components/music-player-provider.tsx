@@ -494,12 +494,15 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   const seekTo = (time: number) => {
+    console.log("[v0] Seeking to:", time, "seconds")
     if (audioRef.current) {
       audioRef.current.currentTime = time
       setCurrentTime(time)
+      console.log("[v0] Audio element seeked to:", time)
     } else if (playerRef.current && playerRef.current.seekTo) {
       playerRef.current.seekTo(time, true)
       setCurrentTime(time)
+      console.log("[v0] YouTube player seeked to:", time)
     }
   }
 
