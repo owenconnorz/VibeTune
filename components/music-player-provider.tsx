@@ -6,6 +6,7 @@ import { historyStorage } from "@/lib/history-storage"
 import { extractColorsFromImage, type ExtractedColors } from "@/lib/color-extractor"
 import { themeStorage } from "@/lib/theme-storage"
 import { getLikedSongs, toggleLikedSong as toggleLikedSongStorage, isLiked } from "@/lib/liked-storage"
+import { getDownloadedSong } from "@/lib/download-storage"
 
 declare global {
   interface Window {
@@ -151,6 +152,24 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     if (!currentVideo) return
 
     const loadAudio = async () => {
+      console.log("[v0] Checking if song is available offline:", currentVideo.title)
+      const offlineSong = await getDownloadedSong(currentVideo.id)
+
+      if (offlineSong && audioRef.current) {
+        console.log("[v0] Playing from offline storage:", currentVideo.title)
+        const blobUrl = URL.createObjectURL(offlineSong.audioBlob)
+        audioRef.current.src = blobUrl
+        audioRef.current.volume = volume / 100
+        audioRef.current.load()
+
+        if (isPlaying) {
+          audioRef.current.play().catch((error) => {
+            console.error("[v0] Error playing offline audio:", error)
+          })
+        }
+        return
+      }
+
       if (useAudioElement && audioRef.current) {
         try {
           console.log("[v0] Loading audio stream for:", currentVideo.title)

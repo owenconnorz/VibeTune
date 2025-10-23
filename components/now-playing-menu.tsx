@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
-import { Volume2, Radio, ListPlus, Link2, User, Disc3, Download } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Volume2, Radio, ListPlus, Link2, User, Disc3, Download, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer"
 import { AddToPlaylistDialog } from "./add-to-playlist-dialog"
+import { downloadSong, isDownloaded, deleteSong } from "@/lib/download-storage"
 
 interface NowPlayingMenuProps {
   open: boolean
@@ -17,12 +18,20 @@ interface NowPlayingMenuProps {
     title: string
     artist: string
     thumbnail?: string
+    duration?: string | number
   } | null
 }
 
 export function NowPlayingMenu({ open, onOpenChange, volume, setVolume, currentVideo }: NowPlayingMenuProps) {
   const [showPlaylistDialog, setShowPlaylistDialog] = useState(false)
   const [isDownloading, setIsDownloading] = useState(false)
+  const [downloaded, setDownloaded] = useState(false)
+
+  useEffect(() => {
+    if (currentVideo) {
+      isDownloaded(currentVideo.id).then(setDownloaded)
+    }
+  }, [currentVideo])
 
   const handleCopyLink = () => {
     if (currentVideo) {
@@ -56,33 +65,38 @@ export function NowPlayingMenu({ open, onOpenChange, volume, setVolume, currentV
 
     try {
       setIsDownloading(true)
-      console.log("[v0] Starting download for:", currentVideo.title)
 
-      // Fetch the audio stream URL
-      const response = await fetch(`/api/video/${currentVideo.id}/stream`)
-      if (!response.ok) {
-        throw new Error("Failed to fetch audio stream")
+      if (downloaded) {
+        // Delete from offline storage
+        console.log("[v0] Removing from offline storage:", currentVideo.title)
+        const success = await deleteSong(currentVideo.id)
+        if (success) {
+          setDownloaded(false)
+          console.log("[v0] Removed from offline storage successfully")
+        }
+      } else {
+        // Download for offline playback
+        console.log("[v0] Downloading for offline playback:", currentVideo.title)
+        const success = await downloadSong(
+          currentVideo.id,
+          currentVideo.title,
+          currentVideo.artist,
+          currentVideo.thumbnail || "",
+          currentVideo.duration || "0:00",
+        )
+
+        if (success) {
+          setDownloaded(true)
+          console.log("[v0] Downloaded successfully for offline playback")
+        } else {
+          alert("Failed to download for offline playback. Please try again.")
+        }
       }
 
-      const data = await response.json()
-      if (!data.audioUrl) {
-        throw new Error("No audio URL available")
-      }
-
-      // Create a temporary anchor element to trigger download
-      const link = document.createElement("a")
-      link.href = data.audioUrl
-      link.download = `${currentVideo.title} - ${currentVideo.artist}.mp3`
-      link.target = "_blank"
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
-      console.log("[v0] Download started successfully")
       onOpenChange(false)
     } catch (error) {
-      console.error("[v0] Download failed:", error)
-      alert("Failed to download audio. Please try again.")
+      console.error("[v0] Download operation failed:", error)
+      alert("Failed to download. Please try again.")
     } finally {
       setIsDownloading(false)
     }
@@ -149,8 +163,8 @@ export function NowPlayingMenu({ open, onOpenChange, volume, setVolume, currentV
                 onClick={handleDownload}
                 disabled={isDownloading}
               >
-                <Download className="w-5 h-5" />
-                <span>{isDownloading ? "Downloading..." : "Download"}</span>
+                {downloaded ? <Check className="w-5 h-5" /> : <Download className="w-5 h-5" />}
+                <span>{isDownloading ? "Processing..." : downloaded ? "Remove from offline" : "Save for offline"}</span>
               </Button>
             </div>
           </div>
@@ -166,7 +180,7 @@ export function NowPlayingMenu({ open, onOpenChange, volume, setVolume, currentV
             title: currentVideo.title,
             artist: currentVideo.artist,
             thumbnail: currentVideo.thumbnail || "",
-            duration: "",
+            duration: currentVideo.duration || "",
           }}
         />
       )}

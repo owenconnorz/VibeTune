@@ -31,10 +31,12 @@ export function LibraryContent() {
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([])
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [likedCount, setLikedCount] = useState(0)
+  const [downloadedCount, setDownloadedCount] = useState(0)
 
   useEffect(() => {
     setUserPlaylists(getPlaylists())
     setLikedCount(getLikedSongsCount())
+    loadDownloadedCount()
     const savedView = localStorage.getItem("library-view-mode")
     if (savedView === "list" || savedView === "grid") {
       setViewMode(savedView)
@@ -51,9 +53,19 @@ export function LibraryContent() {
     localStorage.setItem("library-view-mode", newMode)
   }
 
+  const loadDownloadedCount = async () => {
+    try {
+      const { getAllDownloadedSongs } = await import("@/lib/download-storage")
+      const songs = await getAllDownloadedSongs()
+      setDownloadedCount(songs.length)
+    } catch (error) {
+      console.error("[v0] Error loading downloaded count:", error)
+    }
+  }
+
   const systemPlaylists = [
     { id: "liked", name: "Liked", icon: Heart, count: likedCount },
-    { id: "downloaded", name: "Downloaded", icon: CheckCircle, count: 0 },
+    { id: "downloaded", name: "Downloaded", icon: CheckCircle, count: downloadedCount },
     { id: "top10", name: "My top 10", icon: TrendingUp, count: 0 },
     { id: "cached", name: "Cached", icon: RefreshCw, count: 0 },
     { id: "uploaded", name: "Uploaded", icon: Cloud, count: 0 },
