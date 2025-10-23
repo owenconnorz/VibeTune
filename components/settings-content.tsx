@@ -15,7 +15,7 @@ export function SettingsContent() {
     {
       title: "Player & Content",
       items: [
-        { icon: Play, label: "Player and audio" },
+        { icon: Play, label: "Player and audio", href: "/dashboard/settings/player" },
         { icon: Globe, label: "Content" },
       ],
     },

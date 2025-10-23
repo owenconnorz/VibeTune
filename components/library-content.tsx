@@ -1,11 +1,23 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Heart, CheckCircle, TrendingUp, RefreshCw, Cloud, Plus, Grid3x3, List, MoreVertical } from "lucide-react"
+import {
+  Heart,
+  CheckCircle,
+  TrendingUp,
+  RefreshCw,
+  Cloud,
+  Plus,
+  Grid3x3,
+  List,
+  MoreVertical,
+  Download,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import Link from "next/link"
 import { CreatePlaylistDialog } from "@/components/create-playlist-dialog"
+import { ImportYouTubePlaylistDialog } from "@/components/import-youtube-playlist-dialog"
 import { getPlaylists, type Playlist } from "@/lib/playlist-storage"
 import { getLikedSongsCount } from "@/lib/liked-storage"
 
@@ -15,6 +27,7 @@ export function LibraryContent() {
   const [selectedTab, setSelectedTab] = useState("Playlists")
   const [sortBy, setSortBy] = useState("Date added")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showImportDialog, setShowImportDialog] = useState(false)
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([])
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [likedCount, setLikedCount] = useState(0)
@@ -78,6 +91,9 @@ export function LibraryContent() {
             <span className="text-sm text-muted-foreground">
               {systemPlaylists.length + userPlaylists.length} playlists
             </span>
+            <Button variant="ghost" size="icon" onClick={() => setShowImportDialog(true)} className="rounded-xl">
+              <Download className="w-5 h-5" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={toggleViewMode} className="rounded-xl">
               {viewMode === "grid" ? <Grid3x3 className="w-5 h-5" /> : <List className="w-5 h-5" />}
             </Button>
@@ -117,7 +133,6 @@ export function LibraryContent() {
                           />
                         </div>
                       ))}
-                      {/* Fill empty slots if less than 4 videos */}
                       {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, idx) => (
                         <div key={`empty-${idx}`} className="bg-primary/20" />
                       ))}
@@ -177,7 +192,6 @@ export function LibraryContent() {
                             />
                           </div>
                         ))}
-                        {/* Fill empty slots if less than 4 videos */}
                         {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, idx) => (
                           <div key={`empty-${idx}`} className="bg-primary/20" />
                         ))}
@@ -203,6 +217,8 @@ export function LibraryContent() {
         onOpenChange={setShowCreateDialog}
         onPlaylistCreated={handlePlaylistCreated}
       />
+
+      <ImportYouTubePlaylistDialog open={showImportDialog} onOpenChange={setShowImportDialog} />
     </>
   )
 }

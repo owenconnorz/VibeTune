@@ -89,7 +89,10 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       })
 
       audioRef.current.addEventListener("ended", () => {
-        console.log("[v0] Audio ended, playing next")
+        console.log("[v0] Audio ended - Current song finished")
+        console.log("[v0] Queue length:", queue.length)
+        console.log("[v0] Repeat mode:", repeatMode)
+        console.log("[v0] Calling playNext() for continuous playback")
         playNext()
       })
 
@@ -268,6 +271,10 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
           },
           onStateChange: (event: any) => {
             if (event.data === window.YT.PlayerState.ENDED) {
+              console.log("[v0] YouTube player ended - Current song finished")
+              console.log("[v0] Queue length:", queue.length)
+              console.log("[v0] Repeat mode:", repeatMode)
+              console.log("[v0] Calling playNext() for continuous playback")
               playNext()
             } else if (event.data === window.YT.PlayerState.PLAYING) {
               if (!isManualStateChange.current) {
@@ -384,7 +391,11 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }
 
   const playNext = () => {
-    console.log("[v0] Play next called, queue length:", queue.length, "repeat mode:", repeatMode)
+    console.log("[v0] ===== PLAY NEXT CALLED =====")
+    console.log("[v0] Current video:", currentVideo?.title)
+    console.log("[v0] Queue length:", queue.length)
+    console.log("[v0] Repeat mode:", repeatMode)
+    console.log("[v0] Previous tracks:", previousTracks.length)
 
     if (repeatMode === "one" && currentVideo) {
       console.log("[v0] Repeat one: replaying current song")
@@ -401,7 +412,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
     if (queue.length > 0) {
       const nextVideo = queue[0]
-      console.log("[v0] Playing next video:", nextVideo.title)
+      console.log("[v0] ✓ Playing next video from queue:", nextVideo.title)
       if (currentVideo) {
         setPreviousTracks((prev) => [...prev, currentVideo])
       }
@@ -417,6 +428,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
           allTracks.push(currentVideo)
         }
         const firstTrack = allTracks[0]
+        console.log("[v0] ✓ Restarting with:", firstTrack.title)
         setCurrentVideo(firstTrack)
         setQueue(allTracks.slice(1))
         setPreviousTracks([])
@@ -425,10 +437,12 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      console.log("[v0] No more songs in queue, playback stopped")
+      console.log("[v0] ✗ No more songs in queue, playback stopped")
+      console.log("[v0] TIP: Add songs to queue to enable continuous playback")
       isManualStateChange.current = true
       setIsPlaying(false)
     }
+    console.log("[v0] ===== PLAY NEXT COMPLETED =====")
   }
 
   const playPrevious = () => {

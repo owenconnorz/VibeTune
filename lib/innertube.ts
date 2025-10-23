@@ -514,7 +514,7 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
 
     const data = await makeInnerTubeRequest("player", {
       videoId,
-      params: "8AEB", // Audio only parameter
+      params: "8AEB",
     })
 
     if (!data || !data.streamingData) {
@@ -522,10 +522,8 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
       return null
     }
 
-    // Get adaptive formats (separate audio and video streams)
     const adaptiveFormats = data.streamingData.adaptiveFormats || []
 
-    // Find the best audio-only format
     const audioFormats = adaptiveFormats.filter((format: any) => format.mimeType?.includes("audio") && format.url)
 
     if (audioFormats.length === 0) {
@@ -533,7 +531,6 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
       return null
     }
 
-    // Sort by bitrate (highest first) and get the best quality
     audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
     const bestAudio = audioFormats[0]
 
@@ -547,5 +544,59 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
   } catch (error: any) {
     console.error("[v0] Error fetching audio stream:", error.message)
     return null
+  }
+}
+
+export async function getPlaylistDetails(playlistId: string) {
+  try {
+    console.log("[v0] Fetching playlist details for:", playlistId)
+
+    const data = await makeInnerTubeRequest("browse", {
+      browseId: `VL${playlistId}`,
+    })
+
+    if (!data) {
+      console.error("[v0] No data returned for playlist")
+      return null
+    }
+
+    // Extract playlist header info
+    const header = data.header?.musicDetailHeaderRenderer || data.header?.musicEditablePlaylistDetailHeaderRenderer
+    const title = header?.title?.runs?.[0]?.text || "Untitled Playlist"
+    const description = header?.description?.runs?.[0]?.text || ""
+    const thumbnail = header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
+
+    // Extract playlist items
+    const contents =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+        ?.contents || []
+
+    const videos: any[] = []
+
+    for (const section of contents) {
+      const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
+      if (!shelf) continue
+
+      const items = shelf.contents || []
+      for (const item of items) {
+        const videoInfo = extractVideoInfo(item)
+        if (videoInfo) {
+          videos.push(videoInfo)
+        }
+      }
+    }
+
+    console.log("[v0] Playlist fetched:", title, `(${videos.length} videos)`)
+
+    return {
+      id: playlistId,
+      title,
+      description,
+      thumbnail,
+      videos,
+    }
+  } catch (error: any) {
+    console.error("[v0] Error fetching playlist details:", error.message)
+    throw error
   }
 }
