@@ -593,19 +593,38 @@ export async function getPlaylistDetails(playlistId: string) {
 
       if (continuationToken) {
         hadContinuation = true
-        console.log(`[v0] Found continuation token (section-level: ${!!sectionListRenderer?.continuations?.[0]})`)
+        console.log(`[v0] ===== CONTINUATION TOKEN FOUND =====`)
+        console.log(`[v0] Token source: ${sectionListRenderer?.continuations?.[0] ? "section-level" : "shelf-level"}`)
+        console.log(`[v0] Token length: ${continuationToken.length}`)
+        console.log(`[v0] Token preview: ${continuationToken.substring(0, 50)}...`)
       } else {
         console.log(`[v0] No continuation token found`)
       }
 
       while (continuationToken) {
         totalPages++
-        console.log(`[v0] Fetching page ${totalPages}...`)
+        console.log(`[v0] ===== FETCHING PAGE ${totalPages} =====`)
+        console.log(`[v0] Using continuation token: ${continuationToken.substring(0, 50)}...`)
 
         try {
           const continuationData = await makeInnerTubeRequest("browse", {
             continuation: continuationToken,
           })
+
+          console.log(`[v0] Continuation response received`)
+          console.log(`[v0] Response keys:`, Object.keys(continuationData || {}))
+
+          if (continuationData?.continuationContents) {
+            console.log(`[v0] continuationContents keys:`, Object.keys(continuationData.continuationContents))
+
+            if (continuationData.continuationContents.musicPlaylistShelfContinuation) {
+              const continuation = continuationData.continuationContents.musicPlaylistShelfContinuation
+              console.log(`[v0] musicPlaylistShelfContinuation keys:`, Object.keys(continuation))
+              console.log(`[v0] Contents length:`, continuation.contents?.length || 0)
+              console.log(`[v0] Has continuations:`, "continuations" in continuation)
+              console.log(`[v0] Continuations length:`, continuation.continuations?.length || 0)
+            }
+          }
 
           if (!continuationData) {
             lastError = `No data for page ${totalPages}`
@@ -627,16 +646,26 @@ export async function getPlaylistDetails(playlistId: string) {
 
           console.log(`[v0] Total videos so far: ${videos.length}`)
 
-          continuationToken =
+          const nextToken =
             continuationData.continuationContents?.musicPlaylistShelfContinuation?.continuations?.[0]
               ?.nextContinuationData?.continuation
 
+          if (nextToken) {
+            console.log(`[v0] Found next continuation token: ${nextToken.substring(0, 50)}...`)
+            continuationToken = nextToken
+          } else {
+            console.log(`[v0] No more continuation tokens - reached end of playlist`)
+            continuationToken = null
+          }
+
           if (!continuationToken) {
-            console.log(`[v0] No more pages - fetched all ${totalPages} pages, total: ${videos.length} videos`)
+            console.log(`[v0] Pagination complete: ${totalPages} pages, ${videos.length} total videos`)
           }
         } catch (error: any) {
           lastError = error.message
+          console.error(`[v0] ===== CONTINUATION ERROR =====`)
           console.error(`[v0] Error fetching page ${totalPages}:`, error.message)
+          console.error(`[v0] Error stack:`, error.stack)
           break
         }
       }
