@@ -486,20 +486,31 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    if (isPlaying) {
-      if (audioRef.current && !audioRef.current.paused) {
-        audioRef.current.pause()
-      } else if (playerRef.current && playerRef.current.pauseVideo) {
-        playerRef.current.pauseVideo()
-      }
+    const isAudioPlaying = audioRef.current && !audioRef.current.paused
+    const isYouTubePlaying =
+      playerRef.current &&
+      playerRef.current.getPlayerState &&
+      playerRef.current.getPlayerState() === window.YT?.PlayerState?.PLAYING
+
+    console.log("[v0] Audio element playing:", isAudioPlaying)
+    console.log("[v0] YouTube player playing:", isYouTubePlaying)
+
+    if (isAudioPlaying) {
+      console.log("[v0] Pausing audio element")
+      audioRef.current.pause()
+    } else if (isYouTubePlaying) {
+      console.log("[v0] Pausing YouTube player")
+      playerRef.current.pauseVideo()
+    } else if (audioRef.current && audioRef.current.src) {
+      console.log("[v0] Playing audio element")
+      audioRef.current.play().catch((error) => {
+        console.error("[v0] Error playing audio:", error)
+      })
+    } else if (playerRef.current && playerRef.current.playVideo) {
+      console.log("[v0] Playing YouTube player")
+      playerRef.current.playVideo()
     } else {
-      if (audioRef.current && audioRef.current.paused) {
-        audioRef.current.play().catch((error) => {
-          console.error("[v0] Error playing audio:", error)
-        })
-      } else if (playerRef.current && playerRef.current.playVideo) {
-        playerRef.current.playVideo()
-      }
+      console.log("[v0] No playback source available")
     }
   }
 

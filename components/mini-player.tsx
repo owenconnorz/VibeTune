@@ -204,7 +204,9 @@ export function MiniPlayer() {
                 />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-sm truncate">{currentVideo.title}</h4>
+                <div className="overflow-x-auto scrollbar-hide">
+                  <h4 className="font-semibold text-sm whitespace-nowrap">{currentVideo.title}</h4>
+                </div>
                 <p className="text-xs text-muted-foreground truncate">{currentVideo.artist}</p>
               </div>
             </div>

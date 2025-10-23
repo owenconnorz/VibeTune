@@ -137,4 +137,14 @@
     -webkit-user-select: text;
     user-select: text;
   }
+
+  /* Hide scrollbars for horizontal scrolling text */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }

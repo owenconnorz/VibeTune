@@ -163,21 +163,11 @@ export function NowPlayingContent() {
           <div className="w-full max-w-sm flex flex-col gap-4 pb-safe">
             <div className="text-center">
               <p className="text-sm text-muted-foreground">Now Playing</p>
-              <h2 className="text-base font-semibold">music 🎶</h2>
-            </div>
-
-            <div className="relative w-full aspect-square max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl">
-              <Image
-                src={currentVideo.thumbnail || "/placeholder.svg"}
-                alt={currentVideo.title}
-                fill
-                className="object-cover"
-                priority
-              />
-            </div>
-
-            <div className="text-center space-y-1">
-              <h1 className="text-xl font-bold line-clamp-2 px-2">{currentVideo.title}</h1>
+              <div className="overflow-x-auto scrollbar-hide px-2">
+                <h1 className="text-xl font-bold whitespace-nowrap inline-block min-w-full text-center">
+                  {currentVideo.title}
+                </h1>
+              </div>
               <p className="text-base text-muted-foreground line-clamp-1">{currentVideo.artist}</p>
               <div className="flex items-center justify-center gap-4 pt-1">
                 <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
@@ -192,6 +182,16 @@ export function NowPlayingContent() {
                   <Heart className={`w-5 h-5 ${isCurrentLiked ? "fill-red-500 text-red-500" : ""}`} />
                 </Button>
               </div>
+            </div>
+
+            <div className="relative w-full aspect-square max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl">
+              <Image
+                src={currentVideo.thumbnail || "/placeholder.svg"}
+                alt={currentVideo.title}
+                fill
+                className="object-cover"
+                priority
+              />
             </div>
 
             <div className="space-y-1">
