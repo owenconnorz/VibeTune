@@ -488,9 +488,24 @@ export async function getHomeFeed() {
   }
 }
 
-export async function getAudioStream(videoId: string): Promise<string | null> {
+export async function getAudioStream(videoId: string, quality?: "auto" | "high" | "low"): Promise<string | null> {
   try {
     console.log("[v0] Fetching audio stream for video:", videoId)
+
+    if (!quality) {
+      try {
+        const settings = localStorage.getItem("playerSettings")
+        if (settings) {
+          const parsed = JSON.parse(settings)
+          quality = parsed.audioQuality || "high"
+        } else {
+          quality = "high"
+        }
+      } catch {
+        quality = "high"
+      }
+    }
+    console.log("[v0] Using audio quality:", quality)
 
     const data = await makeInnerTubeRequest("player", {
       videoId,
@@ -512,15 +527,32 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
     }
 
     audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-    const bestAudio = audioFormats[0]
 
-    console.log("[v0] Found audio stream:", {
-      mimeType: bestAudio.mimeType,
-      bitrate: bestAudio.bitrate,
-      audioQuality: bestAudio.audioQuality,
+    let selectedAudio: any
+
+    if (quality === "high") {
+      // Highest quality (highest bitrate)
+      selectedAudio = audioFormats[0]
+      console.log("[v0] Selected HIGH quality audio")
+    } else if (quality === "low") {
+      // Lowest quality (lowest bitrate)
+      selectedAudio = audioFormats[audioFormats.length - 1]
+      console.log("[v0] Selected LOW quality audio")
+    } else {
+      // Auto: middle quality (balance between quality and size)
+      const middleIndex = Math.floor(audioFormats.length / 2)
+      selectedAudio = audioFormats[middleIndex]
+      console.log("[v0] Selected AUTO quality audio (middle bitrate)")
+    }
+
+    console.log("[v0] Selected audio stream:", {
+      mimeType: selectedAudio.mimeType,
+      bitrate: selectedAudio.bitrate,
+      audioQuality: selectedAudio.audioQuality,
+      quality: quality,
     })
 
-    return bestAudio.url
+    return selectedAudio.url
   } catch (error: any) {
     console.error("[v0] Error fetching audio stream:", error.message)
     return null

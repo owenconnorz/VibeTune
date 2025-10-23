@@ -9,10 +9,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Video ID is required" }, { status: 400 })
     }
 
-    console.log("[v0] Fetching audio stream for video:", videoId)
+    const { searchParams } = new URL(request.url)
+    const quality = searchParams.get("quality") as "auto" | "high" | "low" | null
 
-    // Get audio stream URL from InnerTube
-    const audioUrl = await getAudioStream(videoId)
+    console.log("[v0] Fetching audio stream for video:", videoId, "quality:", quality || "default")
+
+    // Get audio stream URL from InnerTube with quality preference
+    const audioUrl = await getAudioStream(videoId, quality || undefined)
 
     if (!audioUrl) {
       return NextResponse.json({ error: "Audio stream not found" }, { status: 404 })
