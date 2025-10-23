@@ -577,6 +577,20 @@ export async function getPlaylistDetails(playlistId: string) {
         }
       }
 
+      console.log("[v0] ===== SHELF STRUCTURE DEBUG =====")
+      console.log("[v0] Shelf keys:", Object.keys(shelf))
+      console.log("[v0] Has continuations?", "continuations" in shelf)
+
+      if (shelf.continuations) {
+        console.log("[v0] Continuations array length:", shelf.continuations.length)
+        console.log("[v0] First continuation keys:", Object.keys(shelf.continuations[0] || {}))
+        console.log("[v0] First continuation:", JSON.stringify(shelf.continuations[0], null, 2))
+      } else {
+        console.log("[v0] No continuations property found")
+        console.log("[v0] Full shelf structure:", JSON.stringify(shelf, null, 2).substring(0, 1000))
+      }
+      console.log("[v0] ===== END SHELF STRUCTURE DEBUG =====")
+
       let continuationToken = shelf.continuations?.[0]?.nextContinuationData?.continuation
       if (continuationToken) {
         hadContinuation = true
