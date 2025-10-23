@@ -93,7 +93,38 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
     }))
   }
 
-  const formatDuration = (totalSeconds: number) => {
+  const parseDuration = (duration: any): number => {
+    // If duration is already a number, return it
+    if (typeof duration === "number") {
+      return duration
+    }
+
+    // If duration is a string like "3:40" or "1:23:45", parse it
+    if (typeof duration === "string") {
+      const parts = duration.split(":").map((p) => Number.parseInt(p, 10))
+
+      if (parts.length === 2) {
+        // Format: "MM:SS"
+        const [minutes, seconds] = parts
+        return minutes * 60 + seconds
+      } else if (parts.length === 3) {
+        // Format: "HH:MM:SS"
+        const [hours, minutes, seconds] = parts
+        return hours * 3600 + minutes * 60 + seconds
+      }
+    }
+
+    // If we can't parse it, return 0
+    return 0
+  }
+
+  const formatDuration = (duration: any) => {
+    const totalSeconds = parseDuration(duration)
+
+    if (totalSeconds === 0) {
+      return "0:00"
+    }
+
     const hours = Math.floor(totalSeconds / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const seconds = totalSeconds % 60
@@ -107,7 +138,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const getTotalDuration = () => {
     if (!playlist) return "0:00"
     const total = playlist.videos.reduce((acc, video) => {
-      return acc + (video.duration || 0)
+      return acc + parseDuration(video.duration)
     }, 0)
     return formatDuration(total)
   }
@@ -338,12 +369,8 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
                     <p className="font-medium truncate text-base leading-tight">{video.title}</p>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
                       <span className="truncate">{video.artist || "Unknown Artist"}</span>
-                      {video.duration && (
-                        <>
-                          <span>•</span>
-                          <span className="flex-shrink-0">{formatDuration(video.duration)}</span>
-                        </>
-                      )}
+                      <span>•</span>
+                      <span className="flex-shrink-0">{formatDuration(video.duration)}</span>
                     </div>
                   </div>
 
