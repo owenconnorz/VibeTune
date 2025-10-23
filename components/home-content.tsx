@@ -1,17 +1,13 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
-import { Play, ChevronRight, RefreshCw } from "lucide-react"
+import { Play, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { useMusicPlayer } from "@/components/music-player-provider"
-import Image from "next/image"
 import { useAPI } from "@/lib/use-api"
 import Link from "next/link"
-import { RecentlyPlayedSection } from "@/components/recently-played-section"
-import { SmartPlaylistsSection } from "@/components/smart-playlists-section"
+import { ProgressiveImage } from "@/components/progressive-image"
 
 const categories = ["Podcasts", "Energize", "Feel good", "Relax", "Workout", "Commute"]
 
@@ -59,77 +55,17 @@ interface HomeFeedSection {
 export function HomeContent() {
   const [selectedCategory, setSelectedCategory] = useState("Podcasts")
   const { playVideo } = useMusicPlayer()
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [pullDistance, setPullDistance] = useState(0)
-  const [startY, setStartY] = useState(0)
 
-  const { data, isLoading, error, mutate } = useAPI<{ sections: HomeFeedSection[] }>("/api/music/home", {
+  const { data, isLoading, error } = useAPI<{ sections: HomeFeedSection[] }>("/api/music/home", {
     refreshInterval: 60000,
     revalidateOnMount: true,
   })
 
   const homeFeed = data?.sections || []
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    await mutate()
-    setTimeout(() => setIsRefreshing(false), 500)
-  }
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const scrollTop = (e.currentTarget as HTMLElement).scrollTop
-    if (scrollTop === 0) {
-      setStartY(e.touches[0].clientY)
-    }
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (startY === 0) return
-    const currentY = e.touches[0].clientY
-    const distance = currentY - startY
-    if (distance > 0 && distance < 150) {
-      setPullDistance(distance)
-    }
-  }
-
-  const handleTouchEnd = () => {
-    if (pullDistance > 80) {
-      handleRefresh()
-    }
-    setPullDistance(0)
-    setStartY(0)
-  }
-
   return (
-    <div
-      className="space-y-6 relative"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {pullDistance > 0 && (
-        <div
-          className="absolute top-0 left-0 right-0 flex justify-center transition-opacity z-50"
-          style={{
-            transform: `translateY(${Math.min(pullDistance - 40, 40)}px)`,
-            opacity: Math.min(pullDistance / 80, 1),
-          }}
-        >
-          <div className="bg-background/95 backdrop-blur-sm rounded-full p-2 shadow-lg border">
-            <RefreshCw className={`w-5 h-5 ${pullDistance > 80 ? "text-primary" : "text-muted-foreground"}`} />
-          </div>
-        </div>
-      )}
-
-      <Button
-        size="icon"
-        className="fixed bottom-24 right-4 z-50 rounded-full shadow-lg"
-        onClick={handleRefresh}
-        disabled={isRefreshing}
-      >
-        <RefreshCw className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
-      </Button>
-
+    <div className="space-y-6">
+      {/* Categories */}
       <ScrollArea className="w-full">
         <div className="flex gap-2 px-4 py-4">
           {categories.map((category) => (
@@ -146,12 +82,6 @@ export function HomeContent() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* Recently Played section */}
-      <RecentlyPlayedSection />
-
-      {/* Smart Playlists section */}
-      <SmartPlaylistsSection />
-
       <div className="px-4 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Mood and Genres</h2>
@@ -159,6 +89,7 @@ export function HomeContent() {
         </div>
         <ScrollArea className="w-full">
           <div className="flex gap-4 pb-4">
+            {/* Create pages of 8 items (4 rows x 2 columns) */}
             {Array.from({ length: Math.ceil(moodAndGenres.length / 8) }).map((_, pageIndex) => (
               <div
                 key={pageIndex}
@@ -205,14 +136,9 @@ export function HomeContent() {
                       playVideo({ id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail })
                     }
                   >
-                    <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image
-                        src={song.thumbnail || "/placeholder.svg"}
-                        alt={song.title}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="relative w-14 h-14 flex-shrink-0">
+                      <ProgressiveImage src={song.thumbnail || "/placeholder.svg"} alt={song.title} rounded="lg" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                         <Play className="w-6 h-6 fill-white text-white" />
                       </div>
                     </div>
@@ -249,14 +175,9 @@ export function HomeContent() {
                         playVideo({ id: item.id, title: item.title, artist: item.artist, thumbnail: item.thumbnail })
                       }
                     >
-                      <div className="relative aspect-video rounded-lg overflow-hidden mb-3">
-                        <Image
-                          src={item.thumbnail || "/placeholder.svg"}
-                          alt={item.title}
-                          fill
-                          className="object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <div className="relative aspect-video mb-3">
+                        <ProgressiveImage src={item.thumbnail || "/placeholder.svg"} alt={item.title} rounded="lg" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                           <Play className="w-12 h-12 fill-white text-white" />
                         </div>
                       </div>
@@ -284,16 +205,9 @@ export function HomeContent() {
                           playVideo({ id: item.id, title: item.title, artist: item.artist, thumbnail: item.thumbnail })
                         }
                       >
-                        <div
-                          className={`relative ${isVideo ? "aspect-video" : "aspect-square"} rounded-lg overflow-hidden mb-2`}
-                        >
-                          <Image
-                            src={item.thumbnail || "/placeholder.svg"}
-                            alt={item.title}
-                            fill
-                            className="object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className={`relative ${isVideo ? "aspect-video" : "aspect-square"} mb-2`}>
+                          <ProgressiveImage src={item.thumbnail || "/placeholder.svg"} alt={item.title} rounded="lg" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                             <Play className="w-8 h-8 fill-white text-white" />
                           </div>
                         </div>

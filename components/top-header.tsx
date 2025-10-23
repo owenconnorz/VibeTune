@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Clock, TrendingUp, Film, SearchIcon } from "lucide-react"
+import { Clock, TrendingUp, Film } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { ProfileMenu } from "@/components/profile-menu"
@@ -14,10 +14,9 @@ interface TopHeaderProps {
     image?: string | null
   } | null
   title: string
-  showSearch?: boolean
 }
 
-export function TopHeader({ user, title, showSearch }: TopHeaderProps) {
+export function TopHeader({ user, title }: TopHeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   return (
@@ -27,19 +26,12 @@ export function TopHeader({ user, title, showSearch }: TopHeaderProps) {
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">{title}</h1>
             <div className="flex items-center gap-3">
-              {showSearch && (
-                <Link href="/dashboard/search">
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <SearchIcon className="w-6 h-6" />
-                  </Button>
-                </Link>
-              )}
               <Link href="/dashboard/history">
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Clock className="w-6 h-6" />
                 </Button>
               </Link>
-              <Link href="/movies">
+              <Link href="/dashboard/movies">
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Film className="w-6 h-6" />
                 </Button>

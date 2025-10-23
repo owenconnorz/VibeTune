@@ -27,26 +27,41 @@ async function makeInnerTubeRequest(endpoint: string, params: any = {}) {
     ...params,
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Goog-Api-Key": INNERTUBE_API_KEY,
-      "X-Youtube-Client-Name": "67",
-      "X-Youtube-Client-Version": INNERTUBE_CLIENT_VERSION,
-      Origin: "https://music.youtube.com",
-      Referer: "https://music.youtube.com/",
-    },
-    body: JSON.stringify(body),
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error(`[v0] InnerTube ${endpoint} error:`, response.status)
-    throw new Error(`InnerTube API error: ${response.status}`)
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": INNERTUBE_API_KEY,
+        "X-Youtube-Client-Name": "67",
+        "X-Youtube-Client-Version": INNERTUBE_CLIENT_VERSION,
+        Origin: "https://music.youtube.com",
+        Referer: "https://music.youtube.com/",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`[v0] InnerTube ${endpoint} error:`, response.status, errorText)
+      throw new Error(`InnerTube API error: ${response.status}`)
+    }
+
+    return response.json()
+  } catch (error: any) {
+    clearTimeout(timeoutId)
+    if (error.name === "AbortError") {
+      console.error(`[v0] InnerTube ${endpoint} timeout after 10 seconds`)
+      throw new Error(`Request timeout: ${endpoint}`)
+    }
+    throw error
   }
-
-  return response.json()
 }
 
 function extractVideoInfo(item: any) {
@@ -81,6 +96,8 @@ function extractVideoInfo(item: any) {
 
 export async function searchMusic(query: string, continuation?: string) {
   try {
+    console.log(`[v0] Searching for: "${query}"`)
+
     const params: any = {
       query,
       params: "EgWKAQIIAWoKEAMQBBAJEAoQBQ%3D%3D",
@@ -91,8 +108,10 @@ export async function searchMusic(query: string, continuation?: string) {
     }
 
     const data = await makeInnerTubeRequest("search", params)
+    console.log(`[v0] Search response received for: "${query}"`)
 
     if (!data || typeof data !== "object") {
+      console.log(`[v0] Invalid search response for: "${query}"`)
       return { videos: [], continuation: null }
     }
 
@@ -158,13 +177,15 @@ export async function searchMusic(query: string, continuation?: string) {
         ?.continuations?.[0]?.nextContinuationData?.continuation ||
       data.continuationContents?.musicShelfContinuation?.continuations?.[0]?.nextContinuationData?.continuation
 
+    console.log(`[v0] Search complete for "${query}": ${videos.length} items found`)
+
     return {
       videos,
       continuation: continuationToken || null,
     }
   } catch (error: any) {
-    console.error("[v0] Search error:", error.message)
-    throw error
+    console.error(`[v0] Search error for "${query}":`, error.message)
+    return { videos: [], continuation: null }
   }
 }
 
@@ -370,248 +391,73 @@ export async function getCharts() {
   }
 }
 
-const GENRE_POOLS = {
-  trending: ["trending music", "viral songs", "top hits 2024", "chart toppers", "popular now"],
-  popular: ["popular music", "best songs", "top tracks", "hit songs", "most played"],
-  mood: [
-    "feel good music",
-    "happy songs",
-    "upbeat music",
-    "energetic tracks",
-    "positive vibes",
-    "chill music",
-    "relaxing songs",
-    "calm music",
-    "peaceful tracks",
-    "ambient music",
-  ],
-  activity: [
-    "workout music",
-    "gym songs",
-    "running music",
-    "exercise tracks",
-    "fitness playlist",
-    "study music",
-    "focus songs",
-    "concentration music",
-    "work playlist",
-  ],
-  genre: [
-    "pop music",
-    "rock songs",
-    "hip hop tracks",
-    "electronic music",
-    "indie songs",
-    "r&b music",
-    "jazz tracks",
-    "country songs",
-    "latin music",
-    "k-pop songs",
-  ],
-  era: ["80s music", "90s hits", "2000s songs", "2010s music", "classic hits", "throwback songs"],
-}
-
-// Helper to get random item from array
-function getRandomItem<T>(array: T[]): T {
-  return array[Math.floor(Math.random() * array.length)]
-}
-
-// Helper to get varied search queries
-function getVariedQueries() {
-  return {
-    quickPicks: getRandomItem([...GENRE_POOLS.trending, ...GENRE_POOLS.popular]),
-    trending: getRandomItem(GENRE_POOLS.trending),
-    popular: getRandomItem([...GENRE_POOLS.popular, ...GENRE_POOLS.genre]),
-    mood1: getRandomItem(GENRE_POOLS.mood),
-    mood2: getRandomItem(GENRE_POOLS.mood.filter((m) => m !== GENRE_POOLS.mood[0])),
-    activity: getRandomItem(GENRE_POOLS.activity),
-    genre: getRandomItem(GENRE_POOLS.genre),
-    era: getRandomItem(GENRE_POOLS.era),
-  }
-}
-
 export async function getHomeFeed() {
   try {
     console.log("[v0] ===== STARTING HOME FEED FETCH =====")
     console.log("[v0] Timestamp:", new Date().toISOString())
 
-    const queries = getVariedQueries()
-    console.log("[v0] Using varied queries:", queries)
-
     const sections: any[] = []
 
-    // Fetch quick picks with varied query
-    try {
-      console.log("[v0] Fetching quick picks with query:", queries.quickPicks)
-      const quickPicksResults = await searchMusic(queries.quickPicks)
-      console.log("[v0] Quick picks items:", quickPicksResults.videos.length)
+    const searchPromises = [
+      searchMusic("trending music 2024").then((result) => ({ title: "Quick picks", result, type: "list" })),
+      searchMusic("top charts 2024").then((result) => ({ title: "Top Charts", result, type: "carousel" })),
+      searchMusic("popular music 2024").then((result) => ({ title: "Popular Music", result, type: "carousel" })),
+      searchMusic("feel good music").then((result) => ({ title: "Feel Good", result, type: "carousel" })),
+      searchMusic("workout music").then((result) => ({ title: "Workout Mix", result, type: "carousel" })),
+    ]
 
-      if (quickPicksResults.videos.length > 0) {
-        sections.push({
-          title: "Quick picks",
-          items: quickPicksResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-          type: "list",
-        })
+    const results = await Promise.allSettled(searchPromises)
+
+    results.forEach((promiseResult, index) => {
+      if (promiseResult.status === "fulfilled") {
+        const { title, result, type } = promiseResult.value
+        if (result.videos.length > 0) {
+          sections.push({
+            title,
+            items: result.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+            type,
+          })
+          console.log(`[v0] ${title}: ${result.videos.length} items`)
+        } else {
+          console.log(`[v0] ${title}: No items found`)
+        }
+      } else {
+        console.error(`[v0] Search ${index} failed:`, promiseResult.reason)
       }
-    } catch (error: any) {
-      console.error("[v0] Quick picks failed:", error.message)
-    }
-
-    // Fetch trending with varied query
-    try {
-      console.log("[v0] Fetching trending with query:", queries.trending)
-      const trendingResults = await searchMusic(queries.trending)
-      console.log("[v0] Trending items:", trendingResults.videos.length)
-
-      if (trendingResults.videos.length > 0) {
-        sections.push({
-          title: "Trending Now",
-          items: trendingResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-          type: "carousel",
-        })
-      }
-    } catch (error: any) {
-      console.error("[v0] Trending failed:", error.message)
-    }
-
-    // Fetch popular with varied query
-    try {
-      console.log("[v0] Fetching popular with query:", queries.popular)
-      const popularResults = await searchMusic(queries.popular)
-      console.log("[v0] Popular items:", popularResults.videos.length)
-
-      if (popularResults.videos.length > 0) {
-        sections.push({
-          title: "Popular Music",
-          items: popularResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-          type: "carousel",
-        })
-      }
-    } catch (error: any) {
-      console.error("[v0] Popular failed:", error.message)
-    }
-
-    // Fetch first mood category with varied query
-    try {
-      console.log("[v0] Fetching mood music with query:", queries.mood1)
-      const mood1Results = await searchMusic(queries.mood1)
-      console.log("[v0] Mood 1 items:", mood1Results.videos.length)
-
-      if (mood1Results.videos.length > 0) {
-        // Capitalize first letter of each word for title
-        const title = queries.mood1
-          .split(" ")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ")
-
-        sections.push({
-          title,
-          items: mood1Results.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-          type: "carousel",
-        })
-      }
-    } catch (error: any) {
-      console.error("[v0] Mood 1 failed:", error.message)
-    }
-
-    // Fetch activity category with varied query
-    try {
-      console.log("[v0] Fetching activity music with query:", queries.activity)
-      const activityResults = await searchMusic(queries.activity)
-      console.log("[v0] Activity items:", activityResults.videos.length)
-
-      if (activityResults.videos.length > 0) {
-        const title = queries.activity
-          .split(" ")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ")
-
-        sections.push({
-          title,
-          items: activityResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-          type: "carousel",
-        })
-      }
-    } catch (error: any) {
-      console.error("[v0] Activity failed:", error.message)
-    }
-
-    // Fetch genre category with varied query
-    try {
-      console.log("[v0] Fetching genre music with query:", queries.genre)
-      const genreResults = await searchMusic(queries.genre)
-      console.log("[v0] Genre items:", genreResults.videos.length)
-
-      if (genreResults.videos.length > 0) {
-        const title = queries.genre
-          .split(" ")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ")
-
-        sections.push({
-          title,
-          items: genreResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-          type: "carousel",
-        })
-      }
-    } catch (error: any) {
-      console.error("[v0] Genre failed:", error.message)
-    }
-
-    // Fetch era category with varied query
-    try {
-      console.log("[v0] Fetching era music with query:", queries.era)
-      const eraResults = await searchMusic(queries.era)
-      console.log("[v0] Era items:", eraResults.videos.length)
-
-      if (eraResults.videos.length > 0) {
-        const title = queries.era
-          .split(" ")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ")
-
-        sections.push({
-          title,
-          items: eraResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-          type: "carousel",
-        })
-      }
-    } catch (error: any) {
-      console.error("[v0] Era failed:", error.message)
-    }
-
-    // Fetch second mood category with varied query
-    try {
-      console.log("[v0] Fetching second mood with query:", queries.mood2)
-      const mood2Results = await searchMusic(queries.mood2)
-      console.log("[v0] Mood 2 items:", mood2Results.videos.length)
-
-      if (mood2Results.videos.length > 0) {
-        const title = queries.mood2
-          .split(" ")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(" ")
-
-        sections.push({
-          title,
-          items: mood2Results.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-          type: "carousel",
-        })
-      }
-    } catch (error: any) {
-      console.error("[v0] Mood 2 failed:", error.message)
-    }
+    })
 
     console.log("[v0] ===== HOME FEED COMPLETE =====")
     console.log("[v0] Total sections created:", sections.length)
     console.log("[v0] Section titles:", sections.map((s) => s.title).join(", "))
 
+    if (sections.length === 0) {
+      console.log("[v0] No sections created, returning fallback data")
+      return {
+        sections: [
+          {
+            title: "Popular Music",
+            items: [],
+            type: "carousel",
+          },
+        ],
+      }
+    }
+
     return { sections }
   } catch (error: any) {
-    console.log("[v0] ===== HOME FEED FATAL ERROR =====")
-    console.log("[v0] Error:", error.message)
-    console.log("[v0] Stack:", error.stack)
-    throw error
+    console.error("[v0] ===== HOME FEED FATAL ERROR =====")
+    console.error("[v0] Error:", error.message)
+    console.error("[v0] Stack:", error.stack)
+
+    return {
+      sections: [
+        {
+          title: "Popular Music",
+          items: [],
+          type: "carousel",
+        },
+      ],
+    }
   }
 }
 
@@ -621,245 +467,38 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
 
     const data = await makeInnerTubeRequest("player", {
       videoId,
-      // Removed params: "8AEB" to get all formats
+      params: "8AEB", // Audio only parameter
     })
 
-    console.log("[v0] Player response received:", {
-      hasStreamingData: !!data?.streamingData,
-      hasAdaptiveFormats: !!data?.streamingData?.adaptiveFormats,
-      hasFormats: !!data?.streamingData?.formats,
-      playabilityStatus: data?.playabilityStatus?.status,
-    })
-
-    if (!data) {
-      console.error("[v0] No data returned from player endpoint")
+    if (!data || !data.streamingData) {
+      console.error("[v0] No streaming data available")
       return null
     }
 
-    if (data.playabilityStatus?.status !== "OK") {
-      console.error("[v0] Video not playable:", data.playabilityStatus?.status, data.playabilityStatus?.reason)
-      return null
-    }
-
-    if (!data.streamingData) {
-      console.error("[v0] No streaming data in response")
-      console.log("[v0] Response keys:", Object.keys(data))
-      return null
-    }
-
+    // Get adaptive formats (separate audio and video streams)
     const adaptiveFormats = data.streamingData.adaptiveFormats || []
+
+    // Find the best audio-only format
     const audioFormats = adaptiveFormats.filter((format: any) => format.mimeType?.includes("audio") && format.url)
 
-    if (audioFormats.length > 0) {
-      // Sort by bitrate (highest first) and get the best quality
-      audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-      const bestAudio = audioFormats[0]
-
-      console.log("[v0] Found audio stream (adaptive):", {
-        mimeType: bestAudio.mimeType,
-        bitrate: bestAudio.bitrate,
-        audioQuality: bestAudio.audioQuality,
-      })
-
-      return bestAudio.url
+    if (audioFormats.length === 0) {
+      console.error("[v0] No audio formats available")
+      return null
     }
 
-    const formats = data.streamingData.formats || []
-    const audioVideoFormats = formats.filter((format: any) => format.mimeType?.includes("audio") && format.url)
+    // Sort by bitrate (highest first) and get the best quality
+    audioFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+    const bestAudio = audioFormats[0]
 
-    if (audioVideoFormats.length > 0) {
-      // Sort by quality and get the best one
-      audioVideoFormats.sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
-      const bestFormat = audioVideoFormats[0]
+    console.log("[v0] Found audio stream:", {
+      mimeType: bestAudio.mimeType,
+      bitrate: bestAudio.bitrate,
+      audioQuality: bestAudio.audioQuality,
+    })
 
-      console.log("[v0] Found audio stream (combined):", {
-        mimeType: bestFormat.mimeType,
-        bitrate: bestFormat.bitrate,
-        quality: bestFormat.quality,
-      })
-
-      return bestFormat.url
-    }
-
-    console.error("[v0] No audio formats available in response")
-    console.log("[v0] Adaptive formats count:", adaptiveFormats.length)
-    console.log("[v0] Regular formats count:", formats.length)
-    return null
+    return bestAudio.url
   } catch (error: any) {
     console.error("[v0] Error fetching audio stream:", error.message)
-    console.error("[v0] Error stack:", error.stack)
     return null
-  }
-}
-
-export async function getPlaylistData(playlistId: string) {
-  try {
-    console.log("[v0] Fetching playlist data for:", playlistId)
-
-    const data = await makeInnerTubeRequest("browse", {
-      browseId: `VL${playlistId}`,
-    })
-
-    console.log("[v0] Raw playlist response structure:", {
-      hasHeader: !!data.header,
-      headerType: data.header ? Object.keys(data.header)[0] : null,
-      hasContents: !!data.contents,
-      contentsStructure: data.contents ? Object.keys(data.contents) : null,
-    })
-
-    const header = data.header?.musicDetailHeaderRenderer || data.header?.musicEditablePlaylistDetailHeaderRenderer
-
-    const contents =
-      data.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents ||
-      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
-        ?.contents ||
-      []
-
-    console.log("[v0] Parsed header:", {
-      hasHeader: !!header,
-      title: header?.title?.runs?.[0]?.text,
-    })
-
-    console.log("[v0] Contents sections found:", contents.length)
-
-    const playlistName = header?.title?.runs?.[0]?.text || "Imported Playlist"
-    const playlistDescription = header?.description?.runs?.[0]?.text || ""
-    const playlistThumbnail =
-      header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
-
-    const songs: any[] = []
-    let continuationToken: string | null = null
-
-    for (const section of contents) {
-      const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
-
-      console.log("[v0] Processing section:", {
-        hasShelf: !!shelf,
-        shelfType: shelf ? (section.musicShelfRenderer ? "musicShelfRenderer" : "musicPlaylistShelfRenderer") : null,
-        itemsCount: shelf?.contents?.length || 0,
-      })
-
-      if (!shelf) continue
-
-      const items = shelf.contents || []
-      for (const item of items) {
-        if (item.continuationItemRenderer) {
-          continuationToken = item.continuationItemRenderer.continuationEndpoint?.continuationCommand?.token
-          console.log("[v0] Found continuation token, more songs available")
-          continue
-        }
-
-        const videoInfo = extractVideoInfo(item)
-        if (videoInfo) {
-          songs.push(videoInfo)
-        } else {
-          console.log("[v0] Failed to extract video info from item:", Object.keys(item))
-        }
-      }
-    }
-
-    let currentContinuation = continuationToken
-    let pageCount = 1
-
-    while (currentContinuation) {
-      pageCount++
-      console.log(`[v0] Fetching page ${pageCount} with continuation token`)
-
-      try {
-        const url = `https://music.youtube.com/youtubei/v1/browse?key=${INNERTUBE_API_KEY}`
-
-        const response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": INNERTUBE_API_KEY,
-            "X-Youtube-Client-Name": "67",
-            "X-Youtube-Client-Version": INNERTUBE_CLIENT_VERSION,
-            Origin: "https://music.youtube.com",
-            Referer: "https://music.youtube.com/",
-          },
-          body: JSON.stringify({
-            context: createContext(),
-            continuation: currentContinuation,
-          }),
-        })
-
-        if (!response.ok) {
-          console.error(`[v0] Continuation request failed:`, response.status)
-          break
-        }
-
-        const continuationData = await response.json()
-
-        console.log(`[v0] Full continuation response keys:`, Object.keys(continuationData))
-        console.log(`[v0] Continuation response structure:`, {
-          hasContinuationContents: !!continuationData.continuationContents,
-          hasOnResponseReceivedActions: !!continuationData.onResponseReceivedActions,
-          continuationContentsKeys: continuationData.continuationContents
-            ? Object.keys(continuationData.continuationContents)
-            : [],
-          onResponseReceivedActionsLength: continuationData.onResponseReceivedActions?.length || 0,
-        })
-
-        let continuationContents: any[] = []
-
-        if (continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents) {
-          continuationContents = continuationData.continuationContents.musicPlaylistShelfContinuation.contents
-          console.log(`[v0] Using continuationContents structure, items:`, continuationContents.length)
-        } else if (continuationData.onResponseReceivedActions?.[0]?.appendContinuationItemsAction?.continuationItems) {
-          continuationContents =
-            continuationData.onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems
-          console.log(`[v0] Using onResponseReceivedActions structure, items:`, continuationContents.length)
-        }
-
-        console.log(`[v0] Page ${pageCount} items:`, continuationContents.length)
-
-        if (continuationContents.length === 0) {
-          console.log(`[v0] No items in page ${pageCount}, stopping`)
-          break
-        }
-
-        let hasMorePages = false
-
-        for (const item of continuationContents) {
-          if (item.continuationItemRenderer) {
-            currentContinuation = item.continuationItemRenderer.continuationEndpoint?.continuationCommand?.token
-            hasMorePages = true
-            console.log(`[v0] Found continuation token for page ${pageCount + 1}`)
-            continue
-          }
-
-          const videoInfo = extractVideoInfo(item)
-          if (videoInfo) {
-            songs.push(videoInfo)
-          }
-        }
-
-        if (!hasMorePages) {
-          currentContinuation = null
-          console.log("[v0] No more pages, playlist fully loaded")
-        }
-      } catch (error) {
-        console.error(`[v0] Error fetching page ${pageCount}:`, error)
-        currentContinuation = null
-      }
-    }
-
-    console.log("[v0] Playlist fetched:", {
-      name: playlistName,
-      songsCount: songs.length,
-      totalPages: pageCount,
-      firstSong: songs[0] || null,
-    })
-
-    return {
-      name: playlistName,
-      description: playlistDescription,
-      thumbnail: playlistThumbnail,
-      songs,
-    }
-  } catch (error) {
-    console.error("[v0] Playlist fetch error:", error)
-    throw error
   }
 }

@@ -13,7 +13,7 @@ export default function SignInPage() {
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Music className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold mb-2">Welcome to VibeTune</h1>
+          <h1 className="text-3xl font-bold mb-2">Welcome to OpenTune</h1>
           <p className="text-muted-foreground">Sign in to start discovering music</p>
         </div>
 

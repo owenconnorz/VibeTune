@@ -31,9 +31,6 @@ interface MusicPlayerContextType {
   playPrevious: () => void
   addToQueue: (video: YouTubeVideo) => void
   clearQueue: () => void
-  removeFromQueue: (index: number) => void
-  reorderQueue: (fromIndex: number, toIndex: number) => void
-  setQueue: (queue: YouTubeVideo[]) => void
   seekTo: (time: number) => void
   setVolume: (volume: number) => void
   toggleLikedSong: (video: YouTubeVideo) => void
@@ -428,7 +425,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      console.log("[v0] No more songs in queue, staying on current song")
+      console.log("[v0] No more songs in queue, playback stopped")
+      isManualStateChange.current = true
+      setIsPlaying(false)
     }
   }
 
@@ -473,21 +472,6 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const clearQueue = () => {
     console.log("[v0] Clearing queue")
     setQueue([])
-  }
-
-  const removeFromQueue = (index: number) => {
-    console.log("[v0] Removing from queue at index:", index)
-    setQueue((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const reorderQueue = (fromIndex: number, toIndex: number) => {
-    console.log("[v0] Reordering queue from", fromIndex, "to", toIndex)
-    setQueue((prev) => {
-      const newQueue = [...prev]
-      const [removed] = newQueue.splice(fromIndex, 1)
-      newQueue.splice(toIndex, 0, removed)
-      return newQueue
-    })
   }
 
   const seekTo = (time: number) => {
@@ -676,9 +660,6 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         playPrevious,
         addToQueue,
         clearQueue,
-        removeFromQueue,
-        reorderQueue,
-        setQueue,
         seekTo,
         setVolume,
         toggleLikedSong,

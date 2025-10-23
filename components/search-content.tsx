@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import type { YouTubeVideo } from "@/lib/innertube"
-import Image from "next/image"
 import { useAPI } from "@/lib/use-api"
 import { searchHistory } from "@/lib/cache"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ProgressiveImage } from "@/components/progressive-image"
 
 type FilterType = "all" | "songs" | "videos" | "albums" | "artists"
 
@@ -228,14 +228,11 @@ export function SearchContent() {
                   onClick={() => handleResultClick(video)}
                   className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
                 >
-                  <div
-                    className={`relative w-14 h-14 ${isArtist ? "rounded-full" : "rounded-lg"} overflow-hidden flex-shrink-0`}
-                  >
-                    <Image
+                  <div className="relative w-14 h-14 flex-shrink-0">
+                    <ProgressiveImage
                       src={video.thumbnail || "/placeholder.svg"}
                       alt={video.title}
-                      fill
-                      className="object-cover"
+                      rounded={isArtist ? "full" : "lg"}
                     />
                   </div>
                   <div className="flex-1 min-w-0">

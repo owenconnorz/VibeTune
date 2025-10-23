@@ -1,27 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import {
-  Heart,
-  CheckCircle,
-  TrendingUp,
-  RefreshCw,
-  Cloud,
-  Plus,
-  Grid3x3,
-  List,
-  MoreVertical,
-  Users,
-  Download,
-} from "lucide-react"
+import { Heart, CheckCircle, TrendingUp, RefreshCw, Cloud, Plus, Grid3x3, List, MoreVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import Link from "next/link"
 import { CreatePlaylistDialog } from "@/components/create-playlist-dialog"
-import { ImportPlaylistDialog } from "@/components/import-playlist-dialog"
 import { getPlaylists, type Playlist } from "@/lib/playlist-storage"
 import { getLikedSongsCount } from "@/lib/liked-storage"
-import { artistStorage } from "@/lib/artist-storage"
 
 const tabs = ["Playlists", "Songs", "Albums", "Artists"]
 
@@ -29,34 +15,20 @@ export function LibraryContent() {
   const [selectedTab, setSelectedTab] = useState("Playlists")
   const [sortBy, setSortBy] = useState("Date added")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [showImportDialog, setShowImportDialog] = useState(false)
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([])
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [likedCount, setLikedCount] = useState(0)
-  const [artistsCount, setArtistsCount] = useState(0)
 
   useEffect(() => {
     setUserPlaylists(getPlaylists())
     setLikedCount(getLikedSongsCount())
-    setArtistsCount(artistStorage.getFollowedArtistsCount())
     const savedView = localStorage.getItem("library-view-mode")
     if (savedView === "list" || savedView === "grid") {
       setViewMode(savedView)
     }
-
-    const handleArtistsUpdate = () => {
-      setArtistsCount(artistStorage.getFollowedArtistsCount())
-    }
-
-    window.addEventListener("artistsUpdated", handleArtistsUpdate)
-    return () => window.removeEventListener("artistsUpdated", handleArtistsUpdate)
   }, [])
 
   const handlePlaylistCreated = () => {
-    setUserPlaylists(getPlaylists())
-  }
-
-  const handlePlaylistImported = () => {
     setUserPlaylists(getPlaylists())
   }
 
@@ -68,7 +40,6 @@ export function LibraryContent() {
 
   const systemPlaylists = [
     { id: "liked", name: "Liked", icon: Heart, count: likedCount },
-    { id: "artists", name: "Artists", icon: Users, count: artistsCount },
     { id: "downloaded", name: "Downloaded", icon: CheckCircle, count: 0 },
     { id: "top10", name: "My top 10", icon: TrendingUp, count: 0 },
     { id: "cached", name: "Cached", icon: RefreshCw, count: 0 },
@@ -117,19 +88,12 @@ export function LibraryContent() {
           // Grid View
           <div className="px-4 grid grid-cols-2 gap-4">
             {systemPlaylists.map((playlist) => (
-              <Link
-                key={playlist.id}
-                href={`/dashboard/${playlist.id === "artists" ? "artists" : `playlist/${playlist.id}`}`}
-              >
+              <Link key={playlist.id} href={`/dashboard/playlist/${playlist.id}`}>
                 <div className="aspect-square rounded-2xl bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
                   <playlist.icon className="w-16 h-16 text-muted-foreground" />
                 </div>
                 <h3 className="font-semibold mt-2">{playlist.name}</h3>
-                {playlist.count > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    {playlist.count} {playlist.id === "artists" ? "artists" : "songs"}
-                  </p>
-                )}
+                {playlist.count > 0 && <p className="text-sm text-muted-foreground">{playlist.count} songs</p>}
               </Link>
             ))}
 
@@ -153,6 +117,7 @@ export function LibraryContent() {
                           />
                         </div>
                       ))}
+                      {/* Fill empty slots if less than 4 videos */}
                       {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, idx) => (
                         <div key={`empty-${idx}`} className="bg-primary/20" />
                       ))}
@@ -165,40 +130,24 @@ export function LibraryContent() {
             ))}
 
             <button
-              onClick={() => setShowImportDialog(true)}
-              className="aspect-square rounded-2xl bg-secondary flex flex-col items-center justify-center gap-2 border-2 border-dashed border-muted-foreground/30 hover:bg-secondary/80 transition-colors"
-            >
-              <Download className="w-10 h-10 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Import</span>
-            </button>
-
-            <button
               onClick={() => setShowCreateDialog(true)}
-              className="aspect-square rounded-2xl bg-secondary flex flex-col items-center justify-center gap-2 border-2 border-dashed border-muted-foreground/30 hover:bg-secondary/80 transition-colors"
+              className="aspect-square rounded-2xl bg-secondary flex items-center justify-center border-2 border-dashed border-muted-foreground/30 hover:bg-secondary/80 transition-colors"
             >
-              <Plus className="w-10 h-10 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Create</span>
+              <Plus className="w-12 h-12 text-muted-foreground" />
             </button>
           </div>
         ) : (
           // List View
           <div className="px-4 space-y-2">
             {systemPlaylists.map((playlist) => (
-              <Link
-                key={playlist.id}
-                href={`/dashboard/${playlist.id === "artists" ? "artists" : `playlist/${playlist.id}`}`}
-              >
+              <Link key={playlist.id} href={`/dashboard/playlist/${playlist.id}`}>
                 <div className="flex items-center gap-4 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
                   <div className="w-14 h-14 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
                     <playlist.icon className="w-7 h-7 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold">{playlist.name}</h3>
-                    {playlist.count > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        {playlist.count} {playlist.id === "artists" ? "artists" : "songs"}
-                      </p>
-                    )}
+                    {playlist.count > 0 && <p className="text-sm text-muted-foreground">{playlist.count} songs</p>}
                   </div>
                   <Button variant="ghost" size="icon" className="flex-shrink-0">
                     <MoreVertical className="w-5 h-5" />
@@ -228,6 +177,7 @@ export function LibraryContent() {
                             />
                           </div>
                         ))}
+                        {/* Fill empty slots if less than 4 videos */}
                         {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, idx) => (
                           <div key={`empty-${idx}`} className="bg-primary/20" />
                         ))}
@@ -252,12 +202,6 @@ export function LibraryContent() {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onPlaylistCreated={handlePlaylistCreated}
-      />
-
-      <ImportPlaylistDialog
-        open={showImportDialog}
-        onOpenChange={setShowImportDialog}
-        onPlaylistImported={handlePlaylistImported}
       />
     </>
   )

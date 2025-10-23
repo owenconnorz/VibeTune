@@ -21,7 +21,7 @@ export default function HomePage() {
               Your music, <span className="text-primary">your way</span>
             </h1>
             <p className="text-xl md:text-2xl text-muted-foreground text-balance mb-8 leading-relaxed">
-              Powerful features that make VibeTune the best way to enjoy your music
+              Stream unlimited music, discover new artists, and create the perfect soundtrack for every moment
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button size="lg" className="text-lg px-8 py-6" asChild>
@@ -43,7 +43,7 @@ export default function HomePage() {
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">Everything you need</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Powerful features that make VibeTune the best way to enjoy your music
+            Powerful features that make OpenTune the best way to enjoy your music
           </p>
         </div>
 
@@ -114,9 +114,9 @@ export default function HomePage() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <Music className="w-6 h-6 text-primary" />
-              <span className="text-xl font-bold">VibeTune</span>
+              <span className="text-xl font-bold">OpenTune</span>
             </div>
-            <p className="text-sm text-muted-foreground">© 2025 VibeTune. All rights reserved.</p>
+            <p className="text-sm text-muted-foreground">© 2025 OpenTune. All rights reserved.</p>
           </div>
         </div>
       </footer>

@@ -114,23 +114,3 @@
     touch-action: pan-x pan-y;
   }
 }
-
-/* Added wave animation keyframes for squiggly slider */
-@keyframes wave {
-  0% {
-    mask-position: 0% 0%;
-  }
-  100% {
-    mask-position: 100% 0%;
-  }
-}
-
-/* Updated wave animation to slide background position for visible wave effect */
-@keyframes wave-slide {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 20px 0;
-  }
-}

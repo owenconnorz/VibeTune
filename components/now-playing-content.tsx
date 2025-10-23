@@ -11,13 +11,13 @@ import {
   Share2,
   Heart,
   List,
-  Clock,
+  Moon,
   Sliders,
   Repeat,
   Repeat1,
   MoreVertical,
   Volume2,
-  Music2,
+  Cast,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -32,50 +32,6 @@ const NowPlayingMenu = dynamic(() => import("@/components/now-playing-menu").the
 
 const AudioDevicePicker = dynamic(
   () => import("@/components/audio-device-picker").then((mod) => mod.AudioDevicePicker),
-  {
-    ssr: false,
-  },
-)
-
-const CastButton = dynamic(() => import("@/components/cast-button").then((mod) => mod.CastButton), {
-  ssr: false,
-})
-
-const QueueSheet = dynamic(() => import("@/components/queue-sheet").then((mod) => ({ default: mod.QueueSheet })), {
-  ssr: false,
-})
-
-const SleepTimerDialog = dynamic(
-  () => import("@/components/sleep-timer-dialog").then((mod) => ({ default: mod.SleepTimerDialog })),
-  {
-    ssr: false,
-  },
-)
-
-const AudioSettingsDialog = dynamic(
-  () => import("@/components/audio-settings-dialog").then((mod) => ({ default: mod.AudioSettingsDialog })),
-  {
-    ssr: false,
-  },
-)
-
-const LyricsSheet = dynamic(() => import("@/components/lyrics-sheet").then((mod) => ({ default: mod.LyricsSheet })), {
-  ssr: false,
-})
-
-const ShareDialog = dynamic(() => import("@/components/share-dialog").then((mod) => ({ default: mod.ShareDialog })), {
-  ssr: false,
-})
-
-const OfflineDownloadsSheet = dynamic(
-  () => import("@/components/offline-downloads-sheet").then((mod) => ({ default: mod.OfflineDownloadsSheet })),
-  {
-    ssr: false,
-  },
-)
-
-const CrossfadeSettingsDialog = dynamic(
-  () => import("@/components/crossfade-settings-dialog").then((mod) => ({ default: mod.CrossfadeSettingsDialog })),
   {
     ssr: false,
   },
@@ -105,13 +61,6 @@ export function NowPlayingContent() {
   const [dragOffset, setDragOffset] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
   const [devicePickerOpen, setDevicePickerOpen] = useState(false)
-  const [queueOpen, setQueueOpen] = useState(false)
-  const [sleepTimerOpen, setSleepTimerOpen] = useState(false)
-  const [audioSettingsOpen, setAudioSettingsOpen] = useState(false)
-  const [lyricsOpen, setLyricsOpen] = useState(false)
-  const [shareOpen, setShareOpen] = useState(false)
-  const [offlineDownloadsOpen, setOfflineDownloadsOpen] = useState(false)
-  const [crossfadeOpen, setCrossfadeOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -167,7 +116,14 @@ export function NowPlayingContent() {
       >
         <div className="flex justify-between items-center px-4 pt-safe pb-2">
           <div className="w-12 h-1 bg-muted-foreground/30 rounded-full mx-auto" />
-          <CastButton size="icon" className="rounded-full h-9 w-9 absolute right-4 top-safe" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full h-9 w-9 absolute right-4 top-safe"
+            onClick={() => setDevicePickerOpen(true)}
+          >
+            <Cast className="w-5 h-5" />
+          </Button>
         </div>
 
         <div className="flex-1 flex flex-col items-center px-6 py-2 min-h-0 overflow-y-auto">
@@ -177,31 +133,21 @@ export function NowPlayingContent() {
               <h2 className="text-base font-semibold">music 🎶</h2>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setLyricsOpen(true)}
-              className="relative w-full aspect-square max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl group"
-            >
+            <div className="relative w-full aspect-square max-w-sm mx-auto rounded-2xl overflow-hidden shadow-2xl">
               <Image
                 src={currentVideo.thumbnail || "/placeholder.svg"}
                 alt={currentVideo.title}
                 fill
-                className="object-cover transition-transform group-hover:scale-105"
+                className="object-cover"
                 priority
               />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <div className="flex flex-col items-center gap-2 text-white">
-                  <Music2 className="w-12 h-12" />
-                  <span className="text-sm font-medium">View Lyrics</span>
-                </div>
-              </div>
-            </button>
+            </div>
 
             <div className="text-center space-y-1">
               <h1 className="text-xl font-bold line-clamp-2 px-2">{currentVideo.title}</h1>
               <p className="text-base text-muted-foreground line-clamp-1">{currentVideo.artist}</p>
               <div className="flex items-center justify-center gap-4 pt-1">
-                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setShareOpen(true)}>
+                <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                   <Share2 className="w-5 h-5" />
                 </Button>
                 <Button
@@ -249,28 +195,17 @@ export function NowPlayingContent() {
                 step={1}
                 onValueChange={(value) => setVolume(value[0] / 100)}
                 className="flex-1"
-                forceDefaultStyle={true}
               />
             </div>
 
             <div className="flex items-center justify-around pt-1">
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setQueueOpen(true)}>
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                 <List className="w-5 h-5" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full h-9 w-9"
-                onClick={() => setSleepTimerOpen(true)}
-              >
-                <Clock className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+                <Moon className="w-5 h-5" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full h-9 w-9"
-                onClick={() => setAudioSettingsOpen(true)}
-              >
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
                 <Sliders className="w-5 h-5" />
               </Button>
               <Button
@@ -299,18 +234,6 @@ export function NowPlayingContent() {
             currentVideo={currentVideo}
           />
           <AudioDevicePicker open={devicePickerOpen} onOpenChange={setDevicePickerOpen} />
-          <QueueSheet open={queueOpen} onOpenChange={setQueueOpen} />
-          <SleepTimerDialog open={sleepTimerOpen} onOpenChange={setSleepTimerOpen} />
-          <AudioSettingsDialog
-            open={audioSettingsOpen}
-            onOpenChange={setAudioSettingsOpen}
-            onOpenOfflineDownloads={() => setOfflineDownloadsOpen(true)}
-            onOpenCrossfade={() => setCrossfadeOpen(true)}
-          />
-          <LyricsSheet open={lyricsOpen} onOpenChange={setLyricsOpen} />
-          {currentVideo && <ShareDialog open={shareOpen} onOpenChange={setShareOpen} video={currentVideo} />}
-          <OfflineDownloadsSheet open={offlineDownloadsOpen} onOpenChange={setOfflineDownloadsOpen} />
-          <CrossfadeSettingsDialog open={crossfadeOpen} onOpenChange={setCrossfadeOpen} />
         </>
       )}
     </>

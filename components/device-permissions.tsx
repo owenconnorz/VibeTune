@@ -28,7 +28,7 @@ export function DevicePermissions() {
       console.log("[v0] Notification permission:", permission)
 
       if (permission === "granted") {
-        new Notification("VibeTune", {
+        new Notification("OpenTune", {
           body: "Notifications enabled! You'll see playback controls in your notification tray.",
           icon: "/icon-192.jpg",
           badge: "/icon-192.jpg",

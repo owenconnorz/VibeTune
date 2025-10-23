@@ -179,7 +179,7 @@ const categoryConfig: Record<
       { title: "2000s pop", query: "2000s pop music" },
     ],
   },
-  kpop: {
+  "k-pop": {
     name: "K-Pop",
     subcategories: [
       { title: "K-Pop hits", query: "kpop music hits" },

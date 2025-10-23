@@ -9,13 +9,9 @@ export interface Playlist {
   createdAt: string
   updatedAt: string
   synced?: boolean
-  isCollaborative?: boolean
-  shareCode?: string
-  collaborators?: string[]
-  owner?: string
 }
 
-const STORAGE_KEY = "vibetune_playlists"
+const STORAGE_KEY = "opentune_playlists"
 
 export function getPlaylists(): Playlist[] {
   if (typeof window === "undefined") return []
@@ -31,9 +27,6 @@ export function savePlaylist(playlist: Omit<Playlist, "id" | "createdAt" | "upda
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     synced: playlist.description?.includes("Synced with YouTube Music"),
-    shareCode: playlist.isCollaborative ? generateShareCode() : undefined,
-    owner: playlist.isCollaborative ? "user" : undefined,
-    collaborators: playlist.isCollaborative ? [] : undefined,
   }
   playlists.push(newPlaylist)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(playlists))
@@ -85,40 +78,4 @@ export function removeVideoFromPlaylist(playlistId: string, videoId: string): Pl
   return updatePlaylist(playlistId, {
     videos: playlist.videos.filter((v) => v.id !== videoId),
   })
-}
-
-export function generateShareCode(): string {
-  return Math.random().toString(36).substring(2, 10).toUpperCase()
-}
-
-export function makePlaylistCollaborative(playlistId: string): Playlist | null {
-  const playlists = getPlaylists()
-  const playlist = playlists.find((p) => p.id === playlistId)
-  if (!playlist) return null
-
-  return updatePlaylist(playlistId, {
-    isCollaborative: true,
-    shareCode: generateShareCode(),
-    owner: "user",
-    collaborators: [],
-  })
-}
-
-export function joinCollaborativePlaylist(shareCode: string): Playlist | null {
-  const playlists = getPlaylists()
-  const playlist = playlists.find((p) => p.shareCode === shareCode)
-  if (!playlist || !playlist.isCollaborative) return null
-
-  // Add current user as collaborator
-  const collaborators = playlist.collaborators || []
-  if (!collaborators.includes("user")) {
-    collaborators.push("user")
-    updatePlaylist(playlist.id, { collaborators })
-  }
-
-  return playlist
-}
-
-export function getCollaborativePlaylists(): Playlist[] {
-  return getPlaylists().filter((p) => p.isCollaborative)
 }

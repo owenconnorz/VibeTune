@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { Play, Pause, Heart } from "lucide-react"
+import { Play, Pause, Heart, Cast } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
@@ -16,10 +16,6 @@ const AudioDevicePicker = dynamic(
     ssr: false,
   },
 )
-
-const CastButton = dynamic(() => import("@/components/cast-button").then((mod) => mod.CastButton), {
-  ssr: false,
-})
 
 export function MiniPlayer() {
   const { currentVideo, isPlaying, togglePlay, playNext, playPrevious, isCurrentLiked, toggleLikedSong } =
@@ -135,7 +131,9 @@ export function MiniPlayer() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <CastButton size="icon" className="rounded-full" />
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setDevicePickerOpen(true)}>
+                <Cast className="w-5 h-5" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

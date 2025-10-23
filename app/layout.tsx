@@ -12,14 +12,14 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "VibeTune - Music Discovery",
-  description: "Discover and explore music with VibeTune",
+  title: "OpenTune - Music Discovery",
+  description: "Discover and explore music with OpenTune",
   generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "VibeTune",
+    title: "OpenTune",
   },
   formatDetection: {
     telephone: false,
@@ -45,27 +45,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="VibeTune" />
-        <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1" async />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  const mode = localStorage.getItem('vibetune_theme_mode') || 'system';
-                  const root = document.documentElement;
-                  
-                  if (mode === 'system') {
-                    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    root.classList.toggle('dark', systemPrefersDark);
-                  } else {
-                    root.classList.toggle('dark', mode === 'dark');
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
+        <meta name="apple-mobile-web-app-title" content="OpenTune" />
       </head>
       <body className={`font-sans antialiased`}>
         <SWRProvider>
