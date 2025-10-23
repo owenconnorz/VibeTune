@@ -7,6 +7,8 @@ import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useState, useEffect } from "react"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 export default function PlayerSettingsPage() {
   const router = useRouter()
@@ -17,9 +19,10 @@ export default function PlayerSettingsPage() {
   const [crossfade, setCrossfade] = useState(false)
   const [gapless, setGapless] = useState(true)
   const [normalizeVolume, setNormalizeVolume] = useState(false)
+  const [audioQuality, setAudioQuality] = useState<"auto" | "high" | "low">("high")
+  const [qualitySheetOpen, setQualitySheetOpen] = useState(false)
 
   useEffect(() => {
-    // Load settings from localStorage
     const settings = localStorage.getItem("playerSettings")
     if (settings) {
       const parsed = JSON.parse(settings)
@@ -30,6 +33,7 @@ export default function PlayerSettingsPage() {
       setCrossfade(parsed.crossfade ?? false)
       setGapless(parsed.gapless ?? true)
       setNormalizeVolume(parsed.normalizeVolume ?? false)
+      setAudioQuality(parsed.audioQuality ?? "high")
     }
   }, [])
 
@@ -42,10 +46,37 @@ export default function PlayerSettingsPage() {
       crossfade,
       gapless,
       normalizeVolume,
+      audioQuality,
       ...updates,
     }
     localStorage.setItem("playerSettings", JSON.stringify(current))
     console.log("[v0] Player settings saved:", current)
+  }
+
+  const getQualityLabel = (quality: string) => {
+    switch (quality) {
+      case "auto":
+        return "Auto"
+      case "high":
+        return "High"
+      case "low":
+        return "Low"
+      default:
+        return "High"
+    }
+  }
+
+  const getQualityDescription = (quality: string) => {
+    switch (quality) {
+      case "auto":
+        return "Adapts to your connection"
+      case "high":
+        return "Best available quality"
+      case "low":
+        return "Saves data usage"
+      default:
+        return "Best available quality"
+    }
   }
 
   return (
@@ -211,17 +242,58 @@ export default function PlayerSettingsPage() {
         {/* Audio Quality */}
         <div className="space-y-4">
           <h2 className="text-lg font-semibold">Audio quality</h2>
-          <div className="bg-card rounded-2xl p-4">
+          <button
+            onClick={() => setQualitySheetOpen(true)}
+            className="w-full bg-card rounded-2xl p-4 text-left hover:bg-card/80 transition-colors"
+          >
             <div className="flex items-center gap-3">
               <Volume2 className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="font-medium">High quality</p>
-                <p className="text-sm text-muted-foreground">Best available quality</p>
+                <p className="font-medium">{getQualityLabel(audioQuality)}</p>
+                <p className="text-sm text-muted-foreground">{getQualityDescription(audioQuality)}</p>
               </div>
             </div>
-          </div>
+          </button>
         </div>
       </div>
+
+      {/* Audio Quality Selection Sheet */}
+      <Sheet open={qualitySheetOpen} onOpenChange={setQualitySheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl">
+          <div className="py-4">
+            <RadioGroup
+              value={audioQuality}
+              onValueChange={(value: "auto" | "high" | "low") => {
+                setAudioQuality(value)
+                saveSettings({ audioQuality: value })
+                setQualitySheetOpen(false)
+              }}
+              className="space-y-4"
+            >
+              <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-accent/50 transition-colors">
+                <RadioGroupItem value="auto" id="auto" />
+                <Label htmlFor="auto" className="flex-1 cursor-pointer text-base">
+                  Auto
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-accent/50 transition-colors">
+                <RadioGroupItem value="high" id="high" />
+                <Label htmlFor="high" className="flex-1 cursor-pointer text-base">
+                  High
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-3 p-3 rounded-lg hover:bg-accent/50 transition-colors">
+                <RadioGroupItem value="low" id="low" />
+                <Label htmlFor="low" className="flex-1 cursor-pointer text-base">
+                  Low
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

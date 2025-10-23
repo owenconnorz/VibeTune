@@ -24,10 +24,13 @@ interface DownloadManagerContextType {
 
 const DownloadManagerContext = createContext<DownloadManagerContextType | undefined>(undefined)
 
+const MAX_CONCURRENT_DOWNLOADS = 5
+
 export function DownloadManagerProvider({ children }: { children: React.ReactNode }) {
   const [downloads, setDownloads] = useState<DownloadTask[]>([])
   const [isDownloading, setIsDownloading] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default")
+  const activeDownloadsRef = useRef(0)
   const processingRef = useRef(false)
 
   // Request notification permission on mount
@@ -61,30 +64,9 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
     [notificationPermission],
   )
 
-  // Process download queue
-  const processQueue = useCallback(async () => {
-    if (processingRef.current) return
-    processingRef.current = true
-    setIsDownloading(true)
-
-    console.log("[v0] Starting download queue processing")
-
-    const pendingTasks = downloads.filter((d) => d.status === "pending")
-    if (pendingTasks.length === 0) {
-      console.log("[v0] No pending downloads")
-      processingRef.current = false
-      setIsDownloading(false)
-      return
-    }
-
-    // Show start notification
-    showNotification(
-      "Download Started",
-      `Downloading ${pendingTasks.length} song${pendingTasks.length > 1 ? "s" : ""}...`,
-    )
-
-    for (const task of pendingTasks) {
-      console.log(`[v0] Processing download: ${task.title}`)
+  const downloadSingleSong = useCallback(
+    async (task: DownloadTask) => {
+      console.log(`[v0] Starting download: ${task.title}`)
 
       // Update status to downloading
       setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "downloading" } : d)))
@@ -94,7 +76,7 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
       if (alreadyDownloaded) {
         console.log(`[v0] Song already downloaded: ${task.title}`)
         setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "completed" } : d)))
-        continue
+        return true
       }
 
       // Download the song
@@ -112,14 +94,59 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
         showNotification("Download Failed", `Failed to download "${task.title}"`)
       }
 
-      // Small delay between downloads to avoid overwhelming the API
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      return success
+    },
+    [showNotification],
+  )
+
+  const processQueue = useCallback(async () => {
+    if (processingRef.current) return
+    processingRef.current = true
+    setIsDownloading(true)
+
+    console.log("[v0] Starting concurrent download processing")
+
+    const pendingTasks = downloads.filter((d) => d.status === "pending")
+    if (pendingTasks.length === 0) {
+      console.log("[v0] No pending downloads")
+      processingRef.current = false
+      setIsDownloading(false)
+      return
     }
+
+    // Show start notification immediately
+    showNotification(
+      "Download Started",
+      `Downloading ${pendingTasks.length} song${pendingTasks.length > 1 ? "s" : ""}...`,
+    )
+
+    const downloadPromises: Promise<void>[] = []
+    let taskIndex = 0
+
+    const processNextTask = async () => {
+      while (taskIndex < pendingTasks.length) {
+        const task = pendingTasks[taskIndex++]
+        activeDownloadsRef.current++
+
+        try {
+          await downloadSingleSong(task)
+        } finally {
+          activeDownloadsRef.current--
+        }
+      }
+    }
+
+    // Start concurrent workers
+    for (let i = 0; i < MAX_CONCURRENT_DOWNLOADS; i++) {
+      downloadPromises.push(processNextTask())
+    }
+
+    // Wait for all downloads to complete
+    await Promise.all(downloadPromises)
 
     // Show completion notification
     const completed = downloads.filter((d) => d.status === "completed").length
     const failed = downloads.filter((d) => d.status === "failed").length
-    const total = downloads.length
 
     if (failed === 0) {
       showNotification("Downloads Complete", `Successfully downloaded ${completed} song${completed > 1 ? "s" : ""}!`)
@@ -133,7 +160,7 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
     console.log(`[v0] Download queue complete: ${completed} succeeded, ${failed} failed`)
     processingRef.current = false
     setIsDownloading(false)
-  }, [downloads, showNotification])
+  }, [downloads, showNotification, downloadSingleSong])
 
   // Auto-process queue when new tasks are added
   useEffect(() => {
