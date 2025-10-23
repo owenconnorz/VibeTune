@@ -80,6 +80,26 @@ export function ImportYouTubePlaylistDialog({ open, onOpenChange }: ImportYouTub
         console.log("[v0] Last error:", data._debug.lastError || "none")
         console.log("[v0] Final video count:", data._debug.videoCount)
 
+        if (data._debug.continuationResponses && data._debug.continuationResponses.length > 0) {
+          console.log("[v0] ===== CONTINUATION RESPONSES =====")
+          console.log("[v0] Number of continuation requests:", data._debug.continuationResponses.length)
+
+          data._debug.continuationResponses.forEach((contResp: any, index: number) => {
+            console.log(`[v0] --- Continuation Request #${index + 1} ---`)
+            console.log(`[v0] Page number: ${contResp.pageNumber}`)
+            console.log(`[v0] Items found: ${contResp.itemsFound}`)
+            console.log(`[v0] Has next token: ${contResp.hasNextToken}`)
+            console.log(`[v0] Response keys: ${contResp.responseKeys?.join(", ") || "none"}`)
+
+            if (contResp.itemsFound === 0) {
+              console.warn(`[v0] ⚠️ WARNING: Continuation request #${index + 1} returned 0 items!`)
+              console.log(`[v0] Full response structure:`, JSON.stringify(contResp.fullResponse, null, 2))
+            }
+          })
+        } else {
+          console.log("[v0] No continuation responses in debug data")
+        }
+
         if (data._debug.shelfStructure) {
           console.log("[v0] ===== SHELF STRUCTURE =====")
           console.log("[v0] Shelf keys:", data._debug.shelfStructure.keys)
