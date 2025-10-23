@@ -642,67 +642,64 @@ export async function getPlaylistDetails(playlistId: string) {
           console.log(`[v0] Response type: ${responseType}`)
           console.log(`[v0] Response keys:`, Object.keys(continuationData || {}))
 
-          if (continuationData?.continuationContents) {
-            console.log(`[v0] continuationContents keys:`, Object.keys(continuationData.continuationContents))
-
-            if (continuationData.continuationContents.musicPlaylistShelfContinuation) {
-              const continuation = continuationData.continuationContents.musicPlaylistShelfContinuation
-              console.log(`[v0] musicPlaylistShelfContinuation keys:`, Object.keys(continuation))
-              console.log(`[v0] Contents length:`, continuation.contents?.length || 0)
-              console.log(`[v0] Has continuations:`, "continuations" in continuation)
-              console.log(`[v0] Continuations length:`, continuation.continuations?.length || 0)
-            } else if (continuationData.continuationContents.sectionListContinuation) {
-              console.log(`[v0] ⚠️ WARNING: Received sectionListContinuation instead of musicPlaylistShelfContinuation`)
-              console.log(
-                `[v0] This usually means the continuation token is pointing to other page sections (like "Related playlists")`,
-              )
-              console.log(`[v0] Stopping pagination as we've reached the end of the actual playlist items`)
-              break
-            }
-          } else {
+          if (!continuationData?.continuationContents) {
             console.log(`[v0] ⚠️ No continuationContents in response!`)
             console.log(`[v0] Available response paths:`, Object.keys(continuationData || {}))
             break
           }
 
-          if (!continuationData) {
-            lastError = `No data for page ${totalPages}`
-            console.error(`[v0] ${lastError}`)
+          console.log(`[v0] continuationContents keys:`, Object.keys(continuationData.continuationContents))
+
+          if (continuationData.continuationContents.sectionListContinuation) {
+            console.log(`[v0] ⚠️ WARNING: Received sectionListContinuation instead of musicPlaylistShelfContinuation`)
+            console.log(
+              `[v0] This usually means the continuation token is pointing to other page sections (like "Related playlists")`,
+            )
+            console.log(`[v0] Stopping pagination as we've reached the end of the actual playlist items`)
             break
           }
 
-          const continuationContents =
-            continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents || []
+          if (continuationData.continuationContents.musicPlaylistShelfContinuation) {
+            const continuation = continuationData.continuationContents.musicPlaylistShelfContinuation
+            console.log(`[v0] musicPlaylistShelfContinuation keys:`, Object.keys(continuation))
+            console.log(`[v0] Contents length:`, continuation.contents?.length || 0)
+            console.log(`[v0] Has continuations:`, "continuations" in continuation)
+            console.log(`[v0] Continuations length:`, continuation.continuations?.length || 0)
 
-          console.log(`[v0] Page ${totalPages}: ${continuationContents.length} items`)
-          if (continuationContents.length === 0) {
-            console.log(`[v0] ⚠️ WARNING: Page ${totalPages} returned 0 items - stopping pagination`)
-            break
-          }
+            const continuationContents = continuation.contents || []
 
-          for (const item of continuationContents) {
-            const videoInfo = extractVideoInfo(item)
-            if (videoInfo) {
-              videos.push(videoInfo)
+            console.log(`[v0] Page ${totalPages}: ${continuationContents.length} items`)
+            if (continuationContents.length === 0) {
+              console.log(`[v0] ⚠️ WARNING: Page ${totalPages} returned 0 items - stopping pagination`)
+              break
             }
-          }
 
-          console.log(`[v0] Total videos so far: ${videos.length}`)
+            for (const item of continuationContents) {
+              const videoInfo = extractVideoInfo(item)
+              if (videoInfo) {
+                videos.push(videoInfo)
+              }
+            }
 
-          const nextToken =
-            continuationData.continuationContents?.musicPlaylistShelfContinuation?.continuations?.[0]
-              ?.nextContinuationData?.continuation
+            console.log(`[v0] Total videos so far: ${videos.length}`)
 
-          if (nextToken) {
-            console.log(`[v0] Found next continuation token: ${nextToken.substring(0, 50)}...`)
-            continuationToken = nextToken
+            const nextToken = continuation.continuations?.[0]?.nextContinuationData?.continuation
+
+            if (nextToken) {
+              console.log(`[v0] Found next continuation token: ${nextToken.substring(0, 50)}...`)
+              continuationToken = nextToken
+            } else {
+              console.log(`[v0] No more continuation tokens - reached end of playlist`)
+              continuationToken = null
+            }
+
+            if (!continuationToken) {
+              console.log(`[v0] Pagination complete: ${totalPages} pages, ${videos.length} total videos`)
+            }
           } else {
-            console.log(`[v0] No more continuation tokens - reached end of playlist`)
-            continuationToken = null
-          }
-
-          if (!continuationToken) {
-            console.log(`[v0] Pagination complete: ${totalPages} pages, ${videos.length} total videos`)
+            console.log(`[v0] ⚠️ WARNING: Unknown continuation response type`)
+            console.log(`[v0] Available keys:`, Object.keys(continuationData.continuationContents))
+            break
           }
         } catch (error: any) {
           lastError = error.message
