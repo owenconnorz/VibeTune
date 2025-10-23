@@ -416,7 +416,7 @@ export async function getHomeFeed() {
 
     const searchWithTimeout = async (query: string, title: string, type: string) => {
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(`Search timeout: ${query}`)), 8000)
+        setTimeout(() => reject(new Error(`Search timeout: ${query}`)), 5000)
       })
 
       try {
@@ -431,10 +431,8 @@ export async function getHomeFeed() {
 
     const searchPromises = [
       searchWithTimeout("trending music 2024", "Quick picks", "list"),
-      searchWithTimeout("top charts 2024", "Top Charts", "carousel"),
       searchWithTimeout("popular music 2024", "Popular Music", "carousel"),
       searchWithTimeout("feel good music", "Feel Good", "carousel"),
-      searchWithTimeout("workout music", "Workout Mix", "carousel"),
     ]
 
     const results = await Promise.all(searchPromises)

@@ -5,7 +5,7 @@ import type { YouTubeVideo } from "@/lib/innertube"
 import { historyStorage } from "@/lib/history-storage"
 import { extractColorsFromImage, type ExtractedColors } from "@/lib/color-extractor"
 import { themeStorage } from "@/lib/theme-storage"
-import { getLikedSongs, toggleLikedSong as toggleLikedSongStorage, isLiked } from "@/lib/liked-storage"
+import { getLikedSongs, toggleLikedSong as toggleLikedSongStorage } from "@/lib/liked-storage"
 import { getDownloadedSong } from "@/lib/download-storage"
 
 declare global {
@@ -99,25 +99,18 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
       audioRef.current.addEventListener("ended", () => {
         console.log("[v0] Audio ended - Current song finished")
-        console.log("[v0] Queue length:", queue.length)
-        console.log("[v0] Repeat mode:", repeatMode)
-        console.log("[v0] Calling playNext() for continuous playback")
         playNext()
       })
 
       audioRef.current.addEventListener("play", () => {
-        if (!isManualStateChange.current) {
-          setIsPlaying(true)
-        }
+        setIsPlaying(true)
         if ("mediaSession" in navigator) {
           navigator.mediaSession.playbackState = "playing"
         }
       })
 
       audioRef.current.addEventListener("pause", () => {
-        if (!isManualStateChange.current) {
-          setIsPlaying(false)
-        }
+        setIsPlaying(false)
         if ("mediaSession" in navigator) {
           navigator.mediaSession.playbackState = "paused"
         }
@@ -299,24 +292,16 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
           onStateChange: (event: any) => {
             if (event.data === window.YT.PlayerState.ENDED) {
               console.log("[v0] YouTube player ended - Current song finished")
-              console.log("[v0] Queue length:", queue.length)
-              console.log("[v0] Repeat mode:", repeatMode)
-              console.log("[v0] Calling playNext() for continuous playback")
               playNext()
             } else if (event.data === window.YT.PlayerState.PLAYING) {
-              if (!isManualStateChange.current) {
-                setIsPlaying(true)
-              }
+              setIsPlaying(true)
               setDuration(event.target.getDuration())
               if ("mediaSession" in navigator) {
                 navigator.mediaSession.playbackState = "playing"
               }
             } else if (event.data === window.YT.PlayerState.PAUSED) {
-              if (!isManualStateChange.current) {
-                setIsPlaying(false)
-              }
+              setIsPlaying(false)
             }
-            isManualStateChange.current = false
           },
         },
       })
@@ -326,70 +311,16 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }, [currentVideo, useAudioElement])
 
   useEffect(() => {
-    if (!("mediaSession" in navigator)) return
-
-    console.log("[v0] Setting up position state updates")
-
-    const updatePositionState = () => {
-      try {
-        const position = Math.min(Math.max(currentTime, 0), duration)
-        console.log("[v0] Updating position state - position:", position, "duration:", duration)
-
-        navigator.mediaSession.setPositionState({
-          duration: duration,
-          playbackRate: 1.0,
-          position: position,
-        })
-      } catch (error) {
-        console.error("[v0] Error setting position state:", error)
-      }
+    if (!("mediaSession" in navigator)) {
+      console.log("[v0] Media Session API not supported")
+      return
     }
 
-    updatePositionState()
-
-    // Update position state every second while playing
-    let intervalId: NodeJS.Timeout | null = null
-    if (isPlaying) {
-      console.log("[v0] Starting position state interval")
-      intervalId = setInterval(updatePositionState, 1000)
+    if (!currentVideo) {
+      console.log("[v0] No current video, clearing metadata")
+      navigator.mediaSession.metadata = null
+      return
     }
-
-    return () => {
-      if (intervalId) {
-        console.log("[v0] Clearing position state interval")
-        clearInterval(intervalId)
-      }
-    }
-  }, [currentTime, duration, isPlaying, currentVideo])
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("opentune_volume", volume.toString())
-      console.log("[v0] Volume saved to localStorage:", volume)
-    }
-  }, [volume])
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("opentune_repeat_mode", repeatMode)
-      console.log("[v0] Repeat mode saved:", repeatMode)
-    }
-  }, [repeatMode])
-
-  useEffect(() => {
-    setLikedSongs(getLikedSongs())
-  }, [])
-
-  useEffect(() => {
-    if (currentVideo) {
-      setIsCurrentLiked(isLiked(currentVideo.id))
-    } else {
-      setIsCurrentLiked(false)
-    }
-  }, [currentVideo])
-
-  useEffect(() => {
-    if (!("mediaSession" in navigator) || !currentVideo) return
 
     console.log("[v0] Setting Media Session metadata for:", currentVideo.title)
 
@@ -407,58 +338,105 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         ],
       })
 
-      console.log("[v0] Media Session metadata set successfully")
+      console.log("[v0] ✓ Media Session metadata set successfully")
+
+      if (duration > 0) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: duration,
+            playbackRate: 1.0,
+            position: currentTime,
+          })
+          console.log("[v0] ✓ Initial position state set - duration:", duration)
+        } catch (error) {
+          console.error("[v0] ✗ Error setting initial position state:", error)
+        }
+      }
     } catch (error) {
-      console.error("[v0] Error setting metadata:", error)
+      console.error("[v0] ✗ Error setting metadata:", error)
     }
-  }, [currentVideo])
+  }, [currentVideo, duration])
 
   useEffect(() => {
     if (!("mediaSession" in navigator)) return
-    if (!currentVideo) return // Don't register handlers without metadata
+    if (!currentVideo || !isPlaying || duration === 0) return
+
+    console.log("[v0] Starting position state updates")
+
+    const updatePositionState = () => {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: 1.0,
+          position: currentTime,
+        })
+      } catch (error) {
+        console.error("[v0] Error updating position state:", error)
+      }
+    }
+
+    updatePositionState()
+
+    const interval = setInterval(updatePositionState, 1000)
+
+    return () => {
+      clearInterval(interval)
+      console.log("[v0] Stopped position state updates")
+    }
+  }, [currentVideo, isPlaying, currentTime, duration])
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) {
+      console.log("[v0] Media Session API not supported")
+      return
+    }
 
     console.log("[v0] Registering Media Session action handlers")
 
     try {
       navigator.mediaSession.setActionHandler("play", () => {
-        console.log("[v0] Media Session: play")
-        if (audioRef.current) {
-          audioRef.current.play().catch(console.error)
+        console.log("[v0] Media Session: play action triggered")
+        if (audioRef.current && audioRef.current.paused) {
+          console.log("[v0] Playing audio element")
+          audioRef.current.play().catch((error) => {
+            console.error("[v0] Error playing audio:", error)
+          })
         } else if (playerRef.current && playerRef.current.playVideo) {
+          console.log("[v0] Playing YouTube player")
           playerRef.current.playVideo()
         }
-        setIsPlaying(true)
       })
 
       navigator.mediaSession.setActionHandler("pause", () => {
-        console.log("[v0] Media Session: pause")
-        if (audioRef.current) {
+        console.log("[v0] Media Session: pause action triggered")
+        if (audioRef.current && !audioRef.current.paused) {
+          console.log("[v0] Pausing audio element")
           audioRef.current.pause()
         } else if (playerRef.current && playerRef.current.pauseVideo) {
+          console.log("[v0] Pausing YouTube player")
           playerRef.current.pauseVideo()
         }
-        setIsPlaying(false)
       })
 
       navigator.mediaSession.setActionHandler("previoustrack", () => {
-        console.log("[v0] Media Session: previous track")
+        console.log("[v0] Media Session: previous track action triggered")
         playPreviousRef.current()
       })
 
       navigator.mediaSession.setActionHandler("nexttrack", () => {
-        console.log("[v0] Media Session: next track")
+        console.log("[v0] Media Session: next track action triggered")
         playNextRef.current()
       })
 
       navigator.mediaSession.setActionHandler("seekbackward", (details) => {
-        console.log("[v0] Media Session: seek backward")
+        console.log("[v0] Media Session: seek backward action triggered")
         const skipTime = details.seekOffset || 10
         const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
         seekToRef.current(Math.max(currentTimeValue - skipTime, 0))
       })
 
       navigator.mediaSession.setActionHandler("seekforward", (details) => {
-        console.log("[v0] Media Session: seek forward")
+        console.log("[v0] Media Session: seek forward action triggered")
         const skipTime = details.seekOffset || 10
         const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
         const durationValue = audioRef.current?.duration || playerRef.current?.getDuration?.() || 0
@@ -467,18 +445,18 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
       navigator.mediaSession.setActionHandler("seekto", (details) => {
         if (details.seekTime !== undefined) {
-          console.log("[v0] Media Session: seek to", details.seekTime)
+          console.log("[v0] Media Session: seek to action triggered:", details.seekTime)
           seekToRef.current(details.seekTime)
         }
       })
 
-      console.log("[v0] All Media Session action handlers registered successfully")
+      console.log("[v0] ✓ All Media Session action handlers registered successfully")
     } catch (error) {
-      console.error("[v0] Error registering action handlers:", error)
+      console.error("[v0] ✗ Error registering action handlers:", error)
     }
 
     return () => {
-      console.log("[v0] Unregistering Media Session action handlers")
+      console.log("[v0] Cleaning up Media Session action handlers")
       if ("mediaSession" in navigator) {
         try {
           navigator.mediaSession.setActionHandler("play", null)
@@ -489,11 +467,11 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
           navigator.mediaSession.setActionHandler("seekforward", null)
           navigator.mediaSession.setActionHandler("seekto", null)
         } catch (error) {
-          console.error("[v0] Error unregistering handlers:", error)
+          console.error("[v0] Error cleaning up handlers:", error)
         }
       }
     }
-  }, [currentVideo]) // Re-register when currentVideo changes
+  }, [])
 
   useEffect(() => {
     playNextRef.current = playNext
@@ -501,10 +479,20 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     seekToRef.current = seekTo
   })
 
-  useEffect(() => {
-    if (!currentVideo) return
+  const togglePlay = () => {
+    console.log("[v0] togglePlay called - current isPlaying:", isPlaying)
+    if (!currentVideo) {
+      console.log("[v0] No current video to play")
+      return
+    }
 
     if (isPlaying) {
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause()
+      } else if (playerRef.current && playerRef.current.pauseVideo) {
+        playerRef.current.pauseVideo()
+      }
+    } else {
       if (audioRef.current && audioRef.current.paused) {
         audioRef.current.play().catch((error) => {
           console.error("[v0] Error playing audio:", error)
@@ -512,18 +500,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       } else if (playerRef.current && playerRef.current.playVideo) {
         playerRef.current.playVideo()
       }
-    } else {
-      if (audioRef.current && !audioRef.current.paused) {
-        audioRef.current.pause()
-      } else if (playerRef.current && playerRef.current.pauseVideo) {
-        playerRef.current.pauseVideo()
-      }
     }
-  }, [isPlaying, currentVideo])
-
-  const togglePlay = () => {
-    console.log("[v0] Toggle play:", !isPlaying)
-    setIsPlaying(!isPlaying)
   }
 
   const playNext = () => {
@@ -554,7 +531,6 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
       setCurrentVideo(nextVideo)
       setQueue(queue.slice(1))
-      isManualStateChange.current = true
       setIsPlaying(true)
     } else {
       if (repeatMode === "all" && previousTracks.length > 0) {
@@ -568,14 +544,12 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         setCurrentVideo(firstTrack)
         setQueue(allTracks.slice(1))
         setPreviousTracks([])
-        isManualStateChange.current = true
         setIsPlaying(true)
         return
       }
 
       console.log("[v0] ✗ No more songs in queue, playback stopped")
       console.log("[v0] TIP: Add songs to queue to enable continuous playback")
-      isManualStateChange.current = true
       setIsPlaying(false)
     }
     console.log("[v0] ===== PLAY NEXT COMPLETED =====")

@@ -4,7 +4,7 @@ import { getHomeFeed } from "@/lib/innertube"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 export const revalidate = 300
-export const maxDuration = 30
+export const maxDuration = 20
 
 export async function GET() {
   console.log("[v0] ===== HOME API ROUTE CALLED =====")
@@ -15,7 +15,7 @@ export async function GET() {
     console.log("[v0] Calling getHomeFeed()...")
 
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("Home feed request timeout")), 25000)
+      setTimeout(() => reject(new Error("Home feed request timeout")), 18000)
     })
 
     const homeFeed = (await Promise.race([getHomeFeed(), timeoutPromise])) as any
@@ -66,6 +66,7 @@ export async function GET() {
     console.error("[v0] ===== HOME API ERROR =====")
     console.error("[v0] Error message:", error.message)
     console.error("[v0] Error stack:", error.stack)
+    console.error("[v0] Error name:", error.name)
 
     return NextResponse.json(
       {
