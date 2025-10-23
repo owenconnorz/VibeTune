@@ -1,10 +1,12 @@
 "use client"
-import { Play } from "lucide-react"
+import { Play, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { ProgressiveImage } from "@/components/progressive-image"
+import { isDownloaded } from "@/lib/download-storage"
+import { useState, useEffect } from "react"
 
 interface HomeFeedSectionProps {
   section: {
@@ -40,6 +42,21 @@ export function HomeFeedSection({
   const { playVideo } = useMusicPlayer()
   const allItems = [...section.items, ...additionalItems]
   const hasContinuation = continuationToken !== undefined ? continuationToken : section.continuation
+
+  const [downloadedStates, setDownloadedStates] = useState<Record<string, boolean>>({})
+
+  useEffect(() => {
+    const checkDownloadedStates = async () => {
+      if (allItems.length === 0) return
+
+      const downloadStates: Record<string, boolean> = {}
+      for (const item of allItems) {
+        downloadStates[item.id] = await isDownloaded(item.id)
+      }
+      setDownloadedStates(downloadStates)
+    }
+    checkDownloadedStates()
+  }, [section.items, additionalItems])
 
   const loadMoreRef = useInfiniteScroll({
     onLoadMore: () => onLoadMore(sectionIndex),
@@ -77,7 +94,14 @@ export function HomeFeedSection({
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold truncate">{song.title}</h3>
-                <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
+                <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
+                  {downloadedStates[song.id] && (
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
+                      <Check className="w-3 h-3 text-black" />
+                    </span>
+                  )}
+                  {song.artist}
+                </p>
               </div>
               <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,7 +160,16 @@ export function HomeFeedSection({
                     </div>
                   </div>
                   <h3 className="font-semibold text-base truncate">{item.title}</h3>
-                  {item.artist && <p className="text-sm text-muted-foreground truncate">{item.artist}</p>}
+                  {item.artist && (
+                    <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
+                      {downloadedStates[item.id] && (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
+                          <Check className="w-3 h-3 text-black" />
+                        </span>
+                      )}
+                      {item.artist}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>
@@ -191,7 +224,14 @@ export function HomeFeedSection({
                       </div>
                     </div>
                     <h3 className="font-semibold text-sm truncate">{item.title}</h3>
-                    <p className="text-xs text-muted-foreground truncate">{item.artist}</p>
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                      {downloadedStates[item.id] && (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
+                          <Check className="w-3 h-3 text-black" />
+                        </span>
+                      )}
+                      {item.artist}
+                    </p>
                   </div>
                 )
               })}

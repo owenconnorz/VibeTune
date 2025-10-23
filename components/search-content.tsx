@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Search, Clock, ArrowUpRight, Loader2, AlertCircle, MoreVertical, X } from "lucide-react"
+import { Search, Clock, ArrowUpRight, Loader2, AlertCircle, MoreVertical, X, Check } from "lucide-react" // Added Check icon
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -12,6 +12,7 @@ import { searchHistory } from "@/lib/cache"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ProgressiveImage } from "@/components/progressive-image"
+import { isDownloaded } from "@/lib/download-storage" // Added import for download check
 
 type FilterType = "all" | "songs" | "videos" | "albums" | "artists"
 
@@ -24,6 +25,7 @@ export function SearchContent() {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [apiError, setApiError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<FilterType>("all")
+  const [downloadedStates, setDownloadedStates] = useState<Record<string, boolean>>({})
 
   const router = useRouter()
   const { playVideo } = useMusicPlayer()
@@ -108,6 +110,19 @@ export function SearchContent() {
       setApiError(null)
     }
   }, [query])
+
+  useEffect(() => {
+    const checkDownloadedStates = async () => {
+      if (allResults.length === 0) return
+
+      const downloadStates: Record<string, boolean> = {}
+      for (const video of allResults) {
+        downloadStates[video.id] = await isDownloaded(video.id)
+      }
+      setDownloadedStates(downloadStates)
+    }
+    checkDownloadedStates()
+  }, [allResults])
 
   const handleHistoryClick = (historyQuery: string) => {
     setQuery(historyQuery)
@@ -246,7 +261,12 @@ export function SearchContent() {
                       )}
                       {video.title}
                     </h3>
-                    <p className="text-sm text-muted-foreground truncate">
+                    <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
+                      {!isArtist && downloadedStates[video.id] && (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
+                          <Check className="w-3 h-3 text-black" />
+                        </span>
+                      )}
                       {isArtist && (video as any).subscribers
                         ? (video as any).subscribers
                         : `${video.artist}${video.duration ? ` • ${video.duration}` : ""}`}

@@ -606,6 +606,7 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
           }
 
           const thumbnail =
+            snippet.thumbnails?.maxres?.url ||
             snippet.thumbnails?.high?.url ||
             snippet.thumbnails?.medium?.url ||
             snippet.thumbnails?.default?.url ||
@@ -616,7 +617,7 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
             title: snippet.title || "Unknown Title",
             artist: snippet.videoOwnerChannelTitle || "Unknown Artist",
             thumbnail,
-            duration: "0:00", // YouTube Data API doesn't provide duration in playlist items
+            duration: "0:00",
           })
         }
       }
@@ -625,6 +626,53 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
       console.log(`[v0] Total videos so far: ${videos.length}`)
       console.log(`[v0] Has next page: ${!!pageToken}`)
     } while (pageToken)
+
+    console.log("[v0] ===== FETCHING INNERTUBE THUMBNAILS =====")
+    console.log("[v0] Getting high-quality thumbnails from InnerTube API...")
+
+    try {
+      const innertubeData = await makeInnerTubeRequest("browse", {
+        browseId: `VL${playlistId}`,
+      })
+
+      const sectionListRenderer =
+        innertubeData.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+
+      if (sectionListRenderer) {
+        const shelf =
+          sectionListRenderer.contents?.[0]?.musicPlaylistShelfRenderer ||
+          sectionListRenderer.contents?.[0]?.musicShelfRenderer
+
+        if (shelf?.contents) {
+          console.log(`[v0] InnerTube returned ${shelf.contents.length} items with thumbnails`)
+
+          // Create a map of videoId -> thumbnail from InnerTube
+          const thumbnailMap = new Map<string, string>()
+
+          for (const item of shelf.contents) {
+            const videoInfo = extractVideoInfo(item)
+            if (videoInfo && videoInfo.id && videoInfo.thumbnail) {
+              thumbnailMap.set(videoInfo.id, videoInfo.thumbnail)
+            }
+          }
+
+          // Update thumbnails for matching videos
+          let updatedCount = 0
+          for (const video of videos) {
+            const innerTubeThumbnail = thumbnailMap.get(video.id)
+            if (innerTubeThumbnail) {
+              video.thumbnail = innerTubeThumbnail
+              updatedCount++
+            }
+          }
+
+          console.log(`[v0] Updated ${updatedCount} thumbnails with InnerTube data`)
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Failed to fetch InnerTube thumbnails (non-fatal):", error)
+      console.log("[v0] Continuing with YouTube Data API thumbnails")
+    }
 
     console.log("[v0] ===== PLAYLIST IMPORT COMPLETE =====")
     console.log("[v0] Total pages fetched:", totalPages)
@@ -647,7 +695,7 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
       _debug: {
         totalPages,
         videoCount: videos.length,
-        apiVersion: "YouTube Data API v3",
+        apiVersion: "YouTube Data API v3 + InnerTube thumbnails",
       },
     }
   } catch (error: any) {

@@ -16,6 +16,7 @@ import {
   Heart,
   ImageIcon,
   X,
+  Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -50,6 +51,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [downloadingPlaylist, setDownloadingPlaylist] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 })
+  const [downloadedStates, setDownloadedStates] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const playlists = getPlaylists()
@@ -62,6 +64,15 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
         states[video.id] = isLiked(video.id)
       })
       setLikedStates(states)
+
+      const checkDownloadedStates = async () => {
+        const downloadStates: Record<string, boolean> = {}
+        for (const video of found.videos) {
+          downloadStates[video.id] = await isDownloaded(video.id)
+        }
+        setDownloadedStates(downloadStates)
+      }
+      checkDownloadedStates()
     }
   }, [playlistId])
 
@@ -236,6 +247,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
 
       if (success) {
         successCount++
+        setDownloadedStates((prev) => ({ ...prev, [video.id]: true }))
       } else {
         failCount++
       }
@@ -439,6 +451,11 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate text-lg leading-tight max-w-[200px]">{video.title}</p>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 max-w-[200px]">
+                      {downloadedStates[video.id] && (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
+                          <Check className="w-3 h-3 text-black" />
+                        </span>
+                      )}
                       <span className="truncate">{video.artist || "Unknown Artist"}</span>
                       <span>•</span>
                       <span className="flex-shrink-0">{formatDuration(video.duration)}</span>
