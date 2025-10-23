@@ -93,6 +93,19 @@ export function ImportYouTubePlaylistDialog({ open, onOpenChange }: ImportYouTub
             )
           }
         }
+
+        if (data._debug.sectionLevelContinuation) {
+          console.log("[v0] ===== SECTION-LEVEL CONTINUATIONS =====")
+          console.log("[v0] Has section continuations:", data._debug.sectionLevelContinuation.hasContinuations)
+          console.log("[v0] Section continuations length:", data._debug.sectionLevelContinuation.continuationsLength)
+          console.log(
+            "[v0] Section continuations data:",
+            JSON.stringify(data._debug.sectionLevelContinuation.continuationsData, null, 2),
+          )
+        } else {
+          console.log("[v0] ===== SECTION-LEVEL CONTINUATIONS =====")
+          console.log("[v0] No section-level continuations found")
+        }
       }
 
       console.log(

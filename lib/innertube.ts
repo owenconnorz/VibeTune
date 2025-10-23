@@ -551,17 +551,18 @@ export async function getPlaylistDetails(playlistId: string) {
     const description = header?.description?.runs?.[0]?.text || ""
     const thumbnail = header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
 
-    const contents =
-      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
-        ?.contents ||
-      data.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents ||
-      []
+    const sectionListRenderer =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer ||
+      data.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer
+
+    const contents = sectionListRenderer?.contents || []
 
     const videos: any[] = []
     let totalPages = 0
     let hadContinuation = false
     let lastError: string | null = null
     let shelfStructure: any = null
+    let sectionLevelContinuation: any = null
 
     for (const section of contents) {
       const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
@@ -589,9 +590,9 @@ export async function getPlaylistDetails(playlistId: string) {
       let continuationToken = shelf.continuations?.[0]?.nextContinuationData?.continuation
       if (continuationToken) {
         hadContinuation = true
-        console.log(`[v0] Found continuation token, will fetch more pages`)
+        console.log(`[v0] Found continuation token at shelf level`)
       } else {
-        console.log(`[v0] No continuation token found - playlist might have only ${videos.length} items`)
+        console.log(`[v0] No continuation token at shelf level`)
       }
 
       while (continuationToken) {
@@ -638,6 +639,17 @@ export async function getPlaylistDetails(playlistId: string) {
       }
     }
 
+    if (sectionListRenderer?.continuations) {
+      sectionLevelContinuation = {
+        hasContinuations: true,
+        continuationsLength: sectionListRenderer.continuations.length,
+        continuationsData: JSON.parse(JSON.stringify(sectionListRenderer.continuations)),
+      }
+      console.log("[v0] Found section-level continuations:", sectionLevelContinuation)
+    } else {
+      console.log("[v0] No section-level continuations found")
+    }
+
     console.log("[v0] Playlist complete:", title, "-", videos.length, "videos")
     console.log(
       `[v0] Pagination summary: ${totalPages} pages fetched, hadContinuation: ${hadContinuation}, lastError: ${lastError || "none"}`,
@@ -655,6 +667,7 @@ export async function getPlaylistDetails(playlistId: string) {
         lastError,
         videoCount: videos.length,
         shelfStructure,
+        sectionLevelContinuation,
       },
     }
   } catch (error: any) {
