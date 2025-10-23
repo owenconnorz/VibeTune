@@ -422,11 +422,21 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     try {
       navigator.mediaSession.setActionHandler("play", () => {
         console.log("[v0] Media Session: play")
+        if (audioRef.current) {
+          audioRef.current.play().catch(console.error)
+        } else if (playerRef.current && playerRef.current.playVideo) {
+          playerRef.current.playVideo()
+        }
         setIsPlaying(true)
       })
 
       navigator.mediaSession.setActionHandler("pause", () => {
         console.log("[v0] Media Session: pause")
+        if (audioRef.current) {
+          audioRef.current.pause()
+        } else if (playerRef.current && playerRef.current.pauseVideo) {
+          playerRef.current.pauseVideo()
+        }
         setIsPlaying(false)
       })
 
@@ -484,6 +494,32 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [currentVideo]) // Re-register when currentVideo changes
+
+  useEffect(() => {
+    playNextRef.current = playNext
+    playPreviousRef.current = playPrevious
+    seekToRef.current = seekTo
+  })
+
+  useEffect(() => {
+    if (!currentVideo) return
+
+    if (isPlaying) {
+      if (audioRef.current && audioRef.current.paused) {
+        audioRef.current.play().catch((error) => {
+          console.error("[v0] Error playing audio:", error)
+        })
+      } else if (playerRef.current && playerRef.current.playVideo) {
+        playerRef.current.playVideo()
+      }
+    } else {
+      if (audioRef.current && !audioRef.current.paused) {
+        audioRef.current.pause()
+      } else if (playerRef.current && playerRef.current.pauseVideo) {
+        playerRef.current.pauseVideo()
+      }
+    }
+  }, [isPlaying, currentVideo])
 
   const togglePlay = () => {
     console.log("[v0] Toggle play:", !isPlaying)
@@ -601,59 +637,6 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  useEffect(() => {
-    playNextRef.current = playNext
-    playPreviousRef.current = playPrevious
-    seekToRef.current = seekTo
-  })
-
-  useEffect(() => {
-    if (!currentVideo) return
-
-    const settings = themeStorage.getSettings()
-    if (!settings.dynamicThemeEnabled) {
-      setThemeColors(null)
-      return
-    }
-
-    extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
-      setThemeColors(colors)
-      applyThemeColors(colors)
-    })
-  }, [currentVideo])
-
-  useEffect(() => {
-    const handleThemeChange = () => {
-      const settings = themeStorage.getSettings()
-      if (!settings.dynamicThemeEnabled) {
-        setThemeColors(null)
-        resetThemeColors()
-      } else if (currentVideo) {
-        extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
-          setThemeColors(colors)
-          applyThemeColors(colors)
-        })
-      }
-    }
-
-    window.addEventListener("themeSettingsChanged", handleThemeChange)
-    return () => window.removeEventListener("themeSettingsChanged", handleThemeChange)
-  }, [currentVideo])
-
-  const applyThemeColors = (colors: ExtractedColors) => {
-    const root = document.documentElement
-    root.style.setProperty("--background", colors.primary)
-    root.style.setProperty("--card", colors.secondary)
-    root.style.setProperty("--accent", colors.accent)
-  }
-
-  const resetThemeColors = () => {
-    const root = document.documentElement
-    root.style.removeProperty("--background")
-    root.style.removeProperty("--card")
-    root.style.removeProperty("--accent")
-  }
-
   const playVideo = (video: YouTubeVideo, queueVideos?: YouTubeVideo[]) => {
     console.log("[v0] Playing video:", video.title)
     if (queueVideos) {
@@ -691,6 +674,53 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       return "off"
     })
   }
+
+  const applyThemeColors = (colors: ExtractedColors) => {
+    const root = document.documentElement
+    root.style.setProperty("--background", colors.primary)
+    root.style.setProperty("--card", colors.secondary)
+    root.style.setProperty("--accent", colors.accent)
+  }
+
+  const resetThemeColors = () => {
+    const root = document.documentElement
+    root.style.removeProperty("--background")
+    root.style.removeProperty("--card")
+    root.style.removeProperty("--accent")
+  }
+
+  useEffect(() => {
+    if (!currentVideo) return
+
+    const settings = themeStorage.getSettings()
+    if (!settings.dynamicThemeEnabled) {
+      setThemeColors(null)
+      return
+    }
+
+    extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
+      setThemeColors(colors)
+      applyThemeColors(colors)
+    })
+  }, [currentVideo])
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const settings = themeStorage.getSettings()
+      if (!settings.dynamicThemeEnabled) {
+        setThemeColors(null)
+        resetThemeColors()
+      } else if (currentVideo) {
+        extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
+          setThemeColors(colors)
+          applyThemeColors(colors)
+        })
+      }
+    }
+
+    window.addEventListener("themeSettingsChanged", handleThemeChange)
+    return () => window.removeEventListener("themeSettingsChanged", handleThemeChange)
+  }, [currentVideo])
 
   return (
     <MusicPlayerContext.Provider
