@@ -72,6 +72,15 @@ export function ImportYouTubePlaylistDialog({ open, onOpenChange }: ImportYouTub
       console.log("[v0] ===== PLAYLIST DATA RECEIVED =====")
       console.log("[v0] Playlist title:", data.title)
       console.log("[v0] Total videos received:", data.videos?.length || 0)
+
+      if (data._debug) {
+        console.log("[v0] ===== SERVER PAGINATION INFO =====")
+        console.log("[v0] Total pages fetched:", data._debug.totalPages)
+        console.log("[v0] Had continuation token:", data._debug.hadContinuation)
+        console.log("[v0] Last error:", data._debug.lastError || "none")
+        console.log("[v0] Final video count:", data._debug.videoCount)
+      }
+
       console.log(
         "[v0] First 3 video titles:",
         data.videos?.slice(0, 3).map((v: any) => v.title),

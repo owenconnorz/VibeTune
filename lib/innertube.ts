@@ -558,12 +558,16 @@ export async function getPlaylistDetails(playlistId: string) {
       []
 
     const videos: any[] = []
+    let totalPages = 0
+    let hadContinuation = false
+    let lastError: string | null = null
 
     for (const section of contents) {
       const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
       if (!shelf) continue
 
       const items = shelf.contents || []
+      totalPages = 1
       console.log("[v0] Processing", items.length, "items from initial page")
 
       for (const item of items) {
@@ -574,11 +578,16 @@ export async function getPlaylistDetails(playlistId: string) {
       }
 
       let continuationToken = shelf.continuations?.[0]?.nextContinuationData?.continuation
-      let pageCount = 1
+      if (continuationToken) {
+        hadContinuation = true
+        console.log(`[v0] Found continuation token, will fetch more pages`)
+      } else {
+        console.log(`[v0] No continuation token found - playlist might have only ${videos.length} items`)
+      }
 
       while (continuationToken) {
-        pageCount++
-        console.log(`[v0] Fetching page ${pageCount}...`)
+        totalPages++
+        console.log(`[v0] Fetching page ${totalPages}...`)
 
         try {
           const continuationData = await makeInnerTubeRequest("browse", {
@@ -586,14 +595,15 @@ export async function getPlaylistDetails(playlistId: string) {
           })
 
           if (!continuationData) {
-            console.error(`[v0] No data for page ${pageCount}`)
+            lastError = `No data for page ${totalPages}`
+            console.error(`[v0] ${lastError}`)
             break
           }
 
           const continuationContents =
             continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents || []
 
-          console.log(`[v0] Page ${pageCount}: ${continuationContents.length} items`)
+          console.log(`[v0] Page ${totalPages}: ${continuationContents.length} items`)
 
           for (const item of continuationContents) {
             const videoInfo = extractVideoInfo(item)
@@ -602,23 +612,27 @@ export async function getPlaylistDetails(playlistId: string) {
             }
           }
 
-          console.log(`[v0] Total videos: ${videos.length}`)
+          console.log(`[v0] Total videos so far: ${videos.length}`)
 
           continuationToken =
             continuationData.continuationContents?.musicPlaylistShelfContinuation?.continuations?.[0]
               ?.nextContinuationData?.continuation
 
           if (!continuationToken) {
-            console.log(`[v0] Fetched all ${pageCount} pages, total: ${videos.length} videos`)
+            console.log(`[v0] No more pages - fetched all ${totalPages} pages, total: ${videos.length} videos`)
           }
         } catch (error: any) {
-          console.error(`[v0] Error fetching page ${pageCount}:`, error.message)
+          lastError = error.message
+          console.error(`[v0] Error fetching page ${totalPages}:`, error.message)
           break
         }
       }
     }
 
     console.log("[v0] Playlist complete:", title, "-", videos.length, "videos")
+    console.log(
+      `[v0] Pagination summary: ${totalPages} pages fetched, hadContinuation: ${hadContinuation}, lastError: ${lastError || "none"}`,
+    )
 
     return {
       id: playlistId,
@@ -626,6 +640,12 @@ export async function getPlaylistDetails(playlistId: string) {
       description,
       thumbnail,
       videos,
+      _debug: {
+        totalPages,
+        hadContinuation,
+        lastError,
+        videoCount: videos.length,
+      },
     }
   } catch (error: any) {
     console.error("[v0] Playlist fetch error:", error.message)
