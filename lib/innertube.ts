@@ -766,7 +766,6 @@ export async function getPlaylistData(playlistId: string) {
       console.log(`[v0] Fetching page ${pageCount} with continuation token`)
 
       try {
-        // Use the continuation endpoint instead of browse
         const url = `https://music.youtube.com/youtubei/v1/browse?key=${INNERTUBE_API_KEY}`
 
         const response = await fetch(url, {
@@ -792,13 +791,26 @@ export async function getPlaylistData(playlistId: string) {
 
         const continuationData = await response.json()
 
+        console.log(`[v0] Full continuation response keys:`, Object.keys(continuationData))
         console.log(`[v0] Continuation response structure:`, {
           hasContinuationContents: !!continuationData.continuationContents,
-          keys: continuationData.continuationContents ? Object.keys(continuationData.continuationContents) : [],
+          hasOnResponseReceivedActions: !!continuationData.onResponseReceivedActions,
+          continuationContentsKeys: continuationData.continuationContents
+            ? Object.keys(continuationData.continuationContents)
+            : [],
+          onResponseReceivedActionsLength: continuationData.onResponseReceivedActions?.length || 0,
         })
 
-        const continuationContents =
-          continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents || []
+        let continuationContents: any[] = []
+
+        if (continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents) {
+          continuationContents = continuationData.continuationContents.musicPlaylistShelfContinuation.contents
+          console.log(`[v0] Using continuationContents structure, items:`, continuationContents.length)
+        } else if (continuationData.onResponseReceivedActions?.[0]?.appendContinuationItemsAction?.continuationItems) {
+          continuationContents =
+            continuationData.onResponseReceivedActions[0].appendContinuationItemsAction.continuationItems
+          console.log(`[v0] Using onResponseReceivedActions structure, items:`, continuationContents.length)
+        }
 
         console.log(`[v0] Page ${pageCount} items:`, continuationContents.length)
 
