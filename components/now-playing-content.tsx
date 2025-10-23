@@ -195,6 +195,7 @@ export function NowPlayingContent() {
                 step={1}
                 onValueChange={(value) => setVolume(value[0] / 100)}
                 className="flex-1"
+                forceDefaultStyle={true}
               />
             </div>
 

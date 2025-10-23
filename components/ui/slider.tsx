@@ -12,8 +12,9 @@ function Slider({
   value,
   min = 0,
   max = 100,
+  forceDefaultStyle = false,
   ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+}: React.ComponentProps<typeof SliderPrimitive.Root> & { forceDefaultStyle?: boolean }) {
   const _values = React.useMemo(
     () => (Array.isArray(value) ? value : Array.isArray(defaultValue) ? defaultValue : [min, max]),
     [value, defaultValue, min, max],
@@ -22,18 +23,21 @@ function Slider({
   const [sliderStyle, setSliderStyle] = React.useState<SliderStyle>("default")
 
   React.useEffect(() => {
+    if (forceDefaultStyle) {
+      setSliderStyle("default")
+      return
+    }
+
     setSliderStyle(sliderStyleStorage.getStyle())
 
-    // Listen for style changes
     const handleStyleChange = (e: Event) => {
       const customEvent = e as CustomEvent<SliderStyle>
-      console.log("[v0] Slider style changed to:", customEvent.detail)
       setSliderStyle(customEvent.detail)
     }
 
     window.addEventListener("sliderStyleChanged", handleStyleChange)
     return () => window.removeEventListener("sliderStyleChanged", handleStyleChange)
-  }, [])
+  }, [forceDefaultStyle])
 
   const getTrackClasses = () => {
     const baseClasses =
@@ -46,8 +50,12 @@ function Slider({
         return cn(
           baseClasses,
           "data-[orientation=horizontal]:h-2 data-[orientation=vertical]:w-2",
-          "rounded-none",
-          "[clip-path:polygon(0%_50%,2.5%_40%,5%_35%,7.5%_40%,10%_50%,12.5%_60%,15%_65%,17.5%_60%,20%_50%,22.5%_40%,25%_35%,27.5%_40%,30%_50%,32.5%_60%,35%_65%,37.5%_60%,40%_50%,42.5%_40%,45%_35%,47.5%_40%,50%_50%,52.5%_60%,55%_65%,57.5%_60%,60%_50%,62.5%_40%,65%_35%,67.5%_40%,70%_50%,72.5%_60%,75%_65%,77.5%_60%,80%_50%,82.5%_40%,85%_35%,87.5%_40%,90%_50%,92.5%_60%,95%_65%,97.5%_60%,100%_50%,100%_100%,0%_100%)]",
+          "rounded-none relative",
+          "before:content-[''] before:absolute before:inset-0 before:bg-muted",
+          "before:[mask-image:url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0wLDEwIFEyLjUsNSA1LDEwIFQxMCwxMCBUMTUsMTAgVDIwLDEwIFQyNSwxMCBUMzAsMTAgVDM1LDEwIFQ0MCwxMCBUNDUsMTAgVDUwLDEwIFQ1NSwxMCBUNjAsMTAgVDY1LDEwIFQ3MCwxMCBUNzUsMTAgVDgwLDEwIFQ4NSwxMCBUOTAsMTAgVDk1LDEwIFQxMDAsMTAgTDEwMCwyMCBMMCwyMCBaIiBmaWxsPSJibGFjayIvPjwvc3ZnPg==')]",
+          "before:[mask-size:200%_100%]",
+          "before:[mask-repeat:repeat-x]",
+          "before:animate-[wave_3s_linear_infinite]",
         )
       case "default":
       default:
@@ -62,7 +70,12 @@ function Slider({
       case "squiggly":
         return cn(
           baseClasses,
-          "[clip-path:polygon(0%_50%,2.5%_40%,5%_35%,7.5%_40%,10%_50%,12.5%_60%,15%_65%,17.5%_60%,20%_50%,22.5%_40%,25%_35%,27.5%_40%,30%_50%,32.5%_60%,35%_65%,37.5%_60%,40%_50%,42.5%_40%,45%_35%,47.5%_40%,50%_50%,52.5%_60%,55%_65%,57.5%_60%,60%_50%,62.5%_40%,65%_35%,67.5%_40%,70%_50%,72.5%_60%,75%_65%,77.5%_60%,80%_50%,82.5%_40%,85%_35%,87.5%_40%,90%_50%,92.5%_60%,95%_65%,97.5%_60%,100%_50%,100%_100%,0%_100%)]",
+          "relative",
+          "before:content-[''] before:absolute before:inset-0 before:bg-primary",
+          "before:[mask-image:url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGQ9Ik0wLDEwIFEyLjUsNSA1LDEwIFQxMCwxMCBUMTUsMTAgVDIwLDEwIFQyNSwxMCBUMzAsMTAgVDM1LDEwIFQ0MCwxMCBUNDUsMTAgVDUwLDEwIFQ1NSwxMCBUNjAsMTAgVDY1LDEwIFQ3MCwxMCBUNzUsMTAgVDgwLDEwIFQ4NSwxMCBUOTAsMTAgVDk1LDEwIFQxMDAsMTAgTDEwMCwyMCBMMCwyMCBaIiBmaWxsPSJibGFjayIvPjwvc3ZnPg==')]",
+          "before:[mask-size:200%_100%]",
+          "before:[mask-repeat:repeat-x]",
+          "before:animate-[wave_3s_linear_infinite]",
         )
       default:
         return baseClasses
