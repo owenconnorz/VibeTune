@@ -173,10 +173,8 @@ export function NowPlayingContent() {
 
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <div className="overflow-x-auto scrollbar-hide">
-                  <h1 className="text-5xl font-bold whitespace-nowrap">{currentVideo.title}</h1>
-                </div>
-                <p className="text-2xl text-muted-foreground mt-1 line-clamp-1">{currentVideo.artist}</p>
+                <h1 className="text-3xl font-bold truncate">{currentVideo.title}</h1>
+                <p className="text-lg text-muted-foreground mt-1 truncate">{currentVideo.artist}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0 pt-2">
                 <Button

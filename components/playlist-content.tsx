@@ -437,8 +437,8 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-base leading-tight">{video.title}</p>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                    <p className="font-medium truncate text-lg leading-tight max-w-[200px]">{video.title}</p>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 max-w-[200px]">
                       <span className="truncate">{video.artist || "Unknown Artist"}</span>
                       <span>•</span>
                       <span className="flex-shrink-0">{formatDuration(video.duration)}</span>

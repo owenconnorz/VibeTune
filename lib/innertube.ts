@@ -615,6 +615,43 @@ export async function getPlaylistDetails(playlistId: string) {
           console.log("[v0] Failed to extract video info from item:", Object.keys(item))
         }
       }
+
+      let continuationToken = shelf.continuations?.[0]?.nextContinuationData?.continuation
+      let pageCount = 1
+
+      while (continuationToken) {
+        pageCount++
+        console.log(`[v0] Fetching page ${pageCount} with continuation token...`)
+
+        try {
+          const continuationData = await makeInnerTubeRequest("browse", {
+            continuation: continuationToken,
+          })
+
+          const continuationContents =
+            continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents || []
+
+          console.log(`[v0] Page ${pageCount}: ${continuationContents.length} items`)
+
+          for (const item of continuationContents) {
+            const videoInfo = extractVideoInfo(item)
+            if (videoInfo) {
+              videos.push(videoInfo)
+            }
+          }
+
+          continuationToken =
+            continuationData.continuationContents?.musicPlaylistShelfContinuation?.continuations?.[0]
+              ?.nextContinuationData?.continuation
+
+          if (!continuationToken) {
+            console.log(`[v0] No more pages to fetch. Total pages: ${pageCount}`)
+          }
+        } catch (error: any) {
+          console.error(`[v0] Error fetching page ${pageCount}:`, error.message)
+          break
+        }
+      }
     }
 
     console.log("[v0] ===== PLAYLIST FETCH COMPLETE =====")
