@@ -370,96 +370,236 @@ export async function getCharts() {
   }
 }
 
+const GENRE_POOLS = {
+  trending: ["trending music", "viral songs", "top hits 2024", "chart toppers", "popular now"],
+  popular: ["popular music", "best songs", "top tracks", "hit songs", "most played"],
+  mood: [
+    "feel good music",
+    "happy songs",
+    "upbeat music",
+    "energetic tracks",
+    "positive vibes",
+    "chill music",
+    "relaxing songs",
+    "calm music",
+    "peaceful tracks",
+    "ambient music",
+  ],
+  activity: [
+    "workout music",
+    "gym songs",
+    "running music",
+    "exercise tracks",
+    "fitness playlist",
+    "study music",
+    "focus songs",
+    "concentration music",
+    "work playlist",
+  ],
+  genre: [
+    "pop music",
+    "rock songs",
+    "hip hop tracks",
+    "electronic music",
+    "indie songs",
+    "r&b music",
+    "jazz tracks",
+    "country songs",
+    "latin music",
+    "k-pop songs",
+  ],
+  era: ["80s music", "90s hits", "2000s songs", "2010s music", "classic hits", "throwback songs"],
+}
+
+// Helper to get random item from array
+function getRandomItem<T>(array: T[]): T {
+  return array[Math.floor(Math.random() * array.length)]
+}
+
+// Helper to get varied search queries
+function getVariedQueries() {
+  return {
+    quickPicks: getRandomItem([...GENRE_POOLS.trending, ...GENRE_POOLS.popular]),
+    trending: getRandomItem(GENRE_POOLS.trending),
+    popular: getRandomItem([...GENRE_POOLS.popular, ...GENRE_POOLS.genre]),
+    mood1: getRandomItem(GENRE_POOLS.mood),
+    mood2: getRandomItem(GENRE_POOLS.mood.filter((m) => m !== GENRE_POOLS.mood[0])),
+    activity: getRandomItem(GENRE_POOLS.activity),
+    genre: getRandomItem(GENRE_POOLS.genre),
+    era: getRandomItem(GENRE_POOLS.era),
+  }
+}
+
 export async function getHomeFeed() {
   try {
     console.log("[v0] ===== STARTING HOME FEED FETCH =====")
     console.log("[v0] Timestamp:", new Date().toISOString())
 
+    const queries = getVariedQueries()
+    console.log("[v0] Using varied queries:", queries)
+
     const sections: any[] = []
 
-    // Fetch trending music
+    // Fetch quick picks with varied query
     try {
-      console.log("[v0] Fetching trending music...")
-      const trendingItems = await getTrendingMusic()
-      console.log("[v0] Trending items:", trendingItems.length)
+      console.log("[v0] Fetching quick picks with query:", queries.quickPicks)
+      const quickPicksResults = await searchMusic(queries.quickPicks)
+      console.log("[v0] Quick picks items:", quickPicksResults.videos.length)
 
-      if (trendingItems.length > 0) {
+      if (quickPicksResults.videos.length > 0) {
         sections.push({
           title: "Quick picks",
-          items: trendingItems.slice(0, 10),
+          items: quickPicksResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
           type: "list",
         })
       }
     } catch (error: any) {
-      console.error("[v0] Trending music failed:", error.message)
+      console.error("[v0] Quick picks failed:", error.message)
     }
 
-    // Fetch charts
+    // Fetch trending with varied query
     try {
-      console.log("[v0] Fetching charts...")
-      const chartItems = await getCharts()
-      console.log("[v0] Chart items:", chartItems.length)
+      console.log("[v0] Fetching trending with query:", queries.trending)
+      const trendingResults = await searchMusic(queries.trending)
+      console.log("[v0] Trending items:", trendingResults.videos.length)
 
-      if (chartItems.length > 0) {
+      if (trendingResults.videos.length > 0) {
         sections.push({
-          title: "Top Charts",
-          items: chartItems.slice(0, 10),
+          title: "Trending Now",
+          items: trendingResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
           type: "carousel",
         })
       }
     } catch (error: any) {
-      console.error("[v0] Charts failed:", error.message)
+      console.error("[v0] Trending failed:", error.message)
     }
 
-    // Fetch popular music
+    // Fetch popular with varied query
     try {
-      console.log("[v0] Fetching popular music...")
-      const popMusicResults = await searchMusic("popular music 2024")
-      console.log("[v0] Popular music items:", popMusicResults.videos.length)
+      console.log("[v0] Fetching popular with query:", queries.popular)
+      const popularResults = await searchMusic(queries.popular)
+      console.log("[v0] Popular items:", popularResults.videos.length)
 
-      if (popMusicResults.videos.length > 0) {
+      if (popularResults.videos.length > 0) {
         sections.push({
           title: "Popular Music",
-          items: popMusicResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          items: popularResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
           type: "carousel",
         })
       }
     } catch (error: any) {
-      console.error("[v0] Popular music failed:", error.message)
+      console.error("[v0] Popular failed:", error.message)
     }
 
-    // Fetch feel good music
+    // Fetch first mood category with varied query
     try {
-      console.log("[v0] Fetching feel good music...")
-      const feelGoodResults = await searchMusic("feel good music")
-      console.log("[v0] Feel good items:", feelGoodResults.videos.length)
+      console.log("[v0] Fetching mood music with query:", queries.mood1)
+      const mood1Results = await searchMusic(queries.mood1)
+      console.log("[v0] Mood 1 items:", mood1Results.videos.length)
 
-      if (feelGoodResults.videos.length > 0) {
+      if (mood1Results.videos.length > 0) {
+        // Capitalize first letter of each word for title
+        const title = queries.mood1
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")
+
         sections.push({
-          title: "Feel Good",
-          items: feelGoodResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          title,
+          items: mood1Results.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
           type: "carousel",
         })
       }
     } catch (error: any) {
-      console.error("[v0] Feel good music failed:", error.message)
+      console.error("[v0] Mood 1 failed:", error.message)
     }
 
-    // Fetch workout music
+    // Fetch activity category with varied query
     try {
-      console.log("[v0] Fetching workout music...")
-      const workoutResults = await searchMusic("workout music")
-      console.log("[v0] Workout items:", workoutResults.videos.length)
+      console.log("[v0] Fetching activity music with query:", queries.activity)
+      const activityResults = await searchMusic(queries.activity)
+      console.log("[v0] Activity items:", activityResults.videos.length)
 
-      if (workoutResults.videos.length > 0) {
+      if (activityResults.videos.length > 0) {
+        const title = queries.activity
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")
+
         sections.push({
-          title: "Workout Mix",
-          items: workoutResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          title,
+          items: activityResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
           type: "carousel",
         })
       }
     } catch (error: any) {
-      console.error("[v0] Workout music failed:", error.message)
+      console.error("[v0] Activity failed:", error.message)
+    }
+
+    // Fetch genre category with varied query
+    try {
+      console.log("[v0] Fetching genre music with query:", queries.genre)
+      const genreResults = await searchMusic(queries.genre)
+      console.log("[v0] Genre items:", genreResults.videos.length)
+
+      if (genreResults.videos.length > 0) {
+        const title = queries.genre
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")
+
+        sections.push({
+          title,
+          items: genreResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          type: "carousel",
+        })
+      }
+    } catch (error: any) {
+      console.error("[v0] Genre failed:", error.message)
+    }
+
+    // Fetch era category with varied query
+    try {
+      console.log("[v0] Fetching era music with query:", queries.era)
+      const eraResults = await searchMusic(queries.era)
+      console.log("[v0] Era items:", eraResults.videos.length)
+
+      if (eraResults.videos.length > 0) {
+        const title = queries.era
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")
+
+        sections.push({
+          title,
+          items: eraResults.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          type: "carousel",
+        })
+      }
+    } catch (error: any) {
+      console.error("[v0] Era failed:", error.message)
+    }
+
+    // Fetch second mood category with varied query
+    try {
+      console.log("[v0] Fetching second mood with query:", queries.mood2)
+      const mood2Results = await searchMusic(queries.mood2)
+      console.log("[v0] Mood 2 items:", mood2Results.videos.length)
+
+      if (mood2Results.videos.length > 0) {
+        const title = queries.mood2
+          .split(" ")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ")
+
+        sections.push({
+          title,
+          items: mood2Results.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
+          type: "carousel",
+        })
+      }
+    } catch (error: any) {
+      console.error("[v0] Mood 2 failed:", error.message)
     }
 
     console.log("[v0] ===== HOME FEED COMPLETE =====")
@@ -468,9 +608,9 @@ export async function getHomeFeed() {
 
     return { sections }
   } catch (error: any) {
-    console.error("[v0] ===== HOME FEED FATAL ERROR =====")
-    console.error("[v0] Error:", error.message)
-    console.error("[v0] Stack:", error.stack)
+    console.log("[v0] ===== HOME FEED FATAL ERROR =====")
+    console.log("[v0] Error:", error.message)
+    console.log("[v0] Stack:", error.stack)
     throw error
   }
 }

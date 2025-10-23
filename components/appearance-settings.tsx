@@ -6,14 +6,19 @@ import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { themeStorage } from "@/lib/theme-storage"
+import { sliderStyleStorage, type SliderStyle } from "@/lib/slider-style-storage"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export function AppearanceSettings() {
   const router = useRouter()
   const [dynamicTheme, setDynamicTheme] = useState(false)
+  const [sliderStyle, setSliderStyle] = useState<SliderStyle>("default")
+  const [sliderDialogOpen, setSliderDialogOpen] = useState(false)
 
   useEffect(() => {
     const settings = themeStorage.getSettings()
     setDynamicTheme(settings.dynamicThemeEnabled)
+    setSliderStyle(sliderStyleStorage.getStyle())
   }, [])
 
   const handleToggleDynamicTheme = () => {
@@ -22,6 +27,23 @@ export function AppearanceSettings() {
 
     // Trigger a custom event to notify other components
     window.dispatchEvent(new CustomEvent("themeSettingsChanged"))
+  }
+
+  const handleSliderStyleChange = (style: SliderStyle) => {
+    sliderStyleStorage.setStyle(style)
+    setSliderStyle(style)
+    setSliderDialogOpen(false)
+  }
+
+  const getSliderStyleName = (style: SliderStyle) => {
+    switch (style) {
+      case "default":
+        return "Default"
+      case "squiggly":
+        return "Squiggly"
+      case "slim":
+        return "Slim"
+    }
   }
 
   return (
@@ -53,8 +75,84 @@ export function AppearanceSettings() {
               creating a more immersive listening experience.
             </p>
           </div>
+
+          <button
+            onClick={() => setSliderDialogOpen(true)}
+            className="w-full flex items-center justify-between bg-card rounded-2xl p-4 hover:bg-card/80 transition-colors"
+          >
+            <div className="flex-1 text-left">
+              <h3 className="font-semibold">Player slider style</h3>
+              <p className="text-sm text-muted-foreground mt-1">{getSliderStyleName(sliderStyle)}</p>
+            </div>
+          </button>
         </div>
       </div>
+
+      <Dialog open={sliderDialogOpen} onOpenChange={setSliderDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-lg border-border/50">
+          <DialogHeader>
+            <DialogTitle className="text-center">Player slider style</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-3 gap-3 py-4">
+            <button
+              onClick={() => handleSliderStyleChange("default")}
+              className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+                sliderStyle === "default" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+              }`}
+            >
+              <div className="w-full h-12 flex items-center justify-center">
+                <svg width="40" height="24" viewBox="0 0 40 24" fill="none" className="text-foreground">
+                  <rect x="0" y="10" width="40" height="4" rx="2" fill="currentColor" opacity="0.3" />
+                  <rect x="0" y="10" width="24" height="4" rx="2" fill="currentColor" />
+                  <circle cx="24" cy="12" r="6" fill="currentColor" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium">Default</span>
+            </button>
+
+            <button
+              onClick={() => handleSliderStyleChange("squiggly")}
+              className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+                sliderStyle === "squiggly" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+              }`}
+            >
+              <div className="w-full h-12 flex items-center justify-center">
+                <svg width="40" height="24" viewBox="0 0 40 24" fill="none" className="text-foreground">
+                  <path
+                    d="M0 12 Q5 8, 10 12 T20 12 T30 12 T40 12"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    fill="none"
+                    opacity="0.3"
+                  />
+                  <path d="M0 12 Q5 8, 10 12 T20 12" stroke="currentColor" strokeWidth="3" fill="none" />
+                  <circle cx="20" cy="12" r="6" fill="currentColor" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium">Squiggly</span>
+            </button>
+
+            <button
+              onClick={() => handleSliderStyleChange("slim")}
+              className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+                sliderStyle === "slim" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+              }`}
+            >
+              <div className="w-full h-12 flex items-center justify-center">
+                <svg width="40" height="24" viewBox="0 0 40 24" fill="none" className="text-foreground">
+                  <rect x="0" y="11" width="40" height="2" rx="1" fill="currentColor" opacity="0.3" />
+                  <rect x="0" y="11" width="24" height="2" rx="1" fill="currentColor" />
+                  <circle cx="24" cy="12" r="5" fill="currentColor" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium">Slim</span>
+            </button>
+          </div>
+          <Button variant="ghost" onClick={() => setSliderDialogOpen(false)} className="w-full">
+            Cancel
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

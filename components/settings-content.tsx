@@ -29,14 +29,14 @@ export function SettingsContent() {
     {
       title: "Storage & Data",
       items: [
-        { icon: HardDrive, label: "Storage" },
+        { icon: HardDrive, label: "Storage", href: "/dashboard/settings/storage" },
         { icon: Cloud, label: "Backup and restore" },
       ],
     },
     {
       title: "System & About",
       items: [
-        { icon: LinkIcon, label: "Open supported links" },
+        { icon: LinkIcon, label: "Open supported links", href: "/dashboard/settings/supported-links" },
         { icon: RefreshCw, label: "Updater" },
         { icon: Info, label: "About" },
       ],

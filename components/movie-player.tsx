@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
-import { getVidSrcEmbedUrl } from "@/lib/vidsrc-api"
+import { getVideoPlayerUrl } from "@/lib/movie-api-template"
 
 interface MovieDetails {
   id: string
@@ -61,19 +61,28 @@ export function MoviePlayer({ movieId }: { movieId: string }) {
     )
   }
 
-  const embedUrl = getVidSrcEmbedUrl("movie", movieId)
+  const videoUrl = movie.videoUrl || getVideoPlayerUrl(movieId)
 
   return (
     <div className="space-y-6">
       {/* Video Player */}
       <div className="relative aspect-video bg-black">
-        <iframe
-          src={embedUrl}
-          className="w-full h-full"
-          allowFullScreen
-          allow="autoplay; encrypted-media; picture-in-picture"
-          title={movie.title}
-        />
+        {videoUrl ? (
+          <iframe
+            src={videoUrl}
+            className="w-full h-full"
+            allowFullScreen
+            allow="autoplay; encrypted-media; picture-in-picture"
+            title={movie.title}
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full text-white">
+            <div className="text-center space-y-2">
+              <p className="text-xl">Video player not configured</p>
+              <p className="text-sm text-muted-foreground">Add your video URL in lib/movie-api-template.ts</p>
+            </div>
+          </div>
+        )}
 
         {/* Back Button Overlay */}
         <div className="absolute top-4 left-4 z-10">
@@ -93,21 +102,27 @@ export function MoviePlayer({ movieId }: { movieId: string }) {
         <div className="space-y-4">
           <h1 className="text-3xl md:text-4xl font-bold">{movie.title}</h1>
           <div className="flex items-center gap-3 text-sm">
-            <span className="px-2 py-1 border border-muted-foreground/50 rounded">{movie.rating}</span>
-            <span>{movie.year}</span>
-            <span>{movie.duration}</span>
-            <span className="flex items-center gap-1">
-              <span className="text-yellow-500">★</span>
-              {movie.voteAverage.toFixed(1)}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {movie.genres.map((genre) => (
-              <span key={genre} className="px-3 py-1 bg-secondary rounded-full text-sm">
-                {genre}
+            {movie.rating && (
+              <span className="px-2 py-1 border border-muted-foreground/50 rounded">{movie.rating}</span>
+            )}
+            {movie.year && <span>{movie.year}</span>}
+            {movie.duration && <span>{movie.duration}</span>}
+            {movie.voteAverage && (
+              <span className="flex items-center gap-1">
+                <span className="text-yellow-500">★</span>
+                {movie.voteAverage.toFixed(1)}
               </span>
-            ))}
+            )}
           </div>
+          {movie.genres && movie.genres.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {movie.genres.map((genre) => (
+                <span key={genre} className="px-3 py-1 bg-secondary rounded-full text-sm">
+                  {genre}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <Card className="p-6 space-y-4">
@@ -116,15 +131,19 @@ export function MoviePlayer({ movieId }: { movieId: string }) {
             <p className="text-muted-foreground leading-relaxed">{movie.description}</p>
           </div>
 
-          <div>
-            <h3 className="font-semibold mb-2">Director</h3>
-            <p className="text-muted-foreground">{movie.director}</p>
-          </div>
+          {movie.director && (
+            <div>
+              <h3 className="font-semibold mb-2">Director</h3>
+              <p className="text-muted-foreground">{movie.director}</p>
+            </div>
+          )}
 
-          <div>
-            <h3 className="font-semibold mb-2">Cast</h3>
-            <p className="text-muted-foreground">{movie.cast.join(", ")}</p>
-          </div>
+          {movie.cast && movie.cast.length > 0 && (
+            <div>
+              <h3 className="font-semibold mb-2">Cast</h3>
+              <p className="text-muted-foreground">{movie.cast.join(", ")}</p>
+            </div>
+          )}
         </Card>
       </div>
     </div>
