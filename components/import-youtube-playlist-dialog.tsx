@@ -79,6 +79,20 @@ export function ImportYouTubePlaylistDialog({ open, onOpenChange }: ImportYouTub
         console.log("[v0] Had continuation token:", data._debug.hadContinuation)
         console.log("[v0] Last error:", data._debug.lastError || "none")
         console.log("[v0] Final video count:", data._debug.videoCount)
+
+        if (data._debug.shelfStructure) {
+          console.log("[v0] ===== SHELF STRUCTURE =====")
+          console.log("[v0] Shelf keys:", data._debug.shelfStructure.keys)
+          console.log("[v0] Has continuations property:", data._debug.shelfStructure.hasContinuations)
+          console.log("[v0] Continuations array length:", data._debug.shelfStructure.continuationsLength)
+          console.log("[v0] Item count:", data._debug.shelfStructure.itemCount)
+          if (data._debug.shelfStructure.continuationsData) {
+            console.log(
+              "[v0] Continuations data:",
+              JSON.stringify(data._debug.shelfStructure.continuationsData, null, 2),
+            )
+          }
+        }
       }
 
       console.log(
