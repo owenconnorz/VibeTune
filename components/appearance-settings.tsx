@@ -1,23 +1,26 @@
 "use client"
 
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Sun, Moon, Monitor } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { themeStorage } from "@/lib/theme-storage"
+import { themeStorage, type ThemeMode } from "@/lib/theme-storage"
 import { sliderStyleStorage, type SliderStyle } from "@/lib/slider-style-storage"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 export function AppearanceSettings() {
   const router = useRouter()
   const [dynamicTheme, setDynamicTheme] = useState(false)
+  const [themeMode, setThemeMode] = useState<ThemeMode>("system")
   const [sliderStyle, setSliderStyle] = useState<SliderStyle>("default")
   const [sliderDialogOpen, setSliderDialogOpen] = useState(false)
+  const [themeModeDialogOpen, setThemeModeDialogOpen] = useState(false)
 
   useEffect(() => {
     const settings = themeStorage.getSettings()
     setDynamicTheme(settings.dynamicThemeEnabled)
+    setThemeMode(settings.mode)
     setSliderStyle(sliderStyleStorage.getStyle())
   }, [])
 
@@ -27,6 +30,12 @@ export function AppearanceSettings() {
 
     // Trigger a custom event to notify other components
     window.dispatchEvent(new CustomEvent("themeSettingsChanged"))
+  }
+
+  const handleThemeModeChange = (mode: ThemeMode) => {
+    themeStorage.setThemeMode(mode)
+    setThemeMode(mode)
+    setThemeModeDialogOpen(false)
   }
 
   const handleSliderStyleChange = (style: SliderStyle) => {
@@ -46,6 +55,17 @@ export function AppearanceSettings() {
     }
   }
 
+  const getThemeModeName = (mode: ThemeMode) => {
+    switch (mode) {
+      case "light":
+        return "Light"
+      case "dark":
+        return "Dark"
+      case "system":
+        return "System"
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 bg-background z-30 border-b border-border/50">
@@ -61,6 +81,16 @@ export function AppearanceSettings() {
 
       <div className="container mx-auto px-4 py-6 space-y-6 max-w-2xl">
         <div className="space-y-4">
+          <button
+            onClick={() => setThemeModeDialogOpen(true)}
+            className="w-full flex items-center justify-between bg-card rounded-2xl p-4 hover:bg-card/80 transition-colors"
+          >
+            <div className="flex-1 text-left">
+              <h3 className="font-semibold">Theme</h3>
+              <p className="text-sm text-muted-foreground mt-1">{getThemeModeName(themeMode)}</p>
+            </div>
+          </button>
+
           <div className="flex items-center justify-between bg-card rounded-2xl p-4">
             <div className="flex-1">
               <h3 className="font-semibold">Dynamic Theme</h3>
@@ -87,6 +117,48 @@ export function AppearanceSettings() {
           </button>
         </div>
       </div>
+
+      <Dialog open={themeModeDialogOpen} onOpenChange={setThemeModeDialogOpen}>
+        <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-lg border-border/50">
+          <DialogHeader>
+            <DialogTitle className="text-center">Theme</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-3 gap-3 py-4">
+            <button
+              onClick={() => handleThemeModeChange("light")}
+              className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+                themeMode === "light" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+              }`}
+            >
+              <Sun className="w-8 h-8" />
+              <span className="text-sm font-medium">Light</span>
+            </button>
+
+            <button
+              onClick={() => handleThemeModeChange("dark")}
+              className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+                themeMode === "dark" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+              }`}
+            >
+              <Moon className="w-8 h-8" />
+              <span className="text-sm font-medium">Dark</span>
+            </button>
+
+            <button
+              onClick={() => handleThemeModeChange("system")}
+              className={`flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+                themeMode === "system" ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+              }`}
+            >
+              <Monitor className="w-8 h-8" />
+              <span className="text-sm font-medium">System</span>
+            </button>
+          </div>
+          <Button variant="ghost" onClick={() => setThemeModeDialogOpen(false)} className="w-full">
+            Cancel
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={sliderDialogOpen} onOpenChange={setSliderDialogOpen}>
         <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-lg border-border/50">

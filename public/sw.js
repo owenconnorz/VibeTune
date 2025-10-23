@@ -1,7 +1,7 @@
-// Service Worker for OpenTune PWA
-const CACHE_NAME = "opentune-v1"
-const STATIC_CACHE = "opentune-static-v1"
-const DYNAMIC_CACHE = "opentune-dynamic-v1"
+// Service Worker for VibeTune PWA
+const CACHE_NAME = "vibetune-v1"
+const STATIC_CACHE = "vibetune-static-v1"
+const DYNAMIC_CACHE = "vibetune-dynamic-v1"
 
 // Assets to cache on install
 const STATIC_ASSETS = [

@@ -29,7 +29,7 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 animate-in fade-in duration-200">
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl font-bold">Metrolist</h2>
+          <h2 className="text-3xl font-bold">VibeTune</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-6 h-6" />
           </Button>

@@ -51,7 +51,11 @@ export async function getTrendingMusic(): Promise<YouTubeVideo[]> {
       id: item.id,
       title: item.snippet.title,
       artist: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default.url,
+      thumbnail:
+        item.snippet.thumbnails.maxres?.url ||
+        item.snippet.thumbnails.standard?.url ||
+        item.snippet.thumbnails.high?.url ||
+        item.snippet.thumbnails.default.url,
       duration: formatDuration(item.contentDetails.duration),
       channelTitle: item.snippet.channelTitle,
       channelId: item.snippet.channelId,
@@ -107,7 +111,11 @@ export async function searchMusic(query: string, pageToken?: string): Promise<Yo
           id: item.id.videoId,
           title: item.snippet.title,
           artist: item.snippet.channelTitle,
-          thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default.url,
+          thumbnail:
+            item.snippet.thumbnails.maxres?.url ||
+            item.snippet.thumbnails.standard?.url ||
+            item.snippet.thumbnails.high?.url ||
+            item.snippet.thumbnails.default.url,
           duration: durationMap.get(item.id.videoId) || "0:00",
           channelTitle: item.snippet.channelTitle,
           channelId: item.snippet.channelId,
@@ -117,7 +125,11 @@ export async function searchMusic(query: string, pageToken?: string): Promise<Yo
           id: item.id.videoId,
           title: item.snippet.title,
           artist: item.snippet.channelTitle,
-          thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default.url,
+          thumbnail:
+            item.snippet.thumbnails.maxres?.url ||
+            item.snippet.thumbnails.standard?.url ||
+            item.snippet.thumbnails.high?.url ||
+            item.snippet.thumbnails.default.url,
           duration: "0:00",
           channelTitle: item.snippet.channelTitle,
           channelId: item.snippet.channelId,
@@ -156,7 +168,11 @@ export async function getVideoDetails(videoId: string): Promise<YouTubeVideo | n
       id: item.id,
       title: item.snippet.title,
       artist: item.snippet.channelTitle,
-      thumbnail: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default.url,
+      thumbnail:
+        item.snippet.thumbnails.maxres?.url ||
+        item.snippet.thumbnails.standard?.url ||
+        item.snippet.thumbnails.high?.url ||
+        item.snippet.thumbnails.default.url,
       duration: formatDuration(item.contentDetails.duration),
       channelTitle: item.snippet.channelTitle,
       channelId: item.snippet.channelId,

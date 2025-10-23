@@ -32,7 +32,7 @@ const getMockSearchResults = (query: string) => {
     id: video.id,
     title: index === 0 ? video.title : `${video.title} (Official Music Video)`,
     artist: artistName,
-    thumbnail: `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`,
+    thumbnail: `https://i.ytimg.com/vi/${video.id}/maxresdefault.jpg`,
     duration: video.duration,
   }))
 

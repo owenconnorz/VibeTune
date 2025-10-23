@@ -69,7 +69,7 @@ export function PWAInstallPrompt() {
           <Download className="w-5 h-5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm text-foreground">Install OpenTune</h3>
+          <h3 className="font-semibold text-sm text-foreground">Install VibeTune</h3>
           <p className="text-xs text-muted-foreground mt-1">
             Install the app for a better experience with offline support
           </p>

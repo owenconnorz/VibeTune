@@ -1,13 +1,25 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Heart, CheckCircle, TrendingUp, RefreshCw, Cloud, Plus, Grid3x3, List, MoreVertical } from "lucide-react"
+import {
+  Heart,
+  CheckCircle,
+  TrendingUp,
+  RefreshCw,
+  Cloud,
+  Plus,
+  Grid3x3,
+  List,
+  MoreVertical,
+  Users,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import Link from "next/link"
 import { CreatePlaylistDialog } from "@/components/create-playlist-dialog"
 import { getPlaylists, type Playlist } from "@/lib/playlist-storage"
 import { getLikedSongsCount } from "@/lib/liked-storage"
+import { artistStorage } from "@/lib/artist-storage"
 
 const tabs = ["Playlists", "Songs", "Albums", "Artists"]
 
@@ -18,14 +30,23 @@ export function LibraryContent() {
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([])
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [likedCount, setLikedCount] = useState(0)
+  const [artistsCount, setArtistsCount] = useState(0)
 
   useEffect(() => {
     setUserPlaylists(getPlaylists())
     setLikedCount(getLikedSongsCount())
+    setArtistsCount(artistStorage.getFollowedArtistsCount())
     const savedView = localStorage.getItem("library-view-mode")
     if (savedView === "list" || savedView === "grid") {
       setViewMode(savedView)
     }
+
+    const handleArtistsUpdate = () => {
+      setArtistsCount(artistStorage.getFollowedArtistsCount())
+    }
+
+    window.addEventListener("artistsUpdated", handleArtistsUpdate)
+    return () => window.removeEventListener("artistsUpdated", handleArtistsUpdate)
   }, [])
 
   const handlePlaylistCreated = () => {
@@ -40,6 +61,7 @@ export function LibraryContent() {
 
   const systemPlaylists = [
     { id: "liked", name: "Liked", icon: Heart, count: likedCount },
+    { id: "artists", name: "Artists", icon: Users, count: artistsCount },
     { id: "downloaded", name: "Downloaded", icon: CheckCircle, count: 0 },
     { id: "top10", name: "My top 10", icon: TrendingUp, count: 0 },
     { id: "cached", name: "Cached", icon: RefreshCw, count: 0 },
@@ -88,12 +110,19 @@ export function LibraryContent() {
           // Grid View
           <div className="px-4 grid grid-cols-2 gap-4">
             {systemPlaylists.map((playlist) => (
-              <Link key={playlist.id} href={`/dashboard/playlist/${playlist.id}`}>
+              <Link
+                key={playlist.id}
+                href={`/dashboard/${playlist.id === "artists" ? "artists" : `playlist/${playlist.id}`}`}
+              >
                 <div className="aspect-square rounded-2xl bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
                   <playlist.icon className="w-16 h-16 text-muted-foreground" />
                 </div>
                 <h3 className="font-semibold mt-2">{playlist.name}</h3>
-                {playlist.count > 0 && <p className="text-sm text-muted-foreground">{playlist.count} songs</p>}
+                {playlist.count > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {playlist.count} {playlist.id === "artists" ? "artists" : "songs"}
+                  </p>
+                )}
               </Link>
             ))}
 
@@ -140,14 +169,21 @@ export function LibraryContent() {
           // List View
           <div className="px-4 space-y-2">
             {systemPlaylists.map((playlist) => (
-              <Link key={playlist.id} href={`/dashboard/playlist/${playlist.id}`}>
+              <Link
+                key={playlist.id}
+                href={`/dashboard/${playlist.id === "artists" ? "artists" : `playlist/${playlist.id}`}`}
+              >
                 <div className="flex items-center gap-4 p-2 rounded-lg hover:bg-secondary/50 transition-colors">
                   <div className="w-14 h-14 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0">
                     <playlist.icon className="w-7 h-7 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold">{playlist.name}</h3>
-                    {playlist.count > 0 && <p className="text-sm text-muted-foreground">{playlist.count} songs</p>}
+                    {playlist.count > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        {playlist.count} {playlist.id === "artists" ? "artists" : "songs"}
+                      </p>
+                    )}
                   </div>
                   <Button variant="ghost" size="icon" className="flex-shrink-0">
                     <MoreVertical className="w-5 h-5" />

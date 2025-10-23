@@ -10,30 +10,32 @@ export interface HistoryVideo {
 export const historyStorage = {
   getHistory: (): HistoryVideo[] => {
     if (typeof window === "undefined") return []
-    const history = localStorage.getItem("opentune_history")
+    const history = localStorage.getItem("vibetune_history")
     return history ? JSON.parse(history) : []
   },
 
   addToHistory: (video: Omit<HistoryVideo, "playedAt">) => {
     const history = historyStorage.getHistory()
-    // Remove if already exists
     const filtered = history.filter((v) => v.id !== video.id)
-    // Add to beginning with current timestamp
     const updated = [{ ...video, playedAt: Date.now() }, ...filtered]
-    // Keep only last 100 videos
     const trimmed = updated.slice(0, 100)
-    localStorage.setItem("opentune_history", JSON.stringify(trimmed))
+    localStorage.setItem("vibetune_history", JSON.stringify(trimmed))
+
+    window.dispatchEvent(new Event("historyUpdated"))
+
     return trimmed
   },
 
   clearHistory: () => {
-    localStorage.removeItem("opentune_history")
+    localStorage.removeItem("vibetune_history")
+    window.dispatchEvent(new Event("historyUpdated"))
   },
 
   removeFromHistory: (videoId: string) => {
     const history = historyStorage.getHistory()
     const updated = history.filter((v) => v.id !== videoId)
-    localStorage.setItem("opentune_history", JSON.stringify(updated))
+    localStorage.setItem("vibetune_history", JSON.stringify(updated))
+    window.dispatchEvent(new Event("historyUpdated"))
     return updated
   },
 }

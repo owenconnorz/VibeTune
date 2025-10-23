@@ -1,7 +1,7 @@
 {
-  "name": "OpenTune - Music Discovery",
-  "short_name": "OpenTune",
-  "description": "Discover and explore music with OpenTune",
+  "name": "VibeTune - Music Discovery",
+  "short_name": "VibeTune",
+  "description": "Discover and explore music with VibeTune",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0a0f0a",

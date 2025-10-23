@@ -90,7 +90,7 @@ export function SupportedLinksSettings() {
               <circle cx="18" cy="16" r="3" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold">OpenTune</h2>
+          <h2 className="text-xl font-semibold">VibeTune</h2>
         </div>
 
         {/* Description */}
@@ -130,7 +130,7 @@ export function SupportedLinksSettings() {
 
         {/* Info Text */}
         <p className="text-sm text-muted-foreground px-2">
-          To set OpenTune as the default app for music links, you may need to configure this in your device settings
+          To set VibeTune as the default app for music links, you may need to configure this in your device settings
           under "Default apps" or "App links".
         </p>
       </div>

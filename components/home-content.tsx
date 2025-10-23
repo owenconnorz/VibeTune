@@ -10,6 +10,8 @@ import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
 import { useAPI } from "@/lib/use-api"
 import Link from "next/link"
+import { RecentlyPlayedSection } from "@/components/recently-played-section"
+import { SmartPlaylistsSection } from "@/components/smart-playlists-section"
 
 const categories = ["Podcasts", "Energize", "Feel good", "Relax", "Workout", "Commute"]
 
@@ -128,7 +130,6 @@ export function HomeContent() {
         <RefreshCw className={`w-5 h-5 ${isRefreshing ? "animate-spin" : ""}`} />
       </Button>
 
-      {/* Categories */}
       <ScrollArea className="w-full">
         <div className="flex gap-2 px-4 py-4">
           {categories.map((category) => (
@@ -145,6 +146,12 @@ export function HomeContent() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
+      {/* Recently Played section */}
+      <RecentlyPlayedSection />
+
+      {/* Smart Playlists section */}
+      <SmartPlaylistsSection />
+
       <div className="px-4 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">Mood and Genres</h2>
@@ -152,7 +159,6 @@ export function HomeContent() {
         </div>
         <ScrollArea className="w-full">
           <div className="flex gap-4 pb-4">
-            {/* Create pages of 8 items (4 rows x 2 columns) */}
             {Array.from({ length: Math.ceil(moodAndGenres.length / 8) }).map((_, pageIndex) => (
               <div
                 key={pageIndex}

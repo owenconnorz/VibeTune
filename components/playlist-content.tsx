@@ -17,6 +17,7 @@ import {
   Heart,
   ImageIcon,
   X,
+  Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { CollaborativePlaylistDialog } from "@/components/collaborative-playlist-dialog"
 
 interface PlaylistContentProps {
   playlistId: string
@@ -48,6 +50,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const [showCoverDialog, setShowCoverDialog] = useState(false)
   const [coverImageUrl, setCoverImageUrl] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showCollabDialog, setShowCollabDialog] = useState(false)
 
   useEffect(() => {
     const playlists = getPlaylists()
@@ -62,6 +65,12 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
       setLikedStates(states)
     }
   }, [playlistId])
+
+  const refreshPlaylist = () => {
+    const playlists = getPlaylists()
+    const found = playlists.find((p) => p.id === playlistId)
+    setPlaylist(found || null)
+  }
 
   const handleDelete = () => {
     if (confirm("Are you sure you want to delete this playlist?")) {
@@ -236,6 +245,15 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
         {/* Playlist Details */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold">{playlist.name}</h1>
+          {playlist.isCollaborative && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Users className="w-4 h-4" />
+              <span>
+                Collaborative • {playlist.collaborators?.length || 0} collaborator
+                {playlist.collaborators?.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+          )}
           <p className="text-lg text-muted-foreground">{playlist.videos.length} songs</p>
           <p className="text-lg text-muted-foreground">{getTotalDuration()}</p>
         </div>
@@ -247,6 +265,9 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           </Button>
           <Button variant="ghost" size="icon" onClick={handleEditCover}>
             <Pencil className="w-6 h-6" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowCollabDialog(true)}>
+            <Users className="w-6 h-6" />
           </Button>
           <Button variant="ghost" size="icon" onClick={handleShuffle}>
             <ShuffleIcon className="w-6 h-6" />
@@ -440,6 +461,13 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CollaborativePlaylistDialog
+        open={showCollabDialog}
+        onOpenChange={setShowCollabDialog}
+        playlist={playlist || undefined}
+        onUpdate={refreshPlaylist}
+      />
     </div>
   )
 }
