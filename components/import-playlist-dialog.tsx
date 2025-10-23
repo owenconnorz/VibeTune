@@ -28,6 +28,8 @@ export function ImportPlaylistDialog({ open, onOpenChange, onPlaylistImported }:
     setError("")
 
     try {
+      console.log("[v0] Starting playlist import with URL:", playlistUrl)
+
       const response = await fetch("/api/playlist/import", {
         method: "POST",
         headers: {
@@ -38,19 +40,37 @@ export function ImportPlaylistDialog({ open, onOpenChange, onPlaylistImported }:
 
       const data = await response.json()
 
+      console.log("[v0] Import API response:", {
+        success: data.success,
+        playlistName: data.playlist?.name,
+        videosCount: data.playlist?.videos?.length || 0,
+        firstVideo: data.playlist?.videos?.[0] || null,
+      })
+
       if (!data.success) {
         setError(data.error || "Failed to import playlist")
         setIsImporting(false)
         return
       }
 
+      if (!data.playlist.videos || data.playlist.videos.length === 0) {
+        console.error("[v0] No videos in imported playlist")
+        setError("Playlist imported but no songs were found")
+        setIsImporting(false)
+        return
+      }
+
+      console.log("[v0] Saving playlist with", data.playlist.videos.length, "videos")
+
       // Save the imported playlist
-      savePlaylist({
+      const savedPlaylist = savePlaylist({
         name: data.playlist.name,
         description: data.playlist.description || "Imported from YouTube Music",
         coverImage: data.playlist.coverImage,
         videos: data.playlist.videos as YouTubeVideo[],
       })
+
+      console.log("[v0] Playlist saved:", savedPlaylist)
 
       setPlaylistUrl("")
       setError("")
@@ -58,6 +78,7 @@ export function ImportPlaylistDialog({ open, onOpenChange, onPlaylistImported }:
       onOpenChange(false)
       onPlaylistImported?.()
     } catch (err: any) {
+      console.error("[v0] Import error:", err)
       setError(err.message || "Failed to import playlist")
       setIsImporting(false)
     }

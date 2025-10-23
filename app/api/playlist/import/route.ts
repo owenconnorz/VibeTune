@@ -30,6 +30,14 @@ export async function POST(request: Request) {
 
     const playlistData = await getPlaylistData(playlistId)
 
+    console.log("[v0] Playlist data received:", {
+      name: playlistData.name,
+      description: playlistData.description,
+      thumbnail: playlistData.thumbnail,
+      songsCount: playlistData.songs?.length || 0,
+      firstSong: playlistData.songs?.[0] || null,
+    })
+
     return NextResponse.json({
       success: true,
       playlist: {

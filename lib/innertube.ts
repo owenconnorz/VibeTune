@@ -700,10 +700,27 @@ export async function getPlaylistData(playlistId: string) {
       browseId: `VL${playlistId}`,
     })
 
+    console.log("[v0] Raw playlist response structure:", {
+      hasHeader: !!data.header,
+      headerType: data.header ? Object.keys(data.header)[0] : null,
+      hasContents: !!data.contents,
+      contentsStructure: data.contents ? Object.keys(data.contents) : null,
+    })
+
     const header = data.header?.musicDetailHeaderRenderer || data.header?.musicEditablePlaylistDetailHeaderRenderer
+
     const contents =
+      data.contents?.twoColumnBrowseResultsRenderer?.secondaryContents?.sectionListRenderer?.contents ||
       data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
-        ?.contents || []
+        ?.contents ||
+      []
+
+    console.log("[v0] Parsed header:", {
+      hasHeader: !!header,
+      title: header?.title?.runs?.[0]?.text,
+    })
+
+    console.log("[v0] Contents sections found:", contents.length)
 
     const playlistName = header?.title?.runs?.[0]?.text || "Imported Playlist"
     const playlistDescription = header?.description?.runs?.[0]?.text || ""
@@ -711,24 +728,84 @@ export async function getPlaylistData(playlistId: string) {
       header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
 
     const songs: any[] = []
+    let continuationToken: string | null = null
 
     for (const section of contents) {
       const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
+
+      console.log("[v0] Processing section:", {
+        hasShelf: !!shelf,
+        shelfType: shelf ? (section.musicShelfRenderer ? "musicShelfRenderer" : "musicPlaylistShelfRenderer") : null,
+        itemsCount: shelf?.contents?.length || 0,
+      })
 
       if (!shelf) continue
 
       const items = shelf.contents || []
       for (const item of items) {
+        if (item.continuationItemRenderer) {
+          continuationToken = item.continuationItemRenderer.continuationEndpoint?.continuationCommand?.token
+          console.log("[v0] Found continuation token, more songs available")
+          continue
+        }
+
         const videoInfo = extractVideoInfo(item)
         if (videoInfo) {
           songs.push(videoInfo)
+        } else {
+          console.log("[v0] Failed to extract video info from item:", Object.keys(item))
         }
+      }
+    }
+
+    let currentContinuation = continuationToken
+    let pageCount = 1
+
+    while (currentContinuation) {
+      pageCount++
+      console.log(`[v0] Fetching page ${pageCount} with continuation token`)
+
+      try {
+        const continuationData = await makeInnerTubeRequest("browse", {
+          continuation: currentContinuation,
+        })
+
+        const continuationContents =
+          continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents || []
+
+        console.log(`[v0] Page ${pageCount} items:`, continuationContents.length)
+
+        let hasMorePages = false
+
+        for (const item of continuationContents) {
+          if (item.continuationItemRenderer) {
+            currentContinuation = item.continuationItemRenderer.continuationEndpoint?.continuationCommand?.token
+            hasMorePages = true
+            console.log(`[v0] Found continuation token for page ${pageCount + 1}`)
+            continue
+          }
+
+          const videoInfo = extractVideoInfo(item)
+          if (videoInfo) {
+            songs.push(videoInfo)
+          }
+        }
+
+        if (!hasMorePages) {
+          currentContinuation = null
+          console.log("[v0] No more pages, playlist fully loaded")
+        }
+      } catch (error) {
+        console.error(`[v0] Error fetching page ${pageCount}:`, error)
+        currentContinuation = null
       }
     }
 
     console.log("[v0] Playlist fetched:", {
       name: playlistName,
       songsCount: songs.length,
+      totalPages: pageCount,
+      firstSong: songs[0] || null,
     })
 
     return {
