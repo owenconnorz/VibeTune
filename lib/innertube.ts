@@ -78,7 +78,21 @@ function extractVideoInfo(item: any) {
 
     const title = renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
     const artist = renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
-    const thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+    let thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+    // Handle protocol-relative URLs (starting with //)
+    if (thumbnail && thumbnail.startsWith("//")) {
+      thumbnail = `https:${thumbnail}`
+    }
+
+    // Fallback to YouTube thumbnail if not available
+    if (!thumbnail) {
+      thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+    }
+
+    console.log(`[v0] Extracted thumbnail for ${videoId}:`, thumbnail)
+
     const durationText =
       renderer.fixedColumns?.[0]?.musicResponsiveListItemFixedColumnRenderer?.text?.runs?.[0]?.text || "0:00"
 
@@ -86,7 +100,7 @@ function extractVideoInfo(item: any) {
       id: videoId,
       title: title || "Unknown Title",
       artist: artist || "Unknown Artist",
-      thumbnail: thumbnail || `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+      thumbnail,
       duration: durationText,
     }
   } catch (error) {
