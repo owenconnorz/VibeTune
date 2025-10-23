@@ -12,11 +12,13 @@ import {
   List,
   MoreVertical,
   Users,
+  Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import Link from "next/link"
 import { CreatePlaylistDialog } from "@/components/create-playlist-dialog"
+import { ImportPlaylistDialog } from "@/components/import-playlist-dialog"
 import { getPlaylists, type Playlist } from "@/lib/playlist-storage"
 import { getLikedSongsCount } from "@/lib/liked-storage"
 import { artistStorage } from "@/lib/artist-storage"
@@ -27,6 +29,7 @@ export function LibraryContent() {
   const [selectedTab, setSelectedTab] = useState("Playlists")
   const [sortBy, setSortBy] = useState("Date added")
   const [showCreateDialog, setShowCreateDialog] = useState(false)
+  const [showImportDialog, setShowImportDialog] = useState(false)
   const [userPlaylists, setUserPlaylists] = useState<Playlist[]>([])
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [likedCount, setLikedCount] = useState(0)
@@ -50,6 +53,10 @@ export function LibraryContent() {
   }, [])
 
   const handlePlaylistCreated = () => {
+    setUserPlaylists(getPlaylists())
+  }
+
+  const handlePlaylistImported = () => {
     setUserPlaylists(getPlaylists())
   }
 
@@ -146,7 +153,6 @@ export function LibraryContent() {
                           />
                         </div>
                       ))}
-                      {/* Fill empty slots if less than 4 videos */}
                       {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, idx) => (
                         <div key={`empty-${idx}`} className="bg-primary/20" />
                       ))}
@@ -159,10 +165,19 @@ export function LibraryContent() {
             ))}
 
             <button
-              onClick={() => setShowCreateDialog(true)}
-              className="aspect-square rounded-2xl bg-secondary flex items-center justify-center border-2 border-dashed border-muted-foreground/30 hover:bg-secondary/80 transition-colors"
+              onClick={() => setShowImportDialog(true)}
+              className="aspect-square rounded-2xl bg-secondary flex flex-col items-center justify-center gap-2 border-2 border-dashed border-muted-foreground/30 hover:bg-secondary/80 transition-colors"
             >
-              <Plus className="w-12 h-12 text-muted-foreground" />
+              <Download className="w-10 h-10 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Import</span>
+            </button>
+
+            <button
+              onClick={() => setShowCreateDialog(true)}
+              className="aspect-square rounded-2xl bg-secondary flex flex-col items-center justify-center gap-2 border-2 border-dashed border-muted-foreground/30 hover:bg-secondary/80 transition-colors"
+            >
+              <Plus className="w-10 h-10 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Create</span>
             </button>
           </div>
         ) : (
@@ -213,7 +228,6 @@ export function LibraryContent() {
                             />
                           </div>
                         ))}
-                        {/* Fill empty slots if less than 4 videos */}
                         {Array.from({ length: Math.max(0, 4 - playlist.videos.length) }).map((_, idx) => (
                           <div key={`empty-${idx}`} className="bg-primary/20" />
                         ))}
@@ -238,6 +252,12 @@ export function LibraryContent() {
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}
         onPlaylistCreated={handlePlaylistCreated}
+      />
+
+      <ImportPlaylistDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        onPlaylistImported={handlePlaylistImported}
       />
     </>
   )

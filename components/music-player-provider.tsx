@@ -428,9 +428,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      console.log("[v0] No more songs in queue, playback stopped")
-      isManualStateChange.current = true
-      setIsPlaying(false)
+      console.log("[v0] No more songs in queue, staying on current song")
     }
   }
 

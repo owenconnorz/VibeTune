@@ -691,3 +691,54 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
     return null
   }
 }
+
+export async function getPlaylistData(playlistId: string) {
+  try {
+    console.log("[v0] Fetching playlist data for:", playlistId)
+
+    const data = await makeInnerTubeRequest("browse", {
+      browseId: `VL${playlistId}`,
+    })
+
+    const header = data.header?.musicDetailHeaderRenderer || data.header?.musicEditablePlaylistDetailHeaderRenderer
+    const contents =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+        ?.contents || []
+
+    const playlistName = header?.title?.runs?.[0]?.text || "Imported Playlist"
+    const playlistDescription = header?.description?.runs?.[0]?.text || ""
+    const playlistThumbnail =
+      header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
+
+    const songs: any[] = []
+
+    for (const section of contents) {
+      const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
+
+      if (!shelf) continue
+
+      const items = shelf.contents || []
+      for (const item of items) {
+        const videoInfo = extractVideoInfo(item)
+        if (videoInfo) {
+          songs.push(videoInfo)
+        }
+      }
+    }
+
+    console.log("[v0] Playlist fetched:", {
+      name: playlistName,
+      songsCount: songs.length,
+    })
+
+    return {
+      name: playlistName,
+      description: playlistDescription,
+      thumbnail: playlistThumbnail,
+      songs,
+    }
+  } catch (error) {
+    console.error("[v0] Playlist fetch error:", error)
+    throw error
+  }
+}
