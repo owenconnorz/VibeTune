@@ -328,68 +328,6 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!("mediaSession" in navigator)) return
 
-    console.log("[v0] Registering Media Session action handlers")
-
-    navigator.mediaSession.setActionHandler("play", () => {
-      console.log("[v0] Media Session: play")
-      setIsPlaying(true)
-    })
-
-    navigator.mediaSession.setActionHandler("pause", () => {
-      console.log("[v0] Media Session: pause")
-      setIsPlaying(false)
-    })
-
-    navigator.mediaSession.setActionHandler("previoustrack", () => {
-      console.log("[v0] Media Session: previous track")
-      playPreviousRef.current()
-    })
-
-    navigator.mediaSession.setActionHandler("nexttrack", () => {
-      console.log("[v0] Media Session: next track")
-      playNextRef.current()
-    })
-
-    navigator.mediaSession.setActionHandler("seekbackward", (details) => {
-      console.log("[v0] Media Session: seek backward")
-      const skipTime = details.seekOffset || 10
-      const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
-      seekToRef.current(Math.max(currentTimeValue - skipTime, 0))
-    })
-
-    navigator.mediaSession.setActionHandler("seekforward", (details) => {
-      console.log("[v0] Media Session: seek forward")
-      const skipTime = details.seekOffset || 10
-      const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
-      const durationValue = audioRef.current?.duration || playerRef.current?.getDuration?.() || 0
-      seekToRef.current(Math.min(currentTimeValue + skipTime, durationValue))
-    })
-
-    navigator.mediaSession.setActionHandler("seekto", (details) => {
-      if (details.seekTime !== undefined) {
-        console.log("[v0] Media Session: seek to", details.seekTime)
-        seekToRef.current(details.seekTime)
-      }
-    })
-
-    return () => {
-      console.log("[v0] Unregistering Media Session action handlers")
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.setActionHandler("play", null)
-        navigator.mediaSession.setActionHandler("pause", null)
-        navigator.mediaSession.setActionHandler("previoustrack", null)
-        navigator.mediaSession.setActionHandler("nexttrack", null)
-        navigator.mediaSession.setActionHandler("seekbackward", null)
-        navigator.mediaSession.setActionHandler("seekforward", null)
-        navigator.mediaSession.setActionHandler("seekto", null)
-      }
-    }
-  }, []) // Empty dependency array since we're using refs
-
-  useEffect(() => {
-    if (!("mediaSession" in navigator) || !("setPositionState" in navigator.mediaSession)) return
-    if (!currentVideo || duration <= 0) return
-
     console.log("[v0] Setting up position state updates")
 
     const updatePositionState = () => {
@@ -455,21 +393,97 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
     console.log("[v0] Setting Media Session metadata for:", currentVideo.title)
 
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: currentVideo.title,
-      artist: currentVideo.artist || currentVideo.channelTitle || "Unknown Artist",
-      album: currentVideo.channelTitle || "YouTube Music",
-      artwork: [
-        {
-          src: currentVideo.thumbnail,
-          sizes: "512x512",
-          type: "image/jpeg",
-        },
-      ],
-    })
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentVideo.title,
+        artist: currentVideo.artist || currentVideo.channelTitle || "Unknown Artist",
+        album: currentVideo.channelTitle || "YouTube Music",
+        artwork: [
+          {
+            src: currentVideo.thumbnail,
+            sizes: "512x512",
+            type: "image/jpeg",
+          },
+        ],
+      })
 
-    console.log("[v0] Media Session metadata set successfully")
+      console.log("[v0] Media Session metadata set successfully")
+    } catch (error) {
+      console.error("[v0] Error setting metadata:", error)
+    }
   }, [currentVideo])
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return
+    if (!currentVideo) return // Don't register handlers without metadata
+
+    console.log("[v0] Registering Media Session action handlers")
+
+    try {
+      navigator.mediaSession.setActionHandler("play", () => {
+        console.log("[v0] Media Session: play")
+        setIsPlaying(true)
+      })
+
+      navigator.mediaSession.setActionHandler("pause", () => {
+        console.log("[v0] Media Session: pause")
+        setIsPlaying(false)
+      })
+
+      navigator.mediaSession.setActionHandler("previoustrack", () => {
+        console.log("[v0] Media Session: previous track")
+        playPreviousRef.current()
+      })
+
+      navigator.mediaSession.setActionHandler("nexttrack", () => {
+        console.log("[v0] Media Session: next track")
+        playNextRef.current()
+      })
+
+      navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+        console.log("[v0] Media Session: seek backward")
+        const skipTime = details.seekOffset || 10
+        const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
+        seekToRef.current(Math.max(currentTimeValue - skipTime, 0))
+      })
+
+      navigator.mediaSession.setActionHandler("seekforward", (details) => {
+        console.log("[v0] Media Session: seek forward")
+        const skipTime = details.seekOffset || 10
+        const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
+        const durationValue = audioRef.current?.duration || playerRef.current?.getDuration?.() || 0
+        seekToRef.current(Math.min(currentTimeValue + skipTime, durationValue))
+      })
+
+      navigator.mediaSession.setActionHandler("seekto", (details) => {
+        if (details.seekTime !== undefined) {
+          console.log("[v0] Media Session: seek to", details.seekTime)
+          seekToRef.current(details.seekTime)
+        }
+      })
+
+      console.log("[v0] All Media Session action handlers registered successfully")
+    } catch (error) {
+      console.error("[v0] Error registering action handlers:", error)
+    }
+
+    return () => {
+      console.log("[v0] Unregistering Media Session action handlers")
+      if ("mediaSession" in navigator) {
+        try {
+          navigator.mediaSession.setActionHandler("play", null)
+          navigator.mediaSession.setActionHandler("pause", null)
+          navigator.mediaSession.setActionHandler("previoustrack", null)
+          navigator.mediaSession.setActionHandler("nexttrack", null)
+          navigator.mediaSession.setActionHandler("seekbackward", null)
+          navigator.mediaSession.setActionHandler("seekforward", null)
+          navigator.mediaSession.setActionHandler("seekto", null)
+        } catch (error) {
+          console.error("[v0] Error unregistering handlers:", error)
+        }
+      }
+    }
+  }, [currentVideo]) // Re-register when currentVideo changes
 
   const togglePlay = () => {
     console.log("[v0] Toggle play:", !isPlaying)
