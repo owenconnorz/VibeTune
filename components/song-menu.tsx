@@ -81,33 +81,53 @@ export function SongMenu({ video, onLikeToggle }: SongMenuProps) {
 
   const handleDownload = async () => {
     if (downloaded) {
-      alert("This song is already downloaded")
+      console.log("[v0] Song already downloaded:", video.title)
       setShowMenu(false)
       return
     }
 
     setDownloading(true)
-    console.log("[v0] Starting download:", video.title)
+    console.log("[v0] ===== STARTING DOWNLOAD =====")
+    console.log("[v0] Video ID:", video.id)
+    console.log("[v0] Title:", video.title)
+    console.log("[v0] Artist:", video.artist || "Unknown Artist")
 
-    const success = await downloadSong(
-      video.id,
-      video.title,
-      video.artist || "Unknown Artist",
-      video.thumbnail,
-      video.duration,
-    )
+    try {
+      const success = await downloadSong(
+        video.id,
+        video.title,
+        video.artist || "Unknown Artist",
+        video.thumbnail,
+        video.duration,
+      )
 
-    if (success) {
-      setDownloaded(true)
-      alert("Song downloaded successfully!")
-      console.log("[v0] Download complete:", video.title)
-    } else {
-      alert("Failed to download song. Please try again.")
-      console.error("[v0] Download failed:", video.title)
+      console.log("[v0] Download result:", success)
+
+      if (success) {
+        setDownloaded(true)
+        console.log("[v0] ===== DOWNLOAD SUCCESSFUL =====")
+        // Show success message
+        const message = "Song downloaded! Saved to your Downloads folder and available offline in the app."
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+          new Notification("Download Complete", {
+            body: `${video.title} is now available offline`,
+            icon: video.thumbnail,
+          })
+        } else {
+          alert(message)
+        }
+      } else {
+        console.error("[v0] ===== DOWNLOAD FAILED =====")
+        alert("Failed to download song. Please check your internet connection and try again.")
+      }
+    } catch (error) {
+      console.error("[v0] ===== DOWNLOAD ERROR =====")
+      console.error("[v0] Error:", error)
+      alert("An error occurred while downloading. Please try again.")
+    } finally {
+      setDownloading(false)
+      setShowMenu(false)
     }
-
-    setDownloading(false)
-    setShowMenu(false)
   }
 
   return (

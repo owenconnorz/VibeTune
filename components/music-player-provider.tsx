@@ -326,96 +326,150 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   }, [currentVideo, useAudioElement])
 
   useEffect(() => {
-    if (useAudioElement && audioRef.current) {
-      isManualStateChange.current = true
+    if (!("mediaSession" in navigator)) return
 
-      if (isPlaying) {
-        audioRef.current.play().catch((error) => {
-          console.error("[v0] Error playing audio:", error)
-        })
-      } else {
-        audioRef.current.pause()
-      }
+    console.log("[v0] Registering Media Session action handlers")
 
-      isManualStateChange.current = false
-    } else if (playerRef.current && playerRef.current.playVideo) {
-      isManualStateChange.current = true
-
-      if (isPlaying) {
-        playerRef.current.playVideo()
-      } else {
-        playerRef.current.pauseVideo()
-      }
-    }
-  }, [isPlaying, useAudioElement])
-
-  useEffect(() => {
-    if (!currentVideo) return
-
-    const settings = themeStorage.getSettings()
-    if (!settings.dynamicThemeEnabled) {
-      setThemeColors(null)
-      return
-    }
-
-    extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
-      setThemeColors(colors)
-      applyThemeColors(colors)
+    navigator.mediaSession.setActionHandler("play", () => {
+      console.log("[v0] Media Session: play")
+      setIsPlaying(true)
     })
-  }, [currentVideo])
+
+    navigator.mediaSession.setActionHandler("pause", () => {
+      console.log("[v0] Media Session: pause")
+      setIsPlaying(false)
+    })
+
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      console.log("[v0] Media Session: previous track")
+      playPreviousRef.current()
+    })
+
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      console.log("[v0] Media Session: next track")
+      playNextRef.current()
+    })
+
+    navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+      console.log("[v0] Media Session: seek backward")
+      const skipTime = details.seekOffset || 10
+      const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
+      seekToRef.current(Math.max(currentTimeValue - skipTime, 0))
+    })
+
+    navigator.mediaSession.setActionHandler("seekforward", (details) => {
+      console.log("[v0] Media Session: seek forward")
+      const skipTime = details.seekOffset || 10
+      const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
+      const durationValue = audioRef.current?.duration || playerRef.current?.getDuration?.() || 0
+      seekToRef.current(Math.min(currentTimeValue + skipTime, durationValue))
+    })
+
+    navigator.mediaSession.setActionHandler("seekto", (details) => {
+      if (details.seekTime !== undefined) {
+        console.log("[v0] Media Session: seek to", details.seekTime)
+        seekToRef.current(details.seekTime)
+      }
+    })
+
+    return () => {
+      console.log("[v0] Unregistering Media Session action handlers")
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.setActionHandler("play", null)
+        navigator.mediaSession.setActionHandler("pause", null)
+        navigator.mediaSession.setActionHandler("previoustrack", null)
+        navigator.mediaSession.setActionHandler("nexttrack", null)
+        navigator.mediaSession.setActionHandler("seekbackward", null)
+        navigator.mediaSession.setActionHandler("seekforward", null)
+        navigator.mediaSession.setActionHandler("seekto", null)
+      }
+    }
+  }, []) // Empty dependency array since we're using refs
 
   useEffect(() => {
-    const handleThemeChange = () => {
-      const settings = themeStorage.getSettings()
-      if (!settings.dynamicThemeEnabled) {
-        setThemeColors(null)
-        resetThemeColors()
-      } else if (currentVideo) {
-        extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
-          setThemeColors(colors)
-          applyThemeColors(colors)
+    if (!("mediaSession" in navigator) || !("setPositionState" in navigator.mediaSession)) return
+    if (!currentVideo || duration <= 0) return
+
+    console.log("[v0] Setting up position state updates")
+
+    const updatePositionState = () => {
+      try {
+        const position = Math.min(Math.max(currentTime, 0), duration)
+        console.log("[v0] Updating position state - position:", position, "duration:", duration)
+
+        navigator.mediaSession.setPositionState({
+          duration: duration,
+          playbackRate: 1.0,
+          position: position,
         })
+      } catch (error) {
+        console.error("[v0] Error setting position state:", error)
       }
     }
 
-    window.addEventListener("themeSettingsChanged", handleThemeChange)
-    return () => window.removeEventListener("themeSettingsChanged", handleThemeChange)
-  }, [currentVideo])
+    updatePositionState()
 
-  const applyThemeColors = (colors: ExtractedColors) => {
-    const root = document.documentElement
-    root.style.setProperty("--background", colors.primary)
-    root.style.setProperty("--card", colors.secondary)
-    root.style.setProperty("--accent", colors.accent)
-  }
-
-  const resetThemeColors = () => {
-    const root = document.documentElement
-    root.style.removeProperty("--background")
-    root.style.removeProperty("--card")
-    root.style.removeProperty("--accent")
-  }
-
-  const playVideo = (video: YouTubeVideo, queueVideos?: YouTubeVideo[]) => {
-    console.log("[v0] Playing video:", video.title)
-    if (queueVideos) {
-      console.log("[v0] Setting queue with", queueVideos.length, "videos")
-      setQueue(queueVideos)
+    // Update position state every second while playing
+    let intervalId: NodeJS.Timeout | null = null
+    if (isPlaying) {
+      console.log("[v0] Starting position state interval")
+      intervalId = setInterval(updatePositionState, 1000)
     }
+
+    return () => {
+      if (intervalId) {
+        console.log("[v0] Clearing position state interval")
+        clearInterval(intervalId)
+      }
+    }
+  }, [currentTime, duration, isPlaying, currentVideo])
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("opentune_volume", volume.toString())
+      console.log("[v0] Volume saved to localStorage:", volume)
+    }
+  }, [volume])
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("opentune_repeat_mode", repeatMode)
+      console.log("[v0] Repeat mode saved:", repeatMode)
+    }
+  }, [repeatMode])
+
+  useEffect(() => {
+    setLikedSongs(getLikedSongs())
+  }, [])
+
+  useEffect(() => {
     if (currentVideo) {
-      setPreviousTracks((prev) => [...prev, currentVideo])
-      console.log("[v0] Added to previous tracks:", currentVideo.title)
+      setIsCurrentLiked(isLiked(currentVideo.id))
+    } else {
+      setIsCurrentLiked(false)
     }
-    setCurrentVideo(video)
-    setIsPlaying(true)
-    historyStorage.addToHistory({
-      id: video.id,
-      title: video.title,
-      thumbnail: video.thumbnail,
-      channelTitle: video.artist || video.channelTitle,
-      duration: video.duration,
+  }, [currentVideo])
+
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !currentVideo) return
+
+    console.log("[v0] Setting Media Session metadata for:", currentVideo.title)
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentVideo.title,
+      artist: currentVideo.artist || currentVideo.channelTitle || "Unknown Artist",
+      album: currentVideo.channelTitle || "YouTube Music",
+      artwork: [
+        {
+          src: currentVideo.thumbnail,
+          sizes: "512x512",
+          type: "image/jpeg",
+        },
+      ],
     })
-  }
+
+    console.log("[v0] Media Session metadata set successfully")
+  }, [currentVideo])
 
   const togglePlay = () => {
     console.log("[v0] Toggle play:", !isPlaying)
@@ -540,129 +594,72 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   })
 
   useEffect(() => {
-    if (!("mediaSession" in navigator)) return
+    if (!currentVideo) return
 
-    console.log("[v0] Registering Media Session action handlers")
-
-    navigator.mediaSession.setActionHandler("play", () => {
-      console.log("[v0] Media Session: play")
-      setIsPlaying(true)
-    })
-
-    navigator.mediaSession.setActionHandler("pause", () => {
-      console.log("[v0] Media Session: pause")
-      setIsPlaying(false)
-    })
-
-    navigator.mediaSession.setActionHandler("previoustrack", () => {
-      console.log("[v0] Media Session: previous track")
-      playPreviousRef.current()
-    })
-
-    navigator.mediaSession.setActionHandler("nexttrack", () => {
-      console.log("[v0] Media Session: next track")
-      playNextRef.current()
-    })
-
-    navigator.mediaSession.setActionHandler("seekbackward", (details) => {
-      console.log("[v0] Media Session: seek backward")
-      const skipTime = details.seekOffset || 10
-      const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
-      seekToRef.current(Math.max(currentTimeValue - skipTime, 0))
-    })
-
-    navigator.mediaSession.setActionHandler("seekforward", (details) => {
-      console.log("[v0] Media Session: seek forward")
-      const skipTime = details.seekOffset || 10
-      const currentTimeValue = audioRef.current?.currentTime || playerRef.current?.getCurrentTime?.() || 0
-      const durationValue = audioRef.current?.duration || playerRef.current?.getDuration?.() || 0
-      seekToRef.current(Math.min(currentTimeValue + skipTime, durationValue))
-    })
-
-    navigator.mediaSession.setActionHandler("seekto", (details) => {
-      if (details.seekTime !== undefined) {
-        console.log("[v0] Media Session: seek to", details.seekTime)
-        seekToRef.current(details.seekTime)
-      }
-    })
-
-    return () => {
-      console.log("[v0] Unregistering Media Session action handlers")
-      if ("mediaSession" in navigator) {
-        navigator.mediaSession.setActionHandler("play", null)
-        navigator.mediaSession.setActionHandler("pause", null)
-        navigator.mediaSession.setActionHandler("previoustrack", null)
-        navigator.mediaSession.setActionHandler("nexttrack", null)
-        navigator.mediaSession.setActionHandler("seekbackward", null)
-        navigator.mediaSession.setActionHandler("seekforward", null)
-        navigator.mediaSession.setActionHandler("seekto", null)
-      }
-    }
-  }, []) // Empty dependency array since we're using refs
-
-  useEffect(() => {
-    if (!("mediaSession" in navigator) || !("setPositionState" in navigator.mediaSession)) return
-    if (!currentVideo || duration <= 0) return
-
-    console.log("[v0] Setting up position state updates")
-
-    const updatePositionState = () => {
-      try {
-        const position = Math.min(Math.max(currentTime, 0), duration)
-        console.log("[v0] Updating position state - position:", position, "duration:", duration)
-
-        navigator.mediaSession.setPositionState({
-          duration: duration,
-          playbackRate: 1.0,
-          position: position,
-        })
-      } catch (error) {
-        console.error("[v0] Error setting position state:", error)
-      }
+    const settings = themeStorage.getSettings()
+    if (!settings.dynamicThemeEnabled) {
+      setThemeColors(null)
+      return
     }
 
-    updatePositionState()
-
-    // Update position state every second while playing
-    let intervalId: NodeJS.Timeout | null = null
-    if (isPlaying) {
-      console.log("[v0] Starting position state interval")
-      intervalId = setInterval(updatePositionState, 1000)
-    }
-
-    return () => {
-      if (intervalId) {
-        console.log("[v0] Clearing position state interval")
-        clearInterval(intervalId)
-      }
-    }
-  }, [currentTime, duration, isPlaying, currentVideo])
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("opentune_volume", volume.toString())
-      console.log("[v0] Volume saved to localStorage:", volume)
-    }
-  }, [volume])
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("opentune_repeat_mode", repeatMode)
-      console.log("[v0] Repeat mode saved:", repeatMode)
-    }
-  }, [repeatMode])
-
-  useEffect(() => {
-    setLikedSongs(getLikedSongs())
-  }, [])
-
-  useEffect(() => {
-    if (currentVideo) {
-      setIsCurrentLiked(isLiked(currentVideo.id))
-    } else {
-      setIsCurrentLiked(false)
-    }
+    extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
+      setThemeColors(colors)
+      applyThemeColors(colors)
+    })
   }, [currentVideo])
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      const settings = themeStorage.getSettings()
+      if (!settings.dynamicThemeEnabled) {
+        setThemeColors(null)
+        resetThemeColors()
+      } else if (currentVideo) {
+        extractColorsFromImage(currentVideo.thumbnail).then((colors) => {
+          setThemeColors(colors)
+          applyThemeColors(colors)
+        })
+      }
+    }
+
+    window.addEventListener("themeSettingsChanged", handleThemeChange)
+    return () => window.removeEventListener("themeSettingsChanged", handleThemeChange)
+  }, [currentVideo])
+
+  const applyThemeColors = (colors: ExtractedColors) => {
+    const root = document.documentElement
+    root.style.setProperty("--background", colors.primary)
+    root.style.setProperty("--card", colors.secondary)
+    root.style.setProperty("--accent", colors.accent)
+  }
+
+  const resetThemeColors = () => {
+    const root = document.documentElement
+    root.style.removeProperty("--background")
+    root.style.removeProperty("--card")
+    root.style.removeProperty("--accent")
+  }
+
+  const playVideo = (video: YouTubeVideo, queueVideos?: YouTubeVideo[]) => {
+    console.log("[v0] Playing video:", video.title)
+    if (queueVideos) {
+      console.log("[v0] Setting queue with", queueVideos.length, "videos")
+      setQueue(queueVideos)
+    }
+    if (currentVideo) {
+      setPreviousTracks((prev) => [...prev, currentVideo])
+      console.log("[v0] Added to previous tracks:", currentVideo.title)
+    }
+    setCurrentVideo(video)
+    setIsPlaying(true)
+    historyStorage.addToHistory({
+      id: video.id,
+      title: video.title,
+      thumbnail: video.thumbnail,
+      channelTitle: video.artist || video.channelTitle,
+      duration: video.duration,
+    })
+  }
 
   const toggleLikedSong = (video: YouTubeVideo) => {
     const nowLiked = toggleLikedSongStorage(video)
