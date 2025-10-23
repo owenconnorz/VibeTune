@@ -17,6 +17,7 @@ import {
   ImageIcon,
   X,
   Check,
+  Share2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -241,6 +242,33 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
     alert(`Added ${tasks.length} songs to download queue. Downloads will continue in the background.`)
   }
 
+  const handleSharePlaylist = async () => {
+    if (!playlist) return
+
+    const shareText = `Check out my playlist "${playlist.name}" with ${playlist.videos.length} songs!`
+    const shareUrl = `${window.location.origin}/dashboard/playlist/${playlistId}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: playlist.name,
+          text: shareText,
+          url: shareUrl,
+        })
+        console.log("[v0] Playlist shared successfully")
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.log("[v0] Share cancelled or failed:", error)
+          navigator.clipboard.writeText(shareUrl)
+          alert("Link copied to clipboard!")
+        }
+      }
+    } else {
+      navigator.clipboard.writeText(shareUrl)
+      alert("Playlist link copied to clipboard!")
+    }
+  }
+
   useEffect(() => {
     if (!downloadManagerActive && playlist) {
       const checkDownloadedStates = async () => {
@@ -333,6 +361,9 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           </Button>
           <Button variant="ghost" size="icon" onClick={handleDownloadPlaylist} disabled={downloadManagerActive}>
             <Download className="w-6 h-6" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handleSharePlaylist}>
+            <Share2 className="w-6 h-6" />
           </Button>
           <Button variant="ghost" size="icon">
             <ListOrdered className="w-6 h-6" />

@@ -6,6 +6,8 @@ import { MusicPlayerProvider } from "@/components/music-player-provider"
 import { SWRProvider } from "@/components/swr-provider"
 import { PWARegister } from "@/components/pwa-register"
 import { DownloadManagerProvider } from "@/components/download-manager-provider"
+import { StoragePermissionInitializer } from "@/components/storage-permission-initializer"
+import { CookieConsentBanner } from "@/components/cookie-consent-banner"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -62,6 +64,8 @@ export default function RootLayout({
           </DownloadManagerProvider>
         </SWRProvider>
         <PWARegister />
+        <StoragePermissionInitializer />
+        <CookieConsentBanner />
         <Analytics />
       </body>
     </html>

@@ -7,6 +7,7 @@ import { extractColorsFromImage, type ExtractedColors } from "@/lib/color-extrac
 import { themeStorage } from "@/lib/theme-storage"
 import { getLikedSongs, toggleLikedSong as toggleLikedSongStorage } from "@/lib/liked-storage"
 import { getDownloadedSong } from "@/lib/download-storage"
+import { requestWakeLock, releaseWakeLock } from "@/lib/wake-lock"
 
 declare global {
   interface Window {
@@ -482,6 +483,31 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     playPreviousRef.current = playPrevious
     seekToRef.current = seekTo
   })
+
+  useEffect(() => {
+    if (isPlaying && currentVideo) {
+      console.log("[v0] Music playing - requesting wake lock")
+      requestWakeLock()
+    } else {
+      console.log("[v0] Music paused/stopped - releasing wake lock")
+      releaseWakeLock()
+    }
+  }, [isPlaying, currentVideo])
+
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === "visible" && isPlaying && currentVideo) {
+        console.log("[v0] Page visible and playing - re-acquiring wake lock")
+        await requestWakeLock()
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      releaseWakeLock()
+    }
+  }, [isPlaying, currentVideo])
 
   const togglePlay = () => {
     console.log("[v0] togglePlay called - current isPlaying:", isPlaying)

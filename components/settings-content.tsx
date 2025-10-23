@@ -1,6 +1,18 @@
 "use client"
 
-import { ArrowLeft, Palette, Play, Globe, Shield, HardDrive, Cloud, LinkIcon, RefreshCw, Info } from "lucide-react"
+import {
+  ArrowLeft,
+  Palette,
+  Play,
+  Globe,
+  Shield,
+  HardDrive,
+  Cloud,
+  LinkIcon,
+  RefreshCw,
+  Info,
+  Cookie,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 
@@ -24,6 +36,7 @@ export function SettingsContent() {
       items: [
         { icon: Shield, label: "Privacy" },
         { icon: Shield, label: "Permissions", href: "/dashboard/settings/permissions" },
+        { icon: Cookie, label: "Cookies", href: "/dashboard/settings/cookies" },
       ],
     },
     {
