@@ -588,14 +588,19 @@ export async function getPlaylistDetails(playlistId: string) {
         }
       }
 
+      // Shelf-level token points to more items in the same playlist
+      // Section-level token might point to other sections like "Related playlists"
       let continuationToken =
-        sectionListRenderer?.continuations?.[0]?.nextContinuationData?.continuation ||
-        shelf.continuations?.[0]?.nextContinuationData?.continuation
+        shelf.continuations?.[0]?.nextContinuationData?.continuation ||
+        sectionListRenderer?.continuations?.[0]?.nextContinuationData?.continuation
 
       if (continuationToken) {
         hadContinuation = true
+        const tokenSource = shelf.continuations?.[0]
+          ? "shelf-level (playlist items)"
+          : "section-level (may include other sections)"
         console.log(`[v0] ===== CONTINUATION TOKEN FOUND =====`)
-        console.log(`[v0] Token source: ${sectionListRenderer?.continuations?.[0] ? "section-level" : "shelf-level"}`)
+        console.log(`[v0] Token source: ${tokenSource}`)
         console.log(`[v0] Token length: ${continuationToken.length}`)
         console.log(`[v0] Token preview: ${continuationToken.substring(0, 50)}...`)
       } else {
@@ -606,16 +611,22 @@ export async function getPlaylistDetails(playlistId: string) {
         totalPages++
         console.log(`[v0] ===== FETCHING PAGE ${totalPages} =====`)
         console.log(`[v0] Using continuation token: ${continuationToken.substring(0, 50)}...`)
-        console.log(`[v0] Full continuation token: ${continuationToken}`)
 
         try {
           const continuationData = await makeInnerTubeRequest("browse", {
             continuation: continuationToken,
           })
 
+          const responseType = continuationData?.continuationContents?.musicPlaylistShelfContinuation
+            ? "musicPlaylistShelfContinuation (playlist items)"
+            : continuationData?.continuationContents?.sectionListContinuation
+              ? "sectionListContinuation (mixed content)"
+              : "unknown"
+
           continuationResponses.push({
             pageNumber: totalPages,
             token: continuationToken.substring(0, 50) + "...",
+            responseType,
             responseKeys: Object.keys(continuationData || {}),
             hasContinuationContents: !!continuationData?.continuationContents,
             continuationContentsKeys: continuationData?.continuationContents
@@ -625,12 +636,11 @@ export async function getPlaylistDetails(playlistId: string) {
             hasNextToken:
               !!continuationData?.continuationContents?.musicPlaylistShelfContinuation?.continuations?.[0]
                 ?.nextContinuationData?.continuation,
-            fullResponse: continuationData, // Include full response for debugging
           })
 
           console.log(`[v0] Continuation response received`)
+          console.log(`[v0] Response type: ${responseType}`)
           console.log(`[v0] Response keys:`, Object.keys(continuationData || {}))
-          console.log(`[v0] Full continuation response:`, JSON.stringify(continuationData, null, 2))
 
           if (continuationData?.continuationContents) {
             console.log(`[v0] continuationContents keys:`, Object.keys(continuationData.continuationContents))
@@ -641,11 +651,18 @@ export async function getPlaylistDetails(playlistId: string) {
               console.log(`[v0] Contents length:`, continuation.contents?.length || 0)
               console.log(`[v0] Has continuations:`, "continuations" in continuation)
               console.log(`[v0] Continuations length:`, continuation.continuations?.length || 0)
-              console.log(`[v0] Full musicPlaylistShelfContinuation:`, JSON.stringify(continuation, null, 2))
+            } else if (continuationData.continuationContents.sectionListContinuation) {
+              console.log(`[v0] ⚠️ WARNING: Received sectionListContinuation instead of musicPlaylistShelfContinuation`)
+              console.log(
+                `[v0] This usually means the continuation token is pointing to other page sections (like "Related playlists")`,
+              )
+              console.log(`[v0] Stopping pagination as we've reached the end of the actual playlist items`)
+              break
             }
           } else {
             console.log(`[v0] ⚠️ No continuationContents in response!`)
             console.log(`[v0] Available response paths:`, Object.keys(continuationData || {}))
+            break
           }
 
           if (!continuationData) {
@@ -659,7 +676,8 @@ export async function getPlaylistDetails(playlistId: string) {
 
           console.log(`[v0] Page ${totalPages}: ${continuationContents.length} items`)
           if (continuationContents.length === 0) {
-            console.log(`[v0] ⚠️ WARNING: Page ${totalPages} returned 0 items!`)
+            console.log(`[v0] ⚠️ WARNING: Page ${totalPages} returned 0 items - stopping pagination`)
+            break
           }
 
           for (const item of continuationContents) {
