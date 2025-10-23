@@ -41,7 +41,7 @@ interface PlaylistContentProps {
 
 export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const router = useRouter()
-  const { playVideo, toggleLikedSong } = useMusicPlayer()
+  const { playVideo, toggleLikedSong, currentVideo } = useMusicPlayer()
   const [playlist, setPlaylist] = useState<Playlist | null>(null)
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [likedStates, setLikedStates] = useState<Record<string, boolean>>({})
@@ -303,61 +303,69 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
 
         {/* Song List Rendering */}
         {playlist.videos.length > 0 ? (
-          <div className="space-y-2 pb-32">
-            {playlist.videos.map((video, index) => (
-              <div
-                key={video.id}
-                className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors"
-                onClick={() => {
-                  const remainingSongs = playlist.videos.slice(index + 1)
-                  playVideo(video, remainingSongs)
-                }}
-              >
-                {/* Thumbnail */}
-                <div className="relative w-12 h-12 rounded overflow-hidden flex-shrink-0 bg-secondary">
-                  {video.thumbnail ? (
-                    <Image
-                      src={video.thumbnail || "/placeholder.svg"}
-                      alt={video.title}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Play className="w-5 h-5 text-muted-foreground" />
+          <div className="space-y-0 pb-32">
+            {playlist.videos.map((video, index) => {
+              const isCurrentlyPlaying = currentVideo?.id === video.id
+
+              return (
+                <div
+                  key={video.id}
+                  className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                    isCurrentlyPlaying ? "bg-secondary/50" : "hover:bg-secondary/30"
+                  }`}
+                  onClick={() => {
+                    const remainingSongs = playlist.videos.slice(index + 1)
+                    playVideo(video, remainingSongs)
+                  }}
+                >
+                  <div className="relative w-14 h-14 rounded-md overflow-hidden flex-shrink-0 bg-secondary">
+                    {video.thumbnail ? (
+                      <Image
+                        src={video.thumbnail || "/placeholder.svg"}
+                        alt={video.title}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Play className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-base leading-tight">{video.title}</p>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+                      <span className="truncate">{video.artist || "Unknown Artist"}</span>
+                      {video.duration && (
+                        <>
+                          <span>•</span>
+                          <span className="flex-shrink-0">{formatDuration(video.duration)}</span>
+                        </>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* Song Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{video.title}</p>
-                  <p className="text-sm text-muted-foreground truncate">{video.artist}</p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button variant="ghost" size="icon" className="w-9 h-9" onClick={(e) => handleLikeToggle(video, e)}>
+                      <Heart className={`w-5 h-5 ${likedStates[video.id] ? "fill-red-500 text-red-500" : ""}`} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-9 h-9"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        // TODO: Open song menu
+                      }}
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </Button>
+                  </div>
                 </div>
-
-                {/* Duration, Heart & Menu */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {video.duration && (
-                    <span className="text-sm text-muted-foreground">{formatDuration(video.duration)}</span>
-                  )}
-                  <Button variant="ghost" size="icon" className="w-8 h-8" onClick={(e) => handleLikeToggle(video, e)}>
-                    <Heart className={`w-4 h-4 ${likedStates[video.id] ? "fill-red-500 text-red-500" : ""}`} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="w-8 h-8"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      // TODO: Open song menu
-                    }}
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           // Empty State
