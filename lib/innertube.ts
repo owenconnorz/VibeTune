@@ -587,12 +587,15 @@ export async function getPlaylistDetails(playlistId: string) {
         }
       }
 
-      let continuationToken = shelf.continuations?.[0]?.nextContinuationData?.continuation
+      let continuationToken =
+        sectionListRenderer?.continuations?.[0]?.nextContinuationData?.continuation ||
+        shelf.continuations?.[0]?.nextContinuationData?.continuation
+
       if (continuationToken) {
         hadContinuation = true
-        console.log(`[v0] Found continuation token at shelf level`)
+        console.log(`[v0] Found continuation token (section-level: ${!!sectionListRenderer?.continuations?.[0]})`)
       } else {
-        console.log(`[v0] No continuation token at shelf level`)
+        console.log(`[v0] No continuation token found`)
       }
 
       while (continuationToken) {
