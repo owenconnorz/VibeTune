@@ -527,6 +527,24 @@ export async function getAudioStream(videoId: string): Promise<string | null> {
   }
 }
 
+function parseISO8601Duration(duration: string): string {
+  try {
+    const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/)
+    if (!match) return "0:00"
+
+    const hours = Number.parseInt(match[1] || "0")
+    const minutes = Number.parseInt(match[2] || "0")
+    const seconds = Number.parseInt(match[3] || "0")
+
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+    }
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`
+  } catch {
+    return "0:00"
+  }
+}
+
 export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
   try {
     console.log("[v0] ===== STARTING PLAYLIST IMPORT =====")
@@ -627,8 +645,55 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
       console.log(`[v0] Has next page: ${!!pageToken}`)
     } while (pageToken)
 
+    console.log("[v0] ===== FETCHING VIDEO DURATIONS =====")
+    console.log(`[v0] Fetching durations for ${videos.length} videos...`)
+
+    const videoIds = videos.map((v) => v.id)
+    const batchSize = 50 // YouTube API allows max 50 IDs per request
+    let durationsUpdated = 0
+
+    for (let i = 0; i < videoIds.length; i += batchSize) {
+      const batch = videoIds.slice(i, i + batchSize)
+      const batchNumber = Math.floor(i / batchSize) + 1
+      const totalBatches = Math.ceil(videoIds.length / batchSize)
+
+      console.log(`[v0] Fetching duration batch ${batchNumber}/${totalBatches} (${batch.length} videos)`)
+
+      try {
+        const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${batch.join(",")}&key=${apiKey}`
+        const videosResponse = await fetch(videosUrl)
+
+        if (!videosResponse.ok) {
+          console.error(`[v0] Failed to fetch durations for batch ${batchNumber}:`, videosResponse.status)
+          continue
+        }
+
+        const videosData = await videosResponse.json()
+
+        if (videosData.items) {
+          for (const videoItem of videosData.items) {
+            const videoId = videoItem.id
+            const duration = videoItem.contentDetails?.duration
+
+            if (duration) {
+              const formattedDuration = parseISO8601Duration(duration)
+              const video = videos.find((v) => v.id === videoId)
+              if (video) {
+                video.duration = formattedDuration
+                durationsUpdated++
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`[v0] Error fetching duration batch ${batchNumber}:`, error)
+      }
+    }
+
+    console.log(`[v0] Updated ${durationsUpdated}/${videos.length} video durations`)
+
     console.log("[v0] ===== FETCHING INNERTUBE DATA =====")
-    console.log("[v0] Getting high-quality thumbnails and durations from InnerTube API...")
+    console.log("[v0] Getting high-quality thumbnails from InnerTube API...")
 
     try {
       const innertubeData = await makeInnerTubeRequest("browse", {
@@ -646,29 +711,25 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
         if (shelf?.contents) {
           console.log(`[v0] InnerTube returned ${shelf.contents.length} items`)
 
-          const videoDataMap = new Map<string, { thumbnail: string; duration: string }>()
+          const thumbnailMap = new Map<string, string>()
 
           for (const item of shelf.contents) {
             const videoInfo = extractVideoInfo(item)
             if (videoInfo && videoInfo.id) {
-              videoDataMap.set(videoInfo.id, {
-                thumbnail: videoInfo.thumbnail,
-                duration: videoInfo.duration,
-              })
+              thumbnailMap.set(videoInfo.id, videoInfo.thumbnail)
             }
           }
 
-          let updatedCount = 0
+          let thumbnailsUpdated = 0
           for (const video of videos) {
-            const innerTubeData = videoDataMap.get(video.id)
-            if (innerTubeData) {
-              video.thumbnail = innerTubeData.thumbnail
-              video.duration = innerTubeData.duration
-              updatedCount++
+            const innerTubeThumbnail = thumbnailMap.get(video.id)
+            if (innerTubeThumbnail) {
+              video.thumbnail = innerTubeThumbnail
+              thumbnailsUpdated++
             }
           }
 
-          console.log(`[v0] Updated ${updatedCount} videos with InnerTube thumbnails and durations`)
+          console.log(`[v0] Updated ${thumbnailsUpdated} videos with InnerTube thumbnails`)
         }
       }
     } catch (error) {
@@ -679,13 +740,10 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
     console.log("[v0] ===== PLAYLIST IMPORT COMPLETE =====")
     console.log("[v0] Total pages fetched:", totalPages)
     console.log("[v0] Total videos:", videos.length)
+    console.log("[v0] Videos with durations:", videos.filter((v) => v.duration !== "0:00").length)
     console.log(
-      "[v0] First 3 video titles:",
-      videos.slice(0, 3).map((v) => v.title),
-    )
-    console.log(
-      "[v0] Last 3 video titles:",
-      videos.slice(-3).map((v) => v.title),
+      "[v0] Sample durations:",
+      videos.slice(0, 5).map((v) => `${v.title}: ${v.duration}`),
     )
 
     return {
@@ -697,7 +755,8 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
       _debug: {
         totalPages,
         videoCount: videos.length,
-        apiVersion: "YouTube Data API v3 + InnerTube thumbnails & durations",
+        durationsUpdated,
+        apiVersion: "YouTube Data API v3 (full durations) + InnerTube thumbnails",
       },
     }
   } catch (error: any) {

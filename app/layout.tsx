@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { MusicPlayerProvider } from "@/components/music-player-provider"
 import { SWRProvider } from "@/components/swr-provider"
 import { PWARegister } from "@/components/pwa-register"
+import { DownloadManagerProvider } from "@/components/download-manager-provider"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -56,7 +57,9 @@ export default function RootLayout({
       </head>
       <body className={`font-sans antialiased`}>
         <SWRProvider>
-          <MusicPlayerProvider>{children}</MusicPlayerProvider>
+          <DownloadManagerProvider>
+            <MusicPlayerProvider>{children}</MusicPlayerProvider>
+          </DownloadManagerProvider>
         </SWRProvider>
         <PWARegister />
         <Analytics />

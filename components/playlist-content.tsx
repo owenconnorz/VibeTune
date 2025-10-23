@@ -24,7 +24,8 @@ import { getPlaylists, deletePlaylist, updatePlaylist, type Playlist } from "@/l
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
 import { isLiked } from "@/lib/liked-storage"
-import { downloadSong, isDownloaded } from "@/lib/download-storage"
+import { isDownloaded } from "@/lib/download-storage"
+import { useDownloadManager } from "@/components/download-manager-provider"
 import {
   Dialog,
   DialogContent,
@@ -43,14 +44,13 @@ interface PlaylistContentProps {
 export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const router = useRouter()
   const { playVideo, toggleLikedSong, currentVideo } = useMusicPlayer()
+  const { addToQueue, isDownloading: downloadManagerActive, getProgress } = useDownloadManager()
   const [playlist, setPlaylist] = useState<Playlist | null>(null)
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [likedStates, setLikedStates] = useState<Record<string, boolean>>({})
   const [showCoverDialog, setShowCoverDialog] = useState(false)
   const [coverImageUrl, setCoverImageUrl] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [downloadingPlaylist, setDownloadingPlaylist] = useState(false)
-  const [downloadProgress, setDownloadProgress] = useState({ current: 0, total: 0 })
   const [downloadedStates, setDownloadedStates] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -211,61 +211,48 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
       return
     }
 
+    const downloadStates = await Promise.all(playlist.videos.map((v) => isDownloaded(v.id)))
+    const songsToDownload = playlist.videos.filter((_, index) => !downloadStates[index])
+
+    if (songsToDownload.length === 0) {
+      alert("All songs are already downloaded!")
+      return
+    }
+
     if (
       !confirm(
-        `This will download ${playlist.videos.length} songs for offline playback. This may take a while and use storage space. Continue?`,
+        `This will download ${songsToDownload.length} songs for offline playback. This may take a while and use storage space. Continue?`,
       )
     ) {
       return
     }
 
-    setDownloadingPlaylist(true)
-    setDownloadProgress({ current: 0, total: playlist.videos.length })
+    const tasks = songsToDownload.map((video) => ({
+      id: video.id,
+      title: video.title,
+      artist: video.artist || "Unknown Artist",
+      thumbnail: video.thumbnail,
+      duration: video.duration,
+      status: "pending" as const,
+    }))
 
-    let successCount = 0
-    let failCount = 0
+    addToQueue(tasks)
 
-    for (let i = 0; i < playlist.videos.length; i++) {
-      const video = playlist.videos[i]
-      console.log(`[v0] Downloading ${i + 1}/${playlist.videos.length}: ${video.title}`)
-
-      const alreadyDownloaded = await isDownloaded(video.id)
-      if (alreadyDownloaded) {
-        console.log(`[v0] Song already downloaded, skipping: ${video.title}`)
-        successCount++
-        setDownloadProgress({ current: i + 1, total: playlist.videos.length })
-        continue
-      }
-
-      const success = await downloadSong(
-        video.id,
-        video.title,
-        video.artist || "Unknown Artist",
-        video.thumbnail,
-        video.duration,
-      )
-
-      if (success) {
-        successCount++
-        setDownloadedStates((prev) => ({ ...prev, [video.id]: true }))
-      } else {
-        failCount++
-      }
-
-      setDownloadProgress({ current: i + 1, total: playlist.videos.length })
-
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    }
-
-    setDownloadingPlaylist(false)
-    setDownloadProgress({ current: 0, total: 0 })
-
-    if (failCount === 0) {
-      alert(`Successfully downloaded all ${successCount} songs!`)
-    } else {
-      alert(`Downloaded ${successCount} songs. ${failCount} songs failed to download.`)
-    }
+    alert(`Added ${tasks.length} songs to download queue. Downloads will continue in the background.`)
   }
+
+  useEffect(() => {
+    if (!downloadManagerActive && playlist) {
+      const checkDownloadedStates = async () => {
+        const downloadStates: Record<string, boolean> = {}
+        for (const video of playlist.videos) {
+          downloadStates[video.id] = await isDownloaded(video.id)
+        }
+        setDownloadedStates(downloadStates)
+      }
+      checkDownloadedStates()
+    }
+  }, [downloadManagerActive, playlist])
 
   if (!playlist) {
     return (
@@ -277,7 +264,6 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-border">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="w-6 h-6" />
@@ -287,7 +273,6 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
         </Button>
       </div>
 
-      {/* Playlist Info */}
       <div className="p-6 space-y-6">
         <div className="relative w-64 h-64 rounded-2xl overflow-hidden bg-secondary mx-auto group">
           {playlist.coverImage ? (
@@ -330,14 +315,12 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           </button>
         </div>
 
-        {/* Playlist Details */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold">{playlist.name}</h1>
           <p className="text-lg text-muted-foreground">{playlist.videos.length} songs</p>
           <p className="text-lg text-muted-foreground">{getTotalDuration()}</p>
         </div>
 
-        {/* Action Icons */}
         <div className="flex items-center justify-center gap-6">
           <Button variant="ghost" size="icon" onClick={handleDelete}>
             <Trash2 className="w-6 h-6" />
@@ -348,7 +331,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           <Button variant="ghost" size="icon" onClick={handleShuffle}>
             <ShuffleIcon className="w-6 h-6" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleDownloadPlaylist} disabled={downloadingPlaylist}>
+          <Button variant="ghost" size="icon" onClick={handleDownloadPlaylist} disabled={downloadManagerActive}>
             <Download className="w-6 h-6" />
           </Button>
           <Button variant="ghost" size="icon">
@@ -356,7 +339,6 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           </Button>
         </div>
 
-        {/* Play and Shuffle Buttons */}
         <div className="flex gap-4">
           <Button
             className="flex-1 h-14 rounded-full text-lg font-semibold bg-[hsl(var(--chart-2))] hover:bg-[hsl(var(--chart-2))]/90 text-black"
@@ -377,7 +359,6 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           </Button>
         </div>
 
-        {/* Sort Section */}
         <div className="flex items-center justify-between pt-4">
           <Button
             variant="ghost"
@@ -397,25 +378,27 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           <Lock className="w-5 h-5 text-muted-foreground" />
         </div>
 
-        {/* Download Progress Indicator */}
-        {downloadingPlaylist && (
-          <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span>Downloading playlist...</span>
-              <span>
-                {downloadProgress.current} / {downloadProgress.total}
-              </span>
-            </div>
-            <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-              <div
-                className="bg-[hsl(var(--chart-2))] h-full transition-all duration-300"
-                style={{ width: `${(downloadProgress.current / downloadProgress.total) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
+        {downloadManagerActive &&
+          (() => {
+            const progress = getProgress()
+            return (
+              <div className="bg-secondary/50 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Downloading in background...</span>
+                  <span>
+                    {progress.completed} / {progress.total}
+                  </span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-[hsl(var(--chart-2))] h-full transition-all duration-300"
+                    style={{ width: `${(progress.completed / progress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )
+          })()}
 
-        {/* Song List Rendering */}
         {playlist.videos.length > 0 ? (
           <div className="space-y-0 pb-24">
             {playlist.videos.map((video, index) => {
