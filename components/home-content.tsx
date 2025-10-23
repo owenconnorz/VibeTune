@@ -171,13 +171,22 @@ export function HomeContent() {
               <h2 className="text-2xl font-bold">{section.title}</h2>
               {section.type === "list" || sectionIndex === 0 ? (
                 <div className="space-y-3">
-                  {allItems.slice(0, 20).map((song) => (
+                  {allItems.slice(0, 20).map((song, songIndex) => (
                     <div
                       key={song.id}
                       className="flex items-center gap-3 group cursor-pointer"
-                      onClick={() =>
-                        playVideo({ id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail })
-                      }
+                      onClick={() => {
+                        const remainingSongs = allItems.slice(songIndex + 1, 20).map((s) => ({
+                          id: s.id,
+                          title: s.title,
+                          artist: s.artist,
+                          thumbnail: s.thumbnail,
+                        }))
+                        playVideo(
+                          { id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail },
+                          remainingSongs,
+                        )
+                      }}
                     >
                       <div className="relative w-14 h-14 flex-shrink-0">
                         <ProgressiveImage src={song.thumbnail || "/placeholder.svg"} alt={song.title} rounded="lg" />
@@ -231,14 +240,24 @@ export function HomeContent() {
                         <div
                           key={item.id}
                           className="w-72 flex-shrink-0 cursor-pointer group"
-                          onClick={() =>
-                            playVideo({
-                              id: item.id,
-                              title: item.title,
-                              artist: item.artist,
-                              thumbnail: item.thumbnail,
-                            })
-                          }
+                          onClick={() => {
+                            const itemIndex = allItems.findIndex((i) => i.id === item.id)
+                            const remainingItems = allItems.slice(itemIndex + 1).map((i) => ({
+                              id: i.id,
+                              title: i.title,
+                              artist: i.artist,
+                              thumbnail: i.thumbnail,
+                            }))
+                            playVideo(
+                              {
+                                id: item.id,
+                                title: item.title,
+                                artist: item.artist,
+                                thumbnail: item.thumbnail,
+                              },
+                              remainingItems,
+                            )
+                          }}
                         >
                           <div className="relative aspect-video mb-3">
                             <ProgressiveImage
@@ -287,14 +306,24 @@ export function HomeContent() {
                           <div
                             key={item.id}
                             className={`${cardWidth} flex-shrink-0 cursor-pointer group`}
-                            onClick={() =>
-                              playVideo({
-                                id: item.id,
-                                title: item.title,
-                                artist: item.artist,
-                                thumbnail: item.thumbnail,
-                              })
-                            }
+                            onClick={() => {
+                              const itemIndex = allItems.findIndex((i) => i.id === item.id)
+                              const remainingItems = allItems.slice(itemIndex + 1).map((i) => ({
+                                id: i.id,
+                                title: i.title,
+                                artist: i.artist,
+                                thumbnail: i.thumbnail,
+                              }))
+                              playVideo(
+                                {
+                                  id: item.id,
+                                  title: item.title,
+                                  artist: item.artist,
+                                  thumbnail: item.thumbnail,
+                                },
+                                remainingItems,
+                              )
+                            }}
                           >
                             <div className={`relative ${isVideo ? "aspect-video" : "aspect-square"} mb-2`}>
                               <ProgressiveImage

@@ -72,14 +72,15 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
 
   const handlePlay = () => {
     if (playlist && playlist.videos.length > 0) {
-      playVideo(playlist.videos[0])
+      playVideo(playlist.videos[0], playlist.videos.slice(1))
     }
   }
 
   const handleShuffle = () => {
     if (playlist && playlist.videos.length > 0) {
       const randomIndex = Math.floor(Math.random() * playlist.videos.length)
-      playVideo(playlist.videos[randomIndex])
+      const remainingSongs = [...playlist.videos.slice(0, randomIndex), ...playlist.videos.slice(randomIndex + 1)]
+      playVideo(playlist.videos[randomIndex], remainingSongs)
     }
   }
 
@@ -307,7 +308,10 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
               <div
                 key={video.id}
                 className="flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors"
-                onClick={() => playVideo(video)}
+                onClick={() => {
+                  const remainingSongs = playlist.videos.slice(index + 1)
+                  playVideo(video, remainingSongs)
+                }}
               >
                 {/* Thumbnail */}
                 <div className="relative w-12 h-12 rounded overflow-hidden flex-shrink-0 bg-secondary">

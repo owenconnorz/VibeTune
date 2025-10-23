@@ -25,7 +25,7 @@ interface MusicPlayerContextType {
   likedSongs: YouTubeVideo[]
   isCurrentLiked: boolean
   repeatMode: "off" | "all" | "one"
-  playVideo: (video: YouTubeVideo) => void
+  playVideo: (video: YouTubeVideo, queueVideos?: YouTubeVideo[]) => void
   togglePlay: () => void
   playNext: () => void
   playPrevious: () => void
@@ -369,7 +369,12 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     root.style.removeProperty("--accent")
   }
 
-  const playVideo = (video: YouTubeVideo) => {
+  const playVideo = (video: YouTubeVideo, queueVideos?: YouTubeVideo[]) => {
+    console.log("[v0] Playing video:", video.title)
+    if (queueVideos) {
+      console.log("[v0] Setting queue with", queueVideos.length, "videos")
+      setQueue(queueVideos)
+    }
     if (currentVideo) {
       setPreviousTracks((prev) => [...prev, currentVideo])
       console.log("[v0] Added to previous tracks:", currentVideo.title)

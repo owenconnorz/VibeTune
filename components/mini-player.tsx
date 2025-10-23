@@ -27,10 +27,20 @@ export function MiniPlayer() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [devicePickerOpen, setDevicePickerOpen] = useState(false)
+  const [touchStartedOnButton, setTouchStartedOnButton] = useState(false)
 
   const minSwipeDistance = 50
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    const target = e.target as HTMLElement
+    const isButton = target.closest("button") !== null
+    setTouchStartedOnButton(isButton)
+
+    if (isButton) {
+      console.log("[v0] Touch started on button, ignoring swipe gesture")
+      return
+    }
+
     setTouchEnd(null)
     setTouchStart({
       x: e.targetTouches[0].clientX,
@@ -40,7 +50,7 @@ export function MiniPlayer() {
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStart) return
+    if (touchStartedOnButton || !touchStart) return
 
     const currentX = e.targetTouches[0].clientX
     const currentY = e.targetTouches[0].clientY
@@ -62,6 +72,13 @@ export function MiniPlayer() {
   }
 
   const handleTouchEnd = () => {
+    if (touchStartedOnButton) {
+      setTouchStartedOnButton(false)
+      setIsDragging(false)
+      setDragOffset({ x: 0, y: 0 })
+      return
+    }
+
     if (!touchStart || !touchEnd) {
       setIsDragging(false)
       setDragOffset({ x: 0, y: 0 })
@@ -93,6 +110,7 @@ export function MiniPlayer() {
     setDragOffset({ x: 0, y: 0 })
     setTouchStart(null)
     setTouchEnd(null)
+    setTouchStartedOnButton(false)
   }
 
   const handleCastClick = () => {
@@ -102,24 +120,28 @@ export function MiniPlayer() {
 
   const handlePreviousClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
     console.log("[v0] Previous button clicked in mini player")
     playPrevious()
   }
 
   const handleNextClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
     console.log("[v0] Next button clicked in mini player")
     playNext()
   }
 
   const handlePlayPauseClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
     console.log("[v0] Play/Pause button clicked in mini player")
     togglePlay()
   }
 
   const handleLikeClick = (e: React.MouseEvent) => {
     e.stopPropagation()
+    e.preventDefault()
     if (currentVideo) {
       console.log("[v0] Like button clicked in mini player")
       toggleLikedSong(currentVideo)

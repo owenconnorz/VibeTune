@@ -128,7 +128,9 @@ export function SearchContent() {
     if (isArtist) {
       router.push(`/dashboard/artist/${(video as any).browseId}`)
     } else {
-      playVideo(video)
+      const videoIndex = allResults.findIndex((v) => v.id === video.id)
+      const remainingVideos = allResults.slice(videoIndex + 1).filter((v) => !(v as any).browseId)
+      playVideo(video, remainingVideos)
     }
   }
 
