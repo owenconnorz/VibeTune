@@ -563,6 +563,7 @@ export async function getPlaylistDetails(playlistId: string) {
     let lastError: string | null = null
     let shelfStructure: any = null
     let sectionLevelContinuation: any = null
+    const continuationResponses: any[] = []
 
     for (const section of contents) {
       const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
@@ -610,6 +611,21 @@ export async function getPlaylistDetails(playlistId: string) {
         try {
           const continuationData = await makeInnerTubeRequest("browse", {
             continuation: continuationToken,
+          })
+
+          continuationResponses.push({
+            pageNumber: totalPages,
+            token: continuationToken.substring(0, 50) + "...",
+            responseKeys: Object.keys(continuationData || {}),
+            hasContinuationContents: !!continuationData?.continuationContents,
+            continuationContentsKeys: continuationData?.continuationContents
+              ? Object.keys(continuationData.continuationContents)
+              : [],
+            itemsFound: continuationData?.continuationContents?.musicPlaylistShelfContinuation?.contents?.length || 0,
+            hasNextToken:
+              !!continuationData?.continuationContents?.musicPlaylistShelfContinuation?.continuations?.[0]
+                ?.nextContinuationData?.continuation,
+            fullResponse: continuationData, // Include full response for debugging
           })
 
           console.log(`[v0] Continuation response received`)
@@ -675,6 +691,12 @@ export async function getPlaylistDetails(playlistId: string) {
           console.error(`[v0] ===== CONTINUATION ERROR =====`)
           console.error(`[v0] Error fetching page ${totalPages}:`, error.message)
           console.error(`[v0] Error stack:`, error.stack)
+          continuationResponses.push({
+            pageNumber: totalPages,
+            token: continuationToken.substring(0, 50) + "...",
+            error: error.message,
+            errorStack: error.stack,
+          })
           break
         }
       }
@@ -709,6 +731,7 @@ export async function getPlaylistDetails(playlistId: string) {
         videoCount: videos.length,
         shelfStructure,
         sectionLevelContinuation,
+        continuationResponses,
       },
     }
   } catch (error: any) {
