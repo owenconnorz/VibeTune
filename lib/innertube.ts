@@ -561,10 +561,19 @@ export async function getPlaylistDetails(playlistId: string) {
     let totalPages = 0
     let hadContinuation = false
     let lastError: string | null = null
+    let shelfStructure: any = null
 
     for (const section of contents) {
       const shelf = section.musicShelfRenderer || section.musicPlaylistShelfRenderer
       if (!shelf) continue
+
+      shelfStructure = {
+        keys: Object.keys(shelf),
+        hasContinuations: "continuations" in shelf,
+        continuationsLength: shelf.continuations?.length || 0,
+        continuationsData: shelf.continuations ? JSON.parse(JSON.stringify(shelf.continuations)) : null,
+        itemCount: shelf.contents?.length || 0,
+      }
 
       const items = shelf.contents || []
       totalPages = 1
@@ -576,20 +585,6 @@ export async function getPlaylistDetails(playlistId: string) {
           videos.push(videoInfo)
         }
       }
-
-      console.log("[v0] ===== SHELF STRUCTURE DEBUG =====")
-      console.log("[v0] Shelf keys:", Object.keys(shelf))
-      console.log("[v0] Has continuations?", "continuations" in shelf)
-
-      if (shelf.continuations) {
-        console.log("[v0] Continuations array length:", shelf.continuations.length)
-        console.log("[v0] First continuation keys:", Object.keys(shelf.continuations[0] || {}))
-        console.log("[v0] First continuation:", JSON.stringify(shelf.continuations[0], null, 2))
-      } else {
-        console.log("[v0] No continuations property found")
-        console.log("[v0] Full shelf structure:", JSON.stringify(shelf, null, 2).substring(0, 1000))
-      }
-      console.log("[v0] ===== END SHELF STRUCTURE DEBUG =====")
 
       let continuationToken = shelf.continuations?.[0]?.nextContinuationData?.continuation
       if (continuationToken) {
@@ -659,6 +654,7 @@ export async function getPlaylistDetails(playlistId: string) {
         hadContinuation,
         lastError,
         videoCount: videos.length,
+        shelfStructure,
       },
     }
   } catch (error: any) {
