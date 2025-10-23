@@ -69,15 +69,29 @@ export function ImportYouTubePlaylistDialog({ open, onOpenChange }: ImportYouTub
       }
 
       const data = await response.json()
-      console.log("[v0] Playlist data received:", {
-        title: data.title,
-        videoCount: data.videos?.length || 0,
-        hasVideos: !!data.videos,
-      })
+      console.log("[v0] ===== PLAYLIST DATA RECEIVED =====")
+      console.log("[v0] Playlist title:", data.title)
+      console.log("[v0] Total videos received:", data.videos?.length || 0)
+      console.log(
+        "[v0] First 3 video titles:",
+        data.videos?.slice(0, 3).map((v: any) => v.title),
+      )
+      console.log(
+        "[v0] Last 3 video titles:",
+        data.videos?.slice(-3).map((v: any) => v.title),
+      )
+      console.log(
+        "[v0] Video IDs sample:",
+        data.videos?.slice(0, 5).map((v: any) => v.id),
+      )
 
       if (!data.videos || data.videos.length === 0) {
         console.error("[v0] Playlist has no videos")
         throw new Error("Playlist is empty or not found")
+      }
+
+      if (data.videos.length === 100) {
+        console.warn("[v0] ⚠️ WARNING: Playlist has exactly 100 videos - might be truncated!")
       }
 
       // Save playlist locally
@@ -90,7 +104,7 @@ export function ImportYouTubePlaylistDialog({ open, onOpenChange }: ImportYouTub
       console.log("[v0] ===== PLAYLIST IMPORT COMPLETE =====")
       console.log("[v0] New playlist ID:", newPlaylist.id)
       console.log("[v0] Playlist name:", newPlaylist.name)
-      console.log("[v0] Video count:", newPlaylist.videos.length)
+      console.log("[v0] Final video count:", newPlaylist.videos.length)
 
       // Navigate to the new playlist
       router.push(`/dashboard/playlist/${newPlaylist.id}`)
