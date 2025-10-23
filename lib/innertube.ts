@@ -605,6 +605,7 @@ export async function getPlaylistDetails(playlistId: string) {
         totalPages++
         console.log(`[v0] ===== FETCHING PAGE ${totalPages} =====`)
         console.log(`[v0] Using continuation token: ${continuationToken.substring(0, 50)}...`)
+        console.log(`[v0] Full continuation token: ${continuationToken}`)
 
         try {
           const continuationData = await makeInnerTubeRequest("browse", {
@@ -613,6 +614,7 @@ export async function getPlaylistDetails(playlistId: string) {
 
           console.log(`[v0] Continuation response received`)
           console.log(`[v0] Response keys:`, Object.keys(continuationData || {}))
+          console.log(`[v0] Full continuation response:`, JSON.stringify(continuationData, null, 2))
 
           if (continuationData?.continuationContents) {
             console.log(`[v0] continuationContents keys:`, Object.keys(continuationData.continuationContents))
@@ -623,7 +625,11 @@ export async function getPlaylistDetails(playlistId: string) {
               console.log(`[v0] Contents length:`, continuation.contents?.length || 0)
               console.log(`[v0] Has continuations:`, "continuations" in continuation)
               console.log(`[v0] Continuations length:`, continuation.continuations?.length || 0)
+              console.log(`[v0] Full musicPlaylistShelfContinuation:`, JSON.stringify(continuation, null, 2))
             }
+          } else {
+            console.log(`[v0] ⚠️ No continuationContents in response!`)
+            console.log(`[v0] Available response paths:`, Object.keys(continuationData || {}))
           }
 
           if (!continuationData) {
@@ -636,6 +642,9 @@ export async function getPlaylistDetails(playlistId: string) {
             continuationData.continuationContents?.musicPlaylistShelfContinuation?.contents || []
 
           console.log(`[v0] Page ${totalPages}: ${continuationContents.length} items`)
+          if (continuationContents.length === 0) {
+            console.log(`[v0] ⚠️ WARNING: Page ${totalPages} returned 0 items!`)
+          }
 
           for (const item of continuationContents) {
             const videoInfo = extractVideoInfo(item)
