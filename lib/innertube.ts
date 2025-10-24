@@ -38,6 +38,10 @@ async function makeInnerTubeRequest(endpoint: string, params: any = {}) {
         "X-Goog-Api-Key": INNERTUBE_API_KEY,
         "X-Youtube-Client-Name": "67",
         "X-Youtube-Client-Version": INNERTUBE_CLIENT_VERSION,
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
         Origin: "https://music.youtube.com",
         Referer: "https://music.youtube.com/",
       },
@@ -829,4 +833,147 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
 export async function getPlaylistDetails(playlistId: string) {
   // This provides reliable pagination and can fetch all 280+ songs
   return getPlaylistDetailsFromYouTubeAPI(playlistId)
+}
+
+export async function searchYouTube(query: string, continuation?: string) {
+  try {
+    console.log(`[v0] Searching YouTube for: "${query}"${continuation ? " (continuation)" : ""}`)
+
+    const params: any = {
+      query,
+    }
+
+    if (continuation) {
+      params.continuation = continuation
+    }
+
+    // Use regular YouTube endpoint instead of YouTube Music
+    const url = `https://www.youtube.com/youtubei/v1/search`
+    const body = {
+      context: {
+        client: {
+          clientName: "WEB",
+          clientVersion: "2.20250101.01.00",
+          hl: "en",
+          gl: "US",
+        },
+      },
+      ...params,
+    }
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": INNERTUBE_API_KEY,
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+        Accept: "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        Origin: "https://www.youtube.com",
+        Referer: "https://www.youtube.com/",
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`[v0] YouTube search error:`, response.status, errorText)
+      throw new Error(`YouTube API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    console.log(`[v0] YouTube search response received for: "${query}"`)
+
+    if (!data || typeof data !== "object") {
+      console.log(`[v0] Invalid YouTube search response for: "${query}"`)
+      return { videos: [], continuation: null }
+    }
+
+    const contents =
+      data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents ||
+      data.onResponseReceivedCommands?.[0]?.appendContinuationItemsAction?.continuationItems ||
+      []
+
+    const videos: any[] = []
+
+    for (const section of contents) {
+      try {
+        const items = section.itemSectionRenderer?.contents || [section]
+
+        for (const item of items) {
+          try {
+            const videoRenderer = item.videoRenderer
+            if (!videoRenderer) continue
+
+            const videoId = videoRenderer.videoId
+            if (!videoId) continue
+
+            const title = videoRenderer.title?.runs?.[0]?.text || videoRenderer.title?.simpleText
+            const channelName =
+              videoRenderer.ownerText?.runs?.[0]?.text || videoRenderer.shortBylineText?.runs?.[0]?.text
+            const channelId =
+              videoRenderer.ownerText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId ||
+              videoRenderer.shortBylineText?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId
+
+            let thumbnail = videoRenderer.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+            if (thumbnail && thumbnail.startsWith("//")) {
+              thumbnail = `https:${thumbnail}`
+            }
+
+            if (!thumbnail) {
+              thumbnail = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+            }
+
+            const durationText = videoRenderer.lengthText?.simpleText || "0:00"
+            const viewCount = videoRenderer.viewCountText?.simpleText || ""
+            const publishedTime = videoRenderer.publishedTimeText?.simpleText || ""
+
+            videos.push({
+              id: videoId,
+              title: title || "Unknown Title",
+              artist: channelName || "Unknown Channel",
+              thumbnail,
+              duration: durationText,
+              channelId: channelId || "",
+              views: viewCount,
+              publishedTime: publishedTime,
+              type: "youtube_video",
+            })
+          } catch (itemError) {
+            console.error("[v0] Error processing YouTube video item:", itemError)
+            continue
+          }
+        }
+      } catch (sectionError) {
+        console.error("[v0] Error processing YouTube search section:", sectionError)
+        continue
+      }
+    }
+
+    const continuationToken =
+      data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.continuations?.[0]
+        ?.nextContinuationData?.continuation ||
+      data.onResponseReceivedCommands?.[0]?.appendContinuationItemsAction?.continuationItems?.slice(-1)[0]
+        ?.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token
+
+    console.log(
+      `[v0] YouTube search complete for "${query}": ${videos.length} videos found, continuation: ${!!continuationToken}`,
+    )
+
+    return {
+      videos,
+      continuation: continuationToken || null,
+    }
+  } catch (error: any) {
+    console.error(`[v0] YouTube search error for "${query}":`, error.message)
+    return { videos: [], continuation: null }
+  }
 }

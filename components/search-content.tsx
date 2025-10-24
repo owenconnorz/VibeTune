@@ -59,16 +59,26 @@ export function SearchContent() {
   const router = useRouter()
   const { playVideo } = useMusicPlayer()
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query)
+    }, 400) // Wait 400ms after user stops typing
+
+    return () => clearTimeout(timer)
+  }, [query])
+
   const { data: suggestionsData } = useAPI<{ suggestions: string[] }>(
-    query.length >= 1 ? `/api/music/suggestions?q=${encodeURIComponent(query)}` : null,
+    debouncedQuery.length >= 1 ? `/api/music/suggestions?q=${encodeURIComponent(debouncedQuery)}` : null,
   )
+
+  const searchType = activeFilter === "videos" ? "youtube" : "music"
 
   const { data, isLoading, error } = useAPI<{
     videos: YouTubeVideo[]
     nextPageToken: string | null
     error?: string
     quotaExceeded?: boolean
-  }>(query.length >= 1 ? `/api/music/search?q=${encodeURIComponent(query)}` : null)
+  }>(debouncedQuery.length >= 1 ? `/api/music/search?q=${encodeURIComponent(debouncedQuery)}&type=${searchType}` : null)
 
   const suggestions = suggestionsData?.suggestions || []
 
@@ -94,8 +104,8 @@ export function SearchContent() {
 
   const filteredResults = allResults.filter((video) => {
     if (activeFilter === "all") return true
-    if (activeFilter === "songs") return !(video as any).browseId && !(video as any).type
-    if (activeFilter === "videos") return !(video as any).browseId && !(video as any).type
+    if (activeFilter === "songs") return !(video as any).browseId && (video as any).type !== "youtube_video"
+    if (activeFilter === "videos") return (video as any).type === "youtube_video"
     if (activeFilter === "albums") return (video as any).type === "album"
     if (activeFilter === "artists") return (video as any).type === "artist"
     return true
@@ -103,7 +113,6 @@ export function SearchContent() {
 
   const topResult = filteredResults.length > 0 ? filteredResults[0] : null
   const otherResults = filteredResults.slice(1)
-  const isTopResultArtist = topResult && (topResult as any).type === "artist"
 
   const loadMoreResults = useCallback(async () => {
     if (!nextPageToken || isLoadingMore || !debouncedQuery) return
@@ -112,7 +121,7 @@ export function SearchContent() {
 
     try {
       const response = await fetch(
-        `/api/music/search?q=${encodeURIComponent(debouncedQuery)}&pageToken=${nextPageToken}`,
+        `/api/music/search?q=${encodeURIComponent(debouncedQuery)}&pageToken=${nextPageToken}&type=${searchType}`,
       )
       const newData = await response.json()
 
@@ -129,7 +138,7 @@ export function SearchContent() {
     } finally {
       setIsLoadingMore(false)
     }
-  }, [nextPageToken, isLoadingMore, debouncedQuery])
+  }, [nextPageToken, isLoadingMore, debouncedQuery, searchType])
 
   const loadMoreRef = useInfiniteScroll({
     onLoadMore: loadMoreResults,
@@ -142,8 +151,8 @@ export function SearchContent() {
   }, [])
 
   useEffect(() => {
-    if (query.trim()) {
-      searchHistory.add(query.trim())
+    if (debouncedQuery.trim()) {
+      searchHistory.add(debouncedQuery.trim())
       setHistory(searchHistory.get())
       setApiError(null)
     } else {
@@ -151,7 +160,12 @@ export function SearchContent() {
       setNextPageToken(null)
       setApiError(null)
     }
-  }, [query])
+  }, [debouncedQuery]) // Use debouncedQuery instead of query
+
+  useEffect(() => {
+    setPaginatedResults([])
+    setNextPageToken(null)
+  }, [activeFilter])
 
   useEffect(() => {
     const checkDownloadedStates = async () => {
@@ -193,6 +207,7 @@ export function SearchContent() {
 
   const renderResultItem = (video: YouTubeVideo, index: number) => {
     const isArtist = (video as any).type === "artist"
+    const isYouTubeVideo = (video as any).type === "youtube_video"
 
     return (
       <button
@@ -217,14 +232,22 @@ export function SearchContent() {
             {video.title}
           </h3>
           <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
-            {!isArtist && downloadedStates[video.id] && (
+            {!isArtist && !isYouTubeVideo && downloadedStates[video.id] && (
               <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
                 <Check className="w-3 h-3 text-black" />
               </span>
             )}
-            {isArtist
-              ? (video as any).subscribers || "Artist"
-              : `${video.artist}${video.duration ? ` • ${video.duration}` : ""}`}
+            {isArtist ? (
+              (video as any).subscribers || "Artist"
+            ) : isYouTubeVideo ? (
+              <>
+                {video.artist}
+                {(video as any).views && ` • ${(video as any).views}`}
+                {(video as any).publishedTime && ` • ${(video as any).publishedTime}`}
+              </>
+            ) : (
+              `${video.artist}${video.duration ? ` • ${video.duration}` : ""}`
+            )}
           </p>
         </div>
         <Button

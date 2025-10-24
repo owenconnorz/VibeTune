@@ -1,8 +1,49 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { searchMusic } from "@/lib/innertube"
+import { searchMusic, searchYouTube } from "@/lib/innertube"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+
+interface CachedResult {
+  videos: any[]
+  nextPageToken: string | null
+  timestamp: number
+}
+
+const serverCache = new Map<string, CachedResult>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+function getCacheKey(query: string, pageToken?: string, searchType?: string): string {
+  return `${searchType || "music"}:${query.toLowerCase()}:${pageToken || "initial"}`
+}
+
+function getCachedResult(cacheKey: string): CachedResult | null {
+  const cached = serverCache.get(cacheKey)
+
+  if (!cached) return null
+
+  // Check if cache is expired
+  if (Date.now() - cached.timestamp > CACHE_TTL) {
+    serverCache.delete(cacheKey)
+    return null
+  }
+
+  return cached
+}
+
+function setCachedResult(cacheKey: string, videos: any[], nextPageToken: string | null) {
+  serverCache.set(cacheKey, {
+    videos,
+    nextPageToken,
+    timestamp: Date.now(),
+  })
+
+  // Limit cache size
+  if (serverCache.size > 100) {
+    const firstKey = serverCache.keys().next().value
+    serverCache.delete(firstKey)
+  }
+}
 
 const getMockSearchResults = (query: string) => {
   const lowerQuery = query.toLowerCase()
@@ -43,26 +84,58 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
   const query = searchParams.get("q")
   const pageToken = searchParams.get("pageToken")
+  const searchType = searchParams.get("type") || "music" // "music" or "youtube"
 
   if (!query) {
     return NextResponse.json({ error: "Query parameter is required" }, { status: 400 })
   }
 
   try {
-    console.log(`[v0] Searching with InnerTube API for: ${query}${pageToken ? ` (continuation: ${pageToken})` : ""}`)
+    const cacheKey = getCacheKey(query, pageToken || undefined, searchType)
+    const cached = getCachedResult(cacheKey)
 
-    const result = await searchMusic(query, pageToken || undefined)
+    if (cached) {
+      console.log(
+        `[v0] Returning cached ${searchType} search results for: ${query}${pageToken ? ` (continuation)` : ""}`,
+      )
+      return NextResponse.json(
+        {
+          videos: cached.videos,
+          nextPageToken: cached.nextPageToken,
+          cached: true,
+        },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+            "X-Cache-Status": "HIT",
+          },
+        },
+      )
+    }
 
-    console.log(`[v0] InnerTube API returned ${result.videos.length} videos`)
+    console.log(
+      `[v0] Searching with ${searchType === "youtube" ? "YouTube" : "YouTube Music"} API for: ${query}${pageToken ? ` (continuation: ${pageToken})` : ""}`,
+    )
+
+    const result =
+      searchType === "youtube"
+        ? await searchYouTube(query, pageToken || undefined)
+        : await searchMusic(query, pageToken || undefined)
+
+    console.log(`[v0] API returned ${result.videos.length} videos`)
+
+    setCachedResult(cacheKey, result.videos, result.continuation)
 
     return NextResponse.json(
       {
         videos: result.videos,
         nextPageToken: result.continuation,
+        cached: false,
       },
       {
         headers: {
           "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+          "X-Cache-Status": "MISS",
         },
       },
     )
@@ -72,9 +145,9 @@ export async function GET(request: NextRequest) {
       stack: error.stack,
       query,
       pageToken,
+      searchType,
     })
 
-    // Return a valid response even on error to prevent UI breaking
     return NextResponse.json(
       {
         error: "Failed to search music",
@@ -83,7 +156,7 @@ export async function GET(request: NextRequest) {
         nextPageToken: null,
       },
       {
-        status: 200, // Return 200 with empty results instead of 500 to prevent UI errors
+        status: 200,
       },
     )
   }
