@@ -134,12 +134,21 @@ export async function searchMusic(query: string, continuation?: string) {
       data.continuationContents?.musicShelfContinuation?.contents ||
       []
 
+    console.log(`[v0] Search sections found: ${contents.length}`)
+
     const videos: any[] = []
     let foundArtist = false
 
     for (const section of contents) {
       try {
         const items = section.musicShelfRenderer?.contents || section.musicCardShelfRenderer?.contents || [section]
+
+        const sectionType = section.musicShelfRenderer
+          ? "musicShelfRenderer"
+          : section.musicCardShelfRenderer
+            ? "musicCardShelfRenderer"
+            : "other"
+        console.log(`[v0] Processing section type: ${sectionType}, items: ${items.length}`)
 
         for (const item of items) {
           try {
@@ -148,14 +157,31 @@ export async function searchMusic(query: string, continuation?: string) {
               const navigationEndpoint = artistRenderer.navigationEndpoint
               const browseId = navigationEndpoint?.browseEndpoint?.browseId
 
-              if (
+              if (browseId) {
+                console.log(`[v0] Found browseId: ${browseId}`)
+              }
+
+              const title =
+                artistRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
+
+              const secondColumn = artistRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text
+              const subscribers = secondColumn?.runs?.[0]?.text
+              const pageType =
+                secondColumn?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
+                  ?.browseEndpointContextMusicConfig?.pageType
+
+              const isArtist =
                 browseId &&
-                (browseId.startsWith("UC") ||
-                  browseId.startsWith("MPLA") ||
-                  browseId.startsWith("FEmusic_library_corpus_track_artists"))
-              ) {
-                const title =
-                  artistRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
+                (browseId.startsWith("UC") || // YouTube channel IDs
+                  browseId.startsWith("MPLA") || // Music artist IDs
+                  browseId.startsWith("FEmusic_library_corpus_track_artists") ||
+                  pageType === "MUSIC_PAGE_TYPE_ARTIST" ||
+                  subscribers?.toLowerCase().includes("subscriber") ||
+                  subscribers?.toLowerCase().includes("artist") ||
+                  subscribers?.toLowerCase().includes("million") || // "35.5M monthly audience"
+                  subscribers?.toLowerCase().includes("monthly"))
+
+              if (isArtist && title) {
                 let thumbnail =
                   artistRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
 
@@ -163,43 +189,32 @@ export async function searchMusic(query: string, continuation?: string) {
                   thumbnail = `https:${thumbnail}`
                 }
 
-                const subscribers =
-                  artistRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
+                console.log(`[v0] ✓ Found artist: "${title}" (${browseId}) - subscribers: "${subscribers}"`)
 
-                const isArtist =
-                  subscribers?.toLowerCase().includes("subscriber") ||
-                  subscribers?.toLowerCase().includes("artist") ||
-                  browseId.startsWith("UC") || // YouTube channel IDs
-                  browseId.startsWith("MPLA") || // Music artist IDs
-                  artistRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
-                    ?.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
-                    ?.browseEndpointContextMusicConfig?.pageType === "MUSIC_PAGE_TYPE_ARTIST"
-
-                if (isArtist && title) {
-                  console.log(`[v0] Found artist: ${title} (${browseId})`)
-
-                  const artistResult = {
-                    id: browseId,
-                    title: title,
-                    artist: title,
-                    thumbnail: thumbnail || "/placeholder.svg",
-                    duration: "",
-                    browseId: browseId,
-                    type: "artist",
-                    subscribers: subscribers || "",
-                  }
-
-                  if (!foundArtist) {
-                    videos.unshift(artistResult) // Add to beginning
-                    foundArtist = true
-                  } else {
-                    videos.push(artistResult) // Add to end
-                  }
-                  continue
+                const artistResult = {
+                  id: browseId,
+                  title: title,
+                  artist: title,
+                  thumbnail: thumbnail || "/placeholder.svg",
+                  duration: "",
+                  browseId: browseId,
+                  type: "artist",
+                  subscribers: subscribers || "",
                 }
+
+                if (!foundArtist) {
+                  videos.unshift(artistResult)
+                  foundArtist = true
+                  console.log(`[v0] Added artist as top result`)
+                } else {
+                  videos.push(artistResult)
+                  console.log(`[v0] Added artist to results`)
+                }
+                continue
               }
             }
 
+            // Extract regular video/song info
             const videoInfo = extractVideoInfo(item)
             if (videoInfo) {
               videos.push(videoInfo)
@@ -220,9 +235,14 @@ export async function searchMusic(query: string, continuation?: string) {
         ?.continuations?.[0]?.nextContinuationData?.continuation ||
       data.continuationContents?.musicShelfContinuation?.continuations?.[0]?.nextContinuationData?.continuation
 
+    const artistCount = videos.filter((v) => v.type === "artist").length
     console.log(
-      `[v0] Search complete for "${query}": ${videos.length} items found (${videos.filter((v) => v.type === "artist").length} artists), continuation: ${!!continuationToken}`,
+      `[v0] Search complete for "${query}": ${videos.length} total items (${artistCount} artists, ${videos.length - artistCount} songs/videos)`,
     )
+
+    if (artistCount === 0) {
+      console.log(`[v0] ⚠️ No artists found in search results for "${query}"`)
+    }
 
     return {
       videos,
