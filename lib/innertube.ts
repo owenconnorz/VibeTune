@@ -110,7 +110,10 @@ function extractVideoInfo(item: any) {
 
 export async function searchMusic(query: string, continuation?: string) {
   try {
-    console.log(`[v0] Searching for: "${query}"${continuation ? " (continuation)" : ""}`)
+    console.log(`[v0] ===== SEARCH STARTED =====`)
+    console.log(`[v0] Query: "${query}"`)
+    console.log(`[v0] Continuation: ${continuation ? "YES" : "NO"}`)
+    console.log(`[v0] Timestamp: ${new Date().toISOString()}`)
 
     const params: any = {
       query,
@@ -122,10 +125,10 @@ export async function searchMusic(query: string, continuation?: string) {
     }
 
     const data = await makeInnerTubeRequest("search", params)
-    console.log(`[v0] Search response received for: "${query}"`)
+    console.log(`[v0] API response received`)
 
     if (!data || typeof data !== "object") {
-      console.log(`[v0] Invalid search response for: "${query}"`)
+      console.log(`[v0] Invalid response - returning empty results`)
       return { videos: [], continuation: null }
     }
 
@@ -134,98 +137,95 @@ export async function searchMusic(query: string, continuation?: string) {
       data.continuationContents?.musicShelfContinuation?.contents ||
       []
 
-    console.log(`[v0] Search sections found: ${contents.length}`)
+    console.log(`[v0] Found ${contents.length} sections to process`)
 
     const videos: any[] = []
-    let foundArtist = false
+    let artistFound = false
 
-    for (const section of contents) {
+    for (let sectionIndex = 0; sectionIndex < contents.length; sectionIndex++) {
+      const section = contents[sectionIndex]
+
       try {
         const items = section.musicShelfRenderer?.contents || section.musicCardShelfRenderer?.contents || [section]
+        console.log(`[v0] Section ${sectionIndex + 1}: Processing ${items.length} items`)
 
-        const sectionType = section.musicShelfRenderer
-          ? "musicShelfRenderer"
-          : section.musicCardShelfRenderer
-            ? "musicCardShelfRenderer"
-            : "other"
-        console.log(`[v0] Processing section type: ${sectionType}, items: ${items.length}`)
+        for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+          const item = items[itemIndex]
 
-        for (const item of items) {
           try {
-            const artistRenderer = item.musicResponsiveListItemRenderer
-            if (artistRenderer) {
-              const navigationEndpoint = artistRenderer.navigationEndpoint
-              const browseId = navigationEndpoint?.browseEndpoint?.browseId
-
-              if (browseId) {
-                console.log(`[v0] Found browseId: ${browseId}`)
-              }
-
-              const title =
-                artistRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
-
-              const secondColumn = artistRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text
-              const subscribers = secondColumn?.runs?.[0]?.text
-              const pageType =
-                secondColumn?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
-                  ?.browseEndpointContextMusicConfig?.pageType
-
-              const isArtist =
-                browseId &&
-                (browseId.startsWith("UC") || // YouTube channel IDs
-                  browseId.startsWith("MPLA") || // Music artist IDs
-                  browseId.startsWith("FEmusic_library_corpus_track_artists") ||
-                  pageType === "MUSIC_PAGE_TYPE_ARTIST" ||
-                  subscribers?.toLowerCase().includes("subscriber") ||
-                  subscribers?.toLowerCase().includes("artist") ||
-                  subscribers?.toLowerCase().includes("million") || // "35.5M monthly audience"
-                  subscribers?.toLowerCase().includes("monthly"))
-
-              if (isArtist && title) {
-                let thumbnail =
-                  artistRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
-
-                if (thumbnail && thumbnail.startsWith("//")) {
-                  thumbnail = `https:${thumbnail}`
-                }
-
-                console.log(`[v0] ✓ Found artist: "${title}" (${browseId}) - subscribers: "${subscribers}"`)
-
-                const artistResult = {
-                  id: browseId,
-                  title: title,
-                  artist: title,
-                  thumbnail: thumbnail || "/placeholder.svg",
-                  duration: "",
-                  browseId: browseId,
-                  type: "artist",
-                  subscribers: subscribers || "",
-                }
-
-                if (!foundArtist) {
-                  videos.unshift(artistResult)
-                  foundArtist = true
-                  console.log(`[v0] Added artist as top result`)
-                } else {
-                  videos.push(artistResult)
-                  console.log(`[v0] Added artist to results`)
-                }
-                continue
-              }
+            const renderer = item.musicResponsiveListItemRenderer
+            if (!renderer) {
+              console.log(`[v0] Section ${sectionIndex + 1}, Item ${itemIndex + 1}: No renderer, skipping`)
+              continue
             }
 
-            // Extract regular video/song info
+            const navigationEndpoint = renderer.navigationEndpoint
+            const browseId = navigationEndpoint?.browseEndpoint?.browseId
+            const title = renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
+            const secondColumn = renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text
+            const secondColumnText = secondColumn?.runs?.[0]?.text || ""
+            const pageType =
+              secondColumn?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
+                ?.browseEndpointContextMusicConfig?.pageType
+
+            console.log(`[v0] Section ${sectionIndex + 1}, Item ${itemIndex + 1}:`, {
+              title: title?.substring(0, 30),
+              browseId: browseId?.substring(0, 20),
+              secondColumnText: secondColumnText?.substring(0, 30),
+              pageType,
+            })
+
+            const looksLikeArtist =
+              browseId &&
+              (browseId.startsWith("UC") || // YouTube channel
+                browseId.startsWith("MPLA") || // Music artist
+                browseId.startsWith("FEmusic_library_corpus_track_artists") ||
+                pageType === "MUSIC_PAGE_TYPE_ARTIST" ||
+                secondColumnText.toLowerCase().includes("subscriber") ||
+                secondColumnText.toLowerCase().includes("artist") ||
+                secondColumnText.toLowerCase().includes("million") ||
+                secondColumnText.toLowerCase().includes("monthly") ||
+                secondColumnText.toLowerCase().includes("audience"))
+
+            if (looksLikeArtist && title && !artistFound) {
+              let thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+              if (thumbnail && thumbnail.startsWith("//")) {
+                thumbnail = `https:${thumbnail}`
+              }
+
+              console.log(`[v0] ✓✓✓ ARTIST FOUND: "${title}"`)
+              console.log(`[v0] Artist browseId: ${browseId}`)
+              console.log(`[v0] Artist info: ${secondColumnText}`)
+
+              const artistResult = {
+                id: browseId,
+                title: title,
+                artist: title,
+                thumbnail: thumbnail || "/placeholder.svg",
+                duration: "",
+                browseId: browseId,
+                type: "artist",
+                subscribers: secondColumnText || "",
+              }
+
+              videos.unshift(artistResult)
+              artistFound = true
+              console.log(`[v0] Artist added as top result`)
+              continue
+            }
+
             const videoInfo = extractVideoInfo(item)
             if (videoInfo) {
               videos.push(videoInfo)
             }
           } catch (itemError) {
-            console.error("[v0] Error processing search item:", itemError)
+            console.error(`[v0] Error processing item ${itemIndex + 1}:`, itemError)
             continue
           }
         }
       } catch (sectionError) {
-        console.error("[v0] Error processing search section:", sectionError)
+        console.error(`[v0] Error processing section ${sectionIndex + 1}:`, sectionError)
         continue
       }
     }
@@ -235,13 +235,17 @@ export async function searchMusic(query: string, continuation?: string) {
         ?.continuations?.[0]?.nextContinuationData?.continuation ||
       data.continuationContents?.musicShelfContinuation?.continuations?.[0]?.nextContinuationData?.continuation
 
-    const artistCount = videos.filter((v) => v.type === "artist").length
-    console.log(
-      `[v0] Search complete for "${query}": ${videos.length} total items (${artistCount} artists, ${videos.length - artistCount} songs/videos)`,
-    )
+    console.log(`[v0] ===== SEARCH COMPLETE =====`)
+    console.log(`[v0] Total results: ${videos.length}`)
+    console.log(`[v0] Artist found: ${artistFound ? "YES" : "NO"}`)
+    console.log(`[v0] Continuation token: ${continuationToken ? "YES" : "NO"}`)
 
-    if (artistCount === 0) {
-      console.log(`[v0] ⚠️ No artists found in search results for "${query}"`)
+    if (videos.length > 0) {
+      console.log(`[v0] First result:`, {
+        title: videos[0].title?.substring(0, 40),
+        type: (videos[0] as any).type,
+        isArtist: (videos[0] as any).type === "artist",
+      })
     }
 
     return {
@@ -249,7 +253,8 @@ export async function searchMusic(query: string, continuation?: string) {
       continuation: continuationToken || null,
     }
   } catch (error: any) {
-    console.error(`[v0] Search error for "${query}":`, error.message)
+    console.error(`[v0] ===== SEARCH ERROR =====`)
+    console.error(`[v0] Error:`, error.message)
     return { videos: [], continuation: null }
   }
 }
