@@ -60,24 +60,9 @@ export function SearchContent() {
   const { playVideo } = useMusicPlayer()
 
   useEffect(() => {
-    console.log("[v0] SearchContent component mounted")
-    return () => {
-      console.log("[v0] SearchContent component unmounted")
-    }
-  }, [])
-
-  useEffect(() => {
-    console.log("[v0] Query changed:", query)
-  }, [query])
-
-  useEffect(() => {
-    console.log("[v0] Debounced query changed:", debouncedQuery)
-  }, [debouncedQuery])
-
-  useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query)
-    }, 400) // Wait 400ms after user stops typing
+    }, 400)
 
     return () => clearTimeout(timer)
   }, [query])
@@ -91,12 +76,6 @@ export function SearchContent() {
   const searchApiUrl =
     debouncedQuery.length >= 1 ? `/api/music/search?q=${encodeURIComponent(debouncedQuery)}&type=${searchType}` : null
 
-  useEffect(() => {
-    if (searchApiUrl) {
-      console.log("[v0] Calling search API:", searchApiUrl)
-    }
-  }, [searchApiUrl])
-
   const { data, isLoading, error } = useAPI<{
     videos: YouTubeVideo[]
     nextPageToken: string | null
@@ -108,25 +87,6 @@ export function SearchContent() {
 
   useEffect(() => {
     if (data) {
-      console.log("[v0] Search data received:", {
-        totalResults: data.videos?.length || 0,
-        artists: data.videos?.filter((v) => (v as any).type === "artist").length || 0,
-        songs: data.videos?.filter((v) => !(v as any).browseId && (v as any).type !== "youtube_video").length || 0,
-        videos: data.videos?.filter((v) => (v as any).type === "youtube_video").length || 0,
-      })
-
-      if (data.videos && data.videos.length > 0) {
-        console.log(
-          "[v0] First 3 results:",
-          data.videos.slice(0, 3).map((v) => ({
-            title: v.title,
-            type: (v as any).type,
-            browseId: (v as any).browseId,
-            subscribers: (v as any).subscribers,
-          })),
-        )
-      }
-
       if (data.error) {
         setApiError(data.error)
       } else {
@@ -153,18 +113,6 @@ export function SearchContent() {
     if (activeFilter === "artists") return (video as any).type === "artist"
     return true
   })
-
-  useEffect(() => {
-    if (filteredResults.length > 0) {
-      console.log("[v0] Filtered results:", {
-        activeFilter,
-        totalFiltered: filteredResults.length,
-        artists: filteredResults.filter((v) => (v as any).type === "artist").length,
-        topResultType: (filteredResults[0] as any).type,
-        topResultTitle: filteredResults[0].title,
-      })
-    }
-  }, [filteredResults, activeFilter])
 
   const topResult = filteredResults.length > 0 ? filteredResults[0] : null
   const otherResults = filteredResults.slice(1)
@@ -215,7 +163,7 @@ export function SearchContent() {
       setNextPageToken(null)
       setApiError(null)
     }
-  }, [debouncedQuery]) // Use debouncedQuery instead of query
+  }, [debouncedQuery])
 
   useEffect(() => {
     setPaginatedResults([])
