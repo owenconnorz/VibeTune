@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ProgressiveImage } from "@/components/progressive-image"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import Link from "next/link"
-import { isDownloaded } from "@/lib/download-storage" // Fixed import path from @/lib/downloaded to @/lib/download-storage
+import { isDownloaded } from "@/lib/download-storage"
 
 type FilterType = "all" | "songs" | "videos" | "albums" | "artists"
 
@@ -101,6 +101,10 @@ export function SearchContent() {
     return true
   })
 
+  const topResult = filteredResults.length > 0 ? filteredResults[0] : null
+  const otherResults = filteredResults.slice(1)
+  const isTopResultArtist = topResult && (topResult as any).type === "artist"
+
   const loadMoreResults = useCallback(async () => {
     if (!nextPageToken || isLoadingMore || !debouncedQuery) return
 
@@ -185,6 +189,56 @@ export function SearchContent() {
       const remainingVideos = allResults.slice(videoIndex + 1).filter((v) => !(v as any).browseId)
       playVideo(video, remainingVideos)
     }
+  }
+
+  const renderResultItem = (video: YouTubeVideo, index: number) => {
+    const isArtist = (video as any).type === "artist"
+
+    return (
+      <button
+        key={`${video.id}-${index}`}
+        onClick={() => handleResultClick(video)}
+        className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
+      >
+        <div className="relative w-14 h-14 flex-shrink-0">
+          <ProgressiveImage
+            src={video.thumbnail || "/placeholder.svg"}
+            alt={video.title}
+            rounded={isArtist ? "full" : "lg"}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-base truncate flex items-center gap-2">
+            {(video as any).isExplicit && (
+              <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold border border-muted-foreground text-muted-foreground rounded-sm flex-shrink-0">
+                E
+              </span>
+            )}
+            {video.title}
+          </h3>
+          <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
+            {!isArtist && downloadedStates[video.id] && (
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
+                <Check className="w-3 h-3 text-black" />
+              </span>
+            )}
+            {isArtist && (video as any).subscribers
+              ? (video as any).subscribers
+              : `${video.artist}${video.duration ? ` • ${video.duration}` : ""}`}
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation()
+          }}
+        >
+          <MoreVertical className="w-5 h-5" />
+        </Button>
+      </button>
+    )
   }
 
   return (
@@ -317,58 +371,27 @@ export function SearchContent() {
           </div>
         ) : query && filteredResults.length > 0 ? (
           <>
-            <h2 className="text-xl font-bold mb-3">Top result</h2>
-            <div className="space-y-1">
-              {filteredResults.map((video, index) => {
-                const isArtist = (video as any).type === "artist"
+            {topResult && (
+              <div className="mb-6">
+                <h2 className="text-xl font-bold mb-3">Top result</h2>
+                <div className="space-y-1">{renderResultItem(topResult, 0)}</div>
+              </div>
+            )}
 
-                return (
-                  <button
-                    key={`${video.id}-${index}`}
-                    onClick={() => handleResultClick(video)}
-                    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
-                  >
-                    <div className="relative w-14 h-14 flex-shrink-0">
-                      <ProgressiveImage
-                        src={video.thumbnail || "/placeholder.svg"}
-                        alt={video.title}
-                        rounded={isArtist ? "full" : "lg"}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-base truncate flex items-center gap-2">
-                        {(video as any).isExplicit && (
-                          <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold border border-muted-foreground text-muted-foreground rounded-sm flex-shrink-0">
-                            E
-                          </span>
-                        )}
-                        {video.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
-                        {!isArtist && downloadedStates[video.id] && (
-                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
-                            <Check className="w-3 h-3 text-black" />
-                          </span>
-                        )}
-                        {isArtist && (video as any).subscribers
-                          ? (video as any).subscribers
-                          : `${video.artist}${video.duration ? ` • ${video.duration}` : ""}`}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                      }}
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </Button>
-                  </button>
-                )
-              })}
-            </div>
+            {otherResults.length > 0 && (
+              <div>
+                <h2 className="text-xl font-bold mb-3">Other</h2>
+                <div className="space-y-1">
+                  {otherResults.map((video, index) => renderResultItem(video, index + 1))}
+                </div>
+              </div>
+            )}
+
+            {nextPageToken && (
+              <div ref={loadMoreRef} className="flex items-center justify-center py-8">
+                {isLoadingMore && <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />}
+              </div>
+            )}
           </>
         ) : query && !isLoading && filteredResults.length === 0 ? (
           <div className="flex items-center justify-center h-40 text-muted-foreground">
