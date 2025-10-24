@@ -3,9 +3,14 @@
 import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Music } from "lucide-react"
+import { Music, AlertCircle } from "lucide-react"
+import { useSearchParams } from "next/navigation"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export default function SignInPage() {
+  const searchParams = useSearchParams()
+  const error = searchParams.get("error")
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md p-8">
@@ -16,6 +21,28 @@ export default function SignInPage() {
           <h1 className="text-3xl font-bold mb-2">Welcome to OpenTune</h1>
           <p className="text-muted-foreground">Sign in to start discovering music</p>
         </div>
+
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Authentication Error</AlertTitle>
+            <AlertDescription>
+              {error === "Configuration" && (
+                <>
+                  Google OAuth is not configured correctly. Please check the{" "}
+                  <a href="/auth/setup-guide" className="underline font-medium">
+                    setup guide
+                  </a>
+                  .
+                </>
+              )}
+              {error === "AccessDenied" && "You denied access to your Google account."}
+              {error === "Verification" && "The sign in link is no longer valid."}
+              {!["Configuration", "AccessDenied", "Verification"].includes(error) &&
+                "An error occurred during sign in. Please try again."}
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Button onClick={() => signIn("google", { callbackUrl: "/dashboard" })} className="w-full" size="lg">
           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -38,6 +65,12 @@ export default function SignInPage() {
           </svg>
           Continue with Google
         </Button>
+
+        <div className="mt-6 text-center">
+          <a href="/auth/setup-guide" className="text-sm text-muted-foreground hover:text-foreground underline">
+            Having trouble signing in?
+          </a>
+        </div>
       </Card>
     </div>
   )
