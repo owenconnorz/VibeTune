@@ -14,7 +14,10 @@ interface TopHeaderProps {
 
 export function TopHeader({ title }: TopHeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const { data: session, status } = useSession()
+
+  const sessionResult = useSession()
+  const session = sessionResult?.data ?? null
+  const status = sessionResult?.status ?? "unauthenticated"
 
   const user = session?.user
 

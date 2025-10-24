@@ -264,8 +264,8 @@ export function SearchContent() {
     )
   }
 
-  const showSuggestionsDropdown = query.length > 0 && !debouncedQuery && suggestions.length > 0
-  const showQuickResults = query.length > 0 && debouncedQuery && filteredResults.length > 0 && suggestions.length > 0
+  const showSuggestionsDropdown = query.length > 0 && suggestions.length > 0 && filteredResults.length === 0
+  const showQuickResults = query.length > 0 && suggestions.length > 0 && filteredResults.length > 0
 
   return (
     <div className="min-h-screen pb-32 bg-background">
