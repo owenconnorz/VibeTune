@@ -264,8 +264,8 @@ export function SearchContent() {
     )
   }
 
-  const showSuggestionsDropdown = query.length > 0 && suggestions.length > 0 && filteredResults.length === 0
-  const showQuickResults = query.length > 0 && suggestions.length > 0 && filteredResults.length > 0
+  const showSuggestionsDropdown = query.length > 0 && suggestions.length > 0
+  const hasSearchResults = filteredResults.length > 0
 
   return (
     <div className="min-h-screen pb-32 bg-background">
@@ -375,7 +375,7 @@ export function SearchContent() {
           </div>
         )}
 
-        {showSuggestionsDropdown && (
+        {showSuggestionsDropdown && !hasSearchResults && (
           <div className="space-y-1">
             {suggestions.slice(0, 6).map((suggestion, index) => (
               <button
@@ -391,38 +391,32 @@ export function SearchContent() {
           </div>
         )}
 
-        {showQuickResults && (
-          <div className="space-y-4">
-            {/* Suggestions */}
-            <div className="space-y-1">
-              {suggestions.slice(0, 6).map((suggestion, index) => (
-                <button
-                  key={`suggestion-${index}`}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="w-full flex items-center gap-3 px-2 py-3 hover:bg-secondary/50 transition-colors text-left rounded-lg"
-                >
-                  <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                  <span className="flex-1 truncate">{suggestion}</span>
-                  <ArrowUpRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                </button>
-              ))}
-            </div>
-
-            {/* Quick Results */}
-            <div className="space-y-1">
-              {filteredResults.slice(0, 3).map((video, index) => renderResultItem(video, index))}
-            </div>
-          </div>
-        )}
-
-        {query && isLoading && filteredResults.length === 0 && !showSuggestionsDropdown && !showQuickResults ? (
+        {query && isLoading && !hasSearchResults && (
           <div className="flex items-center justify-center h-40">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : query && filteredResults.length > 0 && !showSuggestionsDropdown && !showQuickResults ? (
-          <>
+        )}
+
+        {query && hasSearchResults && (
+          <div className="space-y-6">
+            {showSuggestionsDropdown && (
+              <div className="space-y-1">
+                {suggestions.slice(0, 6).map((suggestion, index) => (
+                  <button
+                    key={`suggestion-${index}`}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="w-full flex items-center gap-3 px-2 py-3 hover:bg-secondary/50 transition-colors text-left rounded-lg"
+                  >
+                    <Search className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                    <span className="flex-1 truncate">{suggestion}</span>
+                    <ArrowUpRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+
             {topResult && (
-              <div className="mb-6">
+              <div>
                 <h2 className="text-xl font-bold mb-3">Top result</h2>
                 <div className="space-y-1">{renderResultItem(topResult, 0)}</div>
               </div>
@@ -442,12 +436,14 @@ export function SearchContent() {
                 {isLoadingMore && <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />}
               </div>
             )}
-          </>
-        ) : query && !isLoading && filteredResults.length === 0 && !showSuggestionsDropdown && !showQuickResults ? (
+          </div>
+        )}
+
+        {query && !isLoading && !hasSearchResults && (
           <div className="flex items-center justify-center h-40 text-muted-foreground">
             <p>No results found</p>
           </div>
-        ) : null}
+        )}
 
         {!query && (
           <div className="mt-8 space-y-4">
