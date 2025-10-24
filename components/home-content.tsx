@@ -117,6 +117,33 @@ export function HomeContent() {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
+      {/* Home Feed Sections */}
+      {isLoading ? (
+        <div className="px-4 py-8 text-center text-muted-foreground">Loading recommendations...</div>
+      ) : error ? (
+        <div className="px-4 py-8 text-center">
+          <p className="text-muted-foreground mb-2">Unable to load recommendations</p>
+          <p className="text-sm text-muted-foreground">{error.message}</p>
+        </div>
+      ) : homeFeed.length === 0 ? (
+        <div className="px-4 py-8 text-center text-muted-foreground">No recommendations available</div>
+      ) : (
+        homeFeed.map((section, sectionIndex) => {
+          const sectionKey = `${sectionIndex}-${section.title}`
+          return (
+            <HomeFeedSection
+              key={sectionKey}
+              section={section}
+              sectionIndex={sectionIndex}
+              onLoadMore={loadMoreForSection}
+              additionalItems={sectionItems[sectionKey] || []}
+              continuationToken={sectionContinuations[sectionKey]}
+              isLoadingMore={loadingMore[sectionKey] || false}
+            />
+          )
+        })
+      )}
+
       {/* Mood and Genres */}
       <div className="px-4 space-y-4">
         <div className="flex items-center justify-between">
@@ -146,32 +173,6 @@ export function HomeContent() {
           <ScrollBar orientation="horizontal" />
         </ScrollArea>
       </div>
-
-      {isLoading ? (
-        <div className="px-4 py-8 text-center text-muted-foreground">Loading recommendations...</div>
-      ) : error ? (
-        <div className="px-4 py-8 text-center">
-          <p className="text-muted-foreground mb-2">Unable to load recommendations</p>
-          <p className="text-sm text-muted-foreground">{error.message}</p>
-        </div>
-      ) : homeFeed.length === 0 ? (
-        <div className="px-4 py-8 text-center text-muted-foreground">No recommendations available</div>
-      ) : (
-        homeFeed.map((section, sectionIndex) => {
-          const sectionKey = `${sectionIndex}-${section.title}`
-          return (
-            <HomeFeedSection
-              key={sectionKey}
-              section={section}
-              sectionIndex={sectionIndex}
-              onLoadMore={loadMoreForSection}
-              additionalItems={sectionItems[sectionKey] || []}
-              continuationToken={sectionContinuations[sectionKey]}
-              isLoadingMore={loadingMore[sectionKey] || false}
-            />
-          )
-        })
-      )}
     </div>
   )
 }
