@@ -131,6 +131,7 @@ export async function searchMusic(query: string, continuation?: string) {
       []
 
     const videos: any[] = []
+    let foundArtist = false
 
     for (const section of contents) {
       try {
@@ -143,27 +144,53 @@ export async function searchMusic(query: string, continuation?: string) {
               const navigationEndpoint = artistRenderer.navigationEndpoint
               const browseId = navigationEndpoint?.browseEndpoint?.browseId
 
-              if (browseId && (browseId.startsWith("UC") || browseId.startsWith("MPLA"))) {
+              if (
+                browseId &&
+                (browseId.startsWith("UC") ||
+                  browseId.startsWith("MPLA") ||
+                  browseId.startsWith("FEmusic_library_corpus_track_artists"))
+              ) {
                 const title =
                   artistRenderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
-                const thumbnail =
+                let thumbnail =
                   artistRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+                if (thumbnail && thumbnail.startsWith("//")) {
+                  thumbnail = `https:${thumbnail}`
+                }
+
                 const subscribers =
                   artistRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
 
                 const isArtist =
-                  subscribers?.toLowerCase().includes("subscriber") || subscribers?.toLowerCase().includes("artist")
+                  subscribers?.toLowerCase().includes("subscriber") ||
+                  subscribers?.toLowerCase().includes("artist") ||
+                  browseId.startsWith("UC") || // YouTube channel IDs
+                  browseId.startsWith("MPLA") || // Music artist IDs
+                  artistRenderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]
+                    ?.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
+                    ?.browseEndpointContextMusicConfig?.pageType === "MUSIC_PAGE_TYPE_ARTIST"
 
-                if (isArtist) {
-                  videos.push({
+                if (isArtist && title) {
+                  console.log(`[v0] Found artist: ${title} (${browseId})`)
+
+                  const artistResult = {
                     id: browseId,
-                    title: title || "Unknown Artist",
-                    artist: title || "Unknown Artist",
+                    title: title,
+                    artist: title,
                     thumbnail: thumbnail || "/placeholder.svg",
                     duration: "",
                     browseId: browseId,
                     type: "artist",
-                  })
+                    subscribers: subscribers || "",
+                  }
+
+                  if (!foundArtist) {
+                    videos.unshift(artistResult) // Add to beginning
+                    foundArtist = true
+                  } else {
+                    videos.push(artistResult) // Add to end
+                  }
                   continue
                 }
               }
@@ -174,10 +201,12 @@ export async function searchMusic(query: string, continuation?: string) {
               videos.push(videoInfo)
             }
           } catch (itemError) {
+            console.error("[v0] Error processing search item:", itemError)
             continue
           }
         }
       } catch (sectionError) {
+        console.error("[v0] Error processing search section:", sectionError)
         continue
       }
     }
@@ -188,7 +217,7 @@ export async function searchMusic(query: string, continuation?: string) {
       data.continuationContents?.musicShelfContinuation?.continuations?.[0]?.nextContinuationData?.continuation
 
     console.log(
-      `[v0] Search complete for "${query}": ${videos.length} items found, continuation: ${!!continuationToken}`,
+      `[v0] Search complete for "${query}": ${videos.length} items found (${videos.filter((v) => v.type === "artist").length} artists), continuation: ${!!continuationToken}`,
     )
 
     return {

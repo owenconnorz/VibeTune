@@ -200,7 +200,7 @@ export function SearchContent() {
         onClick={() => handleResultClick(video)}
         className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
       >
-        <div className="relative w-14 h-14 flex-shrink-0">
+        <div className={`relative ${isArtist ? "w-16 h-16" : "w-14 h-14"} flex-shrink-0`}>
           <ProgressiveImage
             src={video.thumbnail || "/placeholder.svg"}
             alt={video.title}
@@ -222,8 +222,8 @@ export function SearchContent() {
                 <Check className="w-3 h-3 text-black" />
               </span>
             )}
-            {isArtist && (video as any).subscribers
-              ? (video as any).subscribers
+            {isArtist
+              ? (video as any).subscribers || "Artist"
               : `${video.artist}${video.duration ? ` • ${video.duration}` : ""}`}
           </p>
         </div>
