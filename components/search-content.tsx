@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Search, Clock, ArrowUpRight, Loader2, AlertCircle, MoreVertical, X, Check } from "lucide-react" // Added Check icon
+import { Search, Clock, ArrowUpRight, Loader2, AlertCircle, MoreVertical, X, Check, ChevronRight } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -12,9 +12,38 @@ import { searchHistory } from "@/lib/cache"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ProgressiveImage } from "@/components/progressive-image"
-import { isDownloaded } from "@/lib/download-storage" // Added import for download check
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import Link from "next/link"
+import { isDownloaded } from "@/lib/download-storage" // Fixed import path from @/lib/downloaded to @/lib/download-storage
 
 type FilterType = "all" | "songs" | "videos" | "albums" | "artists"
+
+const moodAndGenres = [
+  { id: "energize", name: "Energize", query: "energetic workout music" },
+  { id: "blues", name: "Blues", query: "blues music" },
+  { id: "indie-alternative", name: "Indie & alternative", query: "indie alternative music" },
+  { id: "commute", name: "Commute", query: "commute driving music" },
+  { id: "uk-rap", name: "UK rap", query: "uk rap grime music" },
+  { id: "cosy-season", name: "Cosy Season 🍁", query: "cosy autumn fall music" },
+  { id: "feel-good", name: "Feel good", query: "feel good happy music" },
+  { id: "1990s", name: "1990s", query: "1990s music hits" },
+  { id: "folk-acoustic", name: "Folk & acoustic", query: "folk acoustic music" },
+  { id: "sleep", name: "Sleep", query: "sleep relaxing music" },
+  { id: "iraqi", name: "Iraqi", query: "iraqi arabic music" },
+  { id: "party", name: "Party", query: "party dance music" },
+  { id: "pop", name: "Pop", query: "pop music hits" },
+  { id: "metal", name: "Metal", query: "metal rock music" },
+  { id: "rock", name: "Rock", query: "rock music" },
+  { id: "classical", name: "Classical", query: "classical music" },
+  { id: "1980s", name: "1980s", query: "1980s music hits" },
+  { id: "romance", name: "Romance", query: "romantic love songs" },
+  { id: "1960s", name: "1960s", query: "1960s music hits" },
+  { id: "1950s", name: "1950s", query: "1950s music hits" },
+  { id: "desi-hiphop", name: "Desi hip-hop", query: "desi hip hop music" },
+  { id: "2010s", name: "2010s", query: "2010s music hits" },
+  { id: "2000s", name: "2000s", query: "2000s music hits" },
+  { id: "kpop", name: "K-Pop", query: "k-pop korean music" },
+]
 
 export function SearchContent() {
   const [query, setQuery] = useState("")
@@ -62,6 +91,15 @@ export function SearchContent() {
   }, [error])
 
   const allResults = data?.videos ? [...data.videos, ...paginatedResults] : paginatedResults
+
+  const filteredResults = allResults.filter((video) => {
+    if (activeFilter === "all") return true
+    if (activeFilter === "songs") return !(video as any).browseId && !(video as any).type
+    if (activeFilter === "videos") return !(video as any).browseId && !(video as any).type
+    if (activeFilter === "albums") return (video as any).type === "album"
+    if (activeFilter === "artists") return (video as any).type === "artist"
+    return true
+  })
 
   const loadMoreResults = useCallback(async () => {
     if (!nextPageToken || isLoadingMore || !debouncedQuery) return
@@ -188,6 +226,49 @@ export function SearchContent() {
             )}
           </div>
         </div>
+
+        {query && (
+          <ScrollArea className="w-full">
+            <div className="flex gap-2 px-4 pb-3">
+              <Button
+                variant={activeFilter === "all" ? "default" : "secondary"}
+                className="rounded-full px-6 whitespace-nowrap"
+                onClick={() => setActiveFilter("all")}
+              >
+                All
+              </Button>
+              <Button
+                variant={activeFilter === "songs" ? "default" : "secondary"}
+                className="rounded-full px-6 whitespace-nowrap"
+                onClick={() => setActiveFilter("songs")}
+              >
+                Songs
+              </Button>
+              <Button
+                variant={activeFilter === "videos" ? "default" : "secondary"}
+                className="rounded-full px-6 whitespace-nowrap"
+                onClick={() => setActiveFilter("videos")}
+              >
+                Videos
+              </Button>
+              <Button
+                variant={activeFilter === "albums" ? "default" : "secondary"}
+                className="rounded-full px-6 whitespace-nowrap"
+                onClick={() => setActiveFilter("albums")}
+              >
+                Albums
+              </Button>
+              <Button
+                variant={activeFilter === "artists" ? "default" : "secondary"}
+                className="rounded-full px-6 whitespace-nowrap"
+                onClick={() => setActiveFilter("artists")}
+              >
+                Artists
+              </Button>
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        )}
       </div>
 
       <div className="container mx-auto px-4 py-4">
@@ -230,67 +311,101 @@ export function SearchContent() {
           </div>
         )}
 
-        {query && isLoading && allResults.length === 0 ? (
+        {query && isLoading && filteredResults.length === 0 ? (
           <div className="flex items-center justify-center h-40">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
-        ) : query && allResults.length > 0 ? (
-          <div className="space-y-1">
-            {allResults.map((video, index) => {
-              const isArtist = (video as any).type === "artist"
+        ) : query && filteredResults.length > 0 ? (
+          <>
+            <h2 className="text-xl font-bold mb-3">Top result</h2>
+            <div className="space-y-1">
+              {filteredResults.map((video, index) => {
+                const isArtist = (video as any).type === "artist"
 
-              return (
-                <button
-                  key={`${video.id}-${index}`}
-                  onClick={() => handleResultClick(video)}
-                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
-                >
-                  <div className="relative w-14 h-14 flex-shrink-0">
-                    <ProgressiveImage
-                      src={video.thumbnail || "/placeholder.svg"}
-                      alt={video.title}
-                      rounded={isArtist ? "full" : "lg"}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base truncate flex items-center gap-2">
-                      {(video as any).isExplicit && (
-                        <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold border border-muted-foreground text-muted-foreground rounded-sm flex-shrink-0">
-                          E
-                        </span>
-                      )}
-                      {video.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
-                      {!isArtist && downloadedStates[video.id] && (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
-                          <Check className="w-3 h-3 text-black" />
-                        </span>
-                      )}
-                      {isArtist && (video as any).subscribers
-                        ? (video as any).subscribers
-                        : `${video.artist}${video.duration ? ` • ${video.duration}` : ""}`}
-                    </p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                    }}
+                return (
+                  <button
+                    key={`${video.id}-${index}`}
+                    onClick={() => handleResultClick(video)}
+                    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
                   >
-                    <MoreVertical className="w-5 h-5" />
-                  </Button>
-                </button>
-              )
-            })}
-          </div>
-        ) : query && !isLoading && allResults.length === 0 ? (
+                    <div className="relative w-14 h-14 flex-shrink-0">
+                      <ProgressiveImage
+                        src={video.thumbnail || "/placeholder.svg"}
+                        alt={video.title}
+                        rounded={isArtist ? "full" : "lg"}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-base truncate flex items-center gap-2">
+                        {(video as any).isExplicit && (
+                          <span className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold border border-muted-foreground text-muted-foreground rounded-sm flex-shrink-0">
+                            E
+                          </span>
+                        )}
+                        {video.title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
+                        {!isArtist && downloadedStates[video.id] && (
+                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
+                            <Check className="w-3 h-3 text-black" />
+                          </span>
+                        )}
+                        {isArtist && (video as any).subscribers
+                          ? (video as any).subscribers
+                          : `${video.artist}${video.duration ? ` • ${video.duration}` : ""}`}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                      }}
+                    >
+                      <MoreVertical className="w-5 h-5" />
+                    </Button>
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        ) : query && !isLoading && filteredResults.length === 0 ? (
           <div className="flex items-center justify-center h-40 text-muted-foreground">
             <p>No results found</p>
           </div>
         ) : null}
+
+        {!query && (
+          <div className="mt-8 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Mood and Genres</h2>
+              <ChevronRight className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <ScrollArea className="w-full">
+              <div className="flex gap-4 pb-4">
+                {Array.from({ length: Math.ceil(moodAndGenres.length / 8) }).map((_, pageIndex) => (
+                  <div
+                    key={pageIndex}
+                    className="grid grid-cols-2 gap-3 flex-shrink-0"
+                    style={{ width: "calc(100vw - 2rem)" }}
+                  >
+                    {moodAndGenres.slice(pageIndex * 8, (pageIndex + 1) * 8).map((item) => (
+                      <Link
+                        key={item.id}
+                        href={`/dashboard/category/${item.id}`}
+                        className="bg-muted/40 hover:bg-muted/60 rounded-xl px-4 py-3 transition-colors"
+                      >
+                        <span className="text-sm font-medium">{item.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                ))}
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          </div>
+        )}
       </div>
     </div>
   )

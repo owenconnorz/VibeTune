@@ -6,7 +6,7 @@ import { LibraryContent } from "@/components/library-content"
 export default async function LibraryPage() {
   return (
     <div className="min-h-screen bg-background pb-40">
-      <TopHeader user={undefined} title="Library" />
+      <TopHeader title="Library" />
       <main>
         <LibraryContent />
       </main>

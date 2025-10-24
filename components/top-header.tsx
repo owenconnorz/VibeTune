@@ -5,19 +5,17 @@ import { Clock, TrendingUp, Film } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { ProfileMenu } from "@/components/profile-menu"
+import { useSession } from "next-auth/react"
 import Link from "next/link"
 
 interface TopHeaderProps {
-  user?: {
-    name?: string | null
-    email?: string | null
-    image?: string | null
-  } | null
   title: string
 }
 
-export function TopHeader({ user, title }: TopHeaderProps) {
+export function TopHeader({ title }: TopHeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const { data: session } = useSession()
+  const user = session?.user
 
   return (
     <>

@@ -6,7 +6,7 @@ import { HomeContent } from "@/components/home-content"
 export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-background pb-40">
-      <TopHeader user={undefined} title="Home" />
+      <TopHeader title="Home" />
       <main>
         <HomeContent />
       </main>

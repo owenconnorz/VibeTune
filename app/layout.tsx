@@ -8,6 +8,7 @@ import { PWARegister } from "@/components/pwa-register"
 import { DownloadManagerProvider } from "@/components/download-manager-provider"
 import { StoragePermissionInitializer } from "@/components/storage-permission-initializer"
 import { CookieConsentBanner } from "@/components/cookie-consent-banner"
+import { AuthProvider } from "@/components/auth-provider"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -58,11 +59,13 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="OpenTune" />
       </head>
       <body className={`font-sans antialiased`}>
-        <SWRProvider>
-          <DownloadManagerProvider>
-            <MusicPlayerProvider>{children}</MusicPlayerProvider>
-          </DownloadManagerProvider>
-        </SWRProvider>
+        <AuthProvider>
+          <SWRProvider>
+            <DownloadManagerProvider>
+              <MusicPlayerProvider>{children}</MusicPlayerProvider>
+            </DownloadManagerProvider>
+          </SWRProvider>
+        </AuthProvider>
         <PWARegister />
         <StoragePermissionInitializer />
         <CookieConsentBanner />

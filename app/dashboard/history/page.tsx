@@ -57,7 +57,7 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-background pb-40">
-      <TopHeader user={null} title="History" />
+      <TopHeader title="History" />
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
