@@ -60,6 +60,21 @@ export function SearchContent() {
   const { playVideo } = useMusicPlayer()
 
   useEffect(() => {
+    console.log("[v0] SearchContent component mounted")
+    return () => {
+      console.log("[v0] SearchContent component unmounted")
+    }
+  }, [])
+
+  useEffect(() => {
+    console.log("[v0] Query changed:", query)
+  }, [query])
+
+  useEffect(() => {
+    console.log("[v0] Debounced query changed:", debouncedQuery)
+  }, [debouncedQuery])
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(query)
     }, 400) // Wait 400ms after user stops typing
@@ -73,12 +88,21 @@ export function SearchContent() {
 
   const searchType = activeFilter === "videos" ? "youtube" : "music"
 
+  const searchApiUrl =
+    debouncedQuery.length >= 1 ? `/api/music/search?q=${encodeURIComponent(debouncedQuery)}&type=${searchType}` : null
+
+  useEffect(() => {
+    if (searchApiUrl) {
+      console.log("[v0] Calling search API:", searchApiUrl)
+    }
+  }, [searchApiUrl])
+
   const { data, isLoading, error } = useAPI<{
     videos: YouTubeVideo[]
     nextPageToken: string | null
     error?: string
     quotaExceeded?: boolean
-  }>(debouncedQuery.length >= 1 ? `/api/music/search?q=${encodeURIComponent(debouncedQuery)}&type=${searchType}` : null)
+  }>(searchApiUrl)
 
   const suggestions = suggestionsData?.suggestions || []
 
