@@ -1,15 +1,32 @@
 "use client"
 
-import { signIn } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Music, AlertCircle } from "lucide-react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useEffect } from "react"
 
 export default function SignInPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { data: session, status } = useSession()
   const error = searchParams.get("error")
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/dashboard")
+    }
+  }, [status, router])
+
+  const handleSignIn = async () => {
+    try {
+      await signIn("google", { callbackUrl: "/dashboard" })
+    } catch (error) {
+      console.error("[v0] Sign in error:", error)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -19,7 +36,7 @@ export default function SignInPage() {
             <Music className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-bold mb-2">Welcome to OpenTune</h1>
-          <p className="text-muted-foreground">Sign in to start discovering music</p>
+          <p className="text-muted-foreground">Sign in to sync your music across devices</p>
         </div>
 
         {error && (
@@ -29,7 +46,7 @@ export default function SignInPage() {
             <AlertDescription>
               {error === "Configuration" && (
                 <>
-                  Google OAuth is not configured correctly. Please check the{" "}
+                  Google OAuth is not configured. Please check the{" "}
                   <a href="/auth/setup-guide" className="underline font-medium">
                     setup guide
                   </a>
@@ -38,13 +55,15 @@ export default function SignInPage() {
               )}
               {error === "AccessDenied" && "You denied access to your Google account."}
               {error === "Verification" && "The sign in link is no longer valid."}
-              {!["Configuration", "AccessDenied", "Verification"].includes(error) &&
+              {error === "OAuthCallback" &&
+                "There was an error with the OAuth callback. Please check your redirect URI configuration."}
+              {!["Configuration", "AccessDenied", "Verification", "OAuthCallback"].includes(error) &&
                 "An error occurred during sign in. Please try again."}
             </AlertDescription>
           </Alert>
         )}
 
-        <Button onClick={() => signIn("google", { callbackUrl: "/dashboard" })} className="w-full" size="lg">
+        <Button onClick={handleSignIn} className="w-full" size="lg" disabled={status === "loading"}>
           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
             <path
               fill="currentColor"
@@ -63,10 +82,19 @@ export default function SignInPage() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          Continue with Google
+          {status === "loading" ? "Loading..." : "Continue with Google"}
         </Button>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center space-y-2">
+          <p className="text-sm text-muted-foreground">
+            Authentication is optional. You can use OpenTune without signing in.
+          </p>
+          <Button variant="ghost" onClick={() => router.push("/dashboard")} className="text-sm">
+            Continue without signing in
+          </Button>
+        </div>
+
+        <div className="mt-4 text-center">
           <a href="/auth/setup-guide" className="text-sm text-muted-foreground hover:text-foreground underline">
             Having trouble signing in?
           </a>

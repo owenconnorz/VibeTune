@@ -14,7 +14,8 @@ interface TopHeaderProps {
 
 export function TopHeader({ title }: TopHeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
+
   const user = session?.user
 
   return (
@@ -37,12 +38,14 @@ export function TopHeader({ title }: TopHeaderProps) {
               <Button variant="ghost" size="icon" className="rounded-full">
                 <TrendingUp className="w-6 h-6" />
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full p-0" onClick={() => setIsProfileOpen(true)}>
-                <Avatar className="w-10 h-10">
-                  <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
-                  <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
-                </Avatar>
-              </Button>
+              {status !== "loading" && status !== "unauthenticated" && (
+                <Button variant="ghost" size="icon" className="rounded-full p-0" onClick={() => setIsProfileOpen(true)}>
+                  <Avatar className="w-10 h-10">
+                    <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
+                    <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              )}
             </div>
           </div>
         </div>
