@@ -134,7 +134,7 @@ export async function searchMusic(query: string, continuation?: string) {
       []
 
     const videos: any[] = []
-    let artistAdded = false
+    let artistResult: any = null
 
     for (const section of contents) {
       const items = section.musicShelfRenderer?.contents || section.musicCardShelfRenderer?.contents || [section]
@@ -148,8 +148,7 @@ export async function searchMusic(query: string, continuation?: string) {
         const secondColumn =
           renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || ""
 
-        // Simple artist detection: browseId starts with UC or MPLA
-        if (!artistAdded && browseId && (browseId.startsWith("UC") || browseId.startsWith("MPLA")) && title) {
+        if (!artistResult && browseId && (browseId.startsWith("UC") || browseId.startsWith("MPLA")) && title) {
           let thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
           if (thumbnail && thumbnail.startsWith("//")) {
             thumbnail = `https:${thumbnail}`
@@ -157,7 +156,7 @@ export async function searchMusic(query: string, continuation?: string) {
 
           console.log(`[v0] ✓ ARTIST DETECTED: "${title}" (${browseId})`)
 
-          videos.push({
+          artistResult = {
             id: browseId,
             title: title,
             artist: title,
@@ -166,8 +165,7 @@ export async function searchMusic(query: string, continuation?: string) {
             browseId: browseId,
             type: "artist",
             subscribers: secondColumn,
-          })
-          artistAdded = true
+          }
           continue
         }
 
@@ -179,12 +177,17 @@ export async function searchMusic(query: string, continuation?: string) {
       }
     }
 
+    if (artistResult) {
+      videos.unshift(artistResult)
+      console.log(`[v0] ✓ Artist added to top of results`)
+    }
+
     const continuationToken =
       data.contents?.tabbedSearchResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
         ?.continuations?.[0]?.nextContinuationData?.continuation ||
       data.continuationContents?.musicShelfContinuation?.continuations?.[0]?.nextContinuationData?.continuation
 
-    console.log(`[v0] Search complete: ${videos.length} results, artist found: ${artistAdded}`)
+    console.log(`[v0] Search complete: ${videos.length} results, artist found: ${!!artistResult}`)
 
     return {
       videos,
