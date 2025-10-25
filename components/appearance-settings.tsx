@@ -18,7 +18,6 @@ export function AppearanceSettings() {
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
   const [hasCustomPicture, setHasCustomPicture] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
   const { data: session } = useSession()
 
   useEffect(() => {
@@ -32,13 +31,15 @@ export function AppearanceSettings() {
       const settings = themeStorage.getSettings()
       setDynamicTheme(settings.dynamicThemeEnabled)
 
-      const customPicture = localStorage.getItem("customProfilePicture")
-      if (customPicture) {
-        setProfilePicture(customPicture)
-        setHasCustomPicture(true)
-      } else if (session?.user?.image) {
-        setProfilePicture(session.user.image)
-        setHasCustomPicture(false)
+      if (typeof window !== "undefined") {
+        const customPicture = localStorage.getItem("customProfilePicture")
+        if (customPicture) {
+          setProfilePicture(customPicture)
+          setHasCustomPicture(true)
+        } else if (session?.user?.image) {
+          setProfilePicture(session.user.image)
+          setHasCustomPicture(false)
+        }
       }
     } catch (error) {
       console.error("[v0] Error loading appearance settings:", error)
@@ -49,14 +50,16 @@ export function AppearanceSettings() {
     try {
       const newValue = themeStorage.toggleDynamicTheme()
       setDynamicTheme(newValue)
-      window.dispatchEvent(new CustomEvent("themeSettingsChanged"))
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("themeSettingsChanged"))
+      }
     } catch (error) {
       console.error("[v0] Error toggling dynamic theme:", error)
     }
   }
 
   const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target?.[0]
+    const file = event.target.files?.[0]
     if (!file) return
 
     try {
@@ -76,8 +79,10 @@ export function AppearanceSettings() {
           const base64String = reader.result as string
           setProfilePicture(base64String)
           setHasCustomPicture(true)
-          localStorage.setItem("customProfilePicture", base64String)
-          window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: base64String }))
+          if (typeof window !== "undefined") {
+            localStorage.setItem("customProfilePicture", base64String)
+            window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: base64String }))
+          }
         } catch (error) {
           console.error("[v0] Error saving profile picture:", error)
           alert("Failed to save profile picture. Please try again.")
@@ -95,10 +100,12 @@ export function AppearanceSettings() {
 
   const handleRemoveProfilePicture = () => {
     try {
-      localStorage.removeItem("customProfilePicture")
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("customProfilePicture")
+        window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: session?.user?.image || null }))
+      }
       setProfilePicture(session?.user?.image || null)
       setHasCustomPicture(false)
-      window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: session?.user?.image || null }))
     } catch (error) {
       console.error("[v0] Error removing profile picture:", error)
     }
