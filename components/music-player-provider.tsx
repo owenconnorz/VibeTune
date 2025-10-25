@@ -33,6 +33,9 @@ interface MusicPlayerContextType {
   playPrevious: () => void
   addToQueue: (video: YouTubeVideo) => void
   clearQueue: () => void
+  removeFromQueue: (index: number) => void
+  reorderQueue: (fromIndex: number, toIndex: number) => void
+  shuffleQueue: () => void
   seekTo: (time: number) => void
   setVolume: (volume: number) => void
   toggleLikedSong: (video: YouTubeVideo) => void
@@ -651,6 +654,33 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     setQueue([])
   }
 
+  const removeFromQueue = (index: number) => {
+    console.log("[v0] Removing from queue at index:", index)
+    setQueue((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const reorderQueue = (fromIndex: number, toIndex: number) => {
+    console.log("[v0] Reordering queue from", fromIndex, "to", toIndex)
+    setQueue((prev) => {
+      const newQueue = [...prev]
+      const [removed] = newQueue.splice(fromIndex, 1)
+      newQueue.splice(toIndex, 0, removed)
+      return newQueue
+    })
+  }
+
+  const shuffleQueue = () => {
+    console.log("[v0] Shuffling queue")
+    setQueue((prev) => {
+      const shuffled = [...prev]
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+      }
+      return shuffled
+    })
+  }
+
   const seekTo = (time: number) => {
     console.log("[v0] Seeking to:", time, "seconds")
     if (audioRef.current) {
@@ -768,6 +798,9 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         playPrevious,
         addToQueue,
         clearQueue,
+        removeFromQueue,
+        reorderQueue,
+        shuffleQueue,
         seekTo,
         setVolume,
         toggleLikedSong,

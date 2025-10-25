@@ -1,11 +1,12 @@
 "use client"
-import { Play, Check } from "lucide-react"
+import { Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { ProgressiveImage } from "@/components/progressive-image"
 import { isDownloaded } from "@/lib/download-storage"
+import { DownloadIndicatorBadge } from "@/components/download-indicator-badge"
 import { useState, useEffect } from "react"
 
 interface HomeFeedSectionProps {
@@ -88,20 +89,14 @@ export function HomeFeedSection({
             >
               <div className="relative w-14 h-14 flex-shrink-0">
                 <ProgressiveImage src={song.thumbnail || "/placeholder.svg"} alt={song.title} rounded="lg" />
+                <DownloadIndicatorBadge isDownloaded={downloadedStates[song.id]} size="sm" />
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                   <Play className="w-6 h-6 fill-white text-white" />
                 </div>
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold truncate">{song.title}</h3>
-                <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
-                  {downloadedStates[song.id] && (
-                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
-                      <Check className="w-3 h-3 text-black" />
-                    </span>
-                  )}
-                  {song.artist}
-                </p>
+                <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
               </div>
               <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,21 +150,13 @@ export function HomeFeedSection({
                 >
                   <div className="relative aspect-video mb-3">
                     <ProgressiveImage src={item.thumbnail || "/placeholder.svg"} alt={item.title} rounded="lg" />
+                    <DownloadIndicatorBadge isDownloaded={downloadedStates[item.id]} size="md" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                       <Play className="w-12 h-12 fill-white text-white" />
                     </div>
                   </div>
                   <h3 className="font-semibold text-base truncate">{item.title}</h3>
-                  {item.artist && (
-                    <p className="text-sm text-muted-foreground truncate flex items-center gap-1">
-                      {downloadedStates[item.id] && (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
-                          <Check className="w-3 h-3 text-black" />
-                        </span>
-                      )}
-                      {item.artist}
-                    </p>
-                  )}
+                  {item.artist && <p className="text-sm text-muted-foreground truncate">{item.artist}</p>}
                 </div>
               ))}
             </div>
@@ -219,19 +206,13 @@ export function HomeFeedSection({
                   >
                     <div className={`relative ${isVideo ? "aspect-video" : "aspect-square"} mb-2`}>
                       <ProgressiveImage src={item.thumbnail || "/placeholder.svg"} alt={item.title} rounded="lg" />
+                      <DownloadIndicatorBadge isDownloaded={downloadedStates[item.id]} size="sm" />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
                         <Play className="w-8 h-8 fill-white text-white" />
                       </div>
                     </div>
                     <h3 className="font-semibold text-sm truncate">{item.title}</h3>
-                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                      {downloadedStates[item.id] && (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
-                          <Check className="w-3 h-3 text-black" />
-                        </span>
-                      )}
-                      {item.artist}
-                    </p>
+                    <p className="text-xs text-muted-foreground truncate">{item.artist}</p>
                   </div>
                 )
               })}

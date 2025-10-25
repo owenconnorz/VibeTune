@@ -37,6 +37,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useVirtualScroll } from "@/hooks/use-virtual-scroll"
+import { SharePlaylistDialog } from "@/components/share-playlist-dialog"
 
 interface PlaylistContentProps {
   playlistId: string
@@ -53,6 +55,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const [coverImageUrl, setCoverImageUrl] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [downloadedStates, setDownloadedStates] = useState<Record<string, boolean>>({})
+  const [showShareDialog, setShowShareDialog] = useState(false)
 
   useEffect(() => {
     const playlists = getPlaylists()
@@ -243,30 +246,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   }
 
   const handleSharePlaylist = async () => {
-    if (!playlist) return
-
-    const shareText = `Check out my playlist "${playlist.name}" with ${playlist.videos.length} songs!`
-    const shareUrl = `${window.location.origin}/dashboard/playlist/${playlistId}`
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: playlist.name,
-          text: shareText,
-          url: shareUrl,
-        })
-        console.log("[v0] Playlist shared successfully")
-      } catch (error) {
-        if ((error as Error).name !== "AbortError") {
-          console.log("[v0] Share cancelled or failed:", error)
-          navigator.clipboard.writeText(shareUrl)
-          alert("Link copied to clipboard!")
-        }
-      }
-    } else {
-      navigator.clipboard.writeText(shareUrl)
-      alert("Playlist link copied to clipboard!")
-    }
+    setShowShareDialog(true)
   }
 
   useEffect(() => {
@@ -281,6 +261,12 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
       checkDownloadedStates()
     }
   }, [downloadManagerActive, playlist])
+
+  const { visibleItems, containerRef, totalHeight } = useVirtualScroll({
+    items: playlist?.videos || [],
+    itemHeight: 70,
+    overscan: 5,
+  })
 
   if (!playlist) {
     return (
@@ -431,68 +417,76 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           })()}
 
         {playlist.videos.length > 0 ? (
-          <div className="space-y-0 pb-24">
-            {playlist.videos.map((video, index) => {
-              const isCurrentlyPlaying = currentVideo?.id === video.id
+          <div ref={containerRef} className="relative pb-24 overflow-auto" style={{ height: "60vh" }}>
+            <div style={{ height: totalHeight }}>
+              {visibleItems.map(({ item: video, index, style }) => {
+                const isCurrentlyPlaying = currentVideo?.id === video.id
 
-              return (
-                <div
-                  key={video.id}
-                  className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
-                    isCurrentlyPlaying ? "bg-secondary/50" : "hover:bg-secondary/30"
-                  }`}
-                  onClick={() => {
-                    const remainingSongs = playlist.videos.slice(index + 1)
-                    playVideo(video, remainingSongs)
-                  }}
-                >
-                  <div className="relative w-14 h-14 rounded-md overflow-hidden flex-shrink-0 bg-secondary">
-                    {video.thumbnail ? (
-                      <Image
-                        src={video.thumbnail || "/placeholder.svg"}
-                        alt={video.title}
-                        fill
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Play className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-lg leading-tight max-w-[200px]">{video.title}</p>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 max-w-[200px]">
-                      {downloadedStates[video.id] && (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
-                          <Check className="w-3 h-3 text-black" />
-                        </span>
+                return (
+                  <div
+                    key={video.id}
+                    style={style}
+                    className={`absolute w-full flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                      isCurrentlyPlaying ? "bg-secondary/50" : "hover:bg-secondary/30"
+                    }`}
+                    onClick={() => {
+                      const remainingSongs = playlist.videos.slice(index + 1)
+                      playVideo(video, remainingSongs)
+                    }}
+                  >
+                    <div className="relative w-14 h-14 rounded-md overflow-hidden flex-shrink-0 bg-secondary">
+                      {video.thumbnail ? (
+                        <Image
+                          src={video.thumbnail || "/placeholder.svg"}
+                          alt={video.title}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Play className="w-5 h-5 text-muted-foreground" />
+                        </div>
                       )}
-                      <span className="truncate">{video.artist || "Unknown Artist"}</span>
-                      <span>•</span>
-                      <span className="flex-shrink-0">{formatDuration(video.duration)}</span>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate text-lg leading-tight max-w-[200px]">{video.title}</p>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 max-w-[200px]">
+                        {downloadedStates[video.id] && (
+                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
+                            <Check className="w-3 h-3 text-black" />
+                          </span>
+                        )}
+                        <span className="truncate">{video.artist || "Unknown Artist"}</span>
+                        <span>•</span>
+                        <span className="flex-shrink-0">{formatDuration(video.duration)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="w-9 h-9"
+                        onClick={(e) => handleLikeToggle(video, e)}
+                      >
+                        <Heart className={`w-5 h-5 ${likedStates[video.id] ? "fill-red-500 text-red-500" : ""}`} />
+                      </Button>
+                      <SongMenu
+                        video={video}
+                        onLikeToggle={() => {
+                          setLikedStates((prev) => ({
+                            ...prev,
+                            [video.id]: !prev[video.id],
+                          }))
+                        }}
+                      />
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button variant="ghost" size="icon" className="w-9 h-9" onClick={(e) => handleLikeToggle(video, e)}>
-                      <Heart className={`w-5 h-5 ${likedStates[video.id] ? "fill-red-500 text-red-500" : ""}`} />
-                    </Button>
-                    <SongMenu
-                      video={video}
-                      onLikeToggle={() => {
-                        setLikedStates((prev) => ({
-                          ...prev,
-                          [video.id]: !prev[video.id],
-                        }))
-                      }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         ) : (
           <div className="text-center py-12">
@@ -578,6 +572,9 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add share dialog */}
+      <SharePlaylistDialog playlist={playlist} open={showShareDialog} onOpenChange={setShowShareDialog} />
     </div>
   )
 }

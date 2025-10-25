@@ -37,3 +37,8 @@ export const historyStorage = {
     return updated
   },
 }
+
+export const getHistory = historyStorage.getHistory
+export const addToHistory = historyStorage.addToHistory
+export const clearHistory = historyStorage.clearHistory
+export const removeFromHistory = historyStorage.removeFromHistory

@@ -140,62 +140,90 @@ export async function searchMusic(query: string, continuation?: string) {
     const videos: any[] = []
     let artistResult: any = null
 
-    if (!continuation && process.env.YOUTUBE_API_KEY) {
-      console.log(`[v0] Fetching artist from YouTube Data API...`)
-      try {
-        const channelSearchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=1&key=${process.env.YOUTUBE_API_KEY}`
-        const channelResponse = await fetch(channelSearchUrl)
+    if (!continuation) {
+      const apiKey = process.env.YOUTUBE_API_KEY
 
-        if (channelResponse.ok) {
-          const channelData = await channelResponse.json()
-          if (channelData.items && channelData.items.length > 0) {
-            const channel = channelData.items[0]
-            const channelId = channel.id.channelId
-            const channelTitle = channel.snippet.title
-            const channelThumbnail = channel.snippet.thumbnails?.high?.url || channel.snippet.thumbnails?.default?.url
+      if (apiKey) {
+        console.log(`[v0] Fetching artist from YouTube Data API...`)
+        try {
+          const channelSearchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=1&key=${apiKey}`
+          const channelResponse = await fetch(channelSearchUrl, {
+            headers: {
+              Accept: "application/json",
+            },
+          })
 
-            console.log(`[v0] YouTube Data API found channel: "${channelTitle}" (${channelId})`)
+          if (channelResponse.ok) {
+            const channelData = await channelResponse.json()
+            if (channelData.items && channelData.items.length > 0) {
+              const channel = channelData.items[0]
+              const channelId = channel.id.channelId
+              const channelTitle = channel.snippet.title
+              const channelThumbnail = channel.snippet.thumbnails?.high?.url || channel.snippet.thumbnails?.default?.url
 
-            // Get subscriber count
-            const channelDetailsUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${process.env.YOUTUBE_API_KEY}`
-            const detailsResponse = await fetch(channelDetailsUrl)
-            let subscribers = ""
+              console.log(`[v0] YouTube Data API found channel: "${channelTitle}" (${channelId})`)
 
-            if (detailsResponse.ok) {
-              const detailsData = await detailsResponse.json()
-              if (detailsData.items && detailsData.items.length > 0) {
-                const subCount = Number.parseInt(detailsData.items[0].statistics.subscriberCount || "0")
-                if (subCount >= 1000000) {
-                  subscribers = `${(subCount / 1000000).toFixed(1)}M subscribers`
-                } else if (subCount >= 1000) {
-                  subscribers = `${(subCount / 1000).toFixed(1)}K subscribers`
-                } else {
-                  subscribers = `${subCount} subscribers`
+              try {
+                const channelDetailsUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${apiKey}`
+                const detailsResponse = await fetch(channelDetailsUrl, {
+                  headers: {
+                    Accept: "application/json",
+                  },
+                })
+                let subscribers = ""
+
+                if (detailsResponse.ok) {
+                  const detailsData = await detailsResponse.json()
+                  if (detailsData.items && detailsData.items.length > 0) {
+                    const subCount = Number.parseInt(detailsData.items[0].statistics.subscriberCount || "0")
+                    if (subCount >= 1000000) {
+                      subscribers = `${(subCount / 1000000).toFixed(1)}M subscribers`
+                    } else if (subCount >= 1000) {
+                      subscribers = `${(subCount / 1000).toFixed(1)}K subscribers`
+                    } else {
+                      subscribers = `${subCount} subscribers`
+                    }
+                  }
+                }
+
+                artistResult = {
+                  id: channelId,
+                  title: channelTitle,
+                  artist: channelTitle,
+                  thumbnail: channelThumbnail || "/placeholder.svg",
+                  duration: "",
+                  browseId: channelId,
+                  type: "artist",
+                  subscribers: subscribers,
+                }
+
+                console.log(`[v0] ✓✓✓ ARTIST FOUND via YouTube Data API: "${channelTitle}"`)
+                console.log(`[v0]   Subscribers: ${subscribers}`)
+              } catch (detailsError: any) {
+                console.error(`[v0] Error fetching channel details:`, detailsError.message)
+                artistResult = {
+                  id: channelId,
+                  title: channelTitle,
+                  artist: channelTitle,
+                  thumbnail: channelThumbnail || "/placeholder.svg",
+                  duration: "",
+                  browseId: channelId,
+                  type: "artist",
+                  subscribers: "",
                 }
               }
+            } else {
+              console.log(`[v0] YouTube Data API returned no channels`)
             }
-
-            artistResult = {
-              id: channelId,
-              title: channelTitle,
-              artist: channelTitle,
-              thumbnail: channelThumbnail || "/placeholder.svg",
-              duration: "",
-              browseId: channelId,
-              type: "artist",
-              subscribers: subscribers,
-            }
-
-            console.log(`[v0] ✓✓✓ ARTIST FOUND via YouTube Data API: "${channelTitle}"`)
-            console.log(`[v0]   Subscribers: ${subscribers}`)
           } else {
-            console.log(`[v0] YouTube Data API returned no channels`)
+            const errorText = await channelResponse.text()
+            console.log(`[v0] YouTube Data API request failed: ${channelResponse.status}`, errorText)
           }
-        } else {
-          console.log(`[v0] YouTube Data API request failed: ${channelResponse.status}`)
+        } catch (error: any) {
+          console.error(`[v0] YouTube Data API error:`, error.message)
         }
-      } catch (error: any) {
-        console.error(`[v0] YouTube Data API error:`, error.message)
+      } else {
+        console.log(`[v0] YOUTUBE_API_KEY not found, skipping artist search`)
       }
     }
 

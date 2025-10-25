@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, memo } from "react"
 import { cn } from "@/lib/utils"
 
 interface ProgressiveImageProps {
@@ -10,19 +10,20 @@ interface ProgressiveImageProps {
   rounded?: "none" | "sm" | "md" | "lg" | "full"
 }
 
-export function ProgressiveImage({ src, alt, className, rounded = "lg" }: ProgressiveImageProps) {
+export const ProgressiveImage = memo(function ProgressiveImage({
+  src,
+  alt,
+  className,
+  rounded = "lg",
+}: ProgressiveImageProps) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isError, setIsError] = useState(false)
 
   const normalizedSrc = src?.startsWith("//") ? `https:${src}` : src
-  // </CHANGE>
 
   useEffect(() => {
     setIsLoaded(false)
     setIsError(false)
-
-    console.log("[v0] Loading image:", normalizedSrc)
-    // </CHANGE>
   }, [normalizedSrc])
 
   const roundedClass = {
@@ -55,17 +56,15 @@ export function ProgressiveImage({ src, alt, className, rounded = "lg" }: Progre
           isError && "opacity-50",
         )}
         onLoad={() => {
-          console.log("[v0] Image loaded successfully:", normalizedSrc)
           setIsLoaded(true)
         }}
-        onError={(e) => {
-          console.error("[v0] Image failed to load:", normalizedSrc, e)
+        onError={() => {
           setIsError(true)
           setIsLoaded(true)
         }}
-        crossOrigin="anonymous"
-        // </CHANGE>
+        loading="lazy"
+        decoding="async"
       />
     </div>
   )
-}
+})

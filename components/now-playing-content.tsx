@@ -11,13 +11,13 @@ import {
   Share2,
   Heart,
   List,
-  Moon,
   Sliders,
   Repeat,
   Repeat1,
   MoreVertical,
   Volume2,
   Cast,
+  Music2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -37,6 +37,18 @@ const AudioDevicePicker = dynamic(
   },
 )
 
+const QueueViewer = dynamic(() => import("@/components/queue-viewer").then((mod) => mod.QueueViewer), {
+  ssr: false,
+})
+
+const LyricsViewer = dynamic(() => import("@/components/lyrics-viewer").then((mod) => mod.LyricsViewer), {
+  ssr: false,
+})
+
+const AudioVisualizer = dynamic(() => import("@/components/audio-visualizer").then((mod) => mod.AudioVisualizer), {
+  ssr: false,
+})
+
 export function NowPlayingContent() {
   const {
     currentVideo,
@@ -53,6 +65,7 @@ export function NowPlayingContent() {
     toggleLikedSong,
     repeatMode,
     toggleRepeatMode,
+    queue,
   } = useMusicPlayer()
   const router = useRouter()
 
@@ -63,6 +76,9 @@ export function NowPlayingContent() {
   const [devicePickerOpen, setDevicePickerOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [isEntering, setIsEntering] = useState(true)
+  const [queueOpen, setQueueOpen] = useState(false)
+  const [lyricsOpen, setLyricsOpen] = useState(false)
+  const [visualizerOpen, setVisualizerOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -245,13 +261,28 @@ export function NowPlayingContent() {
             </div>
 
             <div className="flex items-center justify-around pt-1">
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full h-9 w-9 relative"
+                onClick={() => setQueueOpen(true)}
+              >
                 <List className="w-5 h-5" />
+                {queue.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                    {queue.length}
+                  </span>
+                )}
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
-                <Moon className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setLyricsOpen(true)}>
+                <Music2 className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full h-9 w-9"
+                onClick={() => setVisualizerOpen(true)}
+              >
                 <Sliders className="w-5 h-5" />
               </Button>
               <Button
@@ -280,6 +311,9 @@ export function NowPlayingContent() {
             currentVideo={currentVideo}
           />
           <AudioDevicePicker open={devicePickerOpen} onOpenChange={setDevicePickerOpen} />
+          <QueueViewer open={queueOpen} onOpenChange={setQueueOpen} />
+          <LyricsViewer open={lyricsOpen} onOpenChange={setLyricsOpen} />
+          <AudioVisualizer open={visualizerOpen} onOpenChange={setVisualizerOpen} />
         </>
       )}
     </>
