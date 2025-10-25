@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Search, Clock, ArrowUpRight, Loader2, AlertCircle, MoreVertical, X, Check, ChevronRight } from "lucide-react"
+import { Search, Clock, ArrowUpRight, Loader2, AlertCircle, MoreVertical, X, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
@@ -13,7 +13,6 @@ import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ProgressiveImage } from "@/components/progressive-image"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
-import Link from "next/link"
 import { isDownloaded } from "@/lib/download-storage"
 
 type FilterType = "all" | "songs" | "videos" | "albums" | "artists"
@@ -483,37 +482,6 @@ export function SearchContent() {
         {query && !isLoading && !hasSearchResults && (
           <div className="flex items-center justify-center h-40 text-muted-foreground">
             <p>No results found</p>
-          </div>
-        )}
-
-        {!query && (
-          <div className="mt-8 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Mood and Genres</h2>
-              <ChevronRight className="w-6 h-6 text-muted-foreground" />
-            </div>
-            <ScrollArea className="w-full">
-              <div className="flex gap-4 pb-4">
-                {Array.from({ length: Math.ceil(moodAndGenres.length / 8) }).map((_, pageIndex) => (
-                  <div
-                    key={pageIndex}
-                    className="grid grid-cols-2 gap-3 flex-shrink-0"
-                    style={{ width: "calc(100vw - 2rem)" }}
-                  >
-                    {moodAndGenres.slice(pageIndex * 8, (pageIndex + 1) * 8).map((item) => (
-                      <Link
-                        key={item.id}
-                        href={`/dashboard/category/${item.id}`}
-                        className="bg-muted/40 hover:bg-muted/60 rounded-xl px-4 py-3 transition-colors"
-                      >
-                        <span className="text-sm font-medium">{item.name}</span>
-                      </Link>
-                    ))}
-                  </div>
-                ))}
-              </div>
-              <ScrollBar orientation="horizontal" />
-            </ScrollArea>
           </div>
         )}
       </div>

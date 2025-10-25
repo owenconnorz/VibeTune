@@ -4,26 +4,26 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated to dark green/sage theme matching the reference design */
-  --background: oklch(0.18 0.02 150);
-  --foreground: oklch(0.92 0.01 150);
-  --card: oklch(0.22 0.02 150);
-  --card-foreground: oklch(0.92 0.01 150);
-  --popover: oklch(0.16 0.02 150);
-  --popover-foreground: oklch(0.92 0.01 150);
-  --primary: oklch(0.65 0.08 150);
-  --primary-foreground: oklch(0.18 0.02 150);
-  --secondary: oklch(0.28 0.02 150);
-  --secondary-foreground: oklch(0.92 0.01 150);
-  --muted: oklch(0.35 0.02 150);
-  --muted-foreground: oklch(0.65 0.02 150);
-  --accent: oklch(0.65 0.08 150);
-  --accent-foreground: oklch(0.18 0.02 150);
+  /* Updated from green (hue 150) to blue (hue 270) theme */
+  --background: oklch(0.18 0.02 270);
+  --foreground: oklch(0.92 0.01 270);
+  --card: oklch(0.22 0.02 270);
+  --card-foreground: oklch(0.92 0.01 270);
+  --popover: oklch(0.16 0.02 270);
+  --popover-foreground: oklch(0.92 0.01 270);
+  --primary: oklch(0.65 0.08 270);
+  --primary-foreground: oklch(0.18 0.02 270);
+  --secondary: oklch(0.28 0.02 270);
+  --secondary-foreground: oklch(0.92 0.01 270);
+  --muted: oklch(0.35 0.02 270);
+  --muted-foreground: oklch(0.65 0.02 270);
+  --accent: oklch(0.65 0.08 270);
+  --accent-foreground: oklch(0.18 0.02 270);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.28 0.02 150);
-  --input: oklch(0.28 0.02 150);
-  --ring: oklch(0.65 0.08 150);
+  --border: oklch(0.28 0.02 270);
+  --input: oklch(0.28 0.02 270);
+  --ring: oklch(0.65 0.08 270);
   --radius: 0.75rem;
 }
 

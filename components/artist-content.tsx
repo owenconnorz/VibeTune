@@ -91,21 +91,22 @@ export function ArtistContent({ artistId }: { artistId: string }) {
 
       {/* Banner */}
       {artist.banner && (
-        <div className="relative w-full h-64">
+        <div className="relative w-full h-80">
           <Image src={artist.banner || "/placeholder.svg"} alt={artist.name} fill className="object-cover" priority />
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background" />
+          <div className="absolute bottom-0 left-0 right-0 p-6">
+            <h1 className="text-5xl font-bold text-white drop-shadow-2xl mb-2">{artist.name}</h1>
+            {artist.subscribers && <p className="text-sm text-white/90 drop-shadow-lg">{artist.subscribers}</p>}
+          </div>
         </div>
       )}
 
-      <div className="px-4 -mt-16 relative z-10">
-        {/* Artist Name */}
-        <h1 className="text-4xl font-bold mb-6 text-white drop-shadow-lg">{artist.name}</h1>
-
+      <div className="px-4 mt-6">
         {/* Action Buttons */}
         <div className="flex items-center gap-3 mb-8">
           <Button
             variant="outline"
-            className="rounded-full border-red-500 text-red-500 hover:bg-red-500/10 bg-transparent"
+            className="rounded-full border-red-500 text-red-500 hover:bg-red-500/10 bg-transparent px-8"
           >
             Subscribe
           </Button>
@@ -120,7 +121,7 @@ export function ArtistContent({ artistId }: { artistId: string }) {
         {/* Top Songs */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-primary">Top songs</h2>
+            <h2 className="text-2xl font-bold">Top songs</h2>
             <Button variant="ghost" size="sm" className="text-primary">
               <ArrowLeft className="w-4 h-4 rotate-180" />
             </Button>
@@ -158,7 +159,7 @@ export function ArtistContent({ artistId }: { artistId: string }) {
         {artist.videos && artist.videos.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-primary">Videos</h2>
+              <h2 className="text-2xl font-bold">Videos</h2>
               <Button variant="ghost" size="sm" className="text-primary">
                 <ArrowLeft className="w-4 h-4 rotate-180" />
               </Button>
@@ -201,7 +202,7 @@ export function ArtistContent({ artistId }: { artistId: string }) {
         {artist.albums && artist.albums.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-primary">Albums</h2>
+              <h2 className="text-2xl font-bold">Albums</h2>
               <Button variant="ghost" size="sm" className="text-primary">
                 <ArrowLeft className="w-4 h-4 rotate-180" />
               </Button>
@@ -232,7 +233,7 @@ export function ArtistContent({ artistId }: { artistId: string }) {
         {artist.singles && artist.singles.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-primary">Singles & EPs</h2>
+              <h2 className="text-2xl font-bold">Singles & EPs</h2>
               <Button variant="ghost" size="sm" className="text-primary">
                 <ArrowLeft className="w-4 h-4 rotate-180" />
               </Button>
