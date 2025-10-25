@@ -328,6 +328,10 @@ export async function getArtistData(browseId: string) {
     const videos: any[] = []
     const albums: any[] = []
     const singles: any[] = []
+    const livePerformances: any[] = []
+    const featuredOn: any[] = []
+    const playlistsByArtist: any[] = []
+    const relatedArtists: any[] = []
 
     for (const section of contents) {
       const shelf = section.musicShelfRenderer || section.musicCarouselShelfRenderer
@@ -345,6 +349,29 @@ export async function getArtistData(browseId: string) {
               ...videoInfo,
               views: "0",
             })
+          }
+        }
+      }
+
+      if (title.toLowerCase().includes("live") || title.toLowerCase().includes("performance")) {
+        const items = shelf.contents || []
+        for (const item of items) {
+          const renderer = item.musicTwoRowItemRenderer
+          if (renderer) {
+            const videoId = renderer.navigationEndpoint?.watchEndpoint?.videoId
+            const videoTitle = renderer.title?.runs?.[0]?.text
+            const videoThumbnail =
+              renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+            const videoSubtitle = renderer.subtitle?.runs?.[0]?.text || artistName
+
+            if (videoId && videoTitle) {
+              livePerformances.push({
+                id: videoId,
+                title: videoTitle,
+                artist: videoSubtitle,
+                thumbnail: videoThumbnail || `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+              })
+            }
           }
         }
       }
@@ -417,6 +444,79 @@ export async function getArtistData(browseId: string) {
           }
         }
       }
+
+      if (title.toLowerCase().includes("featured") || title.toLowerCase().includes("appears on")) {
+        const items = shelf.contents || []
+        for (const item of items) {
+          const renderer = item.musicTwoRowItemRenderer
+          if (renderer) {
+            const playlistId = renderer.navigationEndpoint?.browseEndpoint?.browseId
+            const playlistTitle = renderer.title?.runs?.[0]?.text
+            const playlistThumbnail =
+              renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+            const playlistSubtitle = renderer.subtitle?.runs?.[0]?.text || "YouTube Music"
+
+            if (playlistId && playlistTitle) {
+              featuredOn.push({
+                id: playlistId,
+                title: playlistTitle,
+                subtitle: playlistSubtitle,
+                thumbnail: playlistThumbnail || "/placeholder.svg",
+              })
+            }
+          }
+        }
+      }
+
+      if (title.toLowerCase().includes("playlist") && !title.toLowerCase().includes("featured")) {
+        const items = shelf.contents || []
+        for (const item of items) {
+          const renderer = item.musicTwoRowItemRenderer
+          if (renderer) {
+            const playlistId = renderer.navigationEndpoint?.browseEndpoint?.browseId
+            const playlistTitle = renderer.title?.runs?.[0]?.text
+            const playlistThumbnail =
+              renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+            const playlistViews = renderer.subtitle?.runs?.[2]?.text || "0"
+
+            if (playlistId && playlistTitle) {
+              playlistsByArtist.push({
+                id: playlistId,
+                title: playlistTitle,
+                views: playlistViews,
+                thumbnail: playlistThumbnail || "/placeholder.svg",
+              })
+            }
+          }
+        }
+      }
+
+      if (
+        title.toLowerCase().includes("fans") ||
+        title.toLowerCase().includes("similar") ||
+        title.toLowerCase().includes("related")
+      ) {
+        const items = shelf.contents || []
+        for (const item of items) {
+          const renderer = item.musicTwoRowItemRenderer
+          if (renderer) {
+            const artistId = renderer.navigationEndpoint?.browseEndpoint?.browseId
+            const artistName = renderer.title?.runs?.[0]?.text
+            const artistThumbnail =
+              renderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+            const artistSubtitle = renderer.subtitle?.runs?.[0]?.text || ""
+
+            if (artistId && artistName) {
+              relatedArtists.push({
+                id: artistId,
+                name: artistName,
+                subscribers: artistSubtitle,
+                thumbnail: artistThumbnail || "/placeholder.svg",
+              })
+            }
+          }
+        }
+      }
     }
 
     return {
@@ -430,6 +530,10 @@ export async function getArtistData(browseId: string) {
       videos,
       albums,
       singles,
+      livePerformances,
+      featuredOn,
+      playlistsByArtist,
+      relatedArtists,
     }
   } catch (error) {
     console.error("[v0] Artist data error:", error)
@@ -701,7 +805,6 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
     let playlistDescription = ""
     let playlistThumbnail = ""
 
-    // Fetch playlist metadata
     try {
       const playlistUrl = `https://www.googleapis.com/youtube/v3/playlists?part=snippet&id=${playlistId}&key=${apiKey}`
       const playlistResponse = await fetch(playlistUrl)
@@ -722,7 +825,6 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
       console.error("[v0] Error fetching playlist metadata:", error)
     }
 
-    // Fetch all playlist items with pagination
     do {
       totalPages++
       console.log(`[v0] Fetching page ${totalPages}${pageToken ? ` (token: ${pageToken.substring(0, 20)}...)` : ""}`)
@@ -755,7 +857,6 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
 
           if (!videoId) continue
 
-          // Skip private/deleted videos
           if (snippet.title === "Private video" || snippet.title === "Deleted video") {
             console.log(`[v0] Skipping ${snippet.title}`)
             continue
@@ -787,7 +888,7 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
     console.log(`[v0] Fetching durations for ${videos.length} videos...`)
 
     const videoIds = videos.map((v) => v.id)
-    const batchSize = 50 // YouTube API allows max 50 IDs per request
+    const batchSize = 50
     let durationsUpdated = 0
 
     for (let i = 0; i < videoIds.length; i += batchSize) {
@@ -904,7 +1005,6 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
 }
 
 export async function getPlaylistDetails(playlistId: string) {
-  // This provides reliable pagination and can fetch all 280+ songs
   return getPlaylistDetailsFromYouTubeAPI(playlistId)
 }
 
@@ -920,7 +1020,6 @@ export async function searchYouTube(query: string, continuation?: string) {
       params.continuation = continuation
     }
 
-    // Use regular YouTube endpoint instead of YouTube Music
     const url = `https://www.youtube.com/youtubei/v1/search`
     const body = {
       context: {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Clock, TrendingUp, Film } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -14,12 +14,34 @@ interface TopHeaderProps {
 
 export function TopHeader({ title }: TopHeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [customProfilePicture, setCustomProfilePicture] = useState<string | null>(null)
 
   const sessionResult = useSession()
   const session = sessionResult?.data ?? null
   const status = sessionResult?.status ?? "unauthenticated"
 
   const user = session?.user
+
+  useEffect(() => {
+    const loadCustomPicture = () => {
+      const customPicture = localStorage.getItem("customProfilePicture")
+      setCustomProfilePicture(customPicture)
+    }
+
+    loadCustomPicture()
+
+    const handleProfilePictureChange = (event: CustomEvent) => {
+      setCustomProfilePicture(event.detail)
+    }
+
+    window.addEventListener("profilePictureChanged", handleProfilePictureChange as EventListener)
+
+    return () => {
+      window.removeEventListener("profilePictureChanged", handleProfilePictureChange as EventListener)
+    }
+  }, [])
+
+  const profileImage = customProfilePicture || user?.image || ""
 
   return (
     <>
@@ -41,14 +63,12 @@ export function TopHeader({ title }: TopHeaderProps) {
               <Button variant="ghost" size="icon" className="rounded-full">
                 <TrendingUp className="w-6 h-6" />
               </Button>
-              {status !== "loading" && status !== "unauthenticated" && (
-                <Button variant="ghost" size="icon" className="rounded-full p-0" onClick={() => setIsProfileOpen(true)}>
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
-                    <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              )}
+              <Button variant="ghost" size="icon" className="rounded-full p-0" onClick={() => setIsProfileOpen(true)}>
+                <Avatar className="w-10 h-10">
+                  <AvatarImage src={profileImage || "/placeholder.svg"} alt={user?.name || "User"} />
+                  <AvatarFallback>{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                </Avatar>
+              </Button>
             </div>
           </div>
         </div>

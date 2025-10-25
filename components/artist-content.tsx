@@ -40,6 +40,30 @@ interface Artist {
     year: string
     thumbnail: string
   }>
+  livePerformances: Array<{
+    id: string
+    title: string
+    artist: string
+    thumbnail: string
+  }>
+  featuredOn: Array<{
+    id: string
+    title: string
+    subtitle: string
+    thumbnail: string
+  }>
+  playlistsByArtist: Array<{
+    id: string
+    title: string
+    views: string
+    thumbnail: string
+  }>
+  relatedArtists: Array<{
+    id: string
+    name: string
+    subscribers: string
+    thumbnail: string
+  }>
 }
 
 export function ArtistContent({ artistId }: { artistId: string }) {
@@ -155,49 +179,6 @@ export function ArtistContent({ artistId }: { artistId: string }) {
           </div>
         </div>
 
-        {/* Videos */}
-        {artist.videos && artist.videos.length > 0 && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold">Videos</h2>
-              <Button variant="ghost" size="sm" className="text-primary">
-                <ArrowLeft className="w-4 h-4 rotate-180" />
-              </Button>
-            </div>
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
-              {artist.videos.map((video) => (
-                <button
-                  key={video.id}
-                  onClick={() =>
-                    playVideo({
-                      id: video.id,
-                      title: video.title,
-                      artist: artist.name,
-                      thumbnail: video.thumbnail,
-                      duration: "0:00",
-                    })
-                  }
-                  className="flex-shrink-0 w-48 group"
-                >
-                  <div className="relative w-48 h-28 rounded-lg overflow-hidden mb-2">
-                    <Image
-                      src={video.thumbnail || "/placeholder.svg"}
-                      alt={video.title}
-                      fill
-                      className="object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <Play className="w-12 h-12 text-white" fill="white" />
-                    </div>
-                  </div>
-                  <h3 className="font-semibold text-sm truncate">{video.title}</h3>
-                  <p className="text-xs text-muted-foreground truncate">{artist.name}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Albums */}
         {artist.albums && artist.albums.length > 0 && (
           <div className="mb-8">
@@ -255,6 +236,184 @@ export function ArtistContent({ artistId }: { artistId: string }) {
                   <h3 className="font-semibold text-sm truncate">{single.title}</h3>
                   <p className="text-xs text-muted-foreground">{single.year}</p>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Videos */}
+        {artist.videos && artist.videos.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Videos</h2>
+              <Button variant="ghost" size="sm" className="text-primary">
+                <ArrowLeft className="w-4 h-4 rotate-180" />
+              </Button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+              {artist.videos.map((video) => (
+                <button
+                  key={video.id}
+                  onClick={() =>
+                    playVideo({
+                      id: video.id,
+                      title: video.title,
+                      artist: artist.name,
+                      thumbnail: video.thumbnail,
+                      duration: "0:00",
+                    })
+                  }
+                  className="flex-shrink-0 w-48 group"
+                >
+                  <div className="relative w-48 h-28 rounded-lg overflow-hidden mb-2">
+                    <Image
+                      src={video.thumbnail || "/placeholder.svg"}
+                      alt={video.title}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Play className="w-12 h-12 text-white" fill="white" />
+                    </div>
+                  </div>
+                  <h3 className="font-semibold text-sm truncate">{video.title}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{artist.name}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {artist.livePerformances && artist.livePerformances.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Live performances</h2>
+              <Button variant="ghost" size="sm" className="text-primary">
+                <ArrowLeft className="w-4 h-4 rotate-180" />
+              </Button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+              {artist.livePerformances.map((video) => (
+                <button
+                  key={video.id}
+                  onClick={() =>
+                    playVideo({
+                      id: video.id,
+                      title: video.title,
+                      artist: video.artist,
+                      thumbnail: video.thumbnail,
+                      duration: "0:00",
+                    })
+                  }
+                  className="flex-shrink-0 w-48 group"
+                >
+                  <div className="relative w-48 h-28 rounded-lg overflow-hidden mb-2">
+                    <Image
+                      src={video.thumbnail || "/placeholder.svg"}
+                      alt={video.title}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Play className="w-12 h-12 text-white" fill="white" />
+                    </div>
+                  </div>
+                  <h3 className="font-semibold text-sm truncate">{video.title}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{video.artist}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {artist.featuredOn && artist.featuredOn.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Featured on</h2>
+              <Button variant="ghost" size="sm" className="text-primary">
+                <ArrowLeft className="w-4 h-4 rotate-180" />
+              </Button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+              {artist.featuredOn.map((playlist) => (
+                <div key={playlist.id} className="flex-shrink-0 w-48">
+                  <div className="relative w-48 h-48 rounded-lg overflow-hidden mb-2 group cursor-pointer">
+                    <Image
+                      src={playlist.thumbnail || "/placeholder.svg"}
+                      alt={playlist.title}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Play className="w-12 h-12 text-white" fill="white" />
+                    </div>
+                  </div>
+                  <h3 className="font-semibold text-sm truncate">{playlist.title}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{playlist.subtitle}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {artist.playlistsByArtist && artist.playlistsByArtist.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Playlists by {artist.name}</h2>
+              <Button variant="ghost" size="sm" className="text-primary">
+                <ArrowLeft className="w-4 h-4 rotate-180" />
+              </Button>
+            </div>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
+              {artist.playlistsByArtist.map((playlist) => (
+                <div key={playlist.id} className="flex-shrink-0 w-48">
+                  <div className="relative w-48 h-48 rounded-lg overflow-hidden mb-2 group cursor-pointer">
+                    <Image
+                      src={playlist.thumbnail || "/placeholder.svg"}
+                      alt={playlist.title}
+                      fill
+                      className="object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Play className="w-12 h-12 text-white" fill="white" />
+                    </div>
+                  </div>
+                  <h3 className="font-semibold text-sm truncate">{playlist.title}</h3>
+                  <p className="text-xs text-muted-foreground truncate">{playlist.views}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {artist.relatedArtists && artist.relatedArtists.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Fans might also like</h2>
+              <Button variant="ghost" size="sm" className="text-primary">
+                <ArrowLeft className="w-4 h-4 rotate-180" />
+              </Button>
+            </div>
+            <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">
+              {artist.relatedArtists.map((relatedArtist) => (
+                <button
+                  key={relatedArtist.id}
+                  onClick={() => router.push(`/dashboard/artist/${relatedArtist.id}`)}
+                  className="flex-shrink-0 w-32 group"
+                >
+                  <div className="relative w-32 h-32 rounded-full overflow-hidden mb-2">
+                    <Image
+                      src={relatedArtist.thumbnail || "/placeholder.svg"}
+                      alt={relatedArtist.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                  <h3 className="font-semibold text-sm truncate text-center">{relatedArtist.name}</h3>
+                  {relatedArtist.subscribers && (
+                    <p className="text-xs text-muted-foreground truncate text-center">{relatedArtist.subscribers}</p>
+                  )}
+                </button>
               ))}
             </div>
           </div>

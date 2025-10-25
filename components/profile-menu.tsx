@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SettingsIcon, Shield, Plus, RefreshCw, LinkIcon } from "lucide-react"
 import { signOut } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -22,8 +22,30 @@ interface ProfileMenuProps {
 export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
   const [moreContent, setMoreContent] = useState(true)
   const [autoSync, setAutoSync] = useState(true)
+  const [customProfilePicture, setCustomProfilePicture] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadCustomPicture = () => {
+      const customPicture = localStorage.getItem("customProfilePicture")
+      setCustomProfilePicture(customPicture)
+    }
+
+    loadCustomPicture()
+
+    const handleProfilePictureChange = (event: CustomEvent) => {
+      setCustomProfilePicture(event.detail)
+    }
+
+    window.addEventListener("profilePictureChanged", handleProfilePictureChange as EventListener)
+
+    return () => {
+      window.removeEventListener("profilePictureChanged", handleProfilePictureChange as EventListener)
+    }
+  }, [])
 
   if (!isOpen) return null
+
+  const profileImage = customProfilePicture || user?.image || ""
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 animate-in fade-in duration-200">
@@ -40,7 +62,7 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
           <div className="flex items-center justify-between bg-card rounded-2xl p-6">
             <div className="flex items-center gap-4">
               <Avatar className="w-16 h-16">
-                <AvatarImage src={user?.image || ""} alt={user?.name || "User"} />
+                <AvatarImage src={profileImage || "/placeholder.svg"} alt={user?.name || "User"} />
                 <AvatarFallback className="text-xl">{user?.name?.charAt(0) || "U"}</AvatarFallback>
               </Avatar>
               <div>

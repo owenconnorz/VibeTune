@@ -1,20 +1,34 @@
 "use client"
 
-import { ArrowLeft } from "lucide-react"
+import type React from "react"
+
+import { ArrowLeft, Camera } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { themeStorage } from "@/lib/theme-storage"
+import { useSession } from "next-auth/react"
 
 export function AppearanceSettings() {
   const router = useRouter()
   const [dynamicTheme, setDynamicTheme] = useState(false)
+  const [profilePicture, setProfilePicture] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { data: session, update } = useSession()
 
   useEffect(() => {
     const settings = themeStorage.getSettings()
     setDynamicTheme(settings.dynamicThemeEnabled)
-  }, [])
+
+    const customPicture = localStorage.getItem("customProfilePicture")
+    if (customPicture) {
+      setProfilePicture(customPicture)
+    } else if (session?.user?.image) {
+      setProfilePicture(session.user.image)
+    }
+  }, [session])
 
   const handleToggleDynamicTheme = () => {
     const newValue = themeStorage.toggleDynamicTheme()
@@ -23,6 +37,42 @@ export function AppearanceSettings() {
     // Trigger a custom event to notify other components
     window.dispatchEvent(new CustomEvent("themeSettingsChanged"))
   }
+
+  const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert("File size must be less than 5MB")
+        return
+      }
+
+      // Check file type
+      if (!file.type.startsWith("image/")) {
+        alert("Please select an image file")
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result as string
+        setProfilePicture(base64String)
+        localStorage.setItem("customProfilePicture", base64String)
+
+        // Trigger event to update profile picture across the app
+        window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: base64String }))
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleRemoveProfilePicture = () => {
+    localStorage.removeItem("customProfilePicture")
+    setProfilePicture(session?.user?.image || null)
+    window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: session?.user?.image || null }))
+  }
+
+  const user = session?.user
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,20 +88,72 @@ export function AppearanceSettings() {
       </div>
 
       <div className="container mx-auto px-4 py-6 space-y-6 max-w-2xl">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between bg-card rounded-2xl p-4">
-            <div className="flex-1">
-              <h3 className="font-semibold">Dynamic Theme</h3>
-              <p className="text-sm text-muted-foreground mt-1">Change background colors based on album artwork</p>
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground px-2">Profile</h2>
+          <div className="bg-card rounded-2xl p-6">
+            <div className="flex items-center gap-6">
+              <div className="relative">
+                <Avatar className="w-24 h-24">
+                  <AvatarImage src={profilePicture || user?.image || ""} alt={user?.name || "User"} />
+                  <AvatarFallback className="text-3xl">{user?.name?.charAt(0) || "U"}</AvatarFallback>
+                </Avatar>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors"
+                >
+                  <Camera className="w-4 h-4 text-primary-foreground" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePictureChange}
+                  className="hidden"
+                />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-lg">{user?.name || "Guest"}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{user?.email || "guest@opentune.app"}</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-full"
+                  >
+                    Change Picture
+                  </Button>
+                  {localStorage.getItem("customProfilePicture") && (
+                    <Button variant="ghost" size="sm" onClick={handleRemoveProfilePicture} className="rounded-full">
+                      Remove
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
-            <Switch checked={dynamicTheme} onCheckedChange={handleToggleDynamicTheme} />
-          </div>
-
-          <div className="bg-card rounded-2xl p-4">
-            <p className="text-sm text-muted-foreground">
-              When enabled, the app background will adapt to match the colors of the currently playing song's artwork,
-              creating a more immersive listening experience.
+            <p className="text-xs text-muted-foreground mt-4">
+              Upload a custom profile picture. Maximum file size: 5MB. Supported formats: JPG, PNG, GIF, WebP.
             </p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground px-2">Theme</h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between bg-card rounded-2xl p-4">
+              <div className="flex-1">
+                <h3 className="font-semibold">Dynamic Theme</h3>
+                <p className="text-sm text-muted-foreground mt-1">Change background colors based on album artwork</p>
+              </div>
+              <Switch checked={dynamicTheme} onCheckedChange={handleToggleDynamicTheme} />
+            </div>
+
+            <div className="bg-card rounded-2xl p-4">
+              <p className="text-sm text-muted-foreground">
+                When enabled, the app background will adapt to match the colors of the currently playing song's artwork,
+                creating a more immersive listening experience.
+              </p>
+            </div>
           </div>
         </div>
       </div>
