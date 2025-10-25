@@ -112,6 +112,7 @@ export async function searchMusic(query: string, continuation?: string) {
   try {
     console.log(`[v0] ===== SEARCH STARTED =====`)
     console.log(`[v0] Query: "${query}"`)
+    console.log(`[v0] Continuation: ${continuation ? "YES" : "NO"}`)
 
     const params: any = {
       query,
@@ -125,6 +126,7 @@ export async function searchMusic(query: string, continuation?: string) {
     const data = await makeInnerTubeRequest("search", params)
 
     if (!data || typeof data !== "object") {
+      console.log("[v0] Invalid API response")
       return { videos: [], continuation: null }
     }
 
@@ -133,18 +135,30 @@ export async function searchMusic(query: string, continuation?: string) {
       data.continuationContents?.musicShelfContinuation?.contents ||
       []
 
+    console.log(`[v0] Total sections in response: ${contents.length}`)
+
     const videos: any[] = []
     let artistResult: any = null
 
-    for (const section of contents) {
+    for (let sectionIndex = 0; sectionIndex < contents.length; sectionIndex++) {
+      const section = contents[sectionIndex]
+
+      // Check for musicCardShelfRenderer (artist card)
       if (section.musicCardShelfRenderer && !artistResult) {
         const cardRenderer = section.musicCardShelfRenderer
+        console.log(`[v0] Section ${sectionIndex}: Found musicCardShelfRenderer`)
+
         const title = cardRenderer.title?.runs?.[0]?.text
         const subtitle = cardRenderer.subtitle?.runs?.[0]?.text
         const browseId = cardRenderer.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId
         const pageType =
           cardRenderer.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
             ?.browseEndpointContextMusicConfig?.pageType
+
+        console.log(`[v0]   Title: "${title}"`)
+        console.log(`[v0]   Subtitle: "${subtitle}"`)
+        console.log(`[v0]   BrowseId: ${browseId}`)
+        console.log(`[v0]   PageType: ${pageType}`)
 
         let thumbnail = cardRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
 
@@ -153,8 +167,7 @@ export async function searchMusic(query: string, continuation?: string) {
         }
 
         if (pageType === "MUSIC_PAGE_TYPE_ARTIST" && browseId && title) {
-          console.log(`[v0] ✓ ARTIST FOUND in musicCardShelfRenderer: "${title}" (${browseId})`)
-          console.log(`[v0]   pageType: ${pageType}`)
+          console.log(`[v0] ✓✓✓ ARTIST FOUND in musicCardShelfRenderer: "${title}"`)
           artistResult = {
             id: browseId,
             title: title,
@@ -172,7 +185,12 @@ export async function searchMusic(query: string, continuation?: string) {
       // Check regular shelf items
       const items = section.musicShelfRenderer?.contents || []
 
-      for (const item of items) {
+      if (items.length > 0) {
+        console.log(`[v0] Section ${sectionIndex}: Found musicShelfRenderer with ${items.length} items`)
+      }
+
+      for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        const item = items[itemIndex]
         const renderer = item.musicResponsiveListItemRenderer
         if (!renderer) continue
 
@@ -199,10 +217,21 @@ export async function searchMusic(query: string, continuation?: string) {
           thumbnail = `https:${thumbnail}`
         }
 
+        // Log first item in detail for debugging
+        if (itemIndex === 0 && sectionIndex === 0) {
+          console.log(`[v0] First item details:`)
+          console.log(`[v0]   Title: "${title}"`)
+          console.log(`[v0]   Second column: "${secondColumn}"`)
+          console.log(`[v0]   BrowseId: ${browseId}`)
+          console.log(`[v0]   PageType: ${pageType}`)
+          console.log(`[v0]   VideoId: ${videoId}`)
+        }
+
+        // Check if this is an artist
         if (!artistResult && pageType === "MUSIC_PAGE_TYPE_ARTIST" && browseId && title) {
-          console.log(`[v0] ✓ ARTIST DETECTED: "${title}" (${browseId})`)
-          console.log(`[v0]   pageType: ${pageType}`)
-          console.log(`[v0]   Subtitle: "${secondColumn}"`)
+          console.log(`[v0] ✓✓✓ ARTIST FOUND in shelf item ${itemIndex}: "${title}"`)
+          console.log(`[v0]   BrowseId: ${browseId}`)
+          console.log(`[v0]   Subscribers: "${secondColumn}"`)
 
           artistResult = {
             id: browseId,
@@ -241,13 +270,15 @@ export async function searchMusic(query: string, continuation?: string) {
             const channelTitle = channel.snippet.title
             const channelThumbnail = channel.snippet.thumbnails?.high?.url || channel.snippet.thumbnails?.default?.url
 
+            console.log(`[v0] YouTube Data API found channel: "${channelTitle}" (${channelId})`)
+
             // Get subscriber count
             const channelDetailsUrl = `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${channelId}&key=${process.env.YOUTUBE_API_KEY}`
             const detailsResponse = await fetch(channelDetailsUrl)
             let subscribers = ""
 
             if (detailsResponse.ok) {
-              const detailsData = await detailsResponse.json()
+              const detailsData = await (detailsResponse.json() as Promise<any>)
               if (detailsData.items && detailsData.items.length > 0) {
                 const subCount = Number.parseInt(detailsData.items[0].statistics.subscriberCount || "0")
                 if (subCount >= 1000000) {
@@ -271,23 +302,30 @@ export async function searchMusic(query: string, continuation?: string) {
               subscribers: subscribers,
             }
 
-            console.log(`[v0] ✓ ARTIST FOUND via YouTube Data API: "${channelTitle}" (${channelId})`)
+            console.log(`[v0] ✓✓✓ ARTIST FOUND via YouTube Data API: "${channelTitle}"`)
             console.log(`[v0]   Subscribers: ${subscribers}`)
+          } else {
+            console.log(`[v0] YouTube Data API returned no channels`)
           }
+        } else {
+          console.log(`[v0] YouTube Data API request failed: ${channelResponse.status}`)
         }
       } catch (error: any) {
-        console.error(`[v0] YouTube Data API fallback failed:`, error.message)
+        console.error(`[v0] YouTube Data API fallback error:`, error.message)
       }
     }
 
     if (artistResult) {
       videos.unshift(artistResult)
-      console.log(`[v0] ✓ Artist added to top of results`)
-      console.log(`[v0]   Artist: ${artistResult.title}`)
-      console.log(`[v0]   Subscribers: ${artistResult.subscribers}`)
+      console.log(`[v0] ===== ARTIST ADDED TO RESULTS =====`)
+      console.log(`[v0] Artist: ${artistResult.title}`)
+      console.log(`[v0] Type: ${artistResult.type}`)
+      console.log(`[v0] BrowseId: ${artistResult.browseId}`)
+      console.log(`[v0] Subscribers: ${artistResult.subscribers}`)
+      console.log(`[v0] Total results: ${videos.length} (1 artist + ${videos.length - 1} songs)`)
     } else {
-      console.log(`[v0] ✗ No artist found in search results`)
-      console.log(`[v0]   Total items processed: ${videos.length}`)
+      console.log(`[v0] ===== NO ARTIST FOUND =====`)
+      console.log(`[v0] Total song results: ${videos.length}`)
     }
 
     const continuationToken =
@@ -295,7 +333,11 @@ export async function searchMusic(query: string, continuation?: string) {
         ?.continuations?.[0]?.nextContinuationData?.continuation ||
       data.continuationContents?.musicShelfContinuation?.continuations?.[0]?.nextContinuationData?.continuation
 
-    console.log(`[v0] Search complete: ${videos.length} results, artist found: ${!!artistResult}`)
+    console.log(`[v0] ===== SEARCH COMPLETE =====`)
+    console.log(
+      `[v0] Results: ${videos.length} total (${artistResult ? "1 artist + " : ""}${videos.length - (artistResult ? 1 : 0)} songs)`,
+    )
+    console.log(`[v0] Continuation: ${continuationToken ? "YES" : "NO"}`)
 
     return {
       videos,
@@ -303,6 +345,7 @@ export async function searchMusic(query: string, continuation?: string) {
     }
   } catch (error: any) {
     console.error(`[v0] Search error:`, error.message)
+    console.error(`[v0] Stack:`, error.stack)
     return { videos: [], continuation: null }
   }
 }
