@@ -50,7 +50,7 @@ export function SettingsContent() {
       title: "System & About",
       items: [
         { icon: LinkIcon, label: "Open supported links" },
-        { icon: RefreshCw, label: "Updater" },
+        { icon: RefreshCw, label: "What's New", href: "/dashboard/settings/changelog" },
         { icon: Info, label: "About" },
       ],
     },

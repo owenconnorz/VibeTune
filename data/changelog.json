@@ -1,0 +1,72 @@
+{
+  "version": "0.1.0",
+  "updates": [
+    {
+      "version": "0.1.0",
+      "date": "2025-01-25",
+      "type": "release",
+      "title": "Initial Release",
+      "changes": [
+        {
+          "category": "Features",
+          "items": [
+            "YouTube Music integration with full playback support",
+            "Dynamic theme system with customizable colors",
+            "Advanced music player with equalizer controls",
+            "Search functionality with song, artist, and album results",
+            "Personal library with playlists and favorites",
+            "Offline playback support with download management",
+            "Google OAuth authentication"
+          ]
+        },
+        {
+          "category": "Player",
+          "items": [
+            "3-band equalizer (Bass, Mid, Treble)",
+            "Crossfade and gapless playback options",
+            "Volume normalization",
+            "Audio quality selection (Auto, High, Low)",
+            "Queue management with shuffle and repeat"
+          ]
+        },
+        {
+          "category": "Interface",
+          "items": [
+            "Mobile-first responsive design",
+            "Bottom navigation for easy access",
+            "Smooth animations and transitions",
+            "Dark mode support",
+            "Custom profile picture upload"
+          ]
+        }
+      ]
+    },
+    {
+      "version": "0.0.9",
+      "date": "2025-01-20",
+      "type": "update",
+      "title": "Bug Fixes & Improvements",
+      "changes": [
+        {
+          "category": "Bug Fixes",
+          "items": [
+            "Fixed appearance settings crash on load",
+            "Fixed search suggestions not showing artists",
+            "Fixed file input handler in profile picture upload",
+            "Fixed home API returning 500 errors",
+            "Improved error handling in search components"
+          ]
+        },
+        {
+          "category": "Improvements",
+          "items": [
+            "Enhanced search API with better artist detection",
+            "Added comprehensive debug logging",
+            "Improved theme storage and persistence",
+            "Better error boundaries for client components"
+          ]
+        }
+      ]
+    }
+  ]
+}
