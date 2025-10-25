@@ -98,6 +98,19 @@ export async function GET(request: NextRequest) {
       console.log(
         `[v0] Returning cached ${searchType} search results for: ${query}${pageToken ? ` (continuation)` : ""}`,
       )
+      console.log(`[v0] Cached results count: ${cached.videos.length}`)
+      const artistCount = cached.videos.filter((v: any) => v.type === "artist").length
+      console.log(`[v0] Cached artist results: ${artistCount}`)
+      if (artistCount > 0) {
+        console.log(
+          `[v0] First artist:`,
+          JSON.stringify(
+            cached.videos.find((v: any) => v.type === "artist"),
+            null,
+            2,
+          ),
+        )
+      }
       return NextResponse.json(
         {
           videos: cached.videos,
@@ -123,6 +136,26 @@ export async function GET(request: NextRequest) {
         : await searchMusic(query, pageToken || undefined)
 
     console.log(`[v0] API returned ${result.videos.length} videos`)
+
+    const artistCount = result.videos.filter((v: any) => v.type === "artist").length
+    const songCount = result.videos.filter(
+      (v: any) => !v.browseId && v.type !== "youtube_video" && v.type !== "artist",
+    ).length
+    const videoCount = result.videos.filter((v: any) => v.type === "youtube_video").length
+
+    console.log(`[v0] Search results breakdown:`)
+    console.log(`[v0]   - Artists: ${artistCount}`)
+    console.log(`[v0]   - Songs: ${songCount}`)
+    console.log(`[v0]   - Videos: ${videoCount}`)
+    console.log(`[v0]   - Other: ${result.videos.length - artistCount - songCount - videoCount}`)
+
+    if (artistCount > 0) {
+      const firstArtist = result.videos.find((v: any) => v.type === "artist")
+      console.log(`[v0] First artist result:`, JSON.stringify(firstArtist, null, 2))
+    } else {
+      console.log(`[v0] ⚠️ NO ARTIST RESULTS FOUND`)
+      console.log(`[v0] First 3 results:`, JSON.stringify(result.videos.slice(0, 3), null, 2))
+    }
 
     setCachedResult(cacheKey, result.videos, result.continuation)
 

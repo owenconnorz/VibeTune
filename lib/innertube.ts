@@ -140,124 +140,8 @@ export async function searchMusic(query: string, continuation?: string) {
     const videos: any[] = []
     let artistResult: any = null
 
-    for (let sectionIndex = 0; sectionIndex < contents.length; sectionIndex++) {
-      const section = contents[sectionIndex]
-
-      // Check for musicCardShelfRenderer (artist card)
-      if (section.musicCardShelfRenderer && !artistResult) {
-        const cardRenderer = section.musicCardShelfRenderer
-        console.log(`[v0] Section ${sectionIndex}: Found musicCardShelfRenderer`)
-
-        const title = cardRenderer.title?.runs?.[0]?.text
-        const subtitle = cardRenderer.subtitle?.runs?.[0]?.text
-        const browseId = cardRenderer.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId
-        const pageType =
-          cardRenderer.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
-            ?.browseEndpointContextMusicConfig?.pageType
-
-        console.log(`[v0]   Title: "${title}"`)
-        console.log(`[v0]   Subtitle: "${subtitle}"`)
-        console.log(`[v0]   BrowseId: ${browseId}`)
-        console.log(`[v0]   PageType: ${pageType}`)
-
-        let thumbnail = cardRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
-
-        if (thumbnail && thumbnail.startsWith("//")) {
-          thumbnail = `https:${thumbnail}`
-        }
-
-        if (pageType === "MUSIC_PAGE_TYPE_ARTIST" && browseId && title) {
-          console.log(`[v0] ✓✓✓ ARTIST FOUND in musicCardShelfRenderer: "${title}"`)
-          artistResult = {
-            id: browseId,
-            title: title,
-            artist: title,
-            thumbnail: thumbnail || "/placeholder.svg",
-            duration: "",
-            browseId: browseId,
-            type: "artist",
-            subscribers: subtitle || "",
-          }
-          continue
-        }
-      }
-
-      // Check regular shelf items
-      const items = section.musicShelfRenderer?.contents || []
-
-      if (items.length > 0) {
-        console.log(`[v0] Section ${sectionIndex}: Found musicShelfRenderer with ${items.length} items`)
-      }
-
-      for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-        const item = items[itemIndex]
-        const renderer = item.musicResponsiveListItemRenderer
-        if (!renderer) continue
-
-        const navigationEndpoint =
-          renderer.navigationEndpoint ||
-          renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint
-
-        const browseId = navigationEndpoint?.browseEndpoint?.browseId
-        const pageType =
-          navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig
-            ?.pageType
-
-        const videoId =
-          renderer.playlistItemData?.videoId ||
-          renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
-            ?.watchEndpoint?.videoId
-
-        const title = renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
-        const secondColumn =
-          renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || ""
-
-        let thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
-        if (thumbnail && thumbnail.startsWith("//")) {
-          thumbnail = `https:${thumbnail}`
-        }
-
-        // Log first item in detail for debugging
-        if (itemIndex === 0 && sectionIndex === 0) {
-          console.log(`[v0] First item details:`)
-          console.log(`[v0]   Title: "${title}"`)
-          console.log(`[v0]   Second column: "${secondColumn}"`)
-          console.log(`[v0]   BrowseId: ${browseId}`)
-          console.log(`[v0]   PageType: ${pageType}`)
-          console.log(`[v0]   VideoId: ${videoId}`)
-        }
-
-        // Check if this is an artist
-        if (!artistResult && pageType === "MUSIC_PAGE_TYPE_ARTIST" && browseId && title) {
-          console.log(`[v0] ✓✓✓ ARTIST FOUND in shelf item ${itemIndex}: "${title}"`)
-          console.log(`[v0]   BrowseId: ${browseId}`)
-          console.log(`[v0]   Subscribers: "${secondColumn}"`)
-
-          artistResult = {
-            id: browseId,
-            title: title,
-            artist: title,
-            thumbnail: thumbnail || "/placeholder.svg",
-            duration: "",
-            browseId: browseId,
-            type: "artist",
-            subscribers: secondColumn,
-          }
-          continue
-        }
-
-        // Process songs/videos (items with videoId)
-        if (videoId) {
-          const videoInfo = extractVideoInfo(item)
-          if (videoInfo) {
-            videos.push(videoInfo)
-          }
-        }
-      }
-    }
-
-    if (!artistResult && !continuation && process.env.YOUTUBE_API_KEY) {
-      console.log(`[v0] No artist found in InnerTube, trying YouTube Data API fallback...`)
+    if (!continuation && process.env.YOUTUBE_API_KEY) {
+      console.log(`[v0] Fetching artist from YouTube Data API...`)
       try {
         const channelSearchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(query)}&maxResults=1&key=${process.env.YOUTUBE_API_KEY}`
         const channelResponse = await fetch(channelSearchUrl)
@@ -278,7 +162,7 @@ export async function searchMusic(query: string, continuation?: string) {
             let subscribers = ""
 
             if (detailsResponse.ok) {
-              const detailsData = await (detailsResponse.json() as Promise<any>)
+              const detailsData = await detailsResponse.json()
               if (detailsData.items && detailsData.items.length > 0) {
                 const subCount = Number.parseInt(detailsData.items[0].statistics.subscriberCount || "0")
                 if (subCount >= 1000000) {
@@ -311,7 +195,36 @@ export async function searchMusic(query: string, continuation?: string) {
           console.log(`[v0] YouTube Data API request failed: ${channelResponse.status}`)
         }
       } catch (error: any) {
-        console.error(`[v0] YouTube Data API fallback error:`, error.message)
+        console.error(`[v0] YouTube Data API error:`, error.message)
+      }
+    }
+
+    for (let sectionIndex = 0; sectionIndex < contents.length; sectionIndex++) {
+      const section = contents[sectionIndex]
+
+      // Check regular shelf items for songs
+      const items = section.musicShelfRenderer?.contents || []
+
+      if (items.length > 0) {
+        console.log(`[v0] Section ${sectionIndex}: Found musicShelfRenderer with ${items.length} items`)
+      }
+
+      for (const item of items) {
+        const renderer = item.musicResponsiveListItemRenderer
+        if (!renderer) continue
+
+        const videoId =
+          renderer.playlistItemData?.videoId ||
+          renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
+            ?.watchEndpoint?.videoId
+
+        // Only process items with videoId (songs/videos)
+        if (videoId) {
+          const videoInfo = extractVideoInfo(item)
+          if (videoInfo) {
+            videos.push(videoInfo)
+          }
+        }
       }
     }
 
