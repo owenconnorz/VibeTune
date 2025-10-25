@@ -137,7 +137,36 @@ export async function searchMusic(query: string, continuation?: string) {
     let artistResult: any = null
 
     for (const section of contents) {
-      const items = section.musicShelfRenderer?.contents || section.musicCardShelfRenderer?.contents || [section]
+      // Check for musicCardShelfRenderer (often contains artist results)
+      if (section.musicCardShelfRenderer) {
+        const cardRenderer = section.musicCardShelfRenderer
+        const title = cardRenderer.title?.runs?.[0]?.text
+        const subtitle = cardRenderer.subtitle?.runs?.[0]?.text
+        const browseId = cardRenderer.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId
+        let thumbnail = cardRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+        if (thumbnail && thumbnail.startsWith("//")) {
+          thumbnail = `https:${thumbnail}`
+        }
+
+        if (browseId && (browseId.startsWith("UC") || browseId.startsWith("MPLA")) && title) {
+          console.log(`[v0] ✓ ARTIST FOUND in musicCardShelfRenderer: "${title}" (${browseId})`)
+          artistResult = {
+            id: browseId,
+            title: title,
+            artist: title,
+            thumbnail: thumbnail || "/placeholder.svg",
+            duration: "",
+            browseId: browseId,
+            type: "artist",
+            subscribers: subtitle || "",
+          }
+          break
+        }
+      }
+
+      // Check regular shelf items
+      const items = section.musicShelfRenderer?.contents || []
 
       for (const item of items) {
         const renderer = item.musicResponsiveListItemRenderer
@@ -148,25 +177,38 @@ export async function searchMusic(query: string, continuation?: string) {
         const secondColumn =
           renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || ""
 
-        if (!artistResult && browseId && (browseId.startsWith("UC") || browseId.startsWith("MPLA")) && title) {
-          let thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
-          if (thumbnail && thumbnail.startsWith("//")) {
-            thumbnail = `https:${thumbnail}`
-          }
+        if (!artistResult && browseId && title) {
+          // Check if it's an artist by browseId pattern
+          const isArtistBrowseId = browseId.startsWith("UC") || browseId.startsWith("MPLA")
 
-          console.log(`[v0] ✓ ARTIST DETECTED: "${title}" (${browseId})`)
+          // Check if subtitle contains artist indicators
+          const hasArtistIndicators =
+            secondColumn.toLowerCase().includes("subscriber") ||
+            secondColumn.toLowerCase().includes("artist") ||
+            secondColumn.toLowerCase().includes("million") ||
+            secondColumn.toLowerCase().includes("monthly")
 
-          artistResult = {
-            id: browseId,
-            title: title,
-            artist: title,
-            thumbnail: thumbnail || "/placeholder.svg",
-            duration: "",
-            browseId: browseId,
-            type: "artist",
-            subscribers: secondColumn,
+          if (isArtistBrowseId && (hasArtistIndicators || !secondColumn.includes("•"))) {
+            let thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+            if (thumbnail && thumbnail.startsWith("//")) {
+              thumbnail = `https:${thumbnail}`
+            }
+
+            console.log(`[v0] ✓ ARTIST DETECTED: "${title}" (${browseId})`)
+            console.log(`[v0]   Subtitle: "${secondColumn}"`)
+
+            artistResult = {
+              id: browseId,
+              title: title,
+              artist: title,
+              thumbnail: thumbnail || "/placeholder.svg",
+              duration: "",
+              browseId: browseId,
+              type: "artist",
+              subscribers: secondColumn,
+            }
+            continue
           }
-          continue
         }
 
         // Extract regular video/song info
@@ -180,6 +222,10 @@ export async function searchMusic(query: string, continuation?: string) {
     if (artistResult) {
       videos.unshift(artistResult)
       console.log(`[v0] ✓ Artist added to top of results`)
+      console.log(`[v0]   Artist: ${artistResult.title}`)
+      console.log(`[v0]   Subscribers: ${artistResult.subscribers}`)
+    } else {
+      console.log(`[v0] ✗ No artist found in search results`)
     }
 
     const continuationToken =
