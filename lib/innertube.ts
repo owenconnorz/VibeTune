@@ -137,8 +137,7 @@ export async function searchMusic(query: string, continuation?: string) {
     let artistResult: any = null
 
     for (const section of contents) {
-      // Check for musicCardShelfRenderer (often contains artist results)
-      if (section.musicCardShelfRenderer) {
+      if (section.musicCardShelfRenderer && !artistResult) {
         const cardRenderer = section.musicCardShelfRenderer
         const title = cardRenderer.title?.runs?.[0]?.text
         const subtitle = cardRenderer.subtitle?.runs?.[0]?.text
@@ -149,7 +148,7 @@ export async function searchMusic(query: string, continuation?: string) {
           thumbnail = `https:${thumbnail}`
         }
 
-        if (browseId && (browseId.startsWith("UC") || browseId.startsWith("MPLA")) && title) {
+        if (browseId && title) {
           console.log(`[v0] ✓ ARTIST FOUND in musicCardShelfRenderer: "${title}" (${browseId})`)
           artistResult = {
             id: browseId,
@@ -161,7 +160,7 @@ export async function searchMusic(query: string, continuation?: string) {
             type: "artist",
             subscribers: subtitle || "",
           }
-          break
+          continue
         }
       }
 
@@ -172,30 +171,41 @@ export async function searchMusic(query: string, continuation?: string) {
         const renderer = item.musicResponsiveListItemRenderer
         if (!renderer) continue
 
-        const browseId = renderer.navigationEndpoint?.browseEndpoint?.browseId
+        const navigationEndpoint =
+          renderer.navigationEndpoint ||
+          renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint
+        const browseId = navigationEndpoint?.browseEndpoint?.browseId
+        const videoId =
+          renderer.playlistItemData?.videoId ||
+          renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
+            ?.watchEndpoint?.videoId
+
         const title = renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text
         const secondColumn =
           renderer.flexColumns?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text || ""
 
-        if (!artistResult && browseId && title) {
-          // Check if it's an artist by browseId pattern
-          const isArtistBrowseId = browseId.startsWith("UC") || browseId.startsWith("MPLA")
+        let thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+        if (thumbnail && thumbnail.startsWith("//")) {
+          thumbnail = `https:${thumbnail}`
+        }
 
-          // Check if subtitle contains artist indicators
+        if (!artistResult && browseId && title && !videoId) {
+          // Has browseId but NO videoId = likely an artist/channel
+          const isArtistBrowseId = browseId.startsWith("UC") || browseId.startsWith("MPLA")
           const hasArtistIndicators =
             secondColumn.toLowerCase().includes("subscriber") ||
             secondColumn.toLowerCase().includes("artist") ||
             secondColumn.toLowerCase().includes("million") ||
-            secondColumn.toLowerCase().includes("monthly")
+            secondColumn.toLowerCase().includes("monthly") ||
+            secondColumn.toLowerCase().includes("audience")
 
-          if (isArtistBrowseId && (hasArtistIndicators || !secondColumn.includes("•"))) {
-            let thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
-            if (thumbnail && thumbnail.startsWith("//")) {
-              thumbnail = `https:${thumbnail}`
-            }
+          const lacksVideoSeparator = !secondColumn.includes("•")
 
+          if (isArtistBrowseId && (hasArtistIndicators || lacksVideoSeparator)) {
             console.log(`[v0] ✓ ARTIST DETECTED: "${title}" (${browseId})`)
             console.log(`[v0]   Subtitle: "${secondColumn}"`)
+            console.log(`[v0]   Has artist indicators: ${hasArtistIndicators}`)
+            console.log(`[v0]   Lacks video separator: ${lacksVideoSeparator}`)
 
             artistResult = {
               id: browseId,
@@ -211,10 +221,11 @@ export async function searchMusic(query: string, continuation?: string) {
           }
         }
 
-        // Extract regular video/song info
-        const videoInfo = extractVideoInfo(item)
-        if (videoInfo) {
-          videos.push(videoInfo)
+        if (videoId) {
+          const videoInfo = extractVideoInfo(item)
+          if (videoInfo) {
+            videos.push(videoInfo)
+          }
         }
       }
     }
@@ -226,6 +237,7 @@ export async function searchMusic(query: string, continuation?: string) {
       console.log(`[v0]   Subscribers: ${artistResult.subscribers}`)
     } else {
       console.log(`[v0] ✗ No artist found in search results`)
+      console.log(`[v0]   Total items processed: ${videos.length}`)
     }
 
     const continuationToken =

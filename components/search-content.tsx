@@ -55,6 +55,7 @@ export function SearchContent() {
   const [apiError, setApiError] = useState<string | null>(null)
   const [activeFilter, setActiveFilter] = useState<FilterType>("all")
   const [downloadedStates, setDownloadedStates] = useState<Record<string, boolean>>({})
+  const [showDebug, setShowDebug] = useState(false)
 
   const router = useRouter()
   const { playVideo } = useMusicPlayer()
@@ -308,6 +309,16 @@ export function SearchContent() {
               </Button>
             )}
           </div>
+          {query && hasSearchResults && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDebug(!showDebug)}
+              className="flex-shrink-0 text-xs"
+            >
+              {showDebug ? "Hide" : "Debug"}
+            </Button>
+          )}
         </div>
 
         {query && (
@@ -360,6 +371,33 @@ export function SearchContent() {
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{apiError}</AlertDescription>
           </Alert>
+        )}
+
+        {showDebug && hasSearchResults && (
+          <div className="mb-6 p-4 bg-secondary/30 rounded-lg border border-border">
+            <h3 className="font-bold mb-2">Debug Info</h3>
+            <div className="text-xs space-y-2">
+              <p>
+                <strong>Total Results:</strong> {allResults.length}
+              </p>
+              <p>
+                <strong>Artists:</strong> {allResults.filter((v) => (v as any).type === "artist").length}
+              </p>
+              <p>
+                <strong>Songs:</strong>{" "}
+                {allResults.filter((v) => !(v as any).browseId && (v as any).type !== "youtube_video").length}
+              </p>
+              <p>
+                <strong>Videos:</strong> {allResults.filter((v) => (v as any).type === "youtube_video").length}
+              </p>
+              <details className="mt-4">
+                <summary className="cursor-pointer font-semibold">First 3 Results (Raw Data)</summary>
+                <pre className="mt-2 p-2 bg-background rounded text-[10px] overflow-x-auto">
+                  {JSON.stringify(allResults.slice(0, 3), null, 2)}
+                </pre>
+              </details>
+            </div>
+          </div>
         )}
 
         {!query && history.length > 0 && (
