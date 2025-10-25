@@ -15,6 +15,7 @@ export function AppearanceSettings() {
   const router = useRouter()
   const [dynamicTheme, setDynamicTheme] = useState(false)
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
+  const [hasCustomPicture, setHasCustomPicture] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { data: session, update } = useSession()
 
@@ -25,8 +26,10 @@ export function AppearanceSettings() {
     const customPicture = localStorage.getItem("customProfilePicture")
     if (customPicture) {
       setProfilePicture(customPicture)
+      setHasCustomPicture(true)
     } else if (session?.user?.image) {
       setProfilePicture(session.user.image)
+      setHasCustomPicture(false)
     }
   }, [session])
 
@@ -57,6 +60,7 @@ export function AppearanceSettings() {
       reader.onloadend = () => {
         const base64String = reader.result as string
         setProfilePicture(base64String)
+        setHasCustomPicture(true)
         localStorage.setItem("customProfilePicture", base64String)
 
         // Trigger event to update profile picture across the app
@@ -69,6 +73,7 @@ export function AppearanceSettings() {
   const handleRemoveProfilePicture = () => {
     localStorage.removeItem("customProfilePicture")
     setProfilePicture(session?.user?.image || null)
+    setHasCustomPicture(false)
     window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: session?.user?.image || null }))
   }
 
@@ -123,7 +128,7 @@ export function AppearanceSettings() {
                   >
                     Change Picture
                   </Button>
-                  {localStorage.getItem("customProfilePicture") && (
+                  {hasCustomPicture && (
                     <Button variant="ghost" size="sm" onClick={handleRemoveProfilePicture} className="rounded-full">
                       Remove
                     </Button>
