@@ -20,25 +20,37 @@ export function AppearanceSettings() {
   const { data: session } = useSession()
 
   useEffect(() => {
-    const settings = themeStorage.getSettings()
-    setDynamicTheme(settings.dynamicThemeEnabled)
+    try {
+      const settings = themeStorage.getSettings()
+      setDynamicTheme(settings.dynamicThemeEnabled)
 
-    const customPicture = localStorage.getItem("customProfilePicture")
-    if (customPicture) {
-      setProfilePicture(customPicture)
-      setHasCustomPicture(true)
-    } else if (session?.user?.image) {
-      setProfilePicture(session.user.image)
-      setHasCustomPicture(false)
+      if (typeof window !== "undefined") {
+        const customPicture = localStorage.getItem("customProfilePicture")
+        if (customPicture) {
+          setProfilePicture(customPicture)
+          setHasCustomPicture(true)
+        } else if (session?.user?.image) {
+          setProfilePicture(session.user.image)
+          setHasCustomPicture(false)
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Error loading appearance settings:", error)
     }
   }, [session])
 
   const handleToggleDynamicTheme = () => {
-    const newValue = themeStorage.toggleDynamicTheme()
-    setDynamicTheme(newValue)
+    try {
+      const newValue = themeStorage.toggleDynamicTheme()
+      setDynamicTheme(newValue)
 
-    // Trigger a custom event to notify other components
-    window.dispatchEvent(new CustomEvent("themeSettingsChanged"))
+      // Trigger a custom event to notify other components
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("themeSettingsChanged"))
+      }
+    } catch (error) {
+      console.error("[v0] Error toggling dynamic theme:", error)
+    }
   }
 
   const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,23 +70,39 @@ export function AppearanceSettings() {
 
       const reader = new FileReader()
       reader.onloadend = () => {
-        const base64String = reader.result as string
-        setProfilePicture(base64String)
-        setHasCustomPicture(true)
-        localStorage.setItem("customProfilePicture", base64String)
+        try {
+          const base64String = reader.result as string
+          setProfilePicture(base64String)
+          setHasCustomPicture(true)
 
-        // Trigger event to update profile picture across the app
-        window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: base64String }))
+          if (typeof window !== "undefined") {
+            localStorage.setItem("customProfilePicture", base64String)
+            // Trigger event to update profile picture across the app
+            window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: base64String }))
+          }
+        } catch (error) {
+          console.error("[v0] Error saving profile picture:", error)
+          alert("Failed to save profile picture. Please try again.")
+        }
       }
       reader.readAsDataURL(file)
     }
   }
 
   const handleRemoveProfilePicture = () => {
-    localStorage.removeItem("customProfilePicture")
-    setProfilePicture(session?.user?.image || null)
-    setHasCustomPicture(false)
-    window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: session?.user?.image || null }))
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("customProfilePicture")
+      }
+      setProfilePicture(session?.user?.image || null)
+      setHasCustomPicture(false)
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: session?.user?.image || null }))
+      }
+    } catch (error) {
+      console.error("[v0] Error removing profile picture:", error)
+    }
   }
 
   const user = session?.user

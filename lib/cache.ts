@@ -1,7 +1,7 @@
 // Cache utilities for localStorage and memory caching
 
 const CACHE_PREFIX = "opentune_cache_"
-const CACHE_EXPIRY = 1000 * 60 * 30 // 30 minutes
+const CACHE_EXPIRY = 1000 * 60 * 60 // 1 hour (was 30 minutes)
 
 interface CacheItem<T> {
   data: T
