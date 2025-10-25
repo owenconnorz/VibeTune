@@ -13,6 +13,7 @@ import { OfflineIndicator } from "@/components/offline-indicator"
 import { DownloadProgressToast } from "@/components/download-progress-toast"
 import { ThemeProvider } from "@/components/theme-provider"
 import { MiniPlayer } from "@/components/mini-player" // Declare MiniPlayer component
+import { NotificationPermissionPrompt } from "@/components/notification-permission-prompt"
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"] })
@@ -73,6 +74,7 @@ export default function RootLayout({
                 <MusicPlayerProvider>
                   <OfflineIndicator />
                   <DownloadProgressToast />
+                  <NotificationPermissionPrompt />
                   {children}
                   <MiniPlayer />
                 </MusicPlayerProvider>

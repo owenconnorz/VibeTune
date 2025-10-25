@@ -37,6 +37,42 @@
       "description": "View your music library",
       "url": "/dashboard/library",
       "icons": [{ "src": "/icon-192.jpg", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Downloaded Songs",
+      "short_name": "Downloads",
+      "description": "Play your offline music",
+      "url": "/dashboard/playlist/downloaded",
+      "icons": [{ "src": "/icon-192.jpg", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Discover",
+      "short_name": "Discover",
+      "description": "Find new music recommendations",
+      "url": "/dashboard/discover",
+      "icons": [{ "src": "/icon-192.jpg", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "History",
+      "short_name": "History",
+      "description": "View your listening history",
+      "url": "/dashboard/history",
+      "icons": [{ "src": "/icon-192.jpg", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "share_target": {
+    "action": "/dashboard/search",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+music",
+      "url": "/dashboard?track=%s"
     }
   ]
 }

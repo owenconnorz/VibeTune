@@ -35,6 +35,7 @@ export function MiniPlayer() {
   const expandThreshold = 100 // Distance to trigger full expansion
 
   const isPlaylistPage = pathname?.includes("/playlist/")
+  const shouldHideMiniPlayer = pathname?.startsWith("/dashboard/settings") || pathname === "/dashboard/now-playing"
 
   useEffect(() => {
     if (isPlaylistPage && currentVideo) {
@@ -161,7 +162,7 @@ export function MiniPlayer() {
     }
   }
 
-  if (!currentVideo) return null
+  if (!currentVideo || shouldHideMiniPlayer) return null
 
   const dragProgress = Math.min(dragOffset.y / expandThreshold, 1)
   const scale = 1 + dragProgress * 0.05 // Slight scale up

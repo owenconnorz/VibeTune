@@ -4,6 +4,7 @@ import type React from "react"
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react"
 import { downloadSong, isDownloaded } from "@/lib/download-storage"
+import { notificationManager } from "@/lib/notification-manager"
 
 interface DownloadTask {
   id: string
@@ -29,75 +30,51 @@ const MAX_CONCURRENT_DOWNLOADS = 5
 export function DownloadManagerProvider({ children }: { children: React.ReactNode }) {
   const [downloads, setDownloads] = useState<DownloadTask[]>([])
   const [isDownloading, setIsDownloading] = useState(false)
-  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default")
   const activeDownloadsRef = useRef(0)
   const processingRef = useRef(false)
 
   // Request notification permission on mount
   useEffect(() => {
     if ("Notification" in window) {
-      setNotificationPermission(Notification.permission)
       if (Notification.permission === "default") {
         Notification.requestPermission().then((permission) => {
-          setNotificationPermission(permission)
+          // No need to set permission state as it's handled by notificationManager
         })
       }
     }
   }, [])
 
-  // Show notification helper
-  const showNotification = useCallback(
-    (title: string, body: string, icon?: string) => {
-      if (notificationPermission === "granted" && "Notification" in window) {
-        try {
-          new Notification(title, {
-            body,
-            icon: icon || "/icon-192x192.png",
-            badge: "/icon-192x192.png",
-            tag: "opentune-download",
-          })
-        } catch (error) {
-          console.error("[v0] Failed to show notification:", error)
-        }
-      }
-    },
-    [notificationPermission],
-  )
+  const downloadSingleSong = useCallback(async (task: DownloadTask) => {
+    console.log(`[v0] Starting download: ${task.title}`)
 
-  const downloadSingleSong = useCallback(
-    async (task: DownloadTask) => {
-      console.log(`[v0] Starting download: ${task.title}`)
+    // Update status to downloading
+    setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "downloading" } : d)))
 
-      // Update status to downloading
-      setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "downloading" } : d)))
+    // Check if already downloaded
+    const alreadyDownloaded = await isDownloaded(task.id)
+    if (alreadyDownloaded) {
+      console.log(`[v0] Song already downloaded: ${task.title}`)
+      setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "completed" } : d)))
+      return true
+    }
 
-      // Check if already downloaded
-      const alreadyDownloaded = await isDownloaded(task.id)
-      if (alreadyDownloaded) {
-        console.log(`[v0] Song already downloaded: ${task.title}`)
-        setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "completed" } : d)))
-        return true
-      }
+    // Download the song
+    const success = await downloadSong(task.id, task.title, task.artist, task.thumbnail, task.duration)
 
-      // Download the song
-      const success = await downloadSong(task.id, task.title, task.artist, task.thumbnail, task.duration)
+    // Update status
+    setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: success ? "completed" : "failed" } : d)))
 
-      // Update status
-      setDownloads((prev) =>
-        prev.map((d) => (d.id === task.id ? { ...d, status: success ? "completed" : "failed" } : d)),
-      )
+    if (success) {
+      console.log(`[v0] Successfully downloaded: ${task.title}`)
+      notificationManager.showDownloadCompleteNotification(task.title)
+    } else {
+      console.error(`[v0] Failed to download: ${task.title}`)
+      // Use notification manager for download failed notification
+      notificationManager.showDownloadFailedNotification(task.title)
+    }
 
-      if (success) {
-        console.log(`[v0] Successfully downloaded: ${task.title}`)
-      } else {
-        console.error(`[v0] Failed to download: ${task.title}`)
-        showNotification("Download Failed", `Failed to download "${task.title}"`)
-      }
-
-      return success
-    },
-    [showNotification],
-  )
+    return success
+  }, [])
 
   const processQueue = useCallback(async () => {
     if (processingRef.current) return
@@ -113,12 +90,6 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
       setIsDownloading(false)
       return
     }
-
-    // Show start notification immediately
-    showNotification(
-      "Download Started",
-      `Downloading ${pendingTasks.length} song${pendingTasks.length > 1 ? "s" : ""}...`,
-    )
 
     const downloadPromises: Promise<void>[] = []
     let taskIndex = 0
@@ -144,23 +115,10 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
     // Wait for all downloads to complete
     await Promise.all(downloadPromises)
 
-    // Show completion notification
-    const completed = downloads.filter((d) => d.status === "completed").length
-    const failed = downloads.filter((d) => d.status === "failed").length
-
-    if (failed === 0) {
-      showNotification("Downloads Complete", `Successfully downloaded ${completed} song${completed > 1 ? "s" : ""}!`)
-    } else {
-      showNotification(
-        "Downloads Complete",
-        `Downloaded ${completed} song${completed > 1 ? "s" : ""}. ${failed} failed.`,
-      )
-    }
-
-    console.log(`[v0] Download queue complete: ${completed} succeeded, ${failed} failed`)
+    console.log(`[v0] Download queue complete`)
     processingRef.current = false
     setIsDownloading(false)
-  }, [downloads, showNotification, downloadSingleSong])
+  }, [downloads, downloadSingleSong])
 
   // Auto-process queue when new tasks are added
   useEffect(() => {

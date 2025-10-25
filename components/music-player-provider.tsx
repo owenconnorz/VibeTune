@@ -8,6 +8,8 @@ import { themeStorage } from "@/lib/theme-storage"
 import { getLikedSongs, toggleLikedSong as toggleLikedSongStorage } from "@/lib/liked-storage"
 import { getDownloadedSong } from "@/lib/download-storage"
 import { requestWakeLock, releaseWakeLock } from "@/lib/wake-lock"
+import { audioEqualizer } from "@/lib/audio-equalizer"
+import { notificationManager } from "@/lib/notification-manager"
 
 declare global {
   interface Window {
@@ -89,6 +91,22 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       audioRef.current.volume = volume / 100
       console.log("[v0] Audio element created with volume:", volume / 100)
 
+      try {
+        audioEqualizer.initialize(audioRef.current)
+
+        // Load and apply saved equalizer settings
+        const savedSettings = localStorage.getItem("equalizerSettings")
+        if (savedSettings) {
+          const settings = JSON.parse(savedSettings)
+          if (settings.enabled && settings.gains) {
+            audioEqualizer.setAllGains(settings.gains)
+            console.log("[v0] Applied saved equalizer settings")
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Error initializing equalizer:", error)
+      }
+
       audioRef.current.addEventListener("timeupdate", () => {
         if (audioRef.current) {
           setCurrentTime(audioRef.current.currentTime)
@@ -131,6 +149,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         audioRef.current.pause()
         audioRef.current.src = ""
       }
+      audioEqualizer.disconnect()
     }
   }, [])
 
@@ -523,6 +542,49 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
       releaseWakeLock()
     }
   }, [isPlaying, currentVideo])
+
+  useEffect(() => {
+    if (!currentVideo || !isPlaying) return
+
+    // Show notification if permission is granted
+    if (notificationManager.hasPermission()) {
+      notificationManager.showNowPlayingNotification(
+        currentVideo.title,
+        currentVideo.artist || currentVideo.channelTitle || "Unknown Artist",
+        currentVideo.thumbnail,
+        isPlaying,
+      )
+    }
+  }, [currentVideo, isPlaying])
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "MEDIA_ACTION") {
+        console.log("[v0] Received media action from service worker:", event.data.action)
+
+        switch (event.data.action) {
+          case "play":
+          case "pause":
+            togglePlay()
+            break
+          case "next":
+            playNext()
+            break
+          case "previous":
+            playPrevious()
+            break
+        }
+      }
+    }
+
+    navigator.serviceWorker.addEventListener("message", handleMessage)
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleMessage)
+    }
+  }, [])
 
   const togglePlay = () => {
     console.log("[v0] togglePlay called - current isPlaying:", isPlaying)

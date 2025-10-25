@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowLeft, Volume2 } from "lucide-react"
+import { ArrowLeft, Volume2, Music2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { Slider } from "@/components/ui/slider"
@@ -9,27 +9,34 @@ import { Switch } from "@/components/ui/switch"
 import { useState, useEffect } from "react"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { audioEqualizer, EQUALIZER_BANDS, EQUALIZER_PRESETS } from "@/lib/audio-equalizer"
 
 export default function PlayerSettingsPage() {
   const router = useRouter()
   const [equalizerEnabled, setEqualizerEnabled] = useState(false)
-  const [bass, setBass] = useState([0])
-  const [mid, setMid] = useState([0])
-  const [treble, setTreble] = useState([0])
+  const [gains, setGains] = useState<number[]>(Array(10).fill(0))
+  const [selectedPreset, setSelectedPreset] = useState("Flat")
   const [crossfade, setCrossfade] = useState(false)
   const [gapless, setGapless] = useState(true)
   const [normalizeVolume, setNormalizeVolume] = useState(false)
   const [audioQuality, setAudioQuality] = useState<"auto" | "high" | "low">("high")
   const [qualitySheetOpen, setQualitySheetOpen] = useState(false)
+  const [presetSheetOpen, setPresetSheetOpen] = useState(false)
 
   useEffect(() => {
+    // Load equalizer settings
+    const eqSettings = localStorage.getItem("equalizerSettings")
+    if (eqSettings) {
+      const parsed = JSON.parse(eqSettings)
+      setEqualizerEnabled(parsed.enabled ?? false)
+      setGains(parsed.gains ?? Array(10).fill(0))
+      setSelectedPreset(parsed.preset ?? "Flat")
+    }
+
+    // Load player settings
     const settings = localStorage.getItem("playerSettings")
     if (settings) {
       const parsed = JSON.parse(settings)
-      setEqualizerEnabled(parsed.equalizerEnabled ?? false)
-      setBass(parsed.bass ?? [0])
-      setMid(parsed.mid ?? [0])
-      setTreble(parsed.treble ?? [0])
       setCrossfade(parsed.crossfade ?? false)
       setGapless(parsed.gapless ?? true)
       setNormalizeVolume(parsed.normalizeVolume ?? false)
@@ -37,12 +44,19 @@ export default function PlayerSettingsPage() {
     }
   }, [])
 
-  const saveSettings = (updates: any) => {
+  const saveEqualizerSettings = (updates: any) => {
     const current = {
-      equalizerEnabled,
-      bass,
-      mid,
-      treble,
+      enabled: equalizerEnabled,
+      gains,
+      preset: selectedPreset,
+      ...updates,
+    }
+    localStorage.setItem("equalizerSettings", JSON.stringify(current))
+    console.log("[v0] Equalizer settings saved:", current)
+  }
+
+  const savePlayerSettings = (updates: any) => {
+    const current = {
       crossfade,
       gapless,
       normalizeVolume,
@@ -51,6 +65,57 @@ export default function PlayerSettingsPage() {
     }
     localStorage.setItem("playerSettings", JSON.stringify(current))
     console.log("[v0] Player settings saved:", current)
+  }
+
+  const handleEqualizerToggle = (checked: boolean) => {
+    setEqualizerEnabled(checked)
+    audioEqualizer.setEnabled(checked)
+    if (!checked) {
+      audioEqualizer.reset()
+    } else {
+      audioEqualizer.setAllGains(gains)
+    }
+    saveEqualizerSettings({ enabled: checked })
+  }
+
+  const handleGainChange = (index: number, value: number[]) => {
+    const newGains = [...gains]
+    newGains[index] = value[0]
+    setGains(newGains)
+    setSelectedPreset("Custom")
+
+    if (equalizerEnabled) {
+      audioEqualizer.setGain(index, value[0])
+    }
+
+    saveEqualizerSettings({ gains: newGains, preset: "Custom" })
+  }
+
+  const handlePresetSelect = (presetName: string) => {
+    const preset = EQUALIZER_PRESETS.find((p) => p.name === presetName)
+    if (preset) {
+      setGains(preset.gains)
+      setSelectedPreset(preset.name)
+
+      if (equalizerEnabled) {
+        audioEqualizer.setAllGains(preset.gains)
+      }
+
+      saveEqualizerSettings({ gains: preset.gains, preset: preset.name })
+      setPresetSheetOpen(false)
+    }
+  }
+
+  const handleReset = () => {
+    const flatGains = Array(10).fill(0)
+    setGains(flatGains)
+    setSelectedPreset("Flat")
+
+    if (equalizerEnabled) {
+      audioEqualizer.setAllGains(flatGains)
+    }
+
+    saveEqualizerSettings({ gains: flatGains, preset: "Flat" })
   }
 
   const getQualityLabel = (quality: string) => {
@@ -98,93 +163,54 @@ export default function PlayerSettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Equalizer</h2>
-              <p className="text-sm text-muted-foreground">Adjust audio frequencies</p>
+              <p className="text-sm text-muted-foreground">10-band graphic equalizer</p>
             </div>
-            <Switch
-              checked={equalizerEnabled}
-              onCheckedChange={(checked) => {
-                setEqualizerEnabled(checked)
-                saveSettings({ equalizerEnabled: checked })
-              }}
-            />
+            <Switch checked={equalizerEnabled} onCheckedChange={handleEqualizerToggle} />
           </div>
 
           {equalizerEnabled && (
             <div className="bg-card rounded-2xl p-6 space-y-6">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Bass</Label>
-                  <span className="text-sm text-muted-foreground">
-                    {bass[0] > 0 ? "+" : ""}
-                    {bass[0]} dB
-                  </span>
-                </div>
-                <Slider
-                  value={bass}
-                  onValueChange={(value) => {
-                    setBass(value)
-                    saveSettings({ bass: value })
-                  }}
-                  min={-12}
-                  max={12}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Mid</Label>
-                  <span className="text-sm text-muted-foreground">
-                    {mid[0] > 0 ? "+" : ""}
-                    {mid[0]} dB
-                  </span>
-                </div>
-                <Slider
-                  value={mid}
-                  onValueChange={(value) => {
-                    setMid(value)
-                    saveSettings({ mid: value })
-                  }}
-                  min={-12}
-                  max={12}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Treble</Label>
-                  <span className="text-sm text-muted-foreground">
-                    {treble[0] > 0 ? "+" : ""}
-                    {treble[0]} dB
-                  </span>
-                </div>
-                <Slider
-                  value={treble}
-                  onValueChange={(value) => {
-                    setTreble(value)
-                    saveSettings({ treble: value })
-                  }}
-                  min={-12}
-                  max={12}
-                  step={1}
-                  className="w-full"
-                />
-              </div>
-
-              <Button
-                variant="outline"
-                className="w-full bg-transparent"
-                onClick={() => {
-                  setBass([0])
-                  setMid([0])
-                  setTreble([0])
-                  saveSettings({ bass: [0], mid: [0], treble: [0] })
-                }}
+              {/* Preset Selector */}
+              <button
+                onClick={() => setPresetSheetOpen(true)}
+                className="w-full bg-accent/50 rounded-xl p-4 text-left hover:bg-accent/70 transition-colors"
               >
-                Reset to default
+                <div className="flex items-center gap-3">
+                  <Music2 className="w-5 h-5 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium">{selectedPreset}</p>
+                    <p className="text-sm text-muted-foreground">Tap to change preset</p>
+                  </div>
+                </div>
+              </button>
+
+              {/* 10-Band Equalizer */}
+              <div className="space-y-4">
+                {EQUALIZER_BANDS.map((band, index) => (
+                  <div key={index} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">
+                        {band.frequency >= 1000 ? `${band.frequency / 1000}kHz` : `${band.frequency}Hz`}
+                      </Label>
+                      <span className="text-xs text-muted-foreground">
+                        {gains[index] > 0 ? "+" : ""}
+                        {gains[index]} dB
+                      </span>
+                    </div>
+                    <Slider
+                      value={[gains[index]]}
+                      onValueChange={(value) => handleGainChange(index, value)}
+                      min={-12}
+                      max={12}
+                      step={1}
+                      className="w-full"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <Button variant="outline" className="w-full bg-transparent" onClick={handleReset}>
+                Reset to flat
               </Button>
             </div>
           )}
@@ -204,7 +230,7 @@ export default function PlayerSettingsPage() {
                 checked={crossfade}
                 onCheckedChange={(checked) => {
                   setCrossfade(checked)
-                  saveSettings({ crossfade: checked })
+                  savePlayerSettings({ crossfade: checked })
                 }}
               />
             </div>
@@ -218,7 +244,7 @@ export default function PlayerSettingsPage() {
                 checked={gapless}
                 onCheckedChange={(checked) => {
                   setGapless(checked)
-                  saveSettings({ gapless: checked })
+                  savePlayerSettings({ gapless: checked })
                 }}
               />
             </div>
@@ -232,7 +258,7 @@ export default function PlayerSettingsPage() {
                 checked={normalizeVolume}
                 onCheckedChange={(checked) => {
                   setNormalizeVolume(checked)
-                  saveSettings({ normalizeVolume: checked })
+                  savePlayerSettings({ normalizeVolume: checked })
                 }}
               />
             </div>
@@ -257,6 +283,30 @@ export default function PlayerSettingsPage() {
         </div>
       </div>
 
+      {/* Preset Selection Sheet */}
+      <Sheet open={presetSheetOpen} onOpenChange={setPresetSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl">
+          <div className="py-4">
+            <h3 className="text-lg font-semibold mb-4">Equalizer Presets</h3>
+            <div className="space-y-2">
+              {EQUALIZER_PRESETS.map((preset) => (
+                <button
+                  key={preset.name}
+                  onClick={() => handlePresetSelect(preset.name)}
+                  className={`w-full p-4 rounded-xl text-left transition-colors ${
+                    selectedPreset === preset.name
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-accent/50 hover:bg-accent"
+                  }`}
+                >
+                  <p className="font-medium">{preset.name}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* Audio Quality Selection Sheet */}
       <Sheet open={qualitySheetOpen} onOpenChange={setQualitySheetOpen}>
         <SheetContent side="bottom" className="rounded-t-3xl">
@@ -265,7 +315,7 @@ export default function PlayerSettingsPage() {
               value={audioQuality}
               onValueChange={(value: "auto" | "high" | "low") => {
                 setAudioQuality(value)
-                saveSettings({ audioQuality: value })
+                savePlayerSettings({ audioQuality: value })
                 setQualitySheetOpen(false)
               }}
               className="space-y-4"

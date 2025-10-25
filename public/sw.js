@@ -234,18 +234,69 @@ async function syncQueue() {
 }
 
 self.addEventListener("notificationclick", (event) => {
-  console.log("[SW] Notification clicked")
+  console.log("[SW] Notification clicked, action:", event.action)
   event.notification.close()
 
+  // Handle notification actions
+  if (event.action === "play" || event.action === "pause") {
+    event.waitUntil(
+      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes("/dashboard")) {
+            client.postMessage({
+              type: "MEDIA_ACTION",
+              action: event.action,
+            })
+            return client.focus()
+          }
+        }
+      }),
+    )
+    return
+  }
+
+  if (event.action === "next") {
+    event.waitUntil(
+      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes("/dashboard")) {
+            client.postMessage({
+              type: "MEDIA_ACTION",
+              action: "next",
+            })
+            return client.focus()
+          }
+        }
+      }),
+    )
+    return
+  }
+
+  if (event.action === "previous") {
+    event.waitUntil(
+      clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          if (client.url.includes("/dashboard")) {
+            client.postMessage({
+              type: "MEDIA_ACTION",
+              action: "previous",
+            })
+            return client.focus()
+          }
+        }
+      }),
+    )
+    return
+  }
+
+  // Default action - open now playing
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // Focus existing window if available
       for (const client of clientList) {
         if (client.url.includes("/dashboard") && "focus" in client) {
           return client.focus()
         }
       }
-      // Open new window if no existing window
       if (clients.openWindow) {
         return clients.openWindow("/dashboard/now-playing")
       }
