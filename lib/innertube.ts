@@ -309,6 +309,9 @@ export async function searchMusic(query: string, continuation?: string) {
 
 export async function getArtistData(browseId: string) {
   try {
+    console.log("[v0] ===== FETCHING ARTIST DATA =====")
+    console.log("[v0] Browse ID:", browseId)
+
     const data = await makeInnerTubeRequest("browse", {
       browseId,
     })
@@ -324,6 +327,10 @@ export async function getArtistData(browseId: string) {
     const subscribers = header?.subscriptionButton?.subscribeButtonRenderer?.subscriberCountText?.runs?.[0]?.text || ""
     const description = header?.description?.runs?.[0]?.text || ""
 
+    console.log("[v0] Artist:", artistName)
+    console.log("[v0] Subscribers:", subscribers)
+    console.log("[v0] Total sections found:", contents.length)
+
     const topSongs: any[] = []
     const videos: any[] = []
     const albums: any[] = []
@@ -333,15 +340,28 @@ export async function getArtistData(browseId: string) {
     const playlistsByArtist: any[] = []
     const relatedArtists: any[] = []
 
+    console.log("[v0] Section titles:")
+    for (const section of contents) {
+      const shelf = section.musicShelfRenderer || section.musicCarouselShelfRenderer
+      if (shelf) {
+        const title = shelf.title?.runs?.[0]?.text || ""
+        console.log(`[v0]   - "${title}"`)
+      }
+    }
+
     for (const section of contents) {
       const shelf = section.musicShelfRenderer || section.musicCarouselShelfRenderer
 
       if (!shelf) continue
 
       const title = shelf.title?.runs?.[0]?.text || ""
+      const titleLower = title.toLowerCase()
 
-      if (title.toLowerCase().includes("song") || title.toLowerCase().includes("track")) {
+      console.log(`[v0] Processing section: "${title}"`)
+
+      if (titleLower.includes("song") || titleLower.includes("track") || titleLower.includes("top")) {
         const items = shelf.contents || []
+        console.log(`[v0]   -> Detected as TOP SONGS (${items.length} items)`)
         for (const item of items) {
           const videoInfo = extractVideoInfo(item)
           if (videoInfo) {
@@ -353,8 +373,9 @@ export async function getArtistData(browseId: string) {
         }
       }
 
-      if (title.toLowerCase().includes("live") || title.toLowerCase().includes("performance")) {
+      if (titleLower.includes("live") || titleLower.includes("performance")) {
         const items = shelf.contents || []
+        console.log(`[v0]   -> Detected as LIVE PERFORMANCES (${items.length} items)`)
         for (const item of items) {
           const renderer = item.musicTwoRowItemRenderer
           if (renderer) {
@@ -376,8 +397,9 @@ export async function getArtistData(browseId: string) {
         }
       }
 
-      if (title.toLowerCase().includes("video") || title.toLowerCase().includes("music video")) {
+      if (titleLower.includes("video") || titleLower.includes("music video")) {
         const items = shelf.contents || []
+        console.log(`[v0]   -> Detected as VIDEOS (${items.length} items)`)
         for (const item of items) {
           const renderer = item.musicTwoRowItemRenderer
           if (renderer) {
@@ -399,8 +421,9 @@ export async function getArtistData(browseId: string) {
         }
       }
 
-      if (title.toLowerCase().includes("album")) {
+      if (titleLower.includes("album") && !titleLower.includes("single") && !titleLower.includes("ep")) {
         const items = shelf.contents || []
+        console.log(`[v0]   -> Detected as ALBUMS (${items.length} items)`)
         for (const item of items) {
           const renderer = item.musicTwoRowItemRenderer
           if (renderer) {
@@ -422,8 +445,9 @@ export async function getArtistData(browseId: string) {
         }
       }
 
-      if (title.toLowerCase().includes("single") || title.toLowerCase().includes("ep")) {
+      if (titleLower.includes("single") || titleLower.includes("ep")) {
         const items = shelf.contents || []
+        console.log(`[v0]   -> Detected as SINGLES & EPs (${items.length} items)`)
         for (const item of items) {
           const renderer = item.musicTwoRowItemRenderer
           if (renderer) {
@@ -445,8 +469,9 @@ export async function getArtistData(browseId: string) {
         }
       }
 
-      if (title.toLowerCase().includes("featured") || title.toLowerCase().includes("appears on")) {
+      if (titleLower.includes("featured") || titleLower.includes("appears on")) {
         const items = shelf.contents || []
+        console.log(`[v0]   -> Detected as FEATURED ON (${items.length} items)`)
         for (const item of items) {
           const renderer = item.musicTwoRowItemRenderer
           if (renderer) {
@@ -468,8 +493,9 @@ export async function getArtistData(browseId: string) {
         }
       }
 
-      if (title.toLowerCase().includes("playlist") && !title.toLowerCase().includes("featured")) {
+      if (titleLower.includes("playlist") && !titleLower.includes("featured")) {
         const items = shelf.contents || []
+        console.log(`[v0]   -> Detected as PLAYLISTS BY ARTIST (${items.length} items)`)
         for (const item of items) {
           const renderer = item.musicTwoRowItemRenderer
           if (renderer) {
@@ -492,11 +518,13 @@ export async function getArtistData(browseId: string) {
       }
 
       if (
-        title.toLowerCase().includes("fans") ||
-        title.toLowerCase().includes("similar") ||
-        title.toLowerCase().includes("related")
+        titleLower.includes("fans") ||
+        titleLower.includes("similar") ||
+        titleLower.includes("related") ||
+        titleLower.includes("might also like")
       ) {
         const items = shelf.contents || []
+        console.log(`[v0]   -> Detected as RELATED ARTISTS (${items.length} items)`)
         for (const item of items) {
           const renderer = item.musicTwoRowItemRenderer
           if (renderer) {
@@ -518,6 +546,16 @@ export async function getArtistData(browseId: string) {
         }
       }
     }
+
+    console.log("[v0] ===== ARTIST DATA SUMMARY =====")
+    console.log(`[v0] Top songs: ${topSongs.length}`)
+    console.log(`[v0] Albums: ${albums.length}`)
+    console.log(`[v0] Singles & EPs: ${singles.length}`)
+    console.log(`[v0] Videos: ${videos.length}`)
+    console.log(`[v0] Live performances: ${livePerformances.length}`)
+    console.log(`[v0] Featured on: ${featuredOn.length}`)
+    console.log(`[v0] Playlists by artist: ${playlistsByArtist.length}`)
+    console.log(`[v0] Related artists: ${relatedArtists.length}`)
 
     return {
       id: browseId,
