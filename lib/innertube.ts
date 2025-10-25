@@ -142,14 +142,19 @@ export async function searchMusic(query: string, continuation?: string) {
         const title = cardRenderer.title?.runs?.[0]?.text
         const subtitle = cardRenderer.subtitle?.runs?.[0]?.text
         const browseId = cardRenderer.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseId
+        const pageType =
+          cardRenderer.title?.runs?.[0]?.navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs
+            ?.browseEndpointContextMusicConfig?.pageType
+
         let thumbnail = cardRenderer.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
 
         if (thumbnail && thumbnail.startsWith("//")) {
           thumbnail = `https:${thumbnail}`
         }
 
-        if (browseId && title) {
+        if (pageType === "MUSIC_PAGE_TYPE_ARTIST" && browseId && title) {
           console.log(`[v0] ✓ ARTIST FOUND in musicCardShelfRenderer: "${title}" (${browseId})`)
+          console.log(`[v0]   pageType: ${pageType}`)
           artistResult = {
             id: browseId,
             title: title,
@@ -174,7 +179,12 @@ export async function searchMusic(query: string, continuation?: string) {
         const navigationEndpoint =
           renderer.navigationEndpoint ||
           renderer.flexColumns?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.navigationEndpoint
+
         const browseId = navigationEndpoint?.browseEndpoint?.browseId
+        const pageType =
+          navigationEndpoint?.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig
+            ?.pageType
+
         const videoId =
           renderer.playlistItemData?.videoId ||
           renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
@@ -189,38 +199,25 @@ export async function searchMusic(query: string, continuation?: string) {
           thumbnail = `https:${thumbnail}`
         }
 
-        if (!artistResult && browseId && title && !videoId) {
-          // Has browseId but NO videoId = likely an artist/channel
-          const isArtistBrowseId = browseId.startsWith("UC") || browseId.startsWith("MPLA")
-          const hasArtistIndicators =
-            secondColumn.toLowerCase().includes("subscriber") ||
-            secondColumn.toLowerCase().includes("artist") ||
-            secondColumn.toLowerCase().includes("million") ||
-            secondColumn.toLowerCase().includes("monthly") ||
-            secondColumn.toLowerCase().includes("audience")
+        if (!artistResult && pageType === "MUSIC_PAGE_TYPE_ARTIST" && browseId && title) {
+          console.log(`[v0] ✓ ARTIST DETECTED: "${title}" (${browseId})`)
+          console.log(`[v0]   pageType: ${pageType}`)
+          console.log(`[v0]   Subtitle: "${secondColumn}"`)
 
-          const lacksVideoSeparator = !secondColumn.includes("•")
-
-          if (isArtistBrowseId && (hasArtistIndicators || lacksVideoSeparator)) {
-            console.log(`[v0] ✓ ARTIST DETECTED: "${title}" (${browseId})`)
-            console.log(`[v0]   Subtitle: "${secondColumn}"`)
-            console.log(`[v0]   Has artist indicators: ${hasArtistIndicators}`)
-            console.log(`[v0]   Lacks video separator: ${lacksVideoSeparator}`)
-
-            artistResult = {
-              id: browseId,
-              title: title,
-              artist: title,
-              thumbnail: thumbnail || "/placeholder.svg",
-              duration: "",
-              browseId: browseId,
-              type: "artist",
-              subscribers: secondColumn,
-            }
-            continue
+          artistResult = {
+            id: browseId,
+            title: title,
+            artist: title,
+            thumbnail: thumbnail || "/placeholder.svg",
+            duration: "",
+            browseId: browseId,
+            type: "artist",
+            subscribers: secondColumn,
           }
+          continue
         }
 
+        // Process songs/videos (items with videoId)
         if (videoId) {
           const videoInfo = extractVideoInfo(item)
           if (videoInfo) {
