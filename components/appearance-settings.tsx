@@ -17,7 +17,7 @@ export function AppearanceSettings() {
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
   const [hasCustomPicture, setHasCustomPicture] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { data: session, update } = useSession()
+  const { data: session } = useSession()
 
   useEffect(() => {
     const settings = themeStorage.getSettings()
