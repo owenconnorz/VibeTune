@@ -13,56 +13,58 @@ import { useSession } from "next-auth/react"
 
 export function AppearanceSettings() {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const [dynamicTheme, setDynamicTheme] = useState(false)
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
   const [hasCustomPicture, setHasCustomPicture] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
   const { data: session } = useSession()
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
     try {
       const settings = themeStorage.getSettings()
       setDynamicTheme(settings.dynamicThemeEnabled)
 
-      if (typeof window !== "undefined") {
-        const customPicture = localStorage.getItem("customProfilePicture")
-        if (customPicture) {
-          setProfilePicture(customPicture)
-          setHasCustomPicture(true)
-        } else if (session?.user?.image) {
-          setProfilePicture(session.user.image)
-          setHasCustomPicture(false)
-        }
+      const customPicture = localStorage.getItem("customProfilePicture")
+      if (customPicture) {
+        setProfilePicture(customPicture)
+        setHasCustomPicture(true)
+      } else if (session?.user?.image) {
+        setProfilePicture(session.user.image)
+        setHasCustomPicture(false)
       }
     } catch (error) {
       console.error("[v0] Error loading appearance settings:", error)
     }
-  }, [session])
+  }, [mounted, session])
 
   const handleToggleDynamicTheme = () => {
     try {
       const newValue = themeStorage.toggleDynamicTheme()
       setDynamicTheme(newValue)
-
-      // Trigger a custom event to notify other components
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("themeSettingsChanged"))
-      }
+      window.dispatchEvent(new CustomEvent("themeSettingsChanged"))
     } catch (error) {
       console.error("[v0] Error toggling dynamic theme:", error)
     }
   }
 
   const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      // Check file size (max 5MB)
+    const file = event.target?.[0]
+    if (!file) return
+
+    try {
       if (file.size > 5 * 1024 * 1024) {
         alert("File size must be less than 5MB")
         return
       }
 
-      // Check file type
       if (!file.type.startsWith("image/")) {
         alert("Please select an image file")
         return
@@ -74,35 +76,52 @@ export function AppearanceSettings() {
           const base64String = reader.result as string
           setProfilePicture(base64String)
           setHasCustomPicture(true)
-
-          if (typeof window !== "undefined") {
-            localStorage.setItem("customProfilePicture", base64String)
-            // Trigger event to update profile picture across the app
-            window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: base64String }))
-          }
+          localStorage.setItem("customProfilePicture", base64String)
+          window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: base64String }))
         } catch (error) {
           console.error("[v0] Error saving profile picture:", error)
           alert("Failed to save profile picture. Please try again.")
         }
       }
+      reader.onerror = () => {
+        console.error("[v0] Error reading file")
+        alert("Failed to read file. Please try again.")
+      }
       reader.readAsDataURL(file)
+    } catch (error) {
+      console.error("[v0] Error handling profile picture change:", error)
     }
   }
 
   const handleRemoveProfilePicture = () => {
     try {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("customProfilePicture")
-      }
+      localStorage.removeItem("customProfilePicture")
       setProfilePicture(session?.user?.image || null)
       setHasCustomPicture(false)
-
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: session?.user?.image || null }))
-      }
+      window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: session?.user?.image || null }))
     } catch (error) {
       console.error("[v0] Error removing profile picture:", error)
     }
+  }
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="sticky top-0 bg-background z-30 border-b border-border/50">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => router.back()}>
+                <ArrowLeft className="w-6 h-6" />
+              </Button>
+              <h1 className="text-2xl font-bold">Appearance</h1>
+            </div>
+          </div>
+        </div>
+        <div className="container mx-auto px-4 py-6 flex items-center justify-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
   }
 
   const user = session?.user
