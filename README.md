@@ -1,8 +1,12 @@
 # VibeTune 
-## https://v0-open-tune-music-ajhgb7570-owencz1998s-projects.vercel.app/
-## Music with YT Music system sync needs fixing
-## Libre support
-## Search support needs fixing
-## Download support coming soon
-## Porn support via Eporner api
 
+# https://vibetune-music.vercel.app/
+
+Youtube api 
+Download support might need fixing.
+library support
+dynamic theme
+import to playlist from yt
+search suggestions
+history
+mood and genres
