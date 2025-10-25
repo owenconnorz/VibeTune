@@ -72,6 +72,10 @@ export function NowPlayingContent() {
   const [touchStart, setTouchStart] = useState(0)
   const [touchEnd, setTouchEnd] = useState(0)
   const [dragOffset, setDragOffset] = useState(0)
+  const [thumbnailTouchStartX, setThumbnailTouchStartX] = useState(0)
+  const [thumbnailTouchStartY, setThumbnailTouchStartY] = useState(0)
+  const [thumbnailDragX, setThumbnailDragX] = useState(0)
+  const [isSwiping, setIsSwiping] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [devicePickerOpen, setDevicePickerOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -136,6 +140,40 @@ export function NowPlayingContent() {
     setDevicePickerOpen(true)
   }
 
+  const handleThumbnailTouchStart = (e: React.TouchEvent) => {
+    setThumbnailTouchStartX(e.touches[0].clientX)
+    setThumbnailTouchStartY(e.touches[0].clientY)
+    setIsSwiping(true)
+  }
+
+  const handleThumbnailTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping) return
+
+    const currentX = e.touches[0].clientX
+    const currentY = e.touches[0].clientY
+    const diffX = currentX - thumbnailTouchStartX
+    const diffY = currentY - thumbnailTouchStartY
+
+    if (Math.abs(diffX) > Math.abs(diffY)) {
+      e.preventDefault()
+      const resistance = 0.6
+      setThumbnailDragX(diffX * resistance)
+    }
+  }
+
+  const handleThumbnailTouchEnd = () => {
+    const swipeThreshold = 80
+
+    if (thumbnailDragX > swipeThreshold) {
+      playPrevious()
+    } else if (thumbnailDragX < -swipeThreshold) {
+      playNext()
+    }
+
+    setThumbnailDragX(0)
+    setIsSwiping(false)
+  }
+
   if (!currentVideo) {
     router.push("/dashboard")
     return null
@@ -143,6 +181,7 @@ export function NowPlayingContent() {
 
   const dragProgress = Math.min(dragOffset / 200, 1)
   const contentOpacity = 1 - dragProgress * 0.5
+  const thumbnailOpacity = 1 - Math.abs(thumbnailDragX) / 300
 
   return (
     <>
@@ -177,7 +216,17 @@ export function NowPlayingContent() {
 
         <div className="flex-1 flex flex-col items-center px-6 py-2 min-h-0 overflow-y-auto">
           <div className="w-full max-w-sm flex flex-col gap-4 pb-safe">
-            <div className="relative w-full aspect-square rounded-3xl overflow-hidden shadow-2xl flex-shrink-0">
+            <div
+              className="relative w-full aspect-square rounded-3xl overflow-hidden shadow-2xl flex-shrink-0"
+              onTouchStart={handleThumbnailTouchStart}
+              onTouchMove={handleThumbnailTouchMove}
+              onTouchEnd={handleThumbnailTouchEnd}
+              style={{
+                transform: `translateX(${thumbnailDragX}px)`,
+                opacity: thumbnailOpacity,
+                transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease",
+              }}
+            >
               <Image
                 src={currentVideo.thumbnail || "/placeholder.svg"}
                 alt={currentVideo.title}
@@ -185,6 +234,15 @@ export function NowPlayingContent() {
                 className="object-cover"
                 priority
               />
+              {isSwiping && Math.abs(thumbnailDragX) > 20 && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                  {thumbnailDragX > 0 ? (
+                    <SkipBack className="w-16 h-16 text-white" />
+                  ) : (
+                    <SkipForward className="w-16 h-16 text-white" />
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-start justify-between gap-3">
