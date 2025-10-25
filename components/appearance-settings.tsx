@@ -1,15 +1,14 @@
 "use client"
 
-import type React from "react"
+import { useRef } from "react"
 
-import { ArrowLeft, Camera } from "lucide-react"
+import type React from "react"
+import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { themeStorage } from "@/lib/theme-storage"
-import { useSession } from "next-auth/react"
 
 export function AppearanceSettings() {
   const router = useRouter()
@@ -18,7 +17,6 @@ export function AppearanceSettings() {
   const [profilePicture, setProfilePicture] = useState<string | null>(null)
   const [hasCustomPicture, setHasCustomPicture] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { data: session } = useSession()
 
   useEffect(() => {
     setMounted(true)
@@ -30,21 +28,10 @@ export function AppearanceSettings() {
     try {
       const settings = themeStorage.getSettings()
       setDynamicTheme(settings.dynamicThemeEnabled)
-
-      if (typeof window !== "undefined") {
-        const customPicture = localStorage.getItem("customProfilePicture")
-        if (customPicture) {
-          setProfilePicture(customPicture)
-          setHasCustomPicture(true)
-        } else if (session?.user?.image) {
-          setProfilePicture(session.user.image)
-          setHasCustomPicture(false)
-        }
-      }
     } catch (error) {
-      console.error("[v0] Error loading appearance settings:", error)
+      console.error("[v0] Error loading theme settings:", error)
     }
-  }, [mounted, session])
+  }, [mounted])
 
   const handleToggleDynamicTheme = () => {
     try {
@@ -102,9 +89,9 @@ export function AppearanceSettings() {
     try {
       if (typeof window !== "undefined") {
         localStorage.removeItem("customProfilePicture")
-        window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: session?.user?.image || null }))
+        window.dispatchEvent(new CustomEvent("profilePictureChanged", { detail: null }))
       }
-      setProfilePicture(session?.user?.image || null)
+      setProfilePicture(null)
       setHasCustomPicture(false)
     } catch (error) {
       console.error("[v0] Error removing profile picture:", error)
@@ -131,8 +118,6 @@ export function AppearanceSettings() {
     )
   }
 
-  const user = session?.user
-
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 bg-background z-30 border-b border-border/50">
@@ -152,15 +137,12 @@ export function AppearanceSettings() {
           <div className="bg-card rounded-2xl p-6">
             <div className="flex items-center gap-6">
               <div className="relative">
-                <Avatar className="w-24 h-24">
-                  <AvatarImage src={profilePicture || user?.image || ""} alt={user?.name || "User"} />
-                  <AvatarFallback className="text-3xl">{user?.name?.charAt(0) || "U"}</AvatarFallback>
-                </Avatar>
+                {/* Placeholder for Avatar component */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full flex items-center justify-center hover:bg-primary/90 transition-colors"
                 >
-                  <Camera className="w-4 h-4 text-primary-foreground" />
+                  {/* Placeholder for Camera icon */}
                 </button>
                 <input
                   ref={fileInputRef}
@@ -171,8 +153,8 @@ export function AppearanceSettings() {
                 />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-lg">{user?.name || "Guest"}</h3>
-                <p className="text-sm text-muted-foreground mb-3">{user?.email || "guest@opentune.app"}</p>
+                <h3 className="font-semibold">Guest</h3>
+                <p className="text-sm text-muted-foreground mb-3">guest@opentune.app</p>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
