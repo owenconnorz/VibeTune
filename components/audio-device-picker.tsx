@@ -24,7 +24,7 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
   const [devices, setDevices] = useState<AudioDevice[]>([])
   const [selectedDevice, setSelectedDevice] = useState<string>("this-device")
   const [scanning, setScanning] = useState(false)
-  const [castAvailable, setCastAvailable] = useState(false)
+  const [castInitialized, setCastInitialized] = useState(false)
   const [castSession, setCastSession] = useState<any>(null)
 
   useEffect(() => {
@@ -77,6 +77,8 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
   const initializeCast = () => {
     if (typeof window === "undefined") return
 
+    console.log("[v0] Initializing Cast SDK...")
+
     const script = document.createElement("script")
     script.src = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"
     script.async = true
@@ -104,30 +106,46 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
               },
               (availability: string) => {
                 console.log("[v0] Cast receiver availability:", availability)
-                setCastAvailable(availability === "available")
               },
             )
 
             window.chrome.cast.initialize(
               apiConfig,
-              () => console.log("[v0] Cast initialized successfully"),
-              (error: any) => console.error("[v0] Cast initialization error:", error),
+              () => {
+                console.log("[v0] Cast initialized successfully")
+                setCastInitialized(true)
+              },
+              (error: any) => {
+                console.error("[v0] Cast initialization error:", error)
+                setCastInitialized(true)
+              },
             )
           } catch (error) {
             console.error("[v0] Cast setup error:", error)
+            setCastInitialized(true)
           }
         }
       }, 100)
 
-      setTimeout(() => clearInterval(checkCastApi), 5000)
+      setTimeout(() => {
+        clearInterval(checkCastApi)
+        if (!castInitialized) {
+          console.log("[v0] Cast API timeout, showing Cast button anyway")
+          setCastInitialized(true)
+        }
+      }, 3000)
     }
 
-    script.onerror = () => console.error("[v0] Failed to load Cast SDK")
+    script.onerror = () => {
+      console.error("[v0] Failed to load Cast SDK")
+      setCastInitialized(true)
+    }
   }
 
   const handleCastClick = () => {
     if (!window.chrome?.cast) {
       console.error("[v0] Cast SDK not available")
+      alert("Cast is not available. Please make sure you're using a supported browser (Chrome, Edge, or Opera).")
       return
     }
 
@@ -140,7 +158,11 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
         setSelectedDevice("cast-device")
       },
       (error: any) => {
-        console.log("[v0] Cast session request cancelled or failed:", error.code)
+        if (error.code !== "cancel") {
+          console.error("[v0] Cast session request failed:", error)
+        } else {
+          console.log("[v0] Cast session request cancelled by user")
+        }
       },
     )
   }
@@ -270,28 +292,28 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
           )}
 
           {/* Cast Devices */}
-          {castAvailable && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">CAST DEVICES</h3>
-              <div className="space-y-2">
-                {castSession ? (
-                  <button
-                    onClick={handleStopCast}
-                    className="w-full flex items-center gap-4 p-4 rounded-lg bg-primary/10 border-2 border-primary"
-                  >
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary text-primary-foreground">
-                      <Cast className="w-6 h-6" />
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">CAST TO WIFI DEVICES</h3>
+            <div className="space-y-2">
+              {castSession ? (
+                <button
+                  onClick={handleStopCast}
+                  className="w-full flex items-center gap-4 p-4 rounded-lg bg-primary/10 border-2 border-primary"
+                >
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary text-primary-foreground">
+                    <Cast className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="font-semibold">{castSession.receiver.friendlyName}</div>
+                    <div className="text-sm text-primary flex items-center gap-2">
+                      <Radio className="w-3 h-3 animate-pulse" />
+                      <span>Casting</span>
                     </div>
-                    <div className="flex-1 text-left">
-                      <div className="font-semibold">{castSession.receiver.friendlyName}</div>
-                      <div className="text-sm text-primary flex items-center gap-2">
-                        <Radio className="w-3 h-3 animate-pulse" />
-                        <span>Casting</span>
-                      </div>
-                    </div>
-                    <Check className="w-6 h-6 text-primary" />
-                  </button>
-                ) : (
+                  </div>
+                  <Check className="w-6 h-6 text-primary" />
+                </button>
+              ) : (
+                <>
                   <Button
                     onClick={handleCastClick}
                     variant="outline"
@@ -301,14 +323,22 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
                       <Cast className="w-6 h-6" />
                     </div>
                     <div className="flex-1 text-left">
-                      <div className="font-semibold">Cast to device</div>
-                      <div className="text-sm text-muted-foreground">Chromecast, Google Home, and more</div>
+                      <div className="font-semibold">Find Cast devices</div>
+                      <div className="text-sm text-muted-foreground">
+                        Click to discover Chromecast, Google Home, and smart TVs
+                      </div>
                     </div>
                   </Button>
-                )}
-              </div>
+                  <div className="bg-muted/30 rounded-lg p-3 text-xs text-muted-foreground">
+                    <p>
+                      <strong>Note:</strong> Your WiFi devices (Chromecast, Google Home, smart speakers) will appear
+                      when you click the button above. Make sure your devices are on the same WiFi network.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Local Devices */}
           {localDevices.length > 0 && (
@@ -327,17 +357,6 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
                   />
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Help Text */}
-          {!castAvailable && localDevices.length === 0 && (
-            <div className="bg-muted/50 rounded-lg p-6 text-center space-y-3">
-              <Speaker className="w-12 h-12 mx-auto text-muted-foreground/50" />
-              <h4 className="font-semibold">No additional devices found</h4>
-              <p className="text-sm text-muted-foreground">
-                Connect Bluetooth speakers, headphones, or Chromecast devices to see them here
-              </p>
             </div>
           )}
         </div>

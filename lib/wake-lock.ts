@@ -25,7 +25,13 @@ export async function requestWakeLock(): Promise<boolean> {
 
     return true
   } catch (error) {
-    console.error("[v0] Error requesting wake lock:", error)
+    // Wake lock may be blocked by permissions policy, iframe restrictions, or browser support
+    // This is a non-critical feature, so we gracefully degrade
+    if (error instanceof Error && error.message.includes("permissions policy")) {
+      console.log("[v0] Wake Lock blocked by permissions policy - feature unavailable")
+    } else {
+      console.log("[v0] Wake Lock unavailable:", error instanceof Error ? error.message : "Unknown error")
+    }
     return false
   }
 }

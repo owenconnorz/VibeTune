@@ -30,11 +30,41 @@ function isQuotaExceeded(error: any): boolean {
   return error?.message?.includes("quotaExceeded") || error?.status === 403
 }
 
+function isMusicTrack(title: string, channelTitle: string): boolean {
+  const titleLower = title.toLowerCase()
+  const channelLower = channelTitle.toLowerCase()
+
+  // Prioritize Topic channels (auto-generated music channels)
+  if (channelLower.includes(" - topic")) {
+    return true
+  }
+
+  // Exclude obvious music videos
+  const videoKeywords = [
+    "official video",
+    "music video",
+    "official music video",
+    "official mv",
+    "(official video)",
+    "[official video]",
+    "official hd video",
+    "official 4k video",
+  ]
+
+  for (const keyword of videoKeywords) {
+    if (titleLower.includes(keyword)) {
+      return false
+    }
+  }
+
+  return true
+}
+
 export async function getTrendingMusic(): Promise<YouTubeVideo[]> {
   try {
     const response = await fetch(
-      `${YOUTUBE_API_BASE}/videos?part=snippet,contentDetails&chart=mostPopular&videoCategoryId=10&maxResults=20&regionCode=US&key=${YOUTUBE_API_KEY}`,
-      { next: { revalidate: 3600 } }, // Cache for 1 hour
+      `${YOUTUBE_API_BASE}/videos?part=snippet,contentDetails&chart=mostPopular&videoCategoryId=10&maxResults=50&regionCode=US&key=${YOUTUBE_API_KEY}`,
+      { next: { revalidate: 3600 } },
     )
 
     if (!response.ok) {
@@ -47,7 +77,7 @@ export async function getTrendingMusic(): Promise<YouTubeVideo[]> {
     }
 
     const data = await response.json()
-    return data.items.map((item: any) => ({
+    const allVideos = data.items.map((item: any) => ({
       id: item.id,
       title: item.snippet.title,
       artist: item.snippet.channelTitle,
@@ -56,6 +86,13 @@ export async function getTrendingMusic(): Promise<YouTubeVideo[]> {
       channelTitle: item.snippet.channelTitle,
       channelId: item.snippet.channelId,
     }))
+
+    // Separate music tracks and music videos
+    const musicTracks = allVideos.filter((v: YouTubeVideo) => isMusicTrack(v.title, v.channelTitle))
+    const musicVideos = allVideos.filter((v: YouTubeVideo) => !isMusicTrack(v.title, v.channelTitle))
+
+    // Prioritize music tracks, then add music videos to fill up to 20 items
+    return [...musicTracks, ...musicVideos].slice(0, 20)
   } catch (error) {
     console.error("[v0] Error fetching trending music:", error)
     return []
@@ -69,7 +106,7 @@ export async function searchMusic(query: string, pageToken?: string): Promise<Yo
     url.searchParams.set("q", query)
     url.searchParams.set("type", "video")
     url.searchParams.set("videoCategoryId", "10")
-    url.searchParams.set("maxResults", "20")
+    url.searchParams.set("maxResults", "50")
     url.searchParams.set("key", YOUTUBE_API_KEY)
     if (pageToken) {
       url.searchParams.set("pageToken", pageToken)
@@ -125,8 +162,14 @@ export async function searchMusic(query: string, pageToken?: string): Promise<Yo
       }
     }
 
+    const musicTracks = videosWithDuration.filter((v) => isMusicTrack(v.title, v.channelTitle))
+    const musicVideos = videosWithDuration.filter((v) => !isMusicTrack(v.title, v.channelTitle))
+
+    // Return music tracks first, then music videos, limited to 20 items
+    const filteredVideos = [...musicTracks, ...musicVideos].slice(0, 20)
+
     return {
-      videos: videosWithDuration,
+      videos: filteredVideos,
       continuation: data.nextPageToken,
     }
   } catch (error) {
