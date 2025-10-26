@@ -9,6 +9,9 @@ import { getTopArtists, generatePersonalizedPlaylistName } from "@/lib/recommend
 import { ProgressiveImage } from "@/components/progressive-image"
 import type { YouTubeVideo } from "@/lib/innertube"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useScrollDirection } from "@/hooks/use-scroll-direction"
+import { BottomNav } from "@/components/bottom-nav"
+import { MiniPlayer } from "@/components/mini-player"
 
 export default function DiscoverPage() {
   const { playVideo } = useMusicPlayer()
@@ -16,6 +19,16 @@ export default function DiscoverPage() {
   const [loading, setLoading] = useState(true)
   const [playlistName, setPlaylistName] = useState("")
   const [topArtists, setTopArtists] = useState<string[]>([])
+  const scrollDirection = useScrollDirection()
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+
+  useEffect(() => {
+    if (scrollDirection === "down") {
+      setIsHeaderVisible(false)
+    } else if (scrollDirection === "up") {
+      setIsHeaderVisible(true)
+    }
+  }, [scrollDirection])
 
   useEffect(() => {
     const loadRecommendations = async () => {
@@ -54,8 +67,12 @@ export default function DiscoverPage() {
   }
 
   return (
-    <div className="min-h-screen pb-32">
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
+    <div className="min-h-screen pb-40">
+      <div
+        className={`fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border transition-transform duration-300 ${
+          isHeaderVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
@@ -68,6 +85,7 @@ export default function DiscoverPage() {
           </div>
         </div>
       </div>
+      <div className="h-[88px]" />
 
       <div className="container mx-auto px-4 py-6 space-y-8">
         {/* Personalized Mix */}
@@ -186,6 +204,8 @@ export default function DiscoverPage() {
           </div>
         </section>
       </div>
+      <MiniPlayer />
+      <BottomNav />
     </div>
   )
 }

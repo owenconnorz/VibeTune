@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ProfileMenu } from "@/components/profile-menu"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
+import { useScrollDirection } from "@/hooks/use-scroll-direction"
 
 interface TopHeaderProps {
   title: string
@@ -15,12 +16,22 @@ interface TopHeaderProps {
 export function TopHeader({ title }: TopHeaderProps) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [customProfilePicture, setCustomProfilePicture] = useState<string | null>(null)
+  const scrollDirection = useScrollDirection()
+  const [isVisible, setIsVisible] = useState(true)
 
   const sessionResult = useSession()
   const session = sessionResult?.data ?? null
   const status = sessionResult?.status ?? "unauthenticated"
 
   const user = session?.user
+
+  useEffect(() => {
+    if (scrollDirection === "down") {
+      setIsVisible(false)
+    } else if (scrollDirection === "up") {
+      setIsVisible(true)
+    }
+  }, [scrollDirection])
 
   useEffect(() => {
     const loadCustomPicture = () => {
@@ -45,7 +56,11 @@ export function TopHeader({ title }: TopHeaderProps) {
 
   return (
     <>
-      <header className="sticky top-0 bg-background z-30 border-b border-border/50">
+      <header
+        className={`fixed top-0 left-0 right-0 bg-background z-40 border-b border-border/50 transition-transform duration-300 ${
+          isVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-3xl font-bold">{title}</h1>
@@ -68,6 +83,7 @@ export function TopHeader({ title }: TopHeaderProps) {
           </div>
         </div>
       </header>
+      <div className="h-[72px]" />
       <ProfileMenu user={user} isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
     </>
   )

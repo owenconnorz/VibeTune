@@ -158,15 +158,15 @@ export function MiniPlayer() {
   return (
     <>
       <div
-        className={`fixed left-0 right-0 bg-card border-t border-border z-30 touch-none ${
-          isPlaylistPage ? `bottom-0 ${isVisible ? "translate-y-0" : "translate-y-full"}` : "bottom-20"
+        className={`fixed left-0 right-0 bg-card border-t border-border z-30 touch-none bottom-20 ${
+          isVisible ? "translate-y-0" : "translate-y-full"
         }`}
         style={{
           transform: isDragging
             ? `translate(${dragOffset.x}px, -${dragOffset.y}px) scale(${scale})`
-            : isPlaylistPage && !isVisible
-              ? "translateY(100%)"
-              : "translateY(0)",
+            : isVisible
+              ? "translateY(0)"
+              : "translateY(100%)",
           opacity: isDragging ? miniPlayerOpacity : 1,
           transition: isDragging ? "none" : "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
           transformOrigin: "center bottom",

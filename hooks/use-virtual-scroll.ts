@@ -17,8 +17,18 @@ export function useVirtualScroll({ itemHeight, containerHeight, items, overscan 
   const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan)
   const endIndex = Math.min(items.length - 1, Math.ceil((scrollTop + containerHeight) / itemHeight) + overscan)
 
-  const visibleItems = items.slice(startIndex, endIndex + 1)
-  const offsetY = startIndex * itemHeight
+  const visibleItems = items.slice(startIndex, endIndex + 1).map((item, i) => ({
+    item,
+    index: startIndex + i,
+    style: {
+      position: "absolute" as const,
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: `${itemHeight}px`,
+      transform: `translateY(${(startIndex + i) * itemHeight}px)`,
+    },
+  }))
 
   const handleScroll = useCallback((e: Event) => {
     const target = e.target as HTMLDivElement
@@ -37,7 +47,5 @@ export function useVirtualScroll({ itemHeight, containerHeight, items, overscan 
     containerRef,
     visibleItems,
     totalHeight,
-    offsetY,
-    startIndex,
   }
 }

@@ -5,7 +5,7 @@ import { SearchContent } from "@/components/search-content"
 
 export default async function SearchPage() {
   return (
-    <div className="min-h-screen bg-background pb-40">
+    <div className="min-h-screen bg-background pb-40 pt-0">
       <TopHeader title="Search" />
       <main>
         <SearchContent />
