@@ -23,17 +23,24 @@ const FALLBACK_DATA = {
 
 export async function GET() {
   try {
-    console.log("[v0] Home API: Starting YouTube Music home feed request")
+    console.log("[v0] ===== HOME API REQUEST =====")
+    console.log("[v0] Fetching YouTube Music home feed...")
 
-    const homeFeed = await getMusicHomeFeed().catch((error) => {
-      console.error("[v0] Home feed error:", error)
-      return { sections: [] }
-    })
+    let homeFeed
+    try {
+      homeFeed = await getMusicHomeFeed()
+    } catch (innerError: any) {
+      console.error("[v0] getMusicHomeFeed threw error:", innerError?.message)
+      console.error("[v0] Stack:", innerError?.stack)
+      homeFeed = { sections: [] }
+    }
 
-    const sections = homeFeed.sections || []
+    const sections = homeFeed?.sections || []
+
+    console.log("[v0] Home feed returned", sections.length, "sections")
 
     if (sections.length === 0) {
-      console.log("[v0] Home API: No sections returned, using fallback")
+      console.log("[v0] No sections returned, using fallback data")
       return NextResponse.json(FALLBACK_DATA, {
         status: 200,
         headers: {
@@ -42,8 +49,12 @@ export async function GET() {
       })
     }
 
-    console.log("[v0] Home API: Successfully fetched", sections.length, "sections")
-    console.log("[v0] Home API: Section titles:", sections.map((s) => s.title).join(", "))
+    console.log("[v0] ===== HOME API SUCCESS =====")
+    console.log("[v0] Sections:", sections.map((s: any) => s.title).join(", "))
+    console.log(
+      "[v0] Total items:",
+      sections.reduce((sum: number, s: any) => sum + (s.items?.length || 0), 0),
+    )
 
     return NextResponse.json(
       { sections },
@@ -55,8 +66,9 @@ export async function GET() {
       },
     )
   } catch (error: any) {
-    console.error("[v0] Home API error:", error?.message || "Unknown error")
-    console.error("[v0] Home API stack:", error?.stack || "No stack trace")
+    console.error("[v0] ===== HOME API ERROR =====")
+    console.error("[v0] Error:", error?.message || "Unknown error")
+    console.error("[v0] Stack:", error?.stack || "No stack trace")
 
     return NextResponse.json(FALLBACK_DATA, {
       status: 200,

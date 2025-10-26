@@ -4,14 +4,24 @@ import { cache } from "@/lib/cache"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id } = params
+    let { id } = params
 
     if (!id) {
       return NextResponse.json({ error: "Playlist ID is required" }, { status: 400 })
     }
 
     console.log("[v0] ===== PLAYLIST API REQUEST =====")
-    console.log("[v0] Requested playlist ID:", id)
+    console.log("[v0] Original ID:", id)
+
+    if (id.startsWith("VL")) {
+      id = id.substring(2)
+      console.log("[v0] Stripped VL prefix, new ID:", id)
+    }
+
+    if (id.startsWith("MPRE")) {
+      console.log("[v0] Album browse ID detected, not a playlist")
+      return NextResponse.json({ error: "Albums are not supported yet" }, { status: 400 })
+    }
 
     const cacheKey = `playlist_${id}`
     const cachedPlaylist = cache.get(cacheKey)
@@ -39,9 +49,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     console.log("[v0] Cached for future requests")
 
     return NextResponse.json(playlist)
-  } catch (error) {
+  } catch (error: any) {
     console.error("[v0] ===== PLAYLIST API ERROR =====")
-    console.error("[v0] Error:", error)
+    console.error("[v0] Error:", error?.message)
+    console.error("[v0] Stack:", error?.stack)
     return NextResponse.json({ error: "Failed to fetch playlist" }, { status: 500 })
   }
 }
