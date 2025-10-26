@@ -633,6 +633,145 @@ export async function getCharts() {
   }
 }
 
+export async function getNewReleases() {
+  try {
+    console.log("[v0] Fetching new releases from YouTube Music")
+
+    const data = await makeInnerTubeRequest("browse", {
+      browseId: "FEmusic_new_releases",
+    })
+
+    const contents =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+        ?.contents || []
+
+    const items: any[] = []
+
+    for (const section of contents) {
+      const shelf = section.musicCarouselShelfRenderer || section.musicShelfRenderer
+      if (!shelf) continue
+
+      const shelfContents = shelf.contents || []
+      for (const item of shelfContents) {
+        try {
+          const twoRowRenderer = item.musicTwoRowItemRenderer
+          if (twoRowRenderer) {
+            const navigationEndpoint = twoRowRenderer.navigationEndpoint
+            const itemTitle = twoRowRenderer.title?.runs?.[0]?.text
+            const subtitle = twoRowRenderer.subtitle?.runs?.[0]?.text || ""
+            const thumbnail =
+              twoRowRenderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+            let itemType = "album"
+            let itemId = ""
+
+            if (navigationEndpoint?.browseEndpoint) {
+              itemId = navigationEndpoint.browseEndpoint.browseId
+              if (itemId.startsWith("MPRE")) {
+                itemType = "album"
+              } else if (itemId.startsWith("VL")) {
+                itemType = "playlist"
+              }
+            }
+
+            if (itemId && itemTitle) {
+              items.push({
+                id: itemId,
+                title: itemTitle,
+                artist: subtitle,
+                thumbnail: thumbnail || "/placeholder.svg",
+                type: itemType,
+                aspectRatio: "square",
+                duration: "",
+              })
+            }
+          }
+        } catch {
+          continue
+        }
+      }
+    }
+
+    console.log(`[v0] Found ${items.length} new releases`)
+    return items
+  } catch (error) {
+    console.error("[v0] New releases error:", error)
+    return []
+  }
+}
+
+export async function getMusicVideos() {
+  try {
+    console.log("[v0] Fetching music videos from YouTube Music")
+
+    const data = await makeInnerTubeRequest("browse", {
+      browseId: "FEmusic_home",
+    })
+
+    const contents =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+        ?.contents || []
+
+    const items: any[] = []
+
+    // Look for video sections in the home feed
+    for (const section of contents) {
+      const shelf = section.musicCarouselShelfRenderer || section.musicShelfRenderer
+      if (!shelf) continue
+
+      const title = shelf.title?.runs?.[0]?.text || ""
+      const titleLower = title.toLowerCase()
+
+      // Only process sections that contain "video" in the title
+      if (!titleLower.includes("video")) continue
+
+      console.log(`[v0] Found video section: "${title}"`)
+
+      const shelfContents = shelf.contents || []
+      for (const item of shelfContents) {
+        try {
+          const twoRowRenderer = item.musicTwoRowItemRenderer
+          if (twoRowRenderer) {
+            const navigationEndpoint = twoRowRenderer.navigationEndpoint
+            const itemTitle = twoRowRenderer.title?.runs?.[0]?.text
+            const subtitle = twoRowRenderer.subtitle?.runs?.[0]?.text || ""
+            const thumbnail =
+              twoRowRenderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+            let itemId = ""
+
+            if (navigationEndpoint?.watchEndpoint) {
+              itemId = navigationEndpoint.watchEndpoint.videoId
+            } else if (navigationEndpoint?.browseEndpoint) {
+              itemId = navigationEndpoint.browseEndpoint.browseId
+            }
+
+            if (itemId && itemTitle) {
+              items.push({
+                id: itemId,
+                title: itemTitle,
+                artist: subtitle,
+                thumbnail: thumbnail || "/placeholder.svg",
+                type: "song",
+                aspectRatio: "video",
+                duration: "",
+              })
+            }
+          }
+        } catch {
+          continue
+        }
+      }
+    }
+
+    console.log(`[v0] Found ${items.length} music videos`)
+    return items
+  } catch (error) {
+    console.error("[v0] Music videos error:", error)
+    return []
+  }
+}
+
 export async function getMusicHomeFeed() {
   try {
     console.log("[v0] ===== FETCHING YOUTUBE MUSIC HOME FEED =====")

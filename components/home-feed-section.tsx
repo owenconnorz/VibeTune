@@ -8,6 +8,7 @@ import { ProgressiveImage } from "@/components/progressive-image"
 import { isDownloaded } from "@/lib/download-storage"
 import { DownloadIndicatorBadge } from "@/components/download-indicator-badge"
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 interface HomeFeedSectionProps {
   section: {
@@ -41,6 +42,7 @@ export function HomeFeedSection({
   isLoadingMore,
 }: HomeFeedSectionProps) {
   const { playVideo } = useMusicPlayer()
+  const router = useRouter()
   const allItems = [...section.items, ...additionalItems]
   const hasContinuation = continuationToken !== undefined ? continuationToken : section.continuation
 
@@ -65,6 +67,37 @@ export function HomeFeedSection({
     isLoading: isLoadingMore,
   })
 
+  const handleItemClick = (item: any, itemIndex: number) => {
+    const itemType = item.type || "song"
+
+    // Navigate to appropriate page for playlists, albums, and artists
+    if (itemType === "playlist") {
+      // Remove "VL" prefix if present for playlist IDs
+      const playlistId = item.id.startsWith("VL") ? item.id.substring(2) : item.id
+      router.push(`/dashboard/playlist/${playlistId}`)
+      return
+    }
+
+    if (itemType === "album") {
+      router.push(`/dashboard/playlist/${item.id}`)
+      return
+    }
+
+    if (itemType === "artist") {
+      router.push(`/dashboard/artist/${item.id}`)
+      return
+    }
+
+    // For songs, play directly with queue
+    const remainingSongs = allItems.slice(itemIndex + 1, 20).map((s) => ({
+      id: s.id,
+      title: s.title,
+      artist: s.artist,
+      thumbnail: s.thumbnail,
+    }))
+    playVideo({ id: item.id, title: item.title, artist: item.artist, thumbnail: item.thumbnail }, remainingSongs)
+  }
+
   return (
     <div className="px-4 space-y-4">
       <h2 className="text-2xl font-bold">{section.title}</h2>
@@ -74,18 +107,7 @@ export function HomeFeedSection({
             <div
               key={song.id}
               className="flex items-center gap-3 group cursor-pointer"
-              onClick={() => {
-                const remainingSongs = allItems.slice(songIndex + 1, 20).map((s) => ({
-                  id: s.id,
-                  title: s.title,
-                  artist: s.artist,
-                  thumbnail: s.thumbnail,
-                }))
-                playVideo(
-                  { id: song.id, title: song.title, artist: song.artist, thumbnail: song.thumbnail },
-                  remainingSongs,
-                )
-              }}
+              onClick={() => handleItemClick(song, songIndex)}
             >
               <div className="relative w-14 h-14 flex-shrink-0">
                 <ProgressiveImage src={song.thumbnail || "/placeholder.svg"} alt={song.title} rounded="lg" />
@@ -125,28 +147,11 @@ export function HomeFeedSection({
         <>
           <ScrollArea className="w-full">
             <div className="flex gap-4 pb-4">
-              {allItems.map((item) => (
+              {allItems.map((item, itemIndex) => (
                 <div
                   key={item.id}
                   className="w-72 flex-shrink-0 cursor-pointer group"
-                  onClick={() => {
-                    const itemIndex = allItems.findIndex((i) => i.id === item.id)
-                    const remainingItems = allItems.slice(itemIndex + 1).map((i) => ({
-                      id: i.id,
-                      title: i.title,
-                      artist: i.artist,
-                      thumbnail: i.thumbnail,
-                    }))
-                    playVideo(
-                      {
-                        id: item.id,
-                        title: item.title,
-                        artist: item.artist,
-                        thumbnail: item.thumbnail,
-                      },
-                      remainingItems,
-                    )
-                  }}
+                  onClick={() => handleItemClick(item, itemIndex)}
                 >
                   <div className="relative aspect-video mb-3">
                     <ProgressiveImage src={item.thumbnail || "/placeholder.svg"} alt={item.title} rounded="lg" />
@@ -177,7 +182,7 @@ export function HomeFeedSection({
         <>
           <ScrollArea className="w-full">
             <div className="flex gap-3 pb-4">
-              {allItems.map((item) => {
+              {allItems.map((item, itemIndex) => {
                 const isVideo = item.aspectRatio === "video"
                 const cardWidth = isVideo ? "w-56" : "w-40"
 
@@ -185,24 +190,7 @@ export function HomeFeedSection({
                   <div
                     key={item.id}
                     className={`${cardWidth} flex-shrink-0 cursor-pointer group`}
-                    onClick={() => {
-                      const itemIndex = allItems.findIndex((i) => i.id === item.id)
-                      const remainingItems = allItems.slice(itemIndex + 1).map((i) => ({
-                        id: i.id,
-                        title: i.title,
-                        artist: i.artist,
-                        thumbnail: i.thumbnail,
-                      }))
-                      playVideo(
-                        {
-                          id: item.id,
-                          title: item.title,
-                          artist: item.artist,
-                          thumbnail: item.thumbnail,
-                        },
-                        remainingItems,
-                      )
-                    }}
+                    onClick={() => handleItemClick(item, itemIndex)}
                   >
                     <div className={`relative ${isVideo ? "aspect-video" : "aspect-square"} mb-2`}>
                       <ProgressiveImage src={item.thumbnail || "/placeholder.svg"} alt={item.title} rounded="lg" />
