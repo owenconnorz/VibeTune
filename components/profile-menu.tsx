@@ -51,7 +51,7 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 animate-in fade-in duration-200">
       <div className="container mx-auto px-4 py-6 max-w-2xl">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl font-bold">OpenTune</h2>
+          <h2 className="text-2xl font-bold">VibeTune</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-6 h-6" />
           </Button>
@@ -67,7 +67,7 @@ export function ProfileMenu({ user, isOpen, onClose }: ProfileMenuProps) {
               </Avatar>
               <div>
                 <h3 className="font-semibold text-lg">{user?.name || "Guest"}</h3>
-                <p className="text-sm text-muted-foreground">{user?.email || "guest@opentune.app"}</p>
+                <p className="text-sm text-muted-foreground">{user?.email || "guest@vibetune.app"}</p>
               </div>
             </div>
             {user ? (

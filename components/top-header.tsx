@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Clock, TrendingUp, Film } from "lucide-react"
+import { Clock, TrendingUp } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { ProfileMenu } from "@/components/profile-menu"
@@ -53,11 +53,6 @@ export function TopHeader({ title }: TopHeaderProps) {
               <Link href="/dashboard/history">
                 <Button variant="ghost" size="icon" className="rounded-full">
                   <Clock className="w-6 h-6" />
-                </Button>
-              </Link>
-              <Link href="/dashboard/movies">
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Film className="w-6 h-6" />
                 </Button>
               </Link>
               <Button variant="ghost" size="icon" className="rounded-full">

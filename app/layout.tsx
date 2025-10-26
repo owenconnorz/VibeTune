@@ -11,9 +11,9 @@ import { AuthProvider } from "@/components/auth-provider"
 import { Analytics } from "@/components/analytics" // Import Analytics component
 import { OfflineIndicator } from "@/components/offline-indicator"
 import { MiniPlayer } from "@/components/mini-player" // Declare MiniPlayer component
-import { NotificationPermissionPrompt } from "@/components/notification-permission-prompt"
 import { ThemeProvider } from "@/components/theme-provider" // Declare ThemeProvider component
 import { CastProvider } from "@/components/cast-provider" // Import CastProvider for global Cast SDK initialization
+import { NotificationPermissionPrompt } from "@/components/notification-permission-prompt" // Import NotificationPermissionPrompt component
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"] })
@@ -29,24 +29,24 @@ export const viewport: Viewport = {
 }
 
 export const metadata: Metadata = {
-  title: "OpenTune - Music Discovery",
-  description: "Discover and explore music with OpenTune",
+  title: "VibeTune - Music Discovery",
+  description: "Discover and explore music with VibeTune",
   generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "OpenTune",
+    title: "VibeTune",
   },
   formatDetection: {
     telephone: false,
   },
   icons: {
     icon: [
-      { url: "/icon-192.jpg", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.jpg", sizes: "512x512", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/apple-touch-icon.jpg", sizes: "180x180", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 }
 
@@ -61,7 +61,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="OpenTune" />
+        <meta name="apple-mobile-web-app-title" content="VibeTune" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />

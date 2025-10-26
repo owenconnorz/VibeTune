@@ -70,7 +70,7 @@ export function ArtistContent({ artistId }: { artistId: string }) {
   const router = useRouter()
   const { playVideo, setQueue } = useMusicPlayer()
 
-  const { data, isLoading } = useAPI<{ artist: Artist }>(`/api/artist/${artistId}`)
+  const { data, isLoading } = useAPI<{ artist: Artist }>(`/api/music/artist/${artistId}`)
 
   const artist = data?.artist
 
@@ -143,41 +143,40 @@ export function ArtistContent({ artistId }: { artistId: string }) {
         </div>
 
         {/* Top Songs */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">Top songs</h2>
-            <Button variant="ghost" size="sm" className="text-primary">
-              <ArrowLeft className="w-4 h-4 rotate-180" />
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {artist.topSongs.map((song) => (
-              <button
-                key={song.id}
-                onClick={() => playVideo(song)}
-                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
-              >
-                <div className="relative w-14 h-14 rounded overflow-hidden flex-shrink-0">
-                  <Image src={song.thumbnail || "/placeholder.svg"} alt={song.title} fill className="object-cover" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-base truncate">{song.title}</h3>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {song.artist} • {song.duration}
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
+        {artist.topSongs && artist.topSongs.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold">Top songs</h2>
+            </div>
+            <div className="space-y-2">
+              {artist.topSongs.map((song) => (
+                <button
+                  key={song.id}
+                  onClick={() => playVideo(song)}
+                  className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors text-left group"
                 >
-                  <MoreVertical className="w-5 h-5" />
-                </Button>
-              </button>
-            ))}
+                  <div className="relative w-14 h-14 rounded overflow-hidden flex-shrink-0">
+                    <Image src={song.thumbnail || "/placeholder.svg"} alt={song.title} fill className="object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-base truncate">{song.title}</h3>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {song.artist} • {song.duration}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="w-5 h-5" />
+                  </Button>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Albums */}
         {artist.albums && artist.albums.length > 0 && (
@@ -185,7 +184,7 @@ export function ArtistContent({ artistId }: { artistId: string }) {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Albums</h2>
               <Button variant="ghost" size="sm" className="text-primary">
-                <ArrowLeft className="w-4 h-4 rotate-180" />
+                More
               </Button>
             </div>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
@@ -216,7 +215,7 @@ export function ArtistContent({ artistId }: { artistId: string }) {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Singles & EPs</h2>
               <Button variant="ghost" size="sm" className="text-primary">
-                <ArrowLeft className="w-4 h-4 rotate-180" />
+                More
               </Button>
             </div>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
@@ -247,7 +246,7 @@ export function ArtistContent({ artistId }: { artistId: string }) {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Videos</h2>
               <Button variant="ghost" size="sm" className="text-primary">
-                <ArrowLeft className="w-4 h-4 rotate-180" />
+                More
               </Button>
             </div>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
@@ -284,12 +283,13 @@ export function ArtistContent({ artistId }: { artistId: string }) {
           </div>
         )}
 
+        {/* Live Performances */}
         {artist.livePerformances && artist.livePerformances.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Live performances</h2>
               <Button variant="ghost" size="sm" className="text-primary">
-                <ArrowLeft className="w-4 h-4 rotate-180" />
+                More
               </Button>
             </div>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
@@ -326,12 +326,13 @@ export function ArtistContent({ artistId }: { artistId: string }) {
           </div>
         )}
 
+        {/* Featured On */}
         {artist.featuredOn && artist.featuredOn.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Featured on</h2>
               <Button variant="ghost" size="sm" className="text-primary">
-                <ArrowLeft className="w-4 h-4 rotate-180" />
+                More
               </Button>
             </div>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
@@ -356,12 +357,13 @@ export function ArtistContent({ artistId }: { artistId: string }) {
           </div>
         )}
 
+        {/* Playlists by Artist */}
         {artist.playlistsByArtist && artist.playlistsByArtist.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Playlists by {artist.name}</h2>
               <Button variant="ghost" size="sm" className="text-primary">
-                <ArrowLeft className="w-4 h-4 rotate-180" />
+                More
               </Button>
             </div>
             <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2">
@@ -386,12 +388,13 @@ export function ArtistContent({ artistId }: { artistId: string }) {
           </div>
         )}
 
+        {/* Fans Might Also Like */}
         {artist.relatedArtists && artist.relatedArtists.length > 0 && (
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold">Fans might also like</h2>
               <Button variant="ghost" size="sm" className="text-primary">
-                <ArrowLeft className="w-4 h-4 rotate-180" />
+                More
               </Button>
             </div>
             <div className="flex gap-4 overflow-x-auto scrollbar-hide pb-2">

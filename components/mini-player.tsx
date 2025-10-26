@@ -2,20 +2,12 @@
 
 import type React from "react"
 
-import { Play, Pause, Heart, Cast, SkipBack, SkipForward } from "lucide-react"
+import { Play, Pause, Heart, SkipBack, SkipForward } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useMusicPlayer } from "@/components/music-player-provider"
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import dynamic from "next/dynamic"
-
-const AudioDevicePicker = dynamic(
-  () => import("@/components/audio-device-picker").then((mod) => mod.AudioDevicePicker),
-  {
-    ssr: false,
-  },
-)
 
 export function MiniPlayer() {
   const { currentVideo, isPlaying, togglePlay, playNext, playPrevious, isCurrentLiked, toggleLikedSong } =
@@ -27,7 +19,6 @@ export function MiniPlayer() {
   const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
-  const [devicePickerOpen, setDevicePickerOpen] = useState(false)
   const [touchStartedOnButton, setTouchStartedOnButton] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
 
@@ -132,10 +123,6 @@ export function MiniPlayer() {
     setTouchStartedOnButton(false)
   }
 
-  const handleCastClick = () => {
-    setDevicePickerOpen(true)
-  }
-
   const handlePreviousClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
@@ -224,15 +211,10 @@ export function MiniPlayer() {
               <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={handleNextClick}>
                 <SkipForward className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={handleCastClick}>
-                <Cast className="w-4 h-4" />
-              </Button>
             </div>
           </div>
         </div>
       </div>
-
-      <AudioDevicePicker open={devicePickerOpen} onOpenChange={setDevicePickerOpen} />
     </>
   )
 }

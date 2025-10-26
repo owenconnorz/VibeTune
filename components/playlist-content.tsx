@@ -265,6 +265,7 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
   const { visibleItems, containerRef, totalHeight } = useVirtualScroll({
     items: playlist?.videos || [],
     itemHeight: 70,
+    containerHeight: 720, // 60vh ≈ 720px
     overscan: 5,
   })
 

@@ -51,7 +51,7 @@ export function SettingsContent() {
       items: [
         { icon: LinkIcon, label: "Open supported links" },
         { icon: RefreshCw, label: "What's New", href: "/dashboard/settings/changelog" },
-        { icon: Info, label: "About" },
+        { icon: Info, label: "About", href: "/dashboard/settings/about" },
       ],
     },
   ]

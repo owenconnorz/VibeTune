@@ -43,7 +43,7 @@ export default function HomePage() {
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">Everything you need</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Powerful features that make OpenTune the best way to enjoy your music
+            Powerful features that make VibeTune the best way to enjoy your music
           </p>
         </div>
 
@@ -114,9 +114,9 @@ export default function HomePage() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
               <Music className="w-6 h-6 text-primary" />
-              <span className="text-xl font-bold">OpenTune</span>
+              <span className="text-xl font-bold">VibeTune</span>
             </div>
-            <p className="text-sm text-muted-foreground">© 2025 OpenTune. All rights reserved.</p>
+            <p className="text-sm text-muted-foreground">© 2025 VibeTune. All rights reserved.</p>
           </div>
         </div>
       </footer>
