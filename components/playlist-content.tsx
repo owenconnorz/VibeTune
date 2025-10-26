@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useVirtualScroll } from "@/hooks/use-virtual-scroll"
 import { SharePlaylistDialog } from "@/components/share-playlist-dialog"
 
 interface PlaylistContentProps {
@@ -262,13 +261,6 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
     }
   }, [downloadManagerActive, playlist])
 
-  const { visibleItems, containerRef, totalHeight } = useVirtualScroll({
-    items: playlist?.videos || [],
-    itemHeight: 70,
-    containerHeight: 720, // 60vh ≈ 720px
-    overscan: 5,
-  })
-
   if (!playlist) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -418,76 +410,68 @@ export function PlaylistContent({ playlistId }: PlaylistContentProps) {
           })()}
 
         {playlist.videos.length > 0 ? (
-          <div ref={containerRef} className="relative pb-24 overflow-auto" style={{ height: "60vh" }}>
-            <div style={{ height: totalHeight }}>
-              {visibleItems.map(({ item: video, index, style }) => {
-                const isCurrentlyPlaying = currentVideo?.id === video.id
+          <div className="pb-24">
+            {playlist.videos.map((video, index) => {
+              const isCurrentlyPlaying = currentVideo?.id === video.id
 
-                return (
-                  <div
-                    key={video.id}
-                    style={style}
-                    className={`absolute w-full flex items-center gap-3 p-3 cursor-pointer transition-colors ${
-                      isCurrentlyPlaying ? "bg-secondary/50" : "hover:bg-secondary/30"
-                    }`}
-                    onClick={() => {
-                      const remainingSongs = playlist.videos.slice(index + 1)
-                      playVideo(video, remainingSongs)
-                    }}
-                  >
-                    <div className="relative w-14 h-14 rounded-md overflow-hidden flex-shrink-0 bg-secondary">
-                      {video.thumbnail ? (
-                        <Image
-                          src={video.thumbnail || "/placeholder.svg"}
-                          alt={video.title}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Play className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate text-lg leading-tight max-w-[200px]">{video.title}</p>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 max-w-[200px]">
-                        {downloadedStates[video.id] && (
-                          <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
-                            <Check className="w-3 h-3 text-black" />
-                          </span>
-                        )}
-                        <span className="truncate">{video.artist || "Unknown Artist"}</span>
-                        <span>•</span>
-                        <span className="flex-shrink-0">{formatDuration(video.duration)}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="w-9 h-9"
-                        onClick={(e) => handleLikeToggle(video, e)}
-                      >
-                        <Heart className={`w-5 h-5 ${likedStates[video.id] ? "fill-red-500 text-red-500" : ""}`} />
-                      </Button>
-                      <SongMenu
-                        video={video}
-                        onLikeToggle={() => {
-                          setLikedStates((prev) => ({
-                            ...prev,
-                            [video.id]: !prev[video.id],
-                          }))
-                        }}
+              return (
+                <div
+                  key={video.id}
+                  className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                    isCurrentlyPlaying ? "bg-secondary/50" : "hover:bg-secondary/30"
+                  }`}
+                  onClick={() => {
+                    const remainingSongs = playlist.videos.slice(index + 1)
+                    playVideo(video, remainingSongs)
+                  }}
+                >
+                  <div className="relative w-14 h-14 rounded-md overflow-hidden flex-shrink-0 bg-secondary">
+                    {video.thumbnail ? (
+                      <Image
+                        src={video.thumbnail || "/placeholder.svg"}
+                        alt={video.title}
+                        fill
+                        className="object-cover"
+                        unoptimized
                       />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Play className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-lg leading-tight max-w-[200px]">{video.title}</p>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1 max-w-[200px]">
+                      {downloadedStates[video.id] && (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--chart-2))] flex-shrink-0">
+                          <Check className="w-3 h-3 text-black" />
+                        </span>
+                      )}
+                      <span className="truncate">{video.artist || "Unknown Artist"}</span>
+                      <span>•</span>
+                      <span className="flex-shrink-0">{formatDuration(video.duration)}</span>
                     </div>
                   </div>
-                )
-              })}
-            </div>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button variant="ghost" size="icon" className="w-9 h-9" onClick={(e) => handleLikeToggle(video, e)}>
+                      <Heart className={`w-5 h-5 ${likedStates[video.id] ? "fill-red-500 text-red-500" : ""}`} />
+                    </Button>
+                    <SongMenu
+                      video={video}
+                      onLikeToggle={() => {
+                        setLikedStates((prev) => ({
+                          ...prev,
+                          [video.id]: !prev[video.id],
+                        }))
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         ) : (
           <div className="text-center py-12">

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getHomeFeed } from "@/lib/youtube-api"
+import { getMusicHomeFeed } from "@/lib/innertube"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 300
@@ -23,9 +23,9 @@ const FALLBACK_DATA = {
 
 export async function GET() {
   try {
-    console.log("[v0] Home API: Starting YouTube Data API home feed request")
+    console.log("[v0] Home API: Starting YouTube Music home feed request")
 
-    const homeFeed = await getHomeFeed()
+    const homeFeed = await getMusicHomeFeed()
 
     if (!homeFeed.sections || homeFeed.sections.length === 0) {
       console.log("[v0] Home API: No sections returned, using fallback")
@@ -37,17 +37,11 @@ export async function GET() {
       })
     }
 
-    const sections = homeFeed.sections.map((section) => ({
-      title: section.title,
-      items: section.items,
-      type: "carousel" as const,
-      continuation: null,
-    }))
-
-    console.log("[v0] Home API: Successfully fetched", sections.length, "sections")
+    console.log("[v0] Home API: Successfully fetched", homeFeed.sections.length, "sections")
+    console.log("[v0] Home API: Section titles:", homeFeed.sections.map((s) => s.title).join(", "))
 
     return NextResponse.json(
-      { sections },
+      { sections: homeFeed.sections },
       {
         status: 200,
         headers: {
