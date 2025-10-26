@@ -4,7 +4,7 @@ import { cache } from "@/lib/cache"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    let { id } = params
+    const { id } = params
 
     if (!id) {
       return NextResponse.json({ error: "Playlist ID is required" }, { status: 400 })
@@ -13,17 +13,18 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     console.log("[v0] ===== PLAYLIST API REQUEST =====")
     console.log("[v0] Original ID:", id)
 
+    let isAlbum = false
+    let cleanId = id
+
     if (id.startsWith("VL")) {
-      id = id.substring(2)
-      console.log("[v0] Stripped VL prefix, new ID:", id)
+      cleanId = id.substring(2)
+      console.log("[v0] Stripped VL prefix, new ID:", cleanId)
+    } else if (id.startsWith("MPRE")) {
+      isAlbum = true
+      console.log("[v0] Album browse ID detected")
     }
 
-    if (id.startsWith("MPRE")) {
-      console.log("[v0] Album browse ID detected, not a playlist")
-      return NextResponse.json({ error: "Albums are not supported yet" }, { status: 400 })
-    }
-
-    const cacheKey = `playlist_${id}`
+    const cacheKey = `playlist_${cleanId}`
     const cachedPlaylist = cache.get(cacheKey)
 
     if (cachedPlaylist) {
@@ -34,7 +35,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     console.log("[v0] Cache miss, fetching from YouTube...")
-    const playlist = await getPlaylistDetails(id)
+
+    const playlist = await getPlaylistDetails(cleanId)
 
     if (!playlist) {
       console.error("[v0] Playlist not found or returned null")
