@@ -13,6 +13,7 @@ import { OfflineIndicator } from "@/components/offline-indicator"
 import { MiniPlayer } from "@/components/mini-player" // Declare MiniPlayer component
 import { NotificationPermissionPrompt } from "@/components/notification-permission-prompt"
 import { ThemeProvider } from "@/components/theme-provider" // Declare ThemeProvider component
+import { CastProvider } from "@/components/cast-provider" // Import CastProvider for global Cast SDK initialization
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"] })
@@ -69,14 +70,16 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <AuthProvider>
             <SWRProvider>
-              <DownloadManagerProvider>
-                <MusicPlayerProvider>
-                  <OfflineIndicator />
-                  <NotificationPermissionPrompt />
-                  {children}
-                  <MiniPlayer />
-                </MusicPlayerProvider>
-              </DownloadManagerProvider>
+              <CastProvider>
+                <DownloadManagerProvider>
+                  <MusicPlayerProvider>
+                    <OfflineIndicator />
+                    <NotificationPermissionPrompt />
+                    {children}
+                    <MiniPlayer />
+                  </MusicPlayerProvider>
+                </DownloadManagerProvider>
+              </CastProvider>
             </SWRProvider>
           </AuthProvider>
           <PWARegister />
