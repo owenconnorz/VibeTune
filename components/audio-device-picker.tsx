@@ -28,11 +28,12 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
   const [networkDevices, setNetworkDevices] = useState<AudioDevice[]>([])
   const [selectedDevice, setSelectedDevice] = useState<string>("this-device")
   const [scanning, setScanning] = useState(false)
+  const [castInitialized, setCastInitialized] = useState(false)
 
   useEffect(() => {
     console.log("[v0] AudioDevicePicker mounted, open:", open)
     loadDevices()
-    loadNetworkDevices()
+    initializeCast()
   }, [])
 
   useEffect(() => {
@@ -82,36 +83,105 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
     }
   }
 
-  const loadNetworkDevices = async () => {
-    try {
-      console.log("[v0] Discovering network devices...")
-      const response = await fetch("/api/devices/discover")
-      const data = await response.json()
+  const initializeCast = () => {
+    if (typeof window === "undefined") return
 
-      if (data.success && data.devices && data.devices.length > 0) {
-        console.log("[v0] Network devices found:", data.devices.length)
+    // Load Cast SDK
+    const script = document.createElement("script")
+    script.src = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"
+    script.async = true
+    document.head.appendChild(script)
 
-        const networkDevs: AudioDevice[] = data.devices.map((device: any) => ({
-          id: device.id,
-          name: device.name,
-          type: "network" as const,
-          networkType: device.type,
-          connected: false,
-          available: device.available,
-          model: device.model,
-          ipAddress: device.ipAddress,
-          manufacturer: device.manufacturer,
-        }))
+    script.onload = () => {
+      console.log("[v0] Cast SDK loaded")
 
-        setNetworkDevices(networkDevs)
-      } else {
-        console.log("[v0] No network devices found")
-        setNetworkDevices([])
-      }
-    } catch (error) {
-      console.error("[v0] Error loading network devices:", error)
-      setNetworkDevices([])
+      // Wait for Cast API to be available
+      const checkCastApi = setInterval(() => {
+        if (window.chrome && window.chrome.cast && window.chrome.cast.isAvailable) {
+          clearInterval(checkCastApi)
+          console.log("[v0] Cast API available")
+
+          // Initialize Cast
+          const sessionRequest = new window.chrome.cast.SessionRequest(
+            window.chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+          )
+          const apiConfig = new window.chrome.cast.ApiConfig(
+            sessionRequest,
+            (session: any) => {
+              console.log("[v0] Cast session started:", session)
+            },
+            (availability: string) => {
+              console.log("[v0] Cast receiver availability:", availability)
+              if (availability === window.chrome.cast.ReceiverAvailability.AVAILABLE) {
+                setCastInitialized(true)
+                discoverCastDevices()
+              }
+            },
+          )
+
+          window.chrome.cast.initialize(
+            apiConfig,
+            () => {
+              console.log("[v0] Cast initialized successfully")
+              setCastInitialized(true)
+            },
+            (error: any) => {
+              console.error("[v0] Cast initialization error:", error)
+            },
+          )
+        }
+      }, 100)
+
+      // Timeout after 5 seconds
+      setTimeout(() => clearInterval(checkCastApi), 5000)
     }
+
+    script.onerror = () => {
+      console.error("[v0] Failed to load Cast SDK")
+    }
+  }
+
+  const discoverCastDevices = () => {
+    if (!window.chrome || !window.chrome.cast || !castInitialized) {
+      console.log("[v0] Cast SDK not available for device discovery")
+      return
+    }
+
+    console.log("[v0] Discovering Cast devices...")
+
+    // Request session to trigger device discovery
+    window.chrome.cast.requestSession(
+      (session: any) => {
+        console.log("[v0] Cast session established:", session)
+
+        const device: AudioDevice = {
+          id: `cast-${session.receiver.friendlyName}`,
+          name: session.receiver.friendlyName,
+          type: "network",
+          networkType: "chromecast",
+          connected: false,
+          available: true,
+          model: "Chromecast",
+          manufacturer: "Google",
+        }
+
+        setNetworkDevices((prev) => {
+          const exists = prev.some((d) => d.id === device.id)
+          if (exists) return prev
+          return [...prev, device]
+        })
+      },
+      (error: any) => {
+        // User cancelled or no devices found
+        console.log("[v0] Cast session request:", error.code)
+      },
+    )
+  }
+
+  const loadNetworkDevices = async () => {
+    console.log("[v0] Network device discovery - using Cast SDK only")
+    // Cast devices are discovered via Cast SDK in initializeCast()
+    // No mock devices are loaded
   }
 
   const detectDeviceType = (label: string): AudioDevice["type"] => {
@@ -229,7 +299,9 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
     console.log("[v0] Refreshing device list...")
     setScanning(true)
     loadDevices()
-    loadNetworkDevices()
+    if (castInitialized) {
+      discoverCastDevices()
+    }
     setTimeout(() => setScanning(false), 1000)
   }
 
@@ -396,4 +468,10 @@ function DeviceSection({
       </div>
     </div>
   )
+}
+
+declare global {
+  interface Window {
+    chrome: any
+  }
 }

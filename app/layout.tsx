@@ -10,10 +10,9 @@ import { CookieConsentBanner } from "@/components/cookie-consent-banner"
 import { AuthProvider } from "@/components/auth-provider"
 import { Analytics } from "@/components/analytics" // Import Analytics component
 import { OfflineIndicator } from "@/components/offline-indicator"
-import { DownloadProgressToast } from "@/components/download-progress-toast"
-import { ThemeProvider } from "@/components/theme-provider"
 import { MiniPlayer } from "@/components/mini-player" // Declare MiniPlayer component
 import { NotificationPermissionPrompt } from "@/components/notification-permission-prompt"
+import { ThemeProvider } from "@/components/theme-provider" // Declare ThemeProvider component
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"] })
@@ -73,7 +72,6 @@ export default function RootLayout({
               <DownloadManagerProvider>
                 <MusicPlayerProvider>
                   <OfflineIndicator />
-                  <DownloadProgressToast />
                   <NotificationPermissionPrompt />
                   {children}
                   <MiniPlayer />

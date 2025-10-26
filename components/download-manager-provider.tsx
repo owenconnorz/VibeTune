@@ -25,7 +25,7 @@ interface DownloadManagerContextType {
 
 const DownloadManagerContext = createContext<DownloadManagerContextType | undefined>(undefined)
 
-const MAX_CONCURRENT_DOWNLOADS = 5
+const MAX_CONCURRENT_DOWNLOADS = 3 // Reduced from 5 to 3 for better stability
 
 export function DownloadManagerProvider({ children }: { children: React.ReactNode }) {
   const [downloads, setDownloads] = useState<DownloadTask[]>([])
@@ -33,43 +33,38 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
   const activeDownloadsRef = useRef(0)
   const processingRef = useRef(false)
 
-  // Request notification permission on mount
   useEffect(() => {
     if ("Notification" in window) {
       if (Notification.permission === "default") {
-        Notification.requestPermission().then((permission) => {
-          // No need to set permission state as it's handled by notificationManager
-        })
+        Notification.requestPermission()
       }
     }
   }, [])
 
   const downloadSingleSong = useCallback(async (task: DownloadTask) => {
-    console.log(`[v0] Starting download: ${task.title}`)
+    console.log(`[v0] DownloadManager: Starting download for "${task.title}"`)
 
-    // Update status to downloading
-    setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "downloading" } : d)))
+    setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "downloading" as const } : d)))
 
-    // Check if already downloaded
     const alreadyDownloaded = await isDownloaded(task.id)
     if (alreadyDownloaded) {
-      console.log(`[v0] Song already downloaded: ${task.title}`)
-      setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "completed" } : d)))
+      console.log(`[v0] DownloadManager: Song already downloaded: "${task.title}"`)
+      setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "completed" as const } : d)))
       return true
     }
 
-    // Download the song
+    console.log(`[v0] DownloadManager: Calling downloadSong for "${task.title}"`)
     const success = await downloadSong(task.id, task.title, task.artist, task.thumbnail, task.duration)
 
-    // Update status
-    setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: success ? "completed" : "failed" } : d)))
+    setDownloads((prev) =>
+      prev.map((d) => (d.id === task.id ? { ...d, status: (success ? "completed" : "failed") as const } : d)),
+    )
 
     if (success) {
-      console.log(`[v0] Successfully downloaded: ${task.title}`)
+      console.log(`[v0] DownloadManager: Successfully downloaded "${task.title}"`)
       notificationManager.showDownloadCompleteNotification(task.title)
     } else {
-      console.error(`[v0] Failed to download: ${task.title}`)
-      // Use notification manager for download failed notification
+      console.error(`[v0] DownloadManager: Failed to download "${task.title}"`)
       notificationManager.showDownloadFailedNotification(task.title)
     }
 
@@ -77,63 +72,77 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
   }, [])
 
   const processQueue = useCallback(async () => {
-    if (processingRef.current) return
-    processingRef.current = true
-    setIsDownloading(true)
-
-    console.log("[v0] Starting concurrent download processing")
+    if (processingRef.current) {
+      console.log("[v0] DownloadManager: Already processing queue, skipping")
+      return
+    }
 
     const pendingTasks = downloads.filter((d) => d.status === "pending")
     if (pendingTasks.length === 0) {
-      console.log("[v0] No pending downloads")
-      processingRef.current = false
+      console.log("[v0] DownloadManager: No pending downloads")
       setIsDownloading(false)
       return
     }
 
-    const downloadPromises: Promise<void>[] = []
-    let taskIndex = 0
+    processingRef.current = true
+    setIsDownloading(true)
 
-    const processNextTask = async () => {
-      while (taskIndex < pendingTasks.length) {
-        const task = pendingTasks[taskIndex++]
-        activeDownloadsRef.current++
+    console.log(`[v0] DownloadManager: Starting to process ${pendingTasks.length} pending downloads`)
+    console.log(`[v0] DownloadManager: Using ${MAX_CONCURRENT_DOWNLOADS} concurrent workers`)
 
-        try {
-          await downloadSingleSong(task)
-        } finally {
-          activeDownloadsRef.current--
-        }
+    try {
+      for (let i = 0; i < pendingTasks.length; i += MAX_CONCURRENT_DOWNLOADS) {
+        const batch = pendingTasks.slice(i, i + MAX_CONCURRENT_DOWNLOADS)
+        console.log(
+          `[v0] DownloadManager: Processing batch ${Math.floor(i / MAX_CONCURRENT_DOWNLOADS) + 1} with ${batch.length} songs`,
+        )
+
+        await Promise.all(
+          batch.map(async (task) => {
+            try {
+              await downloadSingleSong(task)
+            } catch (error) {
+              console.error(`[v0] DownloadManager: Error downloading "${task.title}":`, error)
+              setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "failed" as const } : d)))
+            }
+          }),
+        )
       }
+
+      console.log("[v0] DownloadManager: All downloads completed")
+    } catch (error) {
+      console.error("[v0] DownloadManager: Error processing queue:", error)
+    } finally {
+      processingRef.current = false
+      setIsDownloading(false)
     }
-
-    // Start concurrent workers
-    for (let i = 0; i < MAX_CONCURRENT_DOWNLOADS; i++) {
-      downloadPromises.push(processNextTask())
-    }
-
-    // Wait for all downloads to complete
-    await Promise.all(downloadPromises)
-
-    console.log(`[v0] Download queue complete`)
-    processingRef.current = false
-    setIsDownloading(false)
   }, [downloads, downloadSingleSong])
 
-  // Auto-process queue when new tasks are added
   useEffect(() => {
     const hasPending = downloads.some((d) => d.status === "pending")
+    console.log(
+      `[v0] DownloadManager: Downloads changed. Has pending: ${hasPending}, Processing: ${processingRef.current}`,
+    )
+
     if (hasPending && !processingRef.current) {
+      console.log("[v0] DownloadManager: Triggering processQueue")
       processQueue()
     }
   }, [downloads, processQueue])
 
   const addToQueue = useCallback((tasks: DownloadTask[]) => {
-    console.log(`[v0] Adding ${tasks.length} tasks to download queue`)
+    console.log(`[v0] DownloadManager: Adding ${tasks.length} tasks to download queue`)
+    console.log(
+      "[v0] DownloadManager: Tasks:",
+      tasks.map((t) => t.title),
+    )
+
     setDownloads((prev) => {
-      // Avoid duplicates
       const existingIds = new Set(prev.map((d) => d.id))
       const newTasks = tasks.filter((t) => !existingIds.has(t.id))
+      console.log(
+        `[v0] DownloadManager: ${newTasks.length} new tasks (${tasks.length - newTasks.length} duplicates filtered)`,
+      )
       return [...prev, ...newTasks]
     })
   }, [])
