@@ -25,6 +25,27 @@
   --input: oklch(0.28 0.02 270);
   --ring: oklch(0.65 0.08 270);
   --radius: 0.75rem;
+
+  /* Material 3 animation variables */
+  --m3-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --m3-easing-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --m3-easing-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --m3-easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --m3-easing-standard-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --m3-easing-standard-accelerate: cubic-bezier(0.3, 0, 1, 1);
+
+  --m3-duration-short1: 50ms;
+  --m3-duration-short2: 100ms;
+  --m3-duration-short3: 150ms;
+  --m3-duration-short4: 200ms;
+  --m3-duration-medium1: 250ms;
+  --m3-duration-medium2: 300ms;
+  --m3-duration-medium3: 350ms;
+  --m3-duration-medium4: 400ms;
+  --m3-duration-long1: 450ms;
+  --m3-duration-long2: 500ms;
+  --m3-duration-long3: 550ms;
+  --m3-duration-long4: 600ms;
 }
 
 .dark {
@@ -165,5 +186,85 @@
 
   .animate-marquee:hover {
     animation-play-state: paused;
+  }
+
+  /* Material 3 animation utilities */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Material 3 transition classes */
+  .m3-transition-standard {
+    transition-timing-function: var(--m3-easing-standard);
+    transition-duration: var(--m3-duration-medium2);
+  }
+
+  .m3-transition-emphasized {
+    transition-timing-function: var(--m3-easing-emphasized);
+    transition-duration: var(--m3-duration-medium2);
+  }
+
+  .m3-transition-short {
+    transition-duration: var(--m3-duration-short4);
+  }
+
+  .m3-transition-long {
+    transition-duration: var(--m3-duration-long2);
+  }
+
+  /* Ripple effect for buttons */
+  @keyframes ripple {
+    to {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+
+  .ripple-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ripple-effect::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 255, 255, 0.5);
+    opacity: 0;
+    border-radius: 100%;
+    transform: scale(1) translate(-50%, -50%);
+    transform-origin: 50% 50%;
+  }
+
+  .ripple-effect:active::after {
+    animation: ripple 0.6s var(--m3-easing-standard);
+  }
+
+  /* Smooth scale on press */
+  .press-scale {
+    transition: transform var(--m3-duration-short4) var(--m3-easing-standard);
+  }
+
+  .press-scale:active {
+    transform: scale(0.96);
+  }
+
+  /* Smooth hover lift */
+  .hover-lift {
+    transition: transform var(--m3-duration-medium1) var(--m3-easing-emphasized);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
   }
 }
