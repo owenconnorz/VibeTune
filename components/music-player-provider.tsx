@@ -105,6 +105,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("[v0] Error initializing equalizer:", error)
+        // Continue without equalizer if it fails
       }
 
       audioRef.current.addEventListener("timeupdate", () => {
@@ -149,7 +150,11 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         audioRef.current.pause()
         audioRef.current.src = ""
       }
-      audioEqualizer.disconnect()
+      try {
+        audioEqualizer.disconnect()
+      } catch (error) {
+        console.error("[v0] Error disconnecting equalizer:", error)
+      }
     }
   }, [])
 
@@ -443,27 +448,27 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         }
       })
 
-      if (previousTracks.length > 0 || currentTime > 3) {
-        console.log("[v0] ✓ Registering previoustrack handler (previous tracks available)")
+      const shouldShowPrevious = previousTracks.length > 0 || (audioRef.current?.currentTime || 0) > 3
+
+      if (shouldShowPrevious) {
+        console.log("[v0] ✓ Registering previoustrack handler")
         navigator.mediaSession.setActionHandler("previoustrack", () => {
           console.log("[v0] Media Session: previous track action triggered")
-          console.log("[v0] Previous tracks available:", previousTracks.length)
           playPreviousRef.current()
         })
       } else {
-        console.log("[v0] ✗ Unregistering previoustrack handler (no previous tracks)")
+        console.log("[v0] ✗ Unregistering previoustrack handler")
         navigator.mediaSession.setActionHandler("previoustrack", null)
       }
 
       if (queue.length > 0 || repeatMode !== "off") {
-        console.log("[v0] ✓ Registering nexttrack handler (queue available or repeat enabled)")
+        console.log("[v0] ✓ Registering nexttrack handler")
         navigator.mediaSession.setActionHandler("nexttrack", () => {
           console.log("[v0] Media Session: next track action triggered")
-          console.log("[v0] Queue length:", queue.length)
           playNextRef.current()
         })
       } else {
-        console.log("[v0] ✗ Unregistering nexttrack handler (no queue and repeat off)")
+        console.log("[v0] ✗ Unregistering nexttrack handler")
         navigator.mediaSession.setActionHandler("nexttrack", null)
       }
 
@@ -510,7 +515,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-  }, [queue.length, previousTracks.length, repeatMode, currentTime]) // Added repeatMode and currentTime to dependencies
+  }, [queue.length, previousTracks.length, repeatMode])
 
   useEffect(() => {
     playNextRef.current = playNext
@@ -547,13 +552,21 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     if (!currentVideo || !isPlaying) return
 
     // Show notification if permission is granted
-    if (notificationManager.hasPermission()) {
-      notificationManager.showNowPlayingNotification(
-        currentVideo.title,
-        currentVideo.artist || currentVideo.channelTitle || "Unknown Artist",
-        currentVideo.thumbnail,
-        isPlaying,
-      )
+    try {
+      if (notificationManager.hasPermission()) {
+        notificationManager
+          .showNowPlayingNotification(
+            currentVideo.title,
+            currentVideo.artist || currentVideo.channelTitle || "Unknown Artist",
+            currentVideo.thumbnail,
+            isPlaying,
+          )
+          .catch((error) => {
+            console.error("[v0] Error showing notification:", error)
+          })
+      }
+    } catch (error) {
+      console.error("[v0] Error with notification manager:", error)
     }
   }, [currentVideo, isPlaying])
 
