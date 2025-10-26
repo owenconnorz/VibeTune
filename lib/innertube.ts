@@ -230,7 +230,6 @@ export async function searchMusic(query: string, continuation?: string) {
     for (let sectionIndex = 0; sectionIndex < contents.length; sectionIndex++) {
       const section = contents[sectionIndex]
 
-      // Check regular shelf items for songs
       const items = section.musicShelfRenderer?.contents || []
 
       if (items.length > 0) {
@@ -246,7 +245,6 @@ export async function searchMusic(query: string, continuation?: string) {
           renderer.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint
             ?.watchEndpoint?.videoId
 
-        // Only process items with videoId (songs/videos)
         if (videoId) {
           const videoInfo = extractVideoInfo(item)
           if (videoInfo) {
@@ -635,66 +633,115 @@ export async function getCharts() {
   }
 }
 
-export async function getHomeFeed() {
+export async function getMusicHomeFeed() {
   try {
-    console.log("[v0] ===== STARTING HOME FEED FETCH =====")
-    console.log("[v0] Timestamp:", new Date().toISOString())
+    console.log("[v0] ===== FETCHING YOUTUBE MUSIC HOME FEED =====")
+    console.log("[v0] Using InnerTube browse endpoint for authentic YT Music experience")
+
+    const data = await makeInnerTubeRequest("browse", {
+      browseId: "FEmusic_home",
+    })
+
+    const contents =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+        ?.contents || []
+
+    console.log(`[v0] Found ${contents.length} sections in home feed`)
 
     const sections: any[] = []
 
-    const searchWithTimeout = async (query: string, title: string, type: string) => {
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error(`Search timeout: ${query}`)), 5000)
-      })
+    for (const section of contents) {
+      const shelf = section.musicCarouselShelfRenderer || section.musicShelfRenderer
 
-      try {
-        const result = (await Promise.race([searchMusic(query), timeoutPromise])) as any
+      if (!shelf) continue
 
-        return { title, result, type, query }
-      } catch (error: any) {
-        console.error(`[v0] Search failed for "${query}":`, error.message)
-        return { title, result: { videos: [], continuation: null }, type, query }
+      const title = shelf.title?.runs?.[0]?.text || "Recommended"
+      const items: any[] = []
+
+      console.log(`[v0] Processing section: "${title}"`)
+
+      const shelfContents = shelf.contents || []
+
+      for (const item of shelfContents) {
+        try {
+          const videoInfo = extractVideoInfo(item)
+          if (videoInfo) {
+            items.push({
+              ...videoInfo,
+              type: "song",
+              aspectRatio: "square",
+            })
+            continue
+          }
+
+          const twoRowRenderer = item.musicTwoRowItemRenderer
+          if (twoRowRenderer) {
+            const navigationEndpoint = twoRowRenderer.navigationEndpoint
+            const itemTitle = twoRowRenderer.title?.runs?.[0]?.text
+            const subtitle = twoRowRenderer.subtitle?.runs?.[0]?.text || ""
+            const thumbnail =
+              twoRowRenderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+            let itemType = "playlist"
+            let itemId = ""
+
+            if (navigationEndpoint?.browseEndpoint) {
+              itemId = navigationEndpoint.browseEndpoint.browseId
+              if (itemId.startsWith("MPRE")) {
+                itemType = "album"
+              } else if (itemId.startsWith("UC") || itemId.startsWith("FEmusic_library_privately_owned_artist")) {
+                itemType = "artist"
+              } else if (itemId.startsWith("VL")) {
+                itemType = "playlist"
+              }
+            } else if (navigationEndpoint?.watchEndpoint) {
+              itemId = navigationEndpoint.watchEndpoint.videoId
+              itemType = "song"
+            }
+
+            if (itemId && itemTitle) {
+              items.push({
+                id: itemId,
+                title: itemTitle,
+                artist: subtitle,
+                thumbnail: thumbnail || "/placeholder.svg",
+                type: itemType,
+                aspectRatio: itemType === "artist" ? "circle" : "square",
+                duration: "",
+              })
+            }
+          }
+        } catch (itemError) {
+          console.error("[v0] Error processing home feed item:", itemError)
+          continue
+        }
+      }
+
+      if (items.length > 0) {
+        sections.push({
+          title,
+          items: items.slice(0, 20),
+          type: "carousel",
+          continuation: null,
+        })
+        console.log(`[v0] Added section "${title}" with ${items.length} items`)
       }
     }
 
-    const searchPromises = [
-      searchWithTimeout("trending music 2024", "Quick picks", "list"),
-      searchWithTimeout("popular music 2024", "Popular Music", "carousel"),
-      searchWithTimeout("feel good music", "Feel Good", "carousel"),
-    ]
-
-    const results = await Promise.all(searchPromises)
-
-    results.forEach((searchResult) => {
-      const { title, result, type, query } = searchResult
-      if (result.videos.length > 0) {
-        sections.push({
-          title,
-          items: result.videos.slice(0, 10).map((item) => ({ ...item, aspectRatio: "square" })),
-          type,
-          continuation: result.continuation,
-          query,
-        })
-        console.log(`[v0] ${title}: ${result.videos.length} items, continuation: ${!!result.continuation}`)
-      } else {
-        console.log(`[v0] ${title}: No items found`)
-      }
-    })
-
-    console.log("[v0] ===== HOME FEED COMPLETE =====")
-    console.log("[v0] Total sections created:", sections.length)
-    console.log("[v0] Section titles:", sections.map((s) => s.title).join(", "))
+    console.log("[v0] ===== YOUTUBE MUSIC HOME FEED COMPLETE =====")
+    console.log(`[v0] Total sections: ${sections.length}`)
+    console.log(`[v0] Section titles: ${sections.map((s) => s.title).join(", ")}`)
 
     if (sections.length === 0) {
-      console.log("[v0] No sections created, returning fallback data")
+      console.log("[v0] No sections found, falling back to trending music")
+      const trending = await getTrendingMusic()
       return {
         sections: [
           {
-            title: "Popular Music",
-            items: [],
+            title: "Trending Music",
+            items: trending.slice(0, 20),
             type: "carousel",
             continuation: null,
-            query: "popular music 2024",
           },
         ],
       }
@@ -702,20 +749,34 @@ export async function getHomeFeed() {
 
     return { sections }
   } catch (error: any) {
-    console.error("[v0] ===== HOME FEED FATAL ERROR =====")
+    console.error("[v0] ===== YOUTUBE MUSIC HOME FEED ERROR =====")
     console.error("[v0] Error:", error.message)
-    console.error("[v0] Stack:", error.stack)
 
-    return {
-      sections: [
-        {
-          title: "Popular Music",
-          items: [],
-          type: "carousel",
-          continuation: null,
-          query: "popular music 2024",
-        },
-      ],
+    try {
+      console.log("[v0] Falling back to trending music")
+      const trending = await getTrendingMusic()
+      return {
+        sections: [
+          {
+            title: "Trending Music",
+            items: trending.slice(0, 20),
+            type: "carousel",
+            continuation: null,
+          },
+        ],
+      }
+    } catch (fallbackError) {
+      console.error("[v0] Fallback also failed:", fallbackError)
+      return {
+        sections: [
+          {
+            title: "Music",
+            items: [],
+            type: "carousel",
+            continuation: null,
+          },
+        ],
+      }
     }
   }
 }
@@ -763,15 +824,12 @@ export async function getAudioStream(videoId: string, quality?: "auto" | "high" 
     let selectedAudio: any
 
     if (quality === "high") {
-      // Highest quality (highest bitrate)
       selectedAudio = audioFormats[0]
       console.log("[v0] Selected HIGH quality audio")
     } else if (quality === "low") {
-      // Lowest quality (lowest bitrate)
       selectedAudio = audioFormats[audioFormats.length - 1]
       console.log("[v0] Selected LOW quality audio")
     } else {
-      // Auto: middle quality (balance between quality and size)
       const middleIndex = Math.floor(audioFormats.length / 2)
       selectedAudio = audioFormats[middleIndex]
       console.log("[v0] Selected AUTO quality audio (middle bitrate)")
@@ -1169,157 +1227,5 @@ export async function searchYouTube(query: string, continuation?: string) {
   } catch (error: any) {
     console.error(`[v0] YouTube search error for "${query}":`, error.message)
     return { videos: [], continuation: null }
-  }
-}
-
-export async function getMusicHomeFeed() {
-  try {
-    console.log("[v0] ===== FETCHING YOUTUBE MUSIC HOME FEED =====")
-    console.log("[v0] Using InnerTube browse endpoint for authentic YT Music experience")
-
-    const data = await makeInnerTubeRequest("browse", {
-      browseId: "FEmusic_home",
-    })
-
-    const contents =
-      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
-        ?.contents || []
-
-    console.log(`[v0] Found ${contents.length} sections in home feed`)
-
-    const sections: any[] = []
-
-    for (const section of contents) {
-      const shelf = section.musicCarouselShelfRenderer || section.musicShelfRenderer
-
-      if (!shelf) continue
-
-      const title = shelf.title?.runs?.[0]?.text || "Recommended"
-      const items: any[] = []
-
-      console.log(`[v0] Processing section: "${title}"`)
-
-      const shelfContents = shelf.contents || []
-
-      for (const item of shelfContents) {
-        try {
-          // Handle music tracks/songs
-          const videoInfo = extractVideoInfo(item)
-          if (videoInfo) {
-            items.push({
-              ...videoInfo,
-              type: "song",
-              aspectRatio: "square",
-            })
-            continue
-          }
-
-          // Handle albums, playlists, and other two-row items
-          const twoRowRenderer = item.musicTwoRowItemRenderer
-          if (twoRowRenderer) {
-            const navigationEndpoint = twoRowRenderer.navigationEndpoint
-            const itemTitle = twoRowRenderer.title?.runs?.[0]?.text
-            const subtitle = twoRowRenderer.subtitle?.runs?.[0]?.text || ""
-            const thumbnail =
-              twoRowRenderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
-
-            // Determine item type based on navigation endpoint
-            let itemType = "playlist"
-            let itemId = ""
-
-            if (navigationEndpoint?.browseEndpoint) {
-              itemId = navigationEndpoint.browseEndpoint.browseId
-              if (itemId.startsWith("MPRE")) {
-                itemType = "album"
-              } else if (itemId.startsWith("UC") || itemId.startsWith("FEmusic_library_privately_owned_artist")) {
-                itemType = "artist"
-              } else if (itemId.startsWith("VL")) {
-                itemType = "playlist"
-              }
-            } else if (navigationEndpoint?.watchEndpoint) {
-              itemId = navigationEndpoint.watchEndpoint.videoId
-              itemType = "song"
-            }
-
-            if (itemId && itemTitle) {
-              items.push({
-                id: itemId,
-                title: itemTitle,
-                artist: subtitle,
-                thumbnail: thumbnail || "/placeholder.svg",
-                type: itemType,
-                aspectRatio: itemType === "artist" ? "circle" : "square",
-                duration: "",
-              })
-            }
-          }
-        } catch (itemError) {
-          console.error("[v0] Error processing home feed item:", itemError)
-          continue
-        }
-      }
-
-      if (items.length > 0) {
-        sections.push({
-          title,
-          items: items.slice(0, 20), // Limit to 20 items per section
-          type: "carousel",
-          continuation: null,
-        })
-        console.log(`[v0] Added section "${title}" with ${items.length} items`)
-      }
-    }
-
-    console.log("[v0] ===== YOUTUBE MUSIC HOME FEED COMPLETE =====")
-    console.log(`[v0] Total sections: ${sections.length}`)
-    console.log(`[v0] Section titles: ${sections.map((s) => s.title).join(", ")}`)
-
-    if (sections.length === 0) {
-      console.log("[v0] No sections found, falling back to trending music")
-      const trending = await getTrendingMusic()
-      return {
-        sections: [
-          {
-            title: "Trending Music",
-            items: trending.slice(0, 20),
-            type: "carousel",
-            continuation: null,
-          },
-        ],
-      }
-    }
-
-    return { sections }
-  } catch (error: any) {
-    console.error("[v0] ===== YOUTUBE MUSIC HOME FEED ERROR =====")
-    console.error("[v0] Error:", error.message)
-
-    // Fallback to trending music
-    try {
-      console.log("[v0] Falling back to trending music")
-      const trending = await getTrendingMusic()
-      return {
-        sections: [
-          {
-            title: "Trending Music",
-            items: trending.slice(0, 20),
-            type: "carousel",
-            continuation: null,
-          },
-        ],
-      }
-    } catch (fallbackError) {
-      console.error("[v0] Fallback also failed:", fallbackError)
-      return {
-        sections: [
-          {
-            title: "Music",
-            items: [],
-            type: "carousel",
-            continuation: null,
-          },
-        ],
-      }
-    }
   }
 }
