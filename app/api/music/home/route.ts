@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getMusicHomeFeed, getNewReleases, getMusicVideos } from "@/lib/innertube"
+import { getMusicHomeFeed } from "@/lib/innertube"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 300
@@ -25,42 +25,12 @@ export async function GET() {
   try {
     console.log("[v0] Home API: Starting YouTube Music home feed request")
 
-    const [homeFeed, newReleases, musicVideos] = await Promise.all([
-      getMusicHomeFeed().catch((error) => {
-        console.error("[v0] Home feed error:", error)
-        return { sections: [] }
-      }),
-      getNewReleases().catch((error) => {
-        console.error("[v0] New releases error:", error)
-        return []
-      }),
-      getMusicVideos().catch((error) => {
-        console.error("[v0] Music videos error:", error)
-        return []
-      }),
-    ])
+    const homeFeed = await getMusicHomeFeed().catch((error) => {
+      console.error("[v0] Home feed error:", error)
+      return { sections: [] }
+    })
 
-    const sections = [...(homeFeed.sections || [])]
-
-    if (newReleases.length > 0) {
-      sections.push({
-        title: "New Releases",
-        items: newReleases.slice(0, 20),
-        type: "carousel" as const,
-        continuation: null,
-      })
-      console.log("[v0] Home API: Added New Releases section with", newReleases.length, "items")
-    }
-
-    if (musicVideos.length > 0) {
-      sections.push({
-        title: "Music Videos for You",
-        items: musicVideos.slice(0, 20),
-        type: "carousel" as const,
-        continuation: null,
-      })
-      console.log("[v0] Home API: Added Music Videos section with", musicVideos.length, "items")
-    }
+    const sections = homeFeed.sections || []
 
     if (sections.length === 0) {
       console.log("[v0] Home API: No sections returned, using fallback")
