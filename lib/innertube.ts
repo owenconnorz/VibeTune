@@ -1171,3 +1171,155 @@ export async function searchYouTube(query: string, continuation?: string) {
     return { videos: [], continuation: null }
   }
 }
+
+export async function getMusicHomeFeed() {
+  try {
+    console.log("[v0] ===== FETCHING YOUTUBE MUSIC HOME FEED =====")
+    console.log("[v0] Using InnerTube browse endpoint for authentic YT Music experience")
+
+    const data = await makeInnerTubeRequest("browse", {
+      browseId: "FEmusic_home",
+    })
+
+    const contents =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+        ?.contents || []
+
+    console.log(`[v0] Found ${contents.length} sections in home feed`)
+
+    const sections: any[] = []
+
+    for (const section of contents) {
+      const shelf = section.musicCarouselShelfRenderer || section.musicShelfRenderer
+
+      if (!shelf) continue
+
+      const title = shelf.title?.runs?.[0]?.text || "Recommended"
+      const items: any[] = []
+
+      console.log(`[v0] Processing section: "${title}"`)
+
+      const shelfContents = shelf.contents || []
+
+      for (const item of shelfContents) {
+        try {
+          // Handle music tracks/songs
+          const videoInfo = extractVideoInfo(item)
+          if (videoInfo) {
+            items.push({
+              ...videoInfo,
+              type: "song",
+              aspectRatio: "square",
+            })
+            continue
+          }
+
+          // Handle albums, playlists, and other two-row items
+          const twoRowRenderer = item.musicTwoRowItemRenderer
+          if (twoRowRenderer) {
+            const navigationEndpoint = twoRowRenderer.navigationEndpoint
+            const itemTitle = twoRowRenderer.title?.runs?.[0]?.text
+            const subtitle = twoRowRenderer.subtitle?.runs?.[0]?.text || ""
+            const thumbnail =
+              twoRowRenderer.thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url
+
+            // Determine item type based on navigation endpoint
+            let itemType = "playlist"
+            let itemId = ""
+
+            if (navigationEndpoint?.browseEndpoint) {
+              itemId = navigationEndpoint.browseEndpoint.browseId
+              if (itemId.startsWith("MPRE")) {
+                itemType = "album"
+              } else if (itemId.startsWith("UC") || itemId.startsWith("FEmusic_library_privately_owned_artist")) {
+                itemType = "artist"
+              } else if (itemId.startsWith("VL")) {
+                itemType = "playlist"
+              }
+            } else if (navigationEndpoint?.watchEndpoint) {
+              itemId = navigationEndpoint.watchEndpoint.videoId
+              itemType = "song"
+            }
+
+            if (itemId && itemTitle) {
+              items.push({
+                id: itemId,
+                title: itemTitle,
+                artist: subtitle,
+                thumbnail: thumbnail || "/placeholder.svg",
+                type: itemType,
+                aspectRatio: itemType === "artist" ? "circle" : "square",
+                duration: "",
+              })
+            }
+          }
+        } catch (itemError) {
+          console.error("[v0] Error processing home feed item:", itemError)
+          continue
+        }
+      }
+
+      if (items.length > 0) {
+        sections.push({
+          title,
+          items: items.slice(0, 20), // Limit to 20 items per section
+          type: "carousel",
+          continuation: null,
+        })
+        console.log(`[v0] Added section "${title}" with ${items.length} items`)
+      }
+    }
+
+    console.log("[v0] ===== YOUTUBE MUSIC HOME FEED COMPLETE =====")
+    console.log(`[v0] Total sections: ${sections.length}`)
+    console.log(`[v0] Section titles: ${sections.map((s) => s.title).join(", ")}`)
+
+    if (sections.length === 0) {
+      console.log("[v0] No sections found, falling back to trending music")
+      const trending = await getTrendingMusic()
+      return {
+        sections: [
+          {
+            title: "Trending Music",
+            items: trending.slice(0, 20),
+            type: "carousel",
+            continuation: null,
+          },
+        ],
+      }
+    }
+
+    return { sections }
+  } catch (error: any) {
+    console.error("[v0] ===== YOUTUBE MUSIC HOME FEED ERROR =====")
+    console.error("[v0] Error:", error.message)
+
+    // Fallback to trending music
+    try {
+      console.log("[v0] Falling back to trending music")
+      const trending = await getTrendingMusic()
+      return {
+        sections: [
+          {
+            title: "Trending Music",
+            items: trending.slice(0, 20),
+            type: "carousel",
+            continuation: null,
+          },
+        ],
+      }
+    } catch (fallbackError) {
+      console.error("[v0] Fallback also failed:", fallbackError)
+      return {
+        sections: [
+          {
+            title: "Music",
+            items: [],
+            type: "carousel",
+            continuation: null,
+          },
+        ],
+      }
+    }
+  }
+}

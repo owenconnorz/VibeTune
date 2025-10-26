@@ -255,17 +255,19 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
 
         <div className="overflow-y-auto px-4 py-4 space-y-6">
           {/* Current Device */}
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">CURRENT DEVICE</h3>
-            <div className="space-y-2">
-              <DeviceButton
-                device={currentDevice}
-                isSelected={selectedDevice === currentDevice.id && !castSession}
-                onSelect={handleDeviceSelect}
-                getIcon={getDeviceIcon}
-              />
+          {currentDevice && (
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">CURRENT DEVICE</h3>
+              <div className="space-y-2">
+                <DeviceButton
+                  device={currentDevice}
+                  isSelected={selectedDevice === currentDevice.id && !castSession}
+                  onSelect={handleDeviceSelect}
+                  getIcon={getDeviceIcon}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Cast Devices */}
           {castAvailable && (
