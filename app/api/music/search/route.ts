@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { searchMusic, searchYouTube } from "@/lib/innertube"
 
-export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 interface CachedResult {

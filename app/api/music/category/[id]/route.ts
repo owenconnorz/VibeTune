@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { searchMusic } from "@/lib/innertube"
 
-export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 // Define category configurations with subcategories
@@ -188,8 +187,8 @@ const categoryConfig: Record<
   },
 }
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const { id } = params
   const { searchParams } = new URL(request.url)
   const continuation = searchParams.get("continuation")
   const subcategoryIndex = searchParams.get("subcategoryIndex")
