@@ -60,8 +60,11 @@ export function HomeContent() {
   const [loadingMore, setLoadingMore] = useState<Record<string, boolean>>({})
 
   const { data, isLoading, error } = useAPI<{ sections: HomeFeedSectionProps[] }>("/api/music/home", {
-    refreshInterval: 60000,
+    refreshInterval: 300000, // 5 minutes instead of 1 minute
     revalidateOnMount: true,
+    dedupingInterval: 10000, // Prevent duplicate requests within 10 seconds
+    errorRetryCount: 2, // Only retry twice instead of infinite
+    errorRetryInterval: 2000, // Wait 2 seconds between retries
   })
 
   const homeFeed = data?.sections || []

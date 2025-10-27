@@ -28,7 +28,7 @@ async function makeInnerTubeRequest(endpoint: string, params: any = {}) {
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 10000)
+  const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 seconds instead of 10
 
   try {
     const response = await fetch(url, {
@@ -61,7 +61,7 @@ async function makeInnerTubeRequest(endpoint: string, params: any = {}) {
   } catch (error: any) {
     clearTimeout(timeoutId)
     if (error.name === "AbortError") {
-      console.error(`[v0] InnerTube ${endpoint} timeout after 10 seconds`)
+      console.error(`[v0] InnerTube ${endpoint} timeout after 5 seconds`)
       throw new Error(`Request timeout: ${endpoint}`)
     }
     throw error
