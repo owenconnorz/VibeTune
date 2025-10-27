@@ -14,6 +14,7 @@ import { MiniPlayer } from "@/components/mini-player" // Declare MiniPlayer comp
 import { ThemeProvider } from "@/components/theme-provider" // Declare ThemeProvider component
 import { CastProvider } from "@/components/cast-provider" // Import CastProvider for global Cast SDK initialization
 import { NotificationPermissionPrompt } from "@/components/notification-permission-prompt" // Import NotificationPermissionPrompt component
+import { DownloadProgressToast } from "@/components/download-progress-toast" // Import download progress toast
 import "./globals.css"
 
 const geistSans = Geist({ subsets: ["latin"] })
@@ -77,6 +78,7 @@ export default function RootLayout({
                     <NotificationPermissionPrompt />
                     {children}
                     <MiniPlayer />
+                    <DownloadProgressToast />
                   </MusicPlayerProvider>
                 </DownloadManagerProvider>
               </CastProvider>

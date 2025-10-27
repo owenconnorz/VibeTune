@@ -13,6 +13,8 @@ interface DownloadTask {
   thumbnail: string
   duration: string | number
   status: "pending" | "downloading" | "completed" | "failed"
+  error?: string
+  retryCount?: number
 }
 
 interface DownloadManagerContextType {
@@ -20,17 +22,19 @@ interface DownloadManagerContextType {
   isDownloading: boolean
   addToQueue: (tasks: DownloadTask[]) => void
   clearCompleted: () => void
-  getProgress: () => { completed: number; failed: number; total: number }
+  retryFailed: () => void
+  retryDownload: (id: string) => void
+  getProgress: () => { completed: number; failed: number; total: number; pending: number; downloading: number }
 }
 
 const DownloadManagerContext = createContext<DownloadManagerContextType | undefined>(undefined)
 
-const MAX_CONCURRENT_DOWNLOADS = 3 // Reduced from 5 to 3 for better stability
+const MAX_CONCURRENT_DOWNLOADS = 2
+const MAX_RETRY_ATTEMPTS = 3
 
 export function DownloadManagerProvider({ children }: { children: React.ReactNode }) {
   const [downloads, setDownloads] = useState<DownloadTask[]>([])
   const [isDownloading, setIsDownloading] = useState(false)
-  const activeDownloadsRef = useRef(0)
   const processingRef = useRef(false)
 
   useEffect(() => {
@@ -56,15 +60,25 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
     console.log(`[v0] DownloadManager: Calling downloadSong for "${task.title}"`)
     const success = await downloadSong(task.id, task.title, task.artist, task.thumbnail, task.duration)
 
-    setDownloads((prev) =>
-      prev.map((d) => (d.id === task.id ? { ...d, status: (success ? "completed" : "failed") as const } : d)),
-    )
-
     if (success) {
       console.log(`[v0] DownloadManager: Successfully downloaded "${task.title}"`)
+      setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "completed" as const } : d)))
       notificationManager.showDownloadCompleteNotification(task.title)
     } else {
-      console.error(`[v0] DownloadManager: Failed to download "${task.title}"`)
+      const retryCount = (task.retryCount || 0) + 1
+      console.error(`[v0] DownloadManager: Failed to download "${task.title}" (attempt ${retryCount})`)
+      setDownloads((prev) =>
+        prev.map((d) =>
+          d.id === task.id
+            ? {
+                ...d,
+                status: "failed" as const,
+                error: "Download failed",
+                retryCount,
+              }
+            : d,
+        ),
+      )
       notificationManager.showDownloadFailedNotification(task.title)
     }
 
@@ -97,16 +111,30 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
           `[v0] DownloadManager: Processing batch ${Math.floor(i / MAX_CONCURRENT_DOWNLOADS) + 1} with ${batch.length} songs`,
         )
 
-        await Promise.all(
+        await Promise.allSettled(
           batch.map(async (task) => {
             try {
               await downloadSingleSong(task)
             } catch (error) {
               console.error(`[v0] DownloadManager: Error downloading "${task.title}":`, error)
-              setDownloads((prev) => prev.map((d) => (d.id === task.id ? { ...d, status: "failed" as const } : d)))
+              setDownloads((prev) =>
+                prev.map((d) =>
+                  d.id === task.id
+                    ? {
+                        ...d,
+                        status: "failed" as const,
+                        error: error instanceof Error ? error.message : "Unknown error",
+                      }
+                    : d,
+                ),
+              )
             }
           }),
         )
+
+        if (i + MAX_CONCURRENT_DOWNLOADS < pendingTasks.length) {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
+        }
       }
 
       console.log("[v0] DownloadManager: All downloads completed")
@@ -151,11 +179,37 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
     setDownloads((prev) => prev.filter((d) => d.status !== "completed"))
   }, [])
 
+  const retryFailed = useCallback(() => {
+    console.log("[v0] DownloadManager: Retrying all failed downloads")
+    setDownloads((prev) =>
+      prev.map((d) => {
+        if (d.status === "failed" && (d.retryCount || 0) < MAX_RETRY_ATTEMPTS) {
+          return { ...d, status: "pending" as const, error: undefined }
+        }
+        return d
+      }),
+    )
+  }, [])
+
+  const retryDownload = useCallback((id: string) => {
+    console.log(`[v0] DownloadManager: Retrying download for ${id}`)
+    setDownloads((prev) =>
+      prev.map((d) => {
+        if (d.id === id && d.status === "failed" && (d.retryCount || 0) < MAX_RETRY_ATTEMPTS) {
+          return { ...d, status: "pending" as const, error: undefined }
+        }
+        return d
+      }),
+    )
+  }, [])
+
   const getProgress = useCallback(() => {
     const completed = downloads.filter((d) => d.status === "completed").length
     const failed = downloads.filter((d) => d.status === "failed").length
+    const pending = downloads.filter((d) => d.status === "pending").length
+    const downloading = downloads.filter((d) => d.status === "downloading").length
     const total = downloads.length
-    return { completed, failed, total }
+    return { completed, failed, total, pending, downloading }
   }, [downloads])
 
   return (
@@ -165,6 +219,8 @@ export function DownloadManagerProvider({ children }: { children: React.ReactNod
         isDownloading,
         addToQueue,
         clearCompleted,
+        retryFailed,
+        retryDownload,
         getProgress,
       }}
     >

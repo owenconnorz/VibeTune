@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useDownloadManager } from "@/components/download-manager-provider"
-import { Download, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { Download, CheckCircle2, XCircle, Loader2, RefreshCw } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 
 export function DownloadProgressToast() {
-  const { downloads, isDownloading, getProgress, clearCompleted } = useDownloadManager()
+  const { downloads, isDownloading, getProgress, clearCompleted, retryFailed, retryDownload } = useDownloadManager()
   const [isVisible, setIsVisible] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
 
@@ -20,7 +20,6 @@ export function DownloadProgressToast() {
     if (hasDownloads) {
       setIsVisible(true)
     } else {
-      // Hide after a delay when all downloads are cleared
       const timer = setTimeout(() => setIsVisible(false), 500)
       return () => clearTimeout(timer)
     }
@@ -47,27 +46,45 @@ export function DownloadProgressToast() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
                 {isDownloading
-                  ? `Downloading ${progress.total - progress.completed} song${progress.total - progress.completed > 1 ? "s" : ""}...`
+                  ? `Downloading ${progress.pending + progress.downloading} song${progress.pending + progress.downloading > 1 ? "s" : ""}...`
                   : progress.failed > 0
                     ? `${progress.completed} completed, ${progress.failed} failed`
                     : `${progress.completed} song${progress.completed > 1 ? "s" : ""} downloaded`}
               </p>
               <p className="text-xs text-muted-foreground">
                 {progress.completed} / {progress.total}
+                {progress.failed > 0 && ` (${progress.failed} failed)`}
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 flex-shrink-0"
-            onClick={(e) => {
-              e.stopPropagation()
-              clearCompleted()
-            }}
-          >
-            <X className="w-4 h-4" />
-          </Button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {progress.failed > 0 && !isDownloading && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  retryFailed()
+                }}
+                title="Retry failed downloads"
+              >
+                <RefreshCw className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation()
+                clearCompleted()
+              }}
+              title="Clear completed"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -88,8 +105,26 @@ export function DownloadProgressToast() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{download.title}</p>
-                  <p className="text-xs text-muted-foreground truncate">{download.artist}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {download.artist}
+                    {download.status === "failed" && download.error && ` • ${download.error}`}
+                    {download.status === "failed" && download.retryCount && ` (Attempt ${download.retryCount})`}
+                  </p>
                 </div>
+                {download.status === "failed" && (download.retryCount || 0) < 3 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 flex-shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      retryDownload(download.id)
+                    }}
+                    title="Retry download"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </Button>
+                )}
               </div>
             ))}
           </div>
