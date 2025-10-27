@@ -29,7 +29,7 @@ interface DownloadManagerContextType {
 
 const DownloadManagerContext = createContext<DownloadManagerContextType | undefined>(undefined)
 
-const MAX_CONCURRENT_DOWNLOADS = 2
+const MAX_CONCURRENT_DOWNLOADS = 5
 const MAX_RETRY_ATTEMPTS = 3
 
 export function DownloadManagerProvider({ children }: { children: React.ReactNode }) {

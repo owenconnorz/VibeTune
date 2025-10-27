@@ -126,20 +126,18 @@ export async function downloadSong(
         }
       })
 
-      // Commenting out automatic browser download to avoid cluttering downloads folder
-      /*
+      // Trigger browser download to device
       console.log("[v0] Triggering browser download to device...")
       const url = URL.createObjectURL(audioBlob)
       const link = document.createElement("a")
       link.href = url
-      link.download = `YouTune - ${title} - ${artist}.mp3`
+      link.download = `${title} - ${artist}.mp3`
       link.style.display = "none"
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
       console.log("[v0] Browser download triggered")
-      */
 
       console.log("[v0] Song downloaded successfully:", title)
       return true
