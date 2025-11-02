@@ -28,7 +28,7 @@ async function makeInnerTubeRequest(endpoint: string, params: any = {}) {
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 seconds instead of 10
+  const timeoutId = setTimeout(() => controller.abort(), 10000)
 
   try {
     const response = await fetch(url, {
@@ -61,7 +61,7 @@ async function makeInnerTubeRequest(endpoint: string, params: any = {}) {
   } catch (error: any) {
     clearTimeout(timeoutId)
     if (error.name === "AbortError") {
-      console.error(`[v0] InnerTube ${endpoint} timeout after 5 seconds`)
+      console.error(`[v0] InnerTube ${endpoint} timeout after 10 seconds`)
       throw new Error(`Request timeout: ${endpoint}`)
     }
     throw error
@@ -781,6 +781,11 @@ export async function getMusicHomeFeed() {
       browseId: "FEmusic_home",
     })
 
+    if (!data || typeof data !== "object") {
+      console.error("[v0] Invalid response from InnerTube")
+      throw new Error("Invalid InnerTube response")
+    }
+
     const contents =
       data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
         ?.contents || []
@@ -872,51 +877,17 @@ export async function getMusicHomeFeed() {
     console.log(`[v0] Section titles: ${sections.map((s) => s.title).join(", ")}`)
 
     if (sections.length === 0) {
-      console.log("[v0] No sections found, falling back to trending music")
-      const trending = await getTrendingMusic()
-      return {
-        sections: [
-          {
-            title: "Trending Music",
-            items: trending.slice(0, 20),
-            type: "carousel",
-            continuation: null,
-          },
-        ],
-      }
+      console.log("[v0] No sections found, returning empty array")
+      return { sections: [] }
     }
 
     return { sections }
   } catch (error: any) {
     console.error("[v0] ===== YOUTUBE MUSIC HOME FEED ERROR =====")
     console.error("[v0] Error:", error.message)
+    console.error("[v0] Stack:", error.stack)
 
-    try {
-      console.log("[v0] Falling back to trending music")
-      const trending = await getTrendingMusic()
-      return {
-        sections: [
-          {
-            title: "Trending Music",
-            items: trending.slice(0, 20),
-            type: "carousel",
-            continuation: null,
-          },
-        ],
-      }
-    } catch (fallbackError) {
-      console.error("[v0] Fallback also failed:", fallbackError)
-      return {
-        sections: [
-          {
-            title: "Music",
-            items: [],
-            type: "carousel",
-            continuation: null,
-          },
-        ],
-      }
-    }
+    return { sections: [] }
   }
 }
 

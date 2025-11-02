@@ -1,19 +1,32 @@
 import { NextResponse } from "next/server"
-import { getMusicHomeFeed } from "@/lib/innertube"
 
 export const dynamic = "force-dynamic"
 
+// Simple fallback data that requires no API calls
 const FALLBACK_DATA = {
   sections: [
     {
-      title: "Trending Music",
-      items: [],
-      type: "carousel" as const,
-      continuation: null,
-    },
-    {
-      title: "Popular Tracks",
-      items: [],
+      title: "Quick Start",
+      items: [
+        {
+          id: "dQw4w9WgXcQ",
+          title: "Never Gonna Give You Up",
+          artist: "Rick Astley",
+          thumbnail: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+          duration: "3:33",
+          type: "song",
+          aspectRatio: "square",
+        },
+        {
+          id: "9bZkp7q19f0",
+          title: "Gangnam Style",
+          artist: "PSY",
+          thumbnail: "https://i.ytimg.com/vi/9bZkp7q19f0/hqdefault.jpg",
+          duration: "4:13",
+          type: "song",
+          aspectRatio: "square",
+        },
+      ],
       type: "carousel" as const,
       continuation: null,
     },
@@ -23,9 +36,17 @@ const FALLBACK_DATA = {
 export async function GET() {
   try {
     console.log("[v0] ===== HOME API REQUEST =====")
+
+    const { getMusicHomeFeed } = await import("@/lib/innertube")
+
     console.log("[v0] Fetching YouTube Music home feed...")
 
-    const homeFeed = await getMusicHomeFeed().catch((error: any) => {
+    const fetchWithTimeout = Promise.race([
+      getMusicHomeFeed(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Home feed timeout")), 10000)),
+    ])
+
+    const homeFeed = await fetchWithTimeout.catch((error: any) => {
       console.error("[v0] getMusicHomeFeed error:", error?.message || "Unknown error")
       return { sections: [] }
     })
