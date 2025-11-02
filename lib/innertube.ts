@@ -1198,10 +1198,15 @@ export async function getPlaylistDetailsFromInnerTube(browseId: string) {
   try {
     console.log("[v0] ===== FETCHING PLAYLIST FROM INNERTUBE =====")
     console.log("[v0] Browse ID:", browseId)
+    console.log("[v0] Making InnerTube browse request...")
 
     const data = await makeInnerTubeRequest("browse", {
       browseId,
     })
+
+    console.log("[v0] InnerTube response received")
+    console.log("[v0] Has header:", !!data.header)
+    console.log("[v0] Has contents:", !!data.contents)
 
     const header = data.header?.musicDetailHeaderRenderer || data.header?.musicEditablePlaylistDetailHeaderRenderer
     const contents =
@@ -1214,6 +1219,7 @@ export async function getPlaylistDetailsFromInnerTube(browseId: string) {
       header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
 
     console.log("[v0] Playlist title:", playlistTitle)
+    console.log("[v0] Number of sections:", contents.length)
 
     const videos: any[] = []
 
@@ -1235,6 +1241,10 @@ export async function getPlaylistDetailsFromInnerTube(browseId: string) {
     console.log("[v0] ===== INNERTUBE PLAYLIST COMPLETE =====")
     console.log("[v0] Total videos:", videos.length)
 
+    if (videos.length === 0) {
+      console.log("[v0] WARNING: Playlist has no videos")
+    }
+
     return {
       id: browseId,
       title: playlistTitle,
@@ -1243,19 +1253,27 @@ export async function getPlaylistDetailsFromInnerTube(browseId: string) {
       videos,
     }
   } catch (error: any) {
-    console.error("[v0] InnerTube playlist fetch error:", error.message)
+    console.error("[v0] ===== INNERTUBE PLAYLIST ERROR =====")
+    console.error("[v0] Browse ID:", browseId)
+    console.error("[v0] Error message:", error.message)
+    console.error("[v0] Error stack:", error.stack)
     throw error
   }
 }
 
 export async function getPlaylistDetails(playlistId: string) {
   try {
+    console.log("[v0] ===== GET PLAYLIST DETAILS =====")
+    console.log("[v0] Original playlist ID:", playlistId)
+
     // Check if this is a YouTube Music browse ID (starts with VL or MPRE)
     const isYouTubeMusicId =
       playlistId.startsWith("VL") ||
       playlistId.startsWith("MPRE") ||
       playlistId.startsWith("RDCLAK") ||
       playlistId.startsWith("OLAK")
+
+    console.log("[v0] Is YouTube Music ID:", isYouTubeMusicId)
 
     if (isYouTubeMusicId) {
       console.log("[v0] Detected YouTube Music playlist/album, using InnerTube API")
@@ -1270,6 +1288,7 @@ export async function getPlaylistDetails(playlistId: string) {
         !playlistId.startsWith("OLAK")
       ) {
         browseId = `VL${playlistId}`
+        console.log("[v0] Added VL prefix, new browse ID:", browseId)
       }
 
       return await getPlaylistDetailsFromInnerTube(browseId)
@@ -1279,7 +1298,9 @@ export async function getPlaylistDetails(playlistId: string) {
       return await getPlaylistDetailsFromYouTubeAPI(playlistId)
     }
   } catch (error: any) {
-    console.error("[v0] Failed to fetch playlist with primary method, trying fallback")
+    console.error("[v0] ===== PRIMARY METHOD FAILED =====")
+    console.error("[v0] Error:", error.message)
+    console.error("[v0] Trying fallback method...")
 
     // Try the other method as fallback
     try {
@@ -1294,8 +1315,10 @@ export async function getPlaylistDetails(playlistId: string) {
         return await getPlaylistDetailsFromInnerTube(`VL${playlistId}`)
       }
     } catch (fallbackError: any) {
-      console.error("[v0] Both methods failed:", fallbackError.message)
-      throw new Error("Failed to fetch playlist from both InnerTube and YouTube Data API")
+      console.error("[v0] ===== BOTH METHODS FAILED =====")
+      console.error("[v0] Primary error:", error.message)
+      console.error("[v0] Fallback error:", fallbackError.message)
+      return null
     }
   }
 }
