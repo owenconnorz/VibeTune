@@ -1223,8 +1223,110 @@ export async function getPlaylistDetailsFromYouTubeAPI(playlistId: string) {
   }
 }
 
+export async function getPlaylistDetailsFromInnerTube(browseId: string) {
+  try {
+    console.log("[v0] ===== FETCHING PLAYLIST FROM INNERTUBE =====")
+    console.log("[v0] Browse ID:", browseId)
+
+    const data = await makeInnerTubeRequest("browse", {
+      browseId,
+    })
+
+    const header = data.header?.musicDetailHeaderRenderer || data.header?.musicEditablePlaylistDetailHeaderRenderer
+    const contents =
+      data.contents?.singleColumnBrowseResultsRenderer?.tabs?.[0]?.tabRenderer?.content?.sectionListRenderer
+        ?.contents || []
+
+    const playlistTitle = header?.title?.runs?.[0]?.text || "Untitled Playlist"
+    const playlistDescription = header?.description?.runs?.[0]?.text || ""
+    const playlistThumbnail =
+      header?.thumbnail?.croppedSquareThumbnailRenderer?.thumbnail?.thumbnails?.slice(-1)[0]?.url || ""
+
+    console.log("[v0] Playlist title:", playlistTitle)
+
+    const videos: any[] = []
+
+    for (const section of contents) {
+      const shelf = section.musicPlaylistShelfRenderer || section.musicShelfRenderer
+      if (!shelf) continue
+
+      const items = shelf.contents || []
+      console.log(`[v0] Found shelf with ${items.length} items`)
+
+      for (const item of items) {
+        const videoInfo = extractVideoInfo(item)
+        if (videoInfo) {
+          videos.push(videoInfo)
+        }
+      }
+    }
+
+    console.log("[v0] ===== INNERTUBE PLAYLIST COMPLETE =====")
+    console.log("[v0] Total videos:", videos.length)
+
+    return {
+      id: browseId,
+      title: playlistTitle,
+      description: playlistDescription,
+      thumbnail: playlistThumbnail,
+      videos,
+    }
+  } catch (error: any) {
+    console.error("[v0] InnerTube playlist fetch error:", error.message)
+    throw error
+  }
+}
+
 export async function getPlaylistDetails(playlistId: string) {
-  return getPlaylistDetailsFromYouTubeAPI(playlistId)
+  try {
+    // Check if this is a YouTube Music browse ID (starts with VL or MPRE)
+    const isYouTubeMusicId =
+      playlistId.startsWith("VL") ||
+      playlistId.startsWith("MPRE") ||
+      playlistId.startsWith("RDCLAK") ||
+      playlistId.startsWith("OLAK")
+
+    if (isYouTubeMusicId) {
+      console.log("[v0] Detected YouTube Music playlist/album, using InnerTube API")
+      // For YouTube Music playlists, use InnerTube API
+      let browseId = playlistId
+
+      // If it doesn't start with VL but is a playlist ID, add VL prefix
+      if (
+        !playlistId.startsWith("VL") &&
+        !playlistId.startsWith("MPRE") &&
+        !playlistId.startsWith("RDCLAK") &&
+        !playlistId.startsWith("OLAK")
+      ) {
+        browseId = `VL${playlistId}`
+      }
+
+      return await getPlaylistDetailsFromInnerTube(browseId)
+    } else {
+      console.log("[v0] Detected regular YouTube playlist, using YouTube Data API")
+      // For regular YouTube playlists, use YouTube Data API
+      return await getPlaylistDetailsFromYouTubeAPI(playlistId)
+    }
+  } catch (error: any) {
+    console.error("[v0] Failed to fetch playlist with primary method, trying fallback")
+
+    // Try the other method as fallback
+    try {
+      if (playlistId.startsWith("VL") || playlistId.startsWith("MPRE")) {
+        // If InnerTube failed, try YouTube Data API without VL prefix
+        const cleanId = playlistId.replace(/^VL/, "")
+        console.log("[v0] Trying YouTube Data API fallback with ID:", cleanId)
+        return await getPlaylistDetailsFromYouTubeAPI(cleanId)
+      } else {
+        // If YouTube Data API failed, try InnerTube with VL prefix
+        console.log("[v0] Trying InnerTube fallback with VL prefix")
+        return await getPlaylistDetailsFromInnerTube(`VL${playlistId}`)
+      }
+    } catch (fallbackError: any) {
+      console.error("[v0] Both methods failed:", fallbackError.message)
+      throw new Error("Failed to fetch playlist from both InnerTube and YouTube Data API")
+    }
+  }
 }
 
 export async function searchYouTube(query: string, continuation?: string) {
