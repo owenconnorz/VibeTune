@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getMusicHomeFeed } from "@/lib/innertube"
 
 export const dynamic = "force-dynamic"
 
@@ -36,8 +37,6 @@ const FALLBACK_DATA = {
 export async function GET() {
   try {
     console.log("[v0] ===== HOME API REQUEST =====")
-
-    const { getMusicHomeFeed } = await import("@/lib/innertube")
 
     console.log("[v0] Fetching YouTube Music home feed...")
 
