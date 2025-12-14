@@ -1,9 +1,11 @@
 "use client"
 
-import { ExternalLink, Play } from "lucide-react"
+import { ExternalLink, Play, X, AlertCircle } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useState } from "react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface VideoService {
   id: string
@@ -12,6 +14,8 @@ interface VideoService {
   description: string
   logo: string
   color: string
+  embedSupport: "full" | "limited" | "none"
+  embedUrl?: string
 }
 
 const videoServices: VideoService[] = [
@@ -22,6 +26,8 @@ const videoServices: VideoService[] = [
     description: "Watch billions of videos, music, and live streams",
     logo: "🎥",
     color: "from-red-500 to-red-600",
+    embedSupport: "full",
+    embedUrl: "https://www.youtube.com",
   },
   {
     id: "vimeo",
@@ -30,6 +36,8 @@ const videoServices: VideoService[] = [
     description: "High-quality video platform for creators",
     logo: "🎬",
     color: "from-blue-500 to-blue-600",
+    embedSupport: "full",
+    embedUrl: "https://vimeo.com",
   },
   {
     id: "dailymotion",
@@ -38,6 +46,8 @@ const videoServices: VideoService[] = [
     description: "Discover and share videos from around the world",
     logo: "📹",
     color: "from-cyan-500 to-cyan-600",
+    embedSupport: "full",
+    embedUrl: "https://www.dailymotion.com",
   },
   {
     id: "twitch",
@@ -46,6 +56,8 @@ const videoServices: VideoService[] = [
     description: "Live streaming platform for gaming and more",
     logo: "🎮",
     color: "from-purple-500 to-purple-600",
+    embedSupport: "limited",
+    embedUrl: "https://www.twitch.tv",
   },
   {
     id: "tiktok",
@@ -54,6 +66,7 @@ const videoServices: VideoService[] = [
     description: "Short-form video entertainment",
     logo: "🎵",
     color: "from-pink-500 to-pink-600",
+    embedSupport: "none",
   },
   {
     id: "netflix",
@@ -62,6 +75,7 @@ const videoServices: VideoService[] = [
     description: "Stream movies, TV shows, and originals",
     logo: "🎞️",
     color: "from-red-600 to-red-700",
+    embedSupport: "none",
   },
   {
     id: "prime-video",
@@ -70,6 +84,7 @@ const videoServices: VideoService[] = [
     description: "Amazon's streaming service",
     logo: "📺",
     color: "from-blue-600 to-blue-700",
+    embedSupport: "none",
   },
   {
     id: "disney-plus",
@@ -78,12 +93,78 @@ const videoServices: VideoService[] = [
     description: "Disney, Pixar, Marvel, Star Wars & more",
     logo: "✨",
     color: "from-indigo-500 to-indigo-600",
+    embedSupport: "none",
   },
 ]
 
 export function VideosContent() {
-  const handleOpenService = (url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer")
+  const [activeService, setActiveService] = useState<VideoService | null>(null)
+  const [iframeError, setIframeError] = useState(false)
+
+  const handleOpenService = (service: VideoService) => {
+    if (service.embedSupport === "none") {
+      window.open(service.url, "_blank", "noopener,noreferrer")
+    } else {
+      setActiveService(service)
+      setIframeError(false)
+    }
+  }
+
+  const handleClose = () => {
+    setActiveService(null)
+    setIframeError(false)
+  }
+
+  const handleIframeError = () => {
+    setIframeError(true)
+  }
+
+  if (activeService) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{activeService.logo}</span>
+            <div>
+              <h2 className="font-bold text-lg">{activeService.name}</h2>
+              <p className="text-xs text-muted-foreground">{activeService.url}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(activeService.url, "_blank", "noopener,noreferrer")}
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open in New Tab
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleClose}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+
+        {iframeError && (
+          <Alert variant="destructive" className="mx-4 mt-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              This website blocks embedding for security. Click "Open in New Tab" to view it externally.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex-1 relative bg-black">
+          <iframe
+            src={activeService.embedUrl}
+            className="absolute inset-0 w-full h-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+            onError={handleIframeError}
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -99,7 +180,7 @@ export function VideosContent() {
             <Card
               key={service.id}
               className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-              onClick={() => handleOpenService(service.url)}
+              onClick={() => handleOpenService(service)}
             >
               <div className={`h-24 bg-gradient-to-br ${service.color} flex items-center justify-center relative`}>
                 <span className="text-6xl">{service.logo}</span>
@@ -108,7 +189,19 @@ export function VideosContent() {
               <div className="p-4 space-y-3">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1 flex-1">
-                    <h3 className="font-bold text-lg">{service.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-lg">{service.name}</h3>
+                      {service.embedSupport === "full" && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
+                          In-App
+                        </span>
+                      )}
+                      {service.embedSupport === "limited" && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-600 dark:text-yellow-400">
+                          Limited
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground line-clamp-2">{service.description}</p>
                   </div>
                   <Button
@@ -117,7 +210,7 @@ export function VideosContent() {
                     className="flex-shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                     onClick={(e) => {
                       e.stopPropagation()
-                      handleOpenService(service.url)
+                      window.open(service.url, "_blank", "noopener,noreferrer")
                     }}
                   >
                     <ExternalLink className="w-5 h-5" />
@@ -128,25 +221,41 @@ export function VideosContent() {
                   variant="secondary"
                   onClick={(e) => {
                     e.stopPropagation()
-                    handleOpenService(service.url)
+                    handleOpenService(service)
                   }}
                 >
                   <Play className="w-4 h-4 mr-2" />
-                  Open {service.name}
+                  {service.embedSupport === "none" ? "Open Externally" : "Open " + service.name}
                 </Button>
               </div>
             </Card>
           ))}
         </div>
 
-        <div className="mt-8 p-6 rounded-lg bg-muted/50 border border-border">
-          <h3 className="font-semibold mb-2 flex items-center gap-2">
+        <div className="mt-8 p-6 rounded-lg bg-muted/50 border border-border space-y-3">
+          <h3 className="font-semibold flex items-center gap-2">
             <span>ℹ️</span>
-            <span>About External Links</span>
+            <span>Viewing Options</span>
           </h3>
-          <p className="text-sm text-muted-foreground">
-            These links will open in a new tab. You may need to sign in to access content on subscription services.
-          </p>
+          <div className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                <span className="font-medium text-foreground">In-App:</span>
+              </span>{" "}
+              Opens within the music app for seamless browsing
+            </p>
+            <p>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                <span className="font-medium text-foreground">Limited:</span>
+              </span>{" "}
+              May have restricted features when embedded
+            </p>
+            <p>
+              Services without badges will open in a new tab. You may need to sign in to access subscription content.
+            </p>
+          </div>
         </div>
       </div>
     </ScrollArea>
