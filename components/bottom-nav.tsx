@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Search, Library, Sparkles } from "lucide-react"
+import { Home, Search, Library, Sparkles, Film } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -22,7 +22,10 @@ export function BottomNav() {
           href="/dashboard"
           className={cn(
             "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors",
-            isActive("/dashboard") && !pathname.includes("/discover") && !pathname.includes("/community")
+            isActive("/dashboard") &&
+              !pathname.includes("/discover") &&
+              !pathname.includes("/community") &&
+              !pathname.includes("/videos")
               ? "text-foreground"
               : "text-muted-foreground",
           )}
@@ -39,6 +42,16 @@ export function BottomNav() {
         >
           <Sparkles className="w-6 h-6" />
           <span className="text-xs font-medium">Discover</span>
+        </Link>
+        <Link
+          href="/dashboard/videos"
+          className={cn(
+            "flex flex-col items-center justify-center gap-1 flex-1 h-full transition-colors",
+            isActive("/dashboard/videos") ? "text-foreground" : "text-muted-foreground",
+          )}
+        >
+          <Film className="w-6 h-6" />
+          <span className="text-xs font-medium">Videos</span>
         </Link>
         <Link
           href="/dashboard/search"

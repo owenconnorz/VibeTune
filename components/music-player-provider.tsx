@@ -29,6 +29,8 @@ interface MusicPlayerContextType {
   likedSongs: YouTubeVideo[]
   isCurrentLiked: boolean
   repeatMode: "off" | "all" | "one"
+  videoMode: boolean
+  toggleVideoMode: () => void
   playVideo: (video: YouTubeVideo, queueVideos?: YouTubeVideo[]) => void
   togglePlay: () => void
   playNext: () => void
@@ -70,6 +72,7 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     }
     return "off"
   })
+  const [videoMode, setVideoMode] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const playerRef = useRef<any>(null)
   const playerContainerRef = useRef<HTMLDivElement | null>(null)
@@ -83,6 +86,15 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
 
   const setVolume = (volume: number) => {
     setVolumeState(volume)
+  }
+
+  const toggleVideoMode = () => {
+    console.log("[v0] Toggling video mode, current:", videoMode)
+    setVideoMode((prev) => !prev)
+    // Force YouTube player when in video mode
+    if (!videoMode) {
+      setUseAudioElement(false)
+    }
   }
 
   useEffect(() => {
@@ -867,6 +879,8 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
         likedSongs,
         isCurrentLiked,
         repeatMode,
+        videoMode,
+        toggleVideoMode,
         playVideo,
         togglePlay,
         playNext,

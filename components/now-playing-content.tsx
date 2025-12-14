@@ -18,6 +18,7 @@ import {
   Volume2,
   Cast,
   Music2,
+  Video,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
@@ -66,6 +67,8 @@ export function NowPlayingContent() {
     repeatMode,
     toggleRepeatMode,
     queue,
+    videoMode,
+    toggleVideoMode,
   } = useMusicPlayer()
   const router = useRouter()
 
@@ -216,34 +219,47 @@ export function NowPlayingContent() {
 
         <div className="flex-1 flex flex-col items-center px-6 py-2 min-h-0 overflow-y-auto">
           <div className="w-full max-w-sm flex flex-col gap-4 pb-safe">
-            <div
-              className="relative w-full aspect-square rounded-3xl overflow-hidden shadow-2xl flex-shrink-0"
-              onTouchStart={handleThumbnailTouchStart}
-              onTouchMove={handleThumbnailTouchMove}
-              onTouchEnd={handleThumbnailTouchEnd}
-              style={{
-                transform: `translateX(${thumbnailDragX}px)`,
-                opacity: thumbnailOpacity,
-                transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease",
-              }}
-            >
-              <Image
-                src={currentVideo.thumbnail || "/placeholder.svg"}
-                alt={currentVideo.title}
-                fill
-                className="object-cover"
-                priority
-              />
-              {isSwiping && Math.abs(thumbnailDragX) > 20 && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-                  {thumbnailDragX > 0 ? (
-                    <SkipBack className="w-16 h-16 text-white" />
-                  ) : (
-                    <SkipForward className="w-16 h-16 text-white" />
-                  )}
-                </div>
-              )}
-            </div>
+            {videoMode ? (
+              <div className="relative w-full aspect-video rounded-3xl overflow-hidden shadow-2xl flex-shrink-0 bg-black">
+                <iframe
+                  id="video-player-iframe"
+                  src={`https://www.youtube.com/embed/${currentVideo?.id}?autoplay=${isPlaying ? 1 : 0}&controls=1&modestbranding=1&playsinline=1&enablejsapi=1`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title={currentVideo?.title}
+                />
+              </div>
+            ) : (
+              <div
+                className="relative w-full aspect-square rounded-3xl overflow-hidden shadow-2xl flex-shrink-0"
+                onTouchStart={handleThumbnailTouchStart}
+                onTouchMove={handleThumbnailTouchMove}
+                onTouchEnd={handleThumbnailTouchEnd}
+                style={{
+                  transform: `translateX(${thumbnailDragX}px)`,
+                  opacity: thumbnailOpacity,
+                  transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease",
+                }}
+              >
+                <Image
+                  src={currentVideo.thumbnail || "/placeholder.svg"}
+                  alt={currentVideo.title}
+                  fill
+                  className="object-cover"
+                  priority
+                />
+                {isSwiping && Math.abs(thumbnailDragX) > 20 && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                    {thumbnailDragX > 0 ? (
+                      <SkipBack className="w-16 h-16 text-white" />
+                    ) : (
+                      <SkipForward className="w-16 h-16 text-white" />
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
@@ -331,6 +347,14 @@ export function NowPlayingContent() {
                     {queue.length}
                   </span>
                 )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`rounded-full h-9 w-9 ${videoMode ? "text-primary" : ""}`}
+                onClick={toggleVideoMode}
+              >
+                <Video className="w-5 h-5" />
               </Button>
               <Button variant="ghost" size="icon" className="rounded-full h-9 w-9" onClick={() => setLyricsOpen(true)}>
                 <Music2 className="w-5 h-5" />
