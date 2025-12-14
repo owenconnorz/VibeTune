@@ -1,9 +1,10 @@
 "use client"
 
-import { ExternalLink, Play, X, AlertCircle } from "lucide-react"
+import { ExternalLink, Play, X, AlertCircle, Globe } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Input } from "@/components/ui/input"
 import { useState } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
@@ -100,6 +101,9 @@ const videoServices: VideoService[] = [
 export function VideosContent() {
   const [activeService, setActiveService] = useState<VideoService | null>(null)
   const [iframeError, setIframeError] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [customUrl, setCustomUrl] = useState("")
+  const [urlError, setUrlError] = useState("")
 
   const handleOpenService = (service: VideoService) => {
     if (service.embedSupport === "none") {
@@ -107,16 +111,71 @@ export function VideosContent() {
     } else {
       setActiveService(service)
       setIframeError(false)
+      setIsLoading(true)
+
+      setTimeout(() => {
+        setIsLoading(false)
+        setIframeError(true)
+      }, 5000)
     }
   }
 
   const handleClose = () => {
     setActiveService(null)
     setIframeError(false)
+    setIsLoading(false)
+  }
+
+  const handleIframeLoad = () => {
+    setIsLoading(false)
   }
 
   const handleIframeError = () => {
     setIframeError(true)
+    setIsLoading(false)
+  }
+
+  const handleOpenCustomUrl = () => {
+    setUrlError("")
+
+    if (!customUrl.trim()) {
+      setUrlError("Please enter a URL")
+      return
+    }
+
+    let url = customUrl.trim()
+
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = "https://" + url
+    }
+
+    try {
+      new URL(url)
+    } catch {
+      setUrlError("Please enter a valid URL")
+      return
+    }
+
+    const customService: VideoService = {
+      id: "custom",
+      name: "Custom Website",
+      url: url,
+      description: url,
+      logo: "🌐",
+      color: "from-gray-500 to-gray-600",
+      embedSupport: "full",
+      embedUrl: url,
+    }
+
+    setActiveService(customService)
+    setIframeError(false)
+    setIsLoading(true)
+    setCustomUrl("")
+
+    setTimeout(() => {
+      setIsLoading(false)
+      setIframeError(true)
+    }, 5000)
   }
 
   if (activeService) {
@@ -148,18 +207,38 @@ export function VideosContent() {
         {iframeError && (
           <Alert variant="destructive" className="mx-4 mt-4">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              This website blocks embedding for security. Click "Open in New Tab" to view it externally.
+            <AlertDescription className="flex items-center justify-between">
+              <span>This website blocks embedding for security reasons.</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  window.open(activeService.url, "_blank", "noopener,noreferrer")
+                  handleClose()
+                }}
+              >
+                Open Externally
+              </Button>
             </AlertDescription>
           </Alert>
         )}
 
         <div className="flex-1 relative bg-black">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-background z-10">
+              <div className="text-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
+                <p className="text-muted-foreground">Loading {activeService.name}...</p>
+                <p className="text-xs text-muted-foreground">If nothing loads, the site may block embedding</p>
+              </div>
+            </div>
+          )}
           <iframe
             src={activeService.embedUrl}
             className="absolute inset-0 w-full h-full"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals"
+            onLoad={handleIframeLoad}
             onError={handleIframeError}
           />
         </div>
@@ -174,6 +253,40 @@ export function VideosContent() {
           <h2 className="text-2xl font-bold">Streaming Services</h2>
           <p className="text-muted-foreground">Browse your favorite video platforms</p>
         </div>
+
+        <Card className="p-4">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Globe className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold">Open Custom Website</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">Enter any website URL to open it in the app viewer</p>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  type="url"
+                  placeholder="Enter URL (e.g., youtube.com or https://example.com)"
+                  value={customUrl}
+                  onChange={(e) => {
+                    setCustomUrl(e.target.value)
+                    setUrlError("")
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleOpenCustomUrl()
+                    }
+                  }}
+                  className={urlError ? "border-red-500" : ""}
+                />
+                {urlError && <p className="text-xs text-red-500 mt-1">{urlError}</p>}
+              </div>
+              <Button onClick={handleOpenCustomUrl}>
+                <Play className="w-4 h-4 mr-2" />
+                Open
+              </Button>
+            </div>
+          </div>
+        </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {videoServices.map((service) => (
