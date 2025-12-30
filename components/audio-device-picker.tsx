@@ -26,7 +26,16 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
   const [devices, setDevices] = useState<AudioDevice[]>([])
   const [selectedDevice, setSelectedDevice] = useState<string>("this-device")
   const [scanning, setScanning] = useState(false)
-  const { castAvailable, castStatus, requestCast } = useCast()
+  const {
+    castAvailable,
+    castStatus,
+    requestCast,
+    sonosAvailable,
+    sonosStatus,
+    sonosDevices,
+    requestSonos,
+    refreshSonosDevices,
+  } = useCast()
 
   useEffect(() => {
     console.log("[v0] AudioDevicePicker mounted")
@@ -187,6 +196,78 @@ export function AudioDevicePicker({ open, onOpenChange }: AudioDevicePickerProps
               </div>
             </div>
           )}
+
+          {/* Sonos Devices */}
+          <div>
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">SONOS SPEAKERS</h3>
+            <div className="space-y-2">
+              {sonosStatus === "loading" && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>Loading Sonos devices...</AlertDescription>
+                </Alert>
+              )}
+
+              {sonosStatus === "unavailable" && (
+                <Button
+                  onClick={requestSonos}
+                  variant="outline"
+                  className="w-full justify-start h-auto p-4 bg-card hover:bg-accent"
+                >
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center bg-muted mr-4">
+                    <Speaker className="w-6 h-6" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="font-semibold">Connect to Sonos</div>
+                    <div className="text-sm text-muted-foreground">Sign in to control your Sonos speakers</div>
+                  </div>
+                </Button>
+              )}
+
+              {sonosStatus === "error" && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>Failed to load Sonos devices. Please try again.</AlertDescription>
+                </Alert>
+              )}
+
+              {sonosStatus === "ready" && sonosDevices.length > 0 && (
+                <>
+                  {sonosDevices.map((device) => (
+                    <Button
+                      key={device.id}
+                      onClick={() => handleDeviceSelect(device.id)}
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start h-auto p-4",
+                        selectedDevice === device.id
+                          ? "bg-primary/10 border-2 border-primary"
+                          : "bg-card hover:bg-accent border-2 border-transparent",
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "w-12 h-12 rounded-full flex items-center justify-center mr-4",
+                          selectedDevice === device.id ? "bg-primary text-primary-foreground" : "bg-muted",
+                        )}
+                      >
+                        <Speaker className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <div className="font-semibold">{device.name}</div>
+                        <div className="text-sm text-muted-foreground">Sonos Speaker</div>
+                      </div>
+                      {selectedDevice === device.id && <Check className="w-6 h-6 text-primary" />}
+                    </Button>
+                  ))}
+                  <Button onClick={() => refreshSonosDevices()} variant="ghost" size="sm" className="w-full">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh Sonos Devices
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* Cast Devices */}
           <div>

@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { sonosAPI, type SonosDevice } from "@/lib/sonos-api"
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 
@@ -8,12 +9,22 @@ interface CastContextType {
   castAvailable: boolean
   castStatus: "loading" | "ready" | "unavailable" | "error"
   requestCast: () => void
+  sonosAvailable: boolean
+  sonosStatus: "loading" | "ready" | "unavailable" | "error"
+  sonosDevices: SonosDevice[]
+  requestSonos: () => void
+  refreshSonosDevices: () => Promise<void>
 }
 
 const CastContext = createContext<CastContextType>({
   castAvailable: false,
   castStatus: "loading",
   requestCast: () => {},
+  sonosAvailable: false,
+  sonosStatus: "loading",
+  sonosDevices: [],
+  requestSonos: () => {},
+  refreshSonosDevices: async () => {},
 })
 
 export function useCast() {
@@ -23,6 +34,10 @@ export function useCast() {
 export function CastProvider({ children }: { children: React.ReactNode }) {
   const [castAvailable, setCastAvailable] = useState(false)
   const [castStatus, setCastStatus] = useState<"loading" | "ready" | "unavailable" | "error">("loading")
+
+  const [sonosAvailable, setSonosAvailable] = useState(false)
+  const [sonosStatus, setSonosStatus] = useState<"loading" | "ready" | "unavailable" | "error">("loading")
+  const [sonosDevices, setSonosDevices] = useState<SonosDevice[]>([])
 
   const requestCast = useCallback(() => {
     console.log("[v0] [Cast] User requested Cast picker")
@@ -101,6 +116,53 @@ export function CastProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const requestSonos = useCallback(() => {
+    if (!sonosAPI.isAuthenticated()) {
+      // Trigger OAuth flow
+      alert(
+        "You'll be redirected to Sonos to authorize this app. After authorization, we'll discover your Sonos devices.",
+      )
+      sonosAPI.authenticate()
+    } else {
+      refreshSonosDevices()
+    }
+  }, [])
+
+  const refreshSonosDevices = useCallback(async () => {
+    if (!sonosAPI.isAuthenticated()) {
+      setSonosStatus("unavailable")
+      return
+    }
+
+    try {
+      setSonosStatus("loading")
+      const households = await sonosAPI.fetchHouseholds()
+
+      if (households.length === 0) {
+        setSonosStatus("unavailable")
+        return
+      }
+
+      // Fetch devices from first household
+      const devices = await sonosAPI.fetchGroups(households[0].id)
+      setSonosDevices(devices)
+      setSonosAvailable(devices.length > 0)
+      setSonosStatus(devices.length > 0 ? "ready" : "unavailable")
+    } catch (error) {
+      console.error("Error refreshing Sonos devices:", error)
+      setSonosStatus("error")
+    }
+  }, [])
+
+  useEffect(() => {
+    // Try to load stored Sonos token
+    if (sonosAPI.loadStoredToken()) {
+      refreshSonosDevices()
+    } else {
+      setSonosStatus("unavailable")
+    }
+  }, [refreshSonosDevices])
+
   const initializeCast = () => {
     console.log("[v0] [Cast] Initializing Cast SDK...")
 
@@ -160,5 +222,20 @@ export function CastProvider({ children }: { children: React.ReactNode }) {
     }, 10000)
   }
 
-  return <CastContext.Provider value={{ castAvailable, castStatus, requestCast }}>{children}</CastContext.Provider>
+  return (
+    <CastContext.Provider
+      value={{
+        castAvailable,
+        castStatus,
+        requestCast,
+        sonosAvailable,
+        sonosStatus,
+        sonosDevices,
+        requestSonos,
+        refreshSonosDevices,
+      }}
+    >
+      {children}
+    </CastContext.Provider>
+  )
 }
