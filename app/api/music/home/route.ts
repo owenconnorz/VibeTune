@@ -5,13 +5,9 @@ export const dynamic = "force-dynamic"
 
 export async function GET() {
   try {
-    console.log("[v0] Home API: Fetching YouTube Music data via server action")
-
-    // Call the server action to fetch YouTube Music data
     const result = await fetchMusicHomeFeed()
 
     if (result.success && result.data.sections.length > 0) {
-      console.log("[v0] Home API: Successfully fetched YouTube Music data")
       return NextResponse.json(result.data, {
         status: 200,
         headers: {
@@ -20,7 +16,6 @@ export async function GET() {
       })
     }
 
-    console.log("[v0] Home API: Using fallback data")
     const fallbackData = {
       sections: [
         {
